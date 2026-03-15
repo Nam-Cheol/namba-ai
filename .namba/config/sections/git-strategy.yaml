@@ -1,0 +1,5 @@
+git_mode: team
+git_provider: github
+git_username: Nam-Cheol
+gitlab_instance_url: https://gitlab.com
+store_tokens: false

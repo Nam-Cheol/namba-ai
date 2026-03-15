@@ -1,0 +1,5 @@
+agent_mode: multi
+status_line_preset: namba
+repo_skills_path: .agents/skills
+compat_skills_path: .codex/skills
+repo_agents_path: .codex/agents

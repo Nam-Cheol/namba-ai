@@ -1,6 +1,3 @@
 # Overview
 
-namba-ai is managed by NambaAI.
-
-- Language: go
-- Framework: none
+Run `namba project` to refresh this document.

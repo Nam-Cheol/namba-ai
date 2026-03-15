@@ -20,9 +20,113 @@ func TestInitCreatesScaffold(t *testing.T) {
 	}
 
 	mustExist(t, filepath.Join(tmp, "AGENTS.md"))
-	mustExist(t, filepath.Join(tmp, ".codex", "skills", "namba-foundation-core", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-foundation-core", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-workflow-init", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".codex", "skills", "namba", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".codex", "config.toml"))
+	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.md"))
+	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-implementer.md"))
+	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-reviewer.md"))
 	mustExist(t, filepath.Join(tmp, ".namba", "config", "sections", "project.yaml"))
+	mustExist(t, filepath.Join(tmp, ".namba", "config", "sections", "language.yaml"))
+	mustExist(t, filepath.Join(tmp, ".namba", "config", "sections", "git-strategy.yaml"))
+	mustExist(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"))
+	mustExist(t, filepath.Join(tmp, ".namba", "codex", "claude-codex-mapping.md"))
 	mustExist(t, filepath.Join(tmp, ".namba", "manifest.json"))
+}
+
+func TestInitSupportsCodexProfileFlags(t *testing.T) {
+	tmp := t.TempDir()
+	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	args := []string{
+		"init",
+		tmp,
+		"--yes",
+		"--name", "example",
+		"--mode", "ddd",
+		"--language", "go",
+		"--framework", "cobra",
+		"--conversation-language", "ko",
+		"--documentation-language", "ko",
+		"--comment-language", "en",
+		"--git-mode", "team",
+		"--git-provider", "github",
+		"--git-username", "alice",
+		"--agent-mode", "multi",
+		"--statusline", "off",
+		"--user-name", "Alice",
+	}
+
+	if err := app.Run(context.Background(), args); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	project := mustRead(t, filepath.Join(tmp, ".namba", "config", "sections", "project.yaml"))
+	if !strings.Contains(project, "name: example") || !strings.Contains(project, "framework: cobra") {
+		t.Fatalf("unexpected project config: %s", project)
+	}
+
+	language := mustRead(t, filepath.Join(tmp, ".namba", "config", "sections", "language.yaml"))
+	if !strings.Contains(language, "conversation_language: ko") || !strings.Contains(language, "comment_language: en") {
+		t.Fatalf("unexpected language config: %s", language)
+	}
+
+	gitStrategy := mustRead(t, filepath.Join(tmp, ".namba", "config", "sections", "git-strategy.yaml"))
+	if !strings.Contains(gitStrategy, "git_mode: team") || !strings.Contains(gitStrategy, "git_username: alice") || !strings.Contains(gitStrategy, "store_tokens: false") {
+		t.Fatalf("unexpected git strategy config: %s", gitStrategy)
+	}
+
+	codexProfile := mustRead(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"))
+	if !strings.Contains(codexProfile, "agent_mode: multi") || !strings.Contains(codexProfile, "status_line_preset: off") {
+		t.Fatalf("unexpected codex config: %s", codexProfile)
+	}
+
+	codexConfig := mustRead(t, filepath.Join(tmp, ".codex", "config.toml"))
+	if !strings.Contains(codexConfig, "max_threads = 3") {
+		t.Fatalf("unexpected codex repo config: %s", codexConfig)
+	}
+	if strings.Contains(codexConfig, "status_line") {
+		t.Fatalf("expected status line to be omitted when preset is off: %s", codexConfig)
+	}
+}
+
+func TestInitRejectsUnsupportedMode(t *testing.T) {
+	tmp := t.TempDir()
+	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	err := app.Run(context.Background(), []string{"init", tmp, "--yes", "--mode", "hybrid"})
+	if err == nil {
+		t.Fatal("expected invalid mode error")
+	}
+	if !strings.Contains(err.Error(), "development mode") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDoctorReportsCodexNativeReadiness(t *testing.T) {
+	tmp := t.TempDir()
+	stdout := &bytes.Buffer{}
+	app := namba.NewApp(stdout, &bytes.Buffer{})
+
+	if err := app.Run(context.Background(), []string{"init", tmp}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdir(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"doctor"}); err != nil {
+		t.Fatalf("doctor failed: %v", err)
+	}
+
+	text := stdout.String()
+	if !strings.Contains(text, "Codex native repo: ready") {
+		t.Fatalf("expected codex native readiness in doctor output: %s", text)
+	}
+	if !strings.Contains(text, "Codex compatibility mirror: ready") {
+		t.Fatalf("expected codex compatibility readiness in doctor output: %s", text)
+	}
 }
 
 func TestPlanCreatesSequentialSpecs(t *testing.T) {
@@ -133,6 +237,15 @@ func mustExist(t *testing.T, path string) {
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("expected %s to exist: %v", path, err)
 	}
+}
+
+func mustRead(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(data)
 }
 
 func chdir(t *testing.T, dir string) func() {

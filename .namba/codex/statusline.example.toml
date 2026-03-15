@@ -1,0 +1,2 @@
+[tui]
+status_line = ["project-root", "git-branch", "current-dir", "model-with-reasoning", "context-remaining", "context-used", "used-tokens", "session-id"]

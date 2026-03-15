@@ -1,28 +1,31 @@
-# 🚉 NambaAI
+﻿# 🚇 NambaAI
 
-NambaAI는 Codex 중심의 SPEC 기반 개발 오케스트레이터입니다.
-작업을 바로 코드로 밀어 넣지 않고 `project -> plan -> run -> sync` 흐름으로 정리해서 실행합니다.
+NambaAI는 **MoAI의 워크플로 감각을 Codex 환경으로 이식한 프로젝트 부트스트랩 + 실행 오케스트레이터**입니다.
+핵심 목표는 `project -> plan -> run -> sync` 흐름, SPEC 중심 실행, TDD/DDD 방법론, 그리고 Codex 친화적인 skill/agent 자산을 한 번에 구성하는 것입니다.
 
-핵심 목표는 다음과 같습니다.
+## ✨ 핵심 개념
 
-- 📦 작업을 `.namba/specs/` 아래 SPEC 문서로 남기기
-- 🧪 실행 뒤 품질 게이트를 명시적으로 통과시키기
-- 🤖 Codex를 실행 엔진으로 사용해 자동화된 구현 흐름 만들기
-- 🌲 필요할 때 `git worktree` 기반 병렬 실행으로 확장하기
+- `namba init .`를 실행하면 빈 디렉토리에서도 바로 프로젝트 bootstrap을 시작할 수 있습니다.
+- 초기화 과정은 **MoAI 스타일 wizard**를 Codex에 맞게 재구성한 흐름입니다.
+- Claude Code 전용 자산은 그대로 복제하지 않고, **Codex-compatible scaffold**로 변환합니다.
+- 초기화가 끝나면 Codex는 `AGENTS.md`, `.agents/skills/`, `.codex/agents/`, `.codex/config.toml`, `.namba/`를 기반으로 Namba workflow를 사용할 수 있습니다.
 
-## ✨ 주요 기능
+## 🧭 Claude Code → Codex 매핑
 
-- `namba project`: 프로젝트 구조, 제품 문서, codemap 갱신
-- `namba plan`: 작업 설명을 SPEC 패키지로 변환
-- `namba run`: SPEC를 읽고 Codex로 실행
-- `namba sync`: 변경 요약, 체크리스트, 문서 산출물 정리
-- `approval_mode`, `sandbox_mode`를 실제 `codex exec` 인자로 반영
-- 실행 로그를 `request.md`, `result.txt`, `execution.json`, `validation.json`으로 저장
+| Claude Code / MoAI | NambaAI / Codex |
+| --- | --- |
+| `CLAUDE.md` | `AGENTS.md` |
+| `.claude/skills/*` | `.agents/skills/*` |
+| Claude 호환용 skill 경로 | `.codex/skills/*` compatibility mirror |
+| `.claude/agents/*.md` | `.codex/agents/*.md` role card |
+| hooks | 명시적 validation + `namba sync` + structured logs |
+| custom slash command workflow | `$namba` skill + built-in Codex slash commands + `namba` CLI |
+| Claude settings / statusline | `.codex/config.toml` + `.namba/codex/statusline.example.toml` |
 
-## 🚀 설치
+## 📦 설치
 
-일반 사용자는 Go가 필요 없습니다.
-최신 GitHub Release 바이너리를 받아서 사용자 PATH에 등록하는 설치 스크립트를 기본 경로로 제공합니다.
+일반 사용자는 **Go가 필요 없습니다.**
+GitHub Release 바이너리를 내려받아 전역 `namba` 명령으로 설치합니다.
 
 ### Windows
 
@@ -30,15 +33,8 @@ NambaAI는 Codex 중심의 SPEC 기반 개발 오케스트레이터입니다.
 irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex
 ```
 
-설치 위치:
+설치 경로:
 - `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe`
-
-설치가 끝나면 새 터미널을 열고 바로 전역 명령으로 실행합니다.
-
-```powershell
-namba doctor
-namba status
-```
 
 ### macOS / Linux
 
@@ -46,16 +42,8 @@ namba status
 curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh
 ```
 
-설치 위치:
+설치 경로:
 - `~/.local/bin/namba`
-
-설치 스크립트가 사용자 PATH를 갱신합니다. 새 셸을 열거나 아래를 실행하면 됩니다.
-
-```bash
-exec $SHELL -l
-namba doctor
-namba status
-```
 
 ### 특정 버전 설치
 
@@ -68,74 +56,157 @@ irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex
 NAMBA_VERSION=v0.1.0 curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh
 ```
 
-## 🛠 개발자용 설치
+## 🗑️ 제거 방법
 
-NambaAI 자체를 개발하거나 로컬에서 직접 빌드하고 싶을 때만 Go가 필요합니다.
+NambaAI 제거는 `전역 명령 제거`와 `프로젝트 자산 제거`를 구분해서 보면 됩니다.
 
-```bash
-git clone https://github.com/Nam-Cheol/namba-ai.git
-cd namba-ai
-go build -o namba ./cmd/namba
+### 전역 `namba` 명령 제거
+
+#### Windows
+
+기본 설치 경로를 사용했다면 아래 파일을 삭제하면 됩니다.
+
+- `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe`
+
+PowerShell 예시:
+
+```powershell
+Remove-Item "$env:LOCALAPPDATA\\Programs\\NambaAI\\bin\\namba.exe" -Force
 ```
 
-직접 빌드한 경우에도 PATH에 등록하면 `namba` 전역 명령으로 사용할 수 있습니다.
+추가로 사용자 `Path`에 남아 있는 설치 경로를 제거하면 깔끔합니다.
 
-## 📋 필수 전제조건
+- 제거 대상: `%LOCALAPPDATA%\Programs\NambaAI\bin`
+
+#### macOS / Linux
+
+기본 설치 경로를 사용했다면 아래 파일을 삭제하면 됩니다.
+
+- `~/.local/bin/namba`
+
+예시:
+
+```bash
+rm -f ~/.local/bin/namba
+```
+
+그리고 셸 프로필에 추가된 PATH 줄을 제거합니다.
+
+- `~/.profile` 또는 `~/.zshrc`
+- 제거 대상 줄:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+### 프로젝트에서 NambaAI 자산 제거
+
+`namba init .`로 초기화한 프로젝트에서 NambaAI 자산만 제거하려면 아래 파일과 디렉토리를 삭제하면 됩니다.
+
+- `AGENTS.md`
+- `.agents/`
+- `.codex/skills/`
+- `.codex/agents/`
+- `.codex/config.toml`
+- `.namba/`
+
+주의:
+- 이미 직접 수정한 `AGENTS.md`나 `.codex/` 아래 다른 사용자 파일이 있다면 함께 삭제되지 않도록 확인 후 제거해야 합니다.
+- Git 저장소라면 삭제 전에 `git status`로 추적 중인 변경을 먼저 확인하는 편이 안전합니다.
+
+## ⚙️ 필수 전제조건
 
 - `git`
 - `codex` CLI
-- `namba` 실행 파일 또는 설치 스크립트로 설치된 전역 명령
+- 전역 `namba` 명령
 
-Codex 확인 예시:
+확인 예시:
 
 ```powershell
+git --version
 cmd /c codex --version
-```
-
-PowerShell 실행 정책 때문에 `codex`를 직접 입력하면 `codex.ps1`이 막힐 수 있습니다.
-NambaAI는 내부적으로 Windows에서 `cmd /c codex` 경로를 사용하므로 일반적인 `namba run`은 그대로 동작합니다.
-
-## ⚡ 빠른 시작
-
-현재 저장소에서 바로 쓰는 흐름은 아래와 같습니다.
-
-```bash
 namba doctor
-namba status
-namba project
-namba plan "README 개선 작업"
-namba run SPEC-004 --dry-run
-namba run SPEC-004
-namba sync
 ```
 
-다른 저장소에서는 이렇게 시작합니다.
+## 🚀 빠른 시작
 
-```bash
-mkdir my-project
-cd my-project
+### 1. 새 프로젝트 디렉토리 준비
+
+```powershell
+mkdir C:\project\example
+cd C:\project\example
+```
+
+### 2. NambaAI 초기화
+
+```powershell
 namba init .
+```
+
+기본적으로 interactive terminal에서는 wizard가 실행됩니다.
+여기서 다음 항목을 선택할 수 있습니다.
+
+- 프로젝트 이름
+- 개발 방법론: `TDD` 또는 `DDD`
+- 언어 / 프레임워크
+- 대화 언어 / 문서 언어 / 코드 코멘트 언어
+- Codex agent 모드: `single` / `multi`
+- Git 자동화 모드: `manual` / `personal` / `team`
+- Git provider / username
+- status line preset
+- 사용자 이름
+
+자동화 환경에서는 `--yes`와 flags를 사용하면 됩니다.
+
+```powershell
+namba init . --yes --name example --mode tdd --agent-mode multi --git-mode team --git-provider github --git-username alice
+```
+
+### 3. 초기화 후 생성되는 주요 자산
+
+- `AGENTS.md`
+- `.agents/skills/`
+- `.codex/skills/`
+- `.codex/agents/`
+- `.codex/config.toml`
+- `.namba/config/sections/*.yaml`
+- `.namba/project/*`
+- `.namba/specs/*`
+- `.namba/logs/*`
+
+### 4. Codex에서 사용하기
+
+Codex를 해당 프로젝트 디렉토리에서 열면 됩니다.
+
+```powershell
+cd C:\project\example
+codex
+```
+
+그 다음 Codex 안에서는 이렇게 사용합니다.
+
+- `$namba`를 직접 호출
+- `namba project`
+- `namba plan "로그인 기능 추가"`
+- `namba run SPEC-001`
+- `namba sync`
+
+중요한 점:
+- interactive Codex 세션에서 `namba run SPEC-XXX`는 **Codex가 현재 세션에서 SPEC를 직접 수행하라**는 뜻입니다.
+- 비대화형 자동 실행이 필요하면 standalone `namba run SPEC-XXX` CLI를 사용할 수 있습니다.
+
+## 🛠️ 기본 워크플로
+
+```text
 namba project
-namba plan "사용자 인증 플로우 추가"
-namba run SPEC-001 --dry-run
-namba run SPEC-001
+namba plan "작업 설명"
+namba run SPEC-XXX
 namba sync
 ```
 
-## 🧭 기본 워크플로
+### 명령어 목록
 
-1. `namba project`
-   현재 저장소를 읽고 `.namba/project/*`와 codemap을 갱신합니다.
-2. `namba plan "<작업 설명>"`
-   `.namba/specs/SPEC-XXX/` 아래에 `spec.md`, `plan.md`, `acceptance.md`를 생성합니다.
-3. `namba run SPEC-XXX`
-   SPEC를 읽고 Codex로 실행합니다.
-4. `namba sync`
-   변경 요약, PR 체크리스트, 문서 산출물을 정리합니다.
-
-## 🧩 명령어
-
-- `namba init [path]`
+- `namba init [path] [--yes] [--name NAME] [--mode tdd|ddd]`
 - `namba doctor`
 - `namba status`
 - `namba project`
@@ -144,17 +215,30 @@ namba sync
 - `namba sync`
 - `namba worktree <new|list|remove|clean>`
 
-## ⚙ 실행 설정
+## 🧪 예시: 빈 디렉토리에서 시작하기
 
-시스템 설정은 `.namba/config/sections/system.yaml`에서 관리합니다.
-
-```yaml
-runner: codex
-approval_mode: on-request
-sandbox_mode: workspace-write
+```powershell
+mkdir C:\project\example
+cd C:\project\example
+namba init .
+namba project
+namba plan "health check endpoint 추가"
+namba run SPEC-001
+namba sync
 ```
 
-품질 게이트는 `.namba/config/sections/quality.yaml`에서 관리합니다.
+## 🧱 생성되는 설정 파일
+
+### `.namba/config/sections/project.yaml`
+
+```yaml
+name: example
+language: go
+framework: cobra
+created_at: 2026-03-15T12:00:00+09:00
+```
+
+### `.namba/config/sections/quality.yaml`
 
 ```yaml
 development_mode: tdd
@@ -163,47 +247,63 @@ lint_command: gofmt -l "cmd" "internal" "namba_test.go"
 typecheck_command: go vet ./...
 ```
 
-## 🧾 로그와 산출물
+### `.namba/config/sections/git-strategy.yaml`
 
-실행 결과는 보통 아래 위치에 남습니다.
-
-- `.namba/logs/runs/<spec>-request.md`
-- `.namba/logs/runs/<spec>-result.txt`
-- `.namba/logs/runs/<spec>-execution.json`
-- `.namba/logs/runs/<spec>-validation.json`
-- `.namba/project/change-summary.md`
-- `.namba/project/pr-checklist.md`
-
-## 🌲 병렬 실행 주의사항
-
-병렬 실행은 아래처럼 사용할 수 있습니다.
-
-```bash
-namba run SPEC-003 --parallel
+```yaml
+git_mode: team
+git_provider: github
+git_username: alice
+gitlab_instance_url: https://gitlab.com
+store_tokens: false
 ```
 
-현재는 `git worktree` 기반 fan-out/fan-in 뼈대까지 구현되어 있습니다.
-실패 정책과 merge gate는 계속 고도화 중이므로, 지금 시점에서는 **serial run을 기본 경로로 사용하는 편이 가장 안전합니다.**
+### `.namba/config/sections/codex.yaml`
 
-## 🌐 UTF-8 출력
+```yaml
+agent_mode: multi
+status_line_preset: namba
+repo_skills_path: .agents/skills
+compat_skills_path: .codex/skills
+repo_agents_path: .codex/agents
+```
 
-NambaAI는 생성 문서를 UTF-8로 기록하고, Windows 콘솔에서는 출력 코드 페이지를 UTF-8(65001)로 고정합니다.
-README, 로그, JSON 산출물, CLI 메시지를 같은 인코딩 기준으로 맞추기 위한 설정입니다.
+## 🤖 Codex agent 자산
 
-## 🗂 저장소 구조
+NambaAI는 Claude의 sub-agent 개념을 그대로 복제하지 않습니다.
+대신 Codex에서 읽기 쉬운 **role card**를 생성합니다.
 
-- `cmd/namba`: CLI 진입점
-- `internal/namba`: 워크플로, runner, validation 구현
-- `.namba`: 프로젝트 상태, SPEC, 문서, 로그
-- `.codex/skills`: Codex 세션용 로컬 스킬
-- `install.ps1`, `install.sh`: 릴리스 바이너리 설치 스크립트
-- `.github/workflows/release.yml`: 다중 플랫폼 릴리스 패키징
+- `.codex/agents/namba-planner.md`
+- `.codex/agents/namba-implementer.md`
+- `.codex/agents/namba-reviewer.md`
 
-## 🛣 현재 로드맵
+이 파일들은 Codex multi-agent delegation 시 역할 프롬프트의 기준점으로 사용합니다.
 
-- ✅ SPEC 기반 실행 코어
-- ✅ Runner abstraction
-- ✅ approval / sandbox 설정 반영
-- ✅ GitHub Release 기반 설치 스크립트
-- 🟡 parallel worktree failure policy / merge gate
-- 🟡 cleanup policy와 fan-in 안정화
+## 📚 status line
+
+NambaAI는 `.namba/codex/statusline.example.toml`을 생성합니다.
+원하면 이 내용을 `~/.codex/config.toml`에 병합해서 Namba에 맞는 status line을 사용할 수 있습니다.
+
+## 🔐 보안 원칙
+
+- GitHub/GitLab token은 scaffold에 저장하지 않습니다.
+- 인증은 `gh auth login` 또는 `glab auth login`으로 처리합니다.
+- 실행 로그는 `.namba/logs/` 아래에 남습니다.
+
+## 🧾 개발자용 빌드
+
+NambaAI 자체를 개발할 때만 Go가 필요합니다.
+
+```bash
+git clone https://github.com/Nam-Cheol/namba-ai.git
+cd namba-ai
+go build -o namba ./cmd/namba
+```
+
+## 📌 현재 상태
+
+- Codex-native repo scaffold 지원
+- MoAI-style init wizard 지원
+- repo-local skills / compatibility mirror 지원
+- repo-local Codex role card 지원
+- structured execution logs 지원
+- parallel worktree 정책은 계속 고도화 중

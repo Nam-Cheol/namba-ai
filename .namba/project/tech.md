@@ -1,6 +1,3 @@
 # Tech
 
-- Language: go
-- Framework: none
-- Runtime adapter: Codex
-- State directory: .namba
+Run `namba project` to refresh this document.

@@ -1,6 +1,7 @@
 package namba
 
 import (
+	"bufio"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -31,9 +32,11 @@ const (
 )
 
 type App struct {
+	stdin    io.Reader
 	stdout   io.Writer
 	stderr   io.Writer
 	now      func() time.Time
+	getenv   func(string) string
 	getwd    func() (string, error)
 	lookPath func(string) (string, error)
 	runCmd   func(context.Context, string, []string, string) (string, error)
@@ -72,9 +75,11 @@ type specPackage struct {
 
 func NewApp(stdout, stderr io.Writer) *App {
 	return &App{
+		stdin:    os.Stdin,
 		stdout:   stdout,
 		stderr:   stderr,
 		now:      time.Now,
+		getenv:   os.Getenv,
 		getwd:    os.Getwd,
 		lookPath: exec.LookPath,
 		runCmd: func(ctx context.Context, name string, args []string, dir string) (string, error) {
@@ -124,7 +129,7 @@ func usageText() string {
 	return `NambaAI CLI
 
 Usage:
-  namba init [path]
+  namba init [path] [--yes] [--name NAME] [--mode tdd|ddd]
   namba doctor
   namba status
   namba project
@@ -136,12 +141,12 @@ Usage:
 }
 
 func (a *App) runInit(_ context.Context, args []string) error {
-	target := "."
-	if len(args) > 0 {
-		target = args[0]
+	opts, err := parseInitArgs(args)
+	if err != nil {
+		return err
 	}
 
-	root, err := filepath.Abs(target)
+	root, err := filepath.Abs(opts.Path)
 	if err != nil {
 		return fmt.Errorf("resolve target: %w", err)
 	}
@@ -149,20 +154,22 @@ func (a *App) runInit(_ context.Context, args []string) error {
 		return fmt.Errorf("create target: %w", err)
 	}
 
-	name := filepath.Base(root)
-	language, framework := detectLanguageFramework(root)
-	mode := detectMethodology(root)
-	testCmd, lintCmd, typecheckCmd := defaultQualityCommands(root, language)
+	profile, err := a.resolveInitProfile(root, opts)
+	if err != nil {
+		return err
+	}
 
+	testCmd, lintCmd, typecheckCmd := defaultQualityCommands(root, profile.Language)
 	files := map[string]string{
-		"AGENTS.md": renderAgents(name),
-		".codex/skills/namba-foundation-core/SKILL.md":                  renderFoundationSkill(),
-		".codex/skills/namba-workflow-project/SKILL.md":                 renderProjectSkill(),
-		".codex/skills/namba-workflow-execution/SKILL.md":               renderExecutionSkill(),
-		filepath.ToSlash(filepath.Join(configDir, "project.yaml")):      renderProjectConfig(name, language, framework),
-		filepath.ToSlash(filepath.Join(configDir, "quality.yaml")):      renderQualityConfig(mode, testCmd, lintCmd, typecheckCmd),
+		"AGENTS.md": renderAgents(profile),
+		filepath.ToSlash(filepath.Join(configDir, "project.yaml")):      renderProjectConfig(profile),
+		filepath.ToSlash(filepath.Join(configDir, "quality.yaml")):      renderQualityConfig(profile.DevelopmentMode, testCmd, lintCmd, typecheckCmd),
 		filepath.ToSlash(filepath.Join(configDir, "workflow.yaml")):     renderWorkflowConfig(),
 		filepath.ToSlash(filepath.Join(configDir, "system.yaml")):       renderSystemConfig(),
+		filepath.ToSlash(filepath.Join(configDir, "language.yaml")):     renderLanguageConfig(profile),
+		filepath.ToSlash(filepath.Join(configDir, "user.yaml")):         renderUserConfig(profile),
+		filepath.ToSlash(filepath.Join(configDir, "git-strategy.yaml")): renderGitStrategyConfig(profile),
+		filepath.ToSlash(filepath.Join(configDir, "codex.yaml")):        renderCodexProfileConfig(profile),
 		filepath.ToSlash(filepath.Join(projectDir, "product.md")):       "# Product\n\nDescribe the product goals here.\n",
 		filepath.ToSlash(filepath.Join(projectDir, "structure.md")):     "# Structure\n\nRun `namba project` to refresh this document.\n",
 		filepath.ToSlash(filepath.Join(projectDir, "tech.md")):          "# Tech\n\nRun `namba project` to refresh this document.\n",
@@ -174,20 +181,23 @@ func (a *App) runInit(_ context.Context, args []string) error {
 		filepath.ToSlash(filepath.Join(specsDir, ".gitkeep")):           "",
 		filepath.ToSlash(filepath.Join(worktreesDir, ".gitkeep")):       "",
 	}
+	for rel, scaffold := range codexScaffoldFiles(profile) {
+		files[rel] = scaffold
+	}
 
 	manifest := Manifest{GeneratedAt: a.now().Format(time.RFC3339)}
-	for rel, content := range files {
+	for rel, body := range files {
 		absPath := filepath.Join(root, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
 			return fmt.Errorf("create parent for %s: %w", rel, err)
 		}
-		if err := os.WriteFile(absPath, []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(absPath, []byte(body), 0o644); err != nil {
 			return fmt.Errorf("write %s: %w", rel, err)
 		}
 		manifest.Entries = append(manifest.Entries, ManifestEntry{
 			Path:      rel,
 			Kind:      manifestKind(rel),
-			Checksum:  checksum(content),
+			Checksum:  checksum(body),
 			UpdatedAt: manifest.GeneratedAt,
 		})
 	}
@@ -198,6 +208,8 @@ func (a *App) runInit(_ context.Context, args []string) error {
 	}
 
 	fmt.Fprintf(a.stdout, "Initialized NambaAI in %s\n", root)
+	fmt.Fprintf(a.stdout, "Project: %s | Mode: %s | Agent mode: %s\n", profile.ProjectName, profile.DevelopmentMode, profile.AgentMode)
+	fmt.Fprintln(a.stdout, "Codex-native mode is ready. Open Codex in this directory and invoke `$namba` or ask to use the Namba workflow.")
 	return nil
 }
 
@@ -211,11 +223,14 @@ func (a *App) runDoctor(ctx context.Context, _ []string) error {
 
 	codexPath, codexErr := a.lookPath("codex")
 	gitPath, gitErr := a.lookPath("git")
+	nambaPath, nambaErr := a.lookPath("namba")
 
 	fmt.Fprintf(a.stdout, "Project: %s\n", projectCfg.Name)
 	fmt.Fprintf(a.stdout, "Language: %s\n", projectCfg.Language)
 	fmt.Fprintf(a.stdout, "Framework: %s\n", projectCfg.Framework)
 	fmt.Fprintf(a.stdout, "Mode: %s\n", qualityCfg.DevelopmentMode)
+	fmt.Fprintf(a.stdout, "Codex native repo: %s\n", formatDoctorStatus(codexNativeIssues(root)))
+	fmt.Fprintf(a.stdout, "Codex compatibility mirror: %s\n", formatDoctorStatus(codexCompatibilityIssues(root)))
 	if codexErr != nil {
 		fmt.Fprintln(a.stdout, "Codex: missing")
 	} else {
@@ -225,6 +240,11 @@ func (a *App) runDoctor(ctx context.Context, _ []string) error {
 		fmt.Fprintln(a.stdout, "Git: missing")
 	} else {
 		fmt.Fprintf(a.stdout, "Git: %s\n", gitPath)
+	}
+	if nambaErr != nil {
+		fmt.Fprintln(a.stdout, "Namba CLI: missing from PATH")
+	} else {
+		fmt.Fprintf(a.stdout, "Namba CLI: %s\n", nambaPath)
 	}
 	if codexErr == nil {
 		out, err := a.runBinary(ctx, "codex", []string{"--version"}, root)
@@ -886,7 +906,7 @@ func shouldSkipStructureEntry(rel string) bool {
 		return true
 	case rel == ".cache", strings.HasPrefix(rel, ".cache/"):
 		return true
-	case rel == ".codex", strings.HasPrefix(rel, ".codex/"):
+	case rel == ".codex/skills", strings.HasPrefix(rel, ".codex/skills/"):
 		return true
 	case rel == "dist", strings.HasPrefix(rel, "dist/"):
 		return true
@@ -906,14 +926,14 @@ func shouldSkipStructureEntry(rel string) bool {
 }
 
 func buildTechDoc(cfg projectConfig) string {
-	return fmt.Sprintf("# Tech\n\n- Language: %s\n- Framework: %s\n- Runtime adapter: Codex\n- State directory: .namba\n", cfg.Language, cfg.Framework)
+	return fmt.Sprintf("# Tech\n\n- Language: %s\n- Framework: %s\n- Runtime adapter: Codex\n- Repo-local skills: .agents/skills\n- Repo-local agent role cards: .codex/agents\n- State directory: .namba\n", cfg.Language, cfg.Framework)
 }
 
 func buildCodemaps(root string, cfg projectConfig) (string, string, string, string) {
 	overview := fmt.Sprintf("# Overview\n\n%s is managed by NambaAI.\n\n- Language: %s\n- Framework: %s\n", cfg.Name, cfg.Language, cfg.Framework)
 	entries := "# Entry Points\n\n- `cmd/namba/main.go`: CLI entry point\n- `internal/namba/namba.go`: command orchestration\n"
 	deps := "# Dependencies\n\n- Go standard library\n- External runtime: Codex CLI\n- External runtime: Git\n"
-	flow := "# Data Flow\n\n1. `init` creates AGENTS, skills, and `.namba`\n2. `project` refreshes docs and codemaps\n3. `plan` creates a SPEC package\n4. `run` builds a Codex execution request and validates the result\n5. `sync` emits PR-ready artifacts\n"
+	flow := "# Data Flow\n\n1. `init` runs a Codex-adapted project wizard, writes `.namba/config/sections/*.yaml`, repo skills under `.agents/skills`, role cards under `.codex/agents`, a compatibility mirror under `.codex/skills`, and Codex repo config under `.codex/config.toml`\n2. `project` refreshes docs and codemaps\n3. `plan` creates a SPEC package\n4. `run` either builds a non-interactive Codex execution request or is interpreted as Codex-native in-session execution\n5. `sync` emits PR-ready artifacts\n"
 	if exists(filepath.Join(root, "go.mod")) {
 		deps += "- Project module detected via `go.mod`\n"
 	}
@@ -1049,8 +1069,10 @@ func checksum(content string) string {
 
 func manifestKind(rel string) string {
 	switch {
-	case strings.HasPrefix(rel, ".codex/skills/"):
+	case strings.HasPrefix(rel, ".agents/skills/"), strings.HasPrefix(rel, ".codex/skills/"):
 		return "skill"
+	case strings.HasPrefix(rel, ".codex/agents/"):
+		return "agent"
 	case strings.HasPrefix(rel, ".namba/specs/"):
 		return "spec"
 	case strings.HasPrefix(rel, ".namba/project/"):
@@ -1106,4 +1128,529 @@ func mustLoadQualityConfig(a *App, root string) qualityConfig {
 
 func isGitRepository(root string) bool {
 	return exists(filepath.Join(root, ".git"))
+}
+
+const timeLayoutDateTime = "2006-01-02T15:04:05Z07:00"
+
+func (a *App) resolveInitProfile(root string, opts initOptions) (initProfile, error) {
+	profile := a.detectInitProfile(root)
+	applyInitOverrides(&profile, opts)
+	if !opts.Yes && a.isInteractiveTerminal() {
+		var err error
+		profile, err = a.runInitWizard(profile)
+		if err != nil {
+			return initProfile{}, err
+		}
+	}
+	if err := validateInitProfile(profile); err != nil {
+		return initProfile{}, err
+	}
+	return profile, nil
+}
+
+func (a *App) detectInitProfile(root string) initProfile {
+	language, framework := detectLanguageFramework(root)
+	locale := detectLocale(a.getenv)
+	name := normalizeProjectName(filepath.Base(root))
+	if name == "" {
+		name = "my-project"
+	}
+
+	return initProfile{
+		ProjectName:           name,
+		Language:              language,
+		Framework:             framework,
+		DevelopmentMode:       detectMethodology(root),
+		ConversationLanguage:  locale,
+		DocumentationLanguage: locale,
+		CommentLanguage:       locale,
+		GitMode:               "manual",
+		GitProvider:           "github",
+		GitLabInstanceURL:     "https://gitlab.com",
+		AgentMode:             "single",
+		StatusLinePreset:      "namba",
+		UserName:              detectUserName(a.getenv),
+		CreatedAt:             a.now().Format(timeLayoutDateTime),
+	}
+}
+
+func applyInitOverrides(profile *initProfile, opts initOptions) {
+	if value := strings.TrimSpace(opts.ProjectName); value != "" {
+		profile.ProjectName = value
+	}
+	if value := strings.TrimSpace(opts.Language); value != "" {
+		profile.Language = value
+	}
+	if value := strings.TrimSpace(opts.Framework); value != "" {
+		profile.Framework = value
+	}
+	if value := strings.TrimSpace(opts.DevelopmentMode); value != "" {
+		profile.DevelopmentMode = value
+	}
+	if value := strings.TrimSpace(opts.ConversationLanguage); value != "" {
+		profile.ConversationLanguage = value
+	}
+	if value := strings.TrimSpace(opts.DocumentationLanguage); value != "" {
+		profile.DocumentationLanguage = value
+	}
+	if value := strings.TrimSpace(opts.CommentLanguage); value != "" {
+		profile.CommentLanguage = value
+	}
+	if value := strings.TrimSpace(opts.GitMode); value != "" {
+		profile.GitMode = value
+	}
+	if value := strings.TrimSpace(opts.GitProvider); value != "" {
+		profile.GitProvider = value
+	}
+	if value := strings.TrimSpace(opts.GitUsername); value != "" {
+		profile.GitUsername = value
+	}
+	if value := strings.TrimSpace(opts.GitLabInstanceURL); value != "" {
+		profile.GitLabInstanceURL = value
+	}
+	if value := strings.TrimSpace(opts.AgentMode); value != "" {
+		profile.AgentMode = value
+	}
+	if value := strings.TrimSpace(opts.StatusLinePreset); value != "" {
+		profile.StatusLinePreset = value
+	}
+	if value := strings.TrimSpace(opts.UserName); value != "" {
+		profile.UserName = value
+	}
+}
+
+func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
+	reader := bufio.NewReader(a.stdin)
+	profile := defaults
+
+	fmt.Fprintln(a.stdout, "NambaAI init wizard (Codex edition)")
+	fmt.Fprintln(a.stdout, "This adapts the MoAI init flow to Codex-native assets.")
+
+	profile.ProjectName = promptInput(reader, a.stdout, "Project name", profile.ProjectName)
+	profile.DevelopmentMode = promptSelect(
+		reader,
+		a.stdout,
+		"Development methodology",
+		[]option{
+			{Value: "tdd", Label: "TDD", Description: "RED-GREEN-REFACTOR for new work"},
+			{Value: "ddd", Label: "DDD", Description: "ANALYZE-PRESERVE-IMPROVE for brownfield"},
+		},
+		profile.DevelopmentMode,
+	)
+	profile.Language = promptSelect(
+		reader,
+		a.stdout,
+		"Primary language",
+		[]option{
+			{Value: "go", Label: "Go", Description: "Compiled CLI and services"},
+			{Value: "typescript", Label: "TypeScript", Description: "Node.js and frontend projects"},
+			{Value: "python", Label: "Python", Description: "Scripting and backend"},
+			{Value: "unknown", Label: "Unknown", Description: "Leave as a generic project"},
+		},
+		profile.Language,
+	)
+	profile.Framework = promptSelect(reader, a.stdout, "Framework", frameworkOptions(profile.Language), normalizeFramework(profile.Framework))
+	profile.ConversationLanguage = promptSelect(reader, a.stdout, "Conversation language", languageOptions(), profile.ConversationLanguage)
+	profile.DocumentationLanguage = promptSelect(reader, a.stdout, "Documentation language", languageOptions(), profile.DocumentationLanguage)
+	profile.CommentLanguage = promptSelect(reader, a.stdout, "Comment language", languageOptions(), profile.CommentLanguage)
+	profile.AgentMode = promptSelect(
+		reader,
+		a.stdout,
+		"Codex agent mode",
+		[]option{
+			{Value: "single", Label: "Single-agent", Description: "Recommended for stable serial execution"},
+			{Value: "multi", Label: "Multi-agent", Description: "Prepare repo-local agent role cards and higher concurrency"},
+		},
+		profile.AgentMode,
+	)
+	profile.StatusLinePreset = promptSelect(
+		reader,
+		a.stdout,
+		"Status line preset",
+		[]option{
+			{Value: "namba", Label: "Namba", Description: "Project-focused Codex status line"},
+			{Value: "off", Label: "Off", Description: "Do not write a repo status line recommendation"},
+		},
+		profile.StatusLinePreset,
+	)
+	profile.GitMode = promptSelect(
+		reader,
+		a.stdout,
+		"Git automation mode",
+		[]option{
+			{Value: "manual", Label: "Manual", Description: "AI never pushes or opens PRs"},
+			{Value: "personal", Label: "Personal", Description: "AI may branch and commit locally"},
+			{Value: "team", Label: "Team", Description: "AI prepares branch and PR-ready artifacts"},
+		},
+		profile.GitMode,
+	)
+	if profile.GitMode != "manual" {
+		profile.GitProvider = promptSelect(
+			reader,
+			a.stdout,
+			"Git provider",
+			[]option{
+				{Value: "github", Label: "GitHub", Description: "Use gh CLI or existing credentials"},
+				{Value: "gitlab", Label: "GitLab", Description: "Use glab CLI or existing credentials"},
+			},
+			profile.GitProvider,
+		)
+		if profile.GitProvider == "gitlab" {
+			profile.GitLabInstanceURL = promptInput(reader, a.stdout, "GitLab instance URL", profile.GitLabInstanceURL)
+		}
+		profile.GitUsername = promptInput(reader, a.stdout, "Git username", profile.GitUsername)
+	}
+	profile.UserName = promptInput(reader, a.stdout, "Display name", profile.UserName)
+
+	fmt.Fprintln(a.stdout, "Note: tokens and secrets are not stored in NambaAI config. Use gh/glab login instead.")
+	return profile, nil
+}
+
+func promptInput(reader *bufio.Reader, out io.Writer, label, defaultValue string) string {
+	fmt.Fprintf(out, "%s [%s]: ", label, defaultValue)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return strings.TrimSpace(defaultValue)
+	}
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return strings.TrimSpace(defaultValue)
+	}
+	return line
+}
+
+func promptSelect(reader *bufio.Reader, out io.Writer, label string, choices []option, defaultValue string) string {
+	fmt.Fprintln(out, label)
+	defaultIndex := 0
+	for i, choice := range choices {
+		if choice.Value == defaultValue {
+			defaultIndex = i
+		}
+		fmt.Fprintf(out, "  %d. %s - %s\n", i+1, choice.Label, choice.Description)
+	}
+	fmt.Fprintf(out, "Select [%d]: ", defaultIndex+1)
+
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return defaultValue
+	}
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return defaultValue
+	}
+	index, err := strconv.Atoi(line)
+	if err == nil && index >= 1 && index <= len(choices) {
+		return choices[index-1].Value
+	}
+	for _, choice := range choices {
+		if strings.EqualFold(choice.Value, line) || strings.EqualFold(choice.Label, line) {
+			return choice.Value
+		}
+	}
+	return defaultValue
+}
+
+func frameworkOptions(language string) []option {
+	switch language {
+	case "go":
+		return []option{
+			{Value: "none", Label: "None", Description: "Keep a generic Go project"},
+			{Value: "cobra", Label: "Cobra", Description: "CLI application"},
+			{Value: "gin", Label: "Gin", Description: "HTTP service"},
+			{Value: "echo", Label: "Echo", Description: "HTTP service"},
+		}
+	case "typescript":
+		return []option{
+			{Value: "none", Label: "None", Description: "Keep a generic Node project"},
+			{Value: "nextjs", Label: "Next.js", Description: "React full-stack"},
+			{Value: "react", Label: "React", Description: "Client application"},
+			{Value: "nest", Label: "NestJS", Description: "Backend service"},
+		}
+	case "python":
+		return []option{
+			{Value: "none", Label: "None", Description: "Keep a generic Python project"},
+			{Value: "fastapi", Label: "FastAPI", Description: "Modern API service"},
+			{Value: "django", Label: "Django", Description: "Full-stack web framework"},
+		}
+	default:
+		return []option{
+			{Value: "none", Label: "None", Description: "No framework selected"},
+		}
+	}
+}
+
+func languageOptions() []option {
+	return []option{
+		{Value: "en", Label: "English", Description: "English"},
+		{Value: "ko", Label: "Korean", Description: "Korean"},
+		{Value: "ja", Label: "Japanese", Description: "Japanese"},
+		{Value: "zh", Label: "Chinese", Description: "Chinese"},
+	}
+}
+
+func detectLocale(getenv func(string) string) string {
+	for _, key := range []string{"NAMBA_LANG", "LC_ALL", "LANG"} {
+		value := strings.ToLower(getenv(key))
+		switch {
+		case strings.Contains(value, "ko"):
+			return "ko"
+		case strings.Contains(value, "ja"):
+			return "ja"
+		case strings.Contains(value, "zh"):
+			return "zh"
+		case strings.Contains(value, "en"):
+			return "en"
+		}
+	}
+	return "en"
+}
+
+func detectUserName(getenv func(string) string) string {
+	for _, key := range []string{"NAMBA_USER", "USERNAME", "USER"} {
+		if value := strings.TrimSpace(getenv(key)); value != "" {
+			return value
+		}
+	}
+	return "Developer"
+}
+
+func validateInitProfile(profile initProfile) error {
+	if normalizeProjectName(profile.ProjectName) == "" {
+		return fmt.Errorf("project name is required")
+	}
+	if !containsValue([]string{"tdd", "ddd"}, profile.DevelopmentMode) {
+		return fmt.Errorf("development mode %q is not supported", profile.DevelopmentMode)
+	}
+	if !containsValue([]string{"go", "typescript", "python", "unknown"}, profile.Language) {
+		return fmt.Errorf("language %q is not supported", profile.Language)
+	}
+	if !containsValue([]string{"manual", "personal", "team"}, profile.GitMode) {
+		return fmt.Errorf("git mode %q is not supported", profile.GitMode)
+	}
+	if !containsValue([]string{"github", "gitlab"}, profile.GitProvider) {
+		return fmt.Errorf("git provider %q is not supported", profile.GitProvider)
+	}
+	if !containsValue([]string{"single", "multi"}, profile.AgentMode) {
+		return fmt.Errorf("agent mode %q is not supported", profile.AgentMode)
+	}
+	if !containsValue([]string{"namba", "off"}, profile.StatusLinePreset) {
+		return fmt.Errorf("status line preset %q is not supported", profile.StatusLinePreset)
+	}
+	for _, value := range []string{profile.ConversationLanguage, profile.DocumentationLanguage, profile.CommentLanguage} {
+		if !containsValue([]string{"en", "ko", "ja", "zh"}, value) {
+			return fmt.Errorf("language preference %q is not supported", value)
+		}
+	}
+	return nil
+}
+
+func containsValue(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeProjectName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "." || name == string(filepath.Separator) {
+		return ""
+	}
+	return name
+}
+
+func normalizeFramework(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if value == "" {
+		return "none"
+	}
+	return value
+}
+
+func (a *App) isInteractiveTerminal() bool {
+	file, ok := a.stdin.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := file.Stat()
+	if err != nil || (info.Mode()&os.ModeCharDevice) == 0 {
+		return false
+	}
+	return isTerminalWriter(a.stdout)
+}
+
+func isTerminalWriter(w io.Writer) bool {
+	file, ok := w.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return false
+	}
+	return (info.Mode() & os.ModeCharDevice) != 0
+}
+
+type initProfile struct {
+	ProjectName           string
+	Language              string
+	Framework             string
+	DevelopmentMode       string
+	ConversationLanguage  string
+	DocumentationLanguage string
+	CommentLanguage       string
+	GitMode               string
+	GitProvider           string
+	GitUsername           string
+	GitLabInstanceURL     string
+	AgentMode             string
+	StatusLinePreset      string
+	UserName              string
+	CreatedAt             string
+}
+
+type initOptions struct {
+	Path                  string
+	Yes                   bool
+	ProjectName           string
+	Language              string
+	Framework             string
+	DevelopmentMode       string
+	ConversationLanguage  string
+	DocumentationLanguage string
+	CommentLanguage       string
+	GitMode               string
+	GitProvider           string
+	GitUsername           string
+	GitLabInstanceURL     string
+	AgentMode             string
+	StatusLinePreset      string
+	UserName              string
+}
+
+type option struct {
+	Value       string
+	Label       string
+	Description string
+}
+
+func parseInitArgs(args []string) (initOptions, error) {
+	opts := initOptions{
+		Path:              ".",
+		GitLabInstanceURL: "https://gitlab.com",
+	}
+
+	consumeValue := func(args []string, index *int, flag string) (string, error) {
+		*index = *index + 1
+		if *index >= len(args) {
+			return "", fmt.Errorf("%s requires a value", flag)
+		}
+		return args[*index], nil
+	}
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if !strings.HasPrefix(arg, "--") {
+			if opts.Path != "." {
+				return initOptions{}, fmt.Errorf("unexpected argument %q", arg)
+			}
+			opts.Path = arg
+			continue
+		}
+
+		switch arg {
+		case "--yes":
+			opts.Yes = true
+		case "--name":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.ProjectName = value
+		case "--language":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.Language = value
+		case "--framework":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.Framework = value
+		case "--mode":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.DevelopmentMode = value
+		case "--conversation-language":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.ConversationLanguage = value
+		case "--documentation-language":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.DocumentationLanguage = value
+		case "--comment-language":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.CommentLanguage = value
+		case "--git-mode":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.GitMode = value
+		case "--git-provider":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.GitProvider = value
+		case "--git-username":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.GitUsername = value
+		case "--gitlab-instance-url":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.GitLabInstanceURL = value
+		case "--agent-mode":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.AgentMode = value
+		case "--statusline":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.StatusLinePreset = value
+		case "--user-name":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.UserName = value
+		default:
+			return initOptions{}, fmt.Errorf("unknown flag %q", arg)
+		}
+	}
+
+	return opts, nil
 }
