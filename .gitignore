@@ -1,0 +1,17 @@
+.cache/
+*.exe
+.namba/logs/
+.namba/worktrees/
+external/
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+id_rsa
+id_ed25519
+.DS_Store
+Thumbs.db

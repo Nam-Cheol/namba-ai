@@ -1,0 +1,3 @@
+default_parallel: false
+max_parallel_workers: 3
+parallel_acceptance_threshold: 3

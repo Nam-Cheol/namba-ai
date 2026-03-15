@@ -1,0 +1,95 @@
+{
+    "generated_at":  "2026-03-15T11:19:40.1423116Z",
+    "entries":  [
+                    {
+                        "path":  ".namba/project/codemaps/entry-points.md",
+                        "kind":  "project-doc",
+                        "checksum":  "47ca1ac3b482aa4202d06a5a3029ae2a245fb266cb0bed73067516501ac99d61",
+                        "updated_at":  "2026-03-15T11:19:40.1423116Z"
+                    },
+                    {
+                        "path":  ".codex/skills/namba-foundation-core/SKILL.md",
+                        "kind":  "skill",
+                        "checksum":  "268841a9caa09bcdf8ea722537dd416074284917bfbb10f9d21b9b5213bcb991",
+                        "updated_at":  "2026-03-15T11:19:40.1423116Z"
+                    },
+                    {
+                        "path":  ".namba/project/tech.md",
+                        "kind":  "project-doc",
+                        "checksum":  "50dc848aa34dc554f23c167c15b6585e7289eade5edfaef43380e0c74538a4a9",
+                        "updated_at":  "2026-03-15T11:19:40.1423116Z"
+                    },
+                    {
+                        "path":  ".namba/project/codemaps/dependencies.md",
+                        "kind":  "project-doc",
+                        "checksum":  "624aa031d40a079352f7381f99bd5fa93a5d7c0f44803cc5486d08244a76fdef",
+                        "updated_at":  "2026-03-15T11:19:40.1423116Z"
+                    },
+                    {
+                        "path":  ".namba/config/sections/system.yaml",
+                        "kind":  "config",
+                        "checksum":  "6505b2a3d892f6279828c053c19a3a2b29bd192381c059b4c7dc7788c646710d",
+                        "updated_at":  "2026-03-15T11:19:40.1423116Z"
+                    },
+                    {
+                        "path":  ".namba/project/product.md",
+                        "kind":  "project-doc",
+                        "checksum":  "ecbbe3f1ab36d593960166dd32b74ce39a69f986c68b64e04b85901c55f0b494",
+                        "updated_at":  "2026-03-15T11:19:40.1423116Z"
+                    },
+                    {
+                        "path":  ".namba/project/codemaps/overview.md",
+                        "kind":  "project-doc",
+                        "checksum":  "a5256616e5bd304025e90d8817bea9a14fcdf167e31f2f753574a57fc69ee6e1",
+                        "updated_at":  "2026-03-15T11:19:40.1423116Z"
+                    },
+                    {
+                        "path":  ".codex/skills/namba-workflow-project/SKILL.md",
+                        "kind":  "skill",
+                        "checksum":  "e2f745954535afc269dfcd670a43655d54ef45924c64323a67aa53f344682557",
+                        "updated_at":  "2026-03-15T11:19:40.1423116Z"
+                    },
+                    {
+                        "path":  ".namba/project/structure.md",
+                        "kind":  "project-doc",
+                        "checksum":  "8ff5edfa669db221cef5c7473dce27a88f338055dcd451a750e87b0526e02922",
+                        "updated_at":  "2026-03-15T11:19:40.1423116Z"
+                    },
+                    {
+                        "path":  "AGENTS.md",
+                        "kind":  "asset",
+                        "checksum":  "1db58f90e223d2d73e911003119a89e87f5f15a69b7de80658c594cfa779e3a1",
+                        "updated_at":  "2026-03-15T11:19:40.1423116Z"
+                    },
+                    {
+                        "path":  ".namba/project/codemaps/data-flow.md",
+                        "kind":  "project-doc",
+                        "checksum":  "e71d624a598bc67612acc1cfe7dbc54bc47e9b3e82b861c697c114fbd866737b",
+                        "updated_at":  "2026-03-15T11:19:40.1423116Z"
+                    },
+                    {
+                        "path":  ".namba/config/sections/quality.yaml",
+                        "kind":  "config",
+                        "checksum":  "a4d0c1548f0b7f9756467c73fb8f9f5d5cc5981719d8a77ada08f16a65b9af06",
+                        "updated_at":  "2026-03-15T11:19:40.1423116Z"
+                    },
+                    {
+                        "path":  ".namba/config/sections/project.yaml",
+                        "kind":  "config",
+                        "checksum":  "a60fa4d933768b2ab2d4ddd2582a7c052227e93112764432cc5e9a70361015e7",
+                        "updated_at":  "2026-03-15T11:19:40.1423116Z"
+                    },
+                    {
+                        "path":  ".codex/skills/namba-workflow-execution/SKILL.md",
+                        "kind":  "skill",
+                        "checksum":  "c9120ea4dfff837759823d974bd4d59a5dbf01a0d4f92fae29fd49c1a465db22",
+                        "updated_at":  "2026-03-15T11:19:40.1423116Z"
+                    },
+                    {
+                        "path":  ".namba/config/sections/workflow.yaml",
+                        "kind":  "config",
+                        "checksum":  "bdcbb68994256cbc928538c78e4cc78fe02d3ea9574ececf900e32d7463d941c",
+                        "updated_at":  "2026-03-15T11:19:40.1423116Z"
+                    }
+                ]
+}

@@ -1,0 +1,3 @@
+runner: codex
+approval_mode: on-request
+sandbox_mode: workspace-write
