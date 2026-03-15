@@ -1,6 +1,15 @@
 # Structure
 
 ```
+.gitattributes
+.github
+.github\dependabot.yml
+.github\workflows
+.github\workflows\ci.yml
+.github\workflows\codeql.yml
+.github\workflows\release.yml
+.github\workflows\secret-scan.yml
+.gitignore
 .namba
 .namba\config
 .namba\config\sections
@@ -18,6 +27,7 @@
 .namba\specs\SPEC-002
 .namba\specs\SPEC-003
 .namba\specs\SPEC-004
+.namba\specs\SPEC-005
 AGENTS.md
 README.md
 SECURITY.md
@@ -30,12 +40,15 @@ cmd\namba\main.go
 docs
 docs\moai-adk-codex-migration-analysis.md
 go.mod
+install.ps1
+install.sh
 internal
 internal\namba
 internal\namba\execution.go
 internal\namba\execution_test.go
 internal\namba\namba.go
+internal\namba\release.go
+internal\namba\release_test.go
 internal\namba\templates.go
-namba.exe
 namba_test.go
 ```

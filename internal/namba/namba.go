@@ -882,17 +882,23 @@ func appendStructureEntries(lines *[]string, root, rel string, depth, maxDepth i
 
 func shouldSkipStructureEntry(rel string) bool {
 	switch {
-	case strings.HasPrefix(rel, ".git"):
+	case rel == ".git", strings.HasPrefix(rel, ".git/"):
 		return true
-	case strings.HasPrefix(rel, ".cache"):
+	case rel == ".cache", strings.HasPrefix(rel, ".cache/"):
 		return true
-	case strings.HasPrefix(rel, ".codex"):
+	case rel == ".codex", strings.HasPrefix(rel, ".codex/"):
 		return true
-	case strings.HasPrefix(rel, "external"):
+	case rel == "dist", strings.HasPrefix(rel, "dist/"):
 		return true
-	case strings.HasPrefix(rel, ".namba/logs"):
+	case rel == "external", strings.HasPrefix(rel, "external/"):
 		return true
-	case strings.HasPrefix(rel, ".namba/worktrees"):
+	case rel == ".namba/logs", strings.HasPrefix(rel, ".namba/logs/"):
+		return true
+	case rel == ".namba/worktrees", strings.HasPrefix(rel, ".namba/worktrees/"):
+		return true
+	case strings.HasSuffix(rel, ".exe"):
+		return true
+	case rel == "namba":
 		return true
 	default:
 		return false

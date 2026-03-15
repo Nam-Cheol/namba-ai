@@ -1,4 +1,5 @@
 .cache/
+dist/
 *.exe
 .namba/logs/
 .namba/worktrees/
