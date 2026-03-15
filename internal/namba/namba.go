@@ -855,32 +855,48 @@ func directoryContainsGo(root string) bool {
 
 func buildStructureDoc(root string) string {
 	lines := []string{"# Structure", "", "```"}
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		rel, relErr := filepath.Rel(root, path)
-		if relErr != nil || rel == "." {
-			return nil
-		}
-		if strings.HasPrefix(rel, ".git") || strings.HasPrefix(rel, "external") {
-			if d.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		depth := strings.Count(rel, string(filepath.Separator))
-		if depth > 3 {
-			if d.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		lines = append(lines, rel)
-		return nil
-	})
+	appendStructureEntries(&lines, root, "", 0, 2)
 	lines = append(lines, "```", "")
 	return strings.Join(lines, "\n")
+}
+
+func appendStructureEntries(lines *[]string, root, rel string, depth, maxDepth int) {
+	entries, err := os.ReadDir(filepath.Join(root, rel))
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		childRel := entry.Name()
+		if rel != "" {
+			childRel = filepath.Join(rel, entry.Name())
+		}
+		if shouldSkipStructureEntry(filepath.ToSlash(childRel)) {
+			continue
+		}
+		*lines = append(*lines, childRel)
+		if entry.IsDir() && depth < maxDepth {
+			appendStructureEntries(lines, root, childRel, depth+1, maxDepth)
+		}
+	}
+}
+
+func shouldSkipStructureEntry(rel string) bool {
+	switch {
+	case strings.HasPrefix(rel, ".git"):
+		return true
+	case strings.HasPrefix(rel, ".cache"):
+		return true
+	case strings.HasPrefix(rel, ".codex"):
+		return true
+	case strings.HasPrefix(rel, "external"):
+		return true
+	case strings.HasPrefix(rel, ".namba/logs"):
+		return true
+	case strings.HasPrefix(rel, ".namba/worktrees"):
+		return true
+	default:
+		return false
+	}
 }
 
 func buildTechDoc(cfg projectConfig) string {

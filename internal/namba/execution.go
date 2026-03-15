@@ -26,14 +26,16 @@ type executionRequest struct {
 }
 
 type executionResult struct {
-	Runner     string `json:"runner"`
-	SpecID     string `json:"spec_id"`
-	WorkDir    string `json:"work_dir"`
-	Output     string `json:"output"`
-	Succeeded  bool   `json:"succeeded"`
-	StartedAt  string `json:"started_at"`
-	FinishedAt string `json:"finished_at"`
-	Error      string `json:"error,omitempty"`
+	Runner       string `json:"runner"`
+	SpecID       string `json:"spec_id"`
+	WorkDir      string `json:"work_dir"`
+	ApprovalMode string `json:"approval_mode"`
+	SandboxMode  string `json:"sandbox_mode"`
+	Output       string `json:"output"`
+	Succeeded    bool   `json:"succeeded"`
+	StartedAt    string `json:"started_at"`
+	FinishedAt   string `json:"finished_at"`
+	Error        string `json:"error,omitempty"`
 }
 
 type validationReport struct {
@@ -65,10 +67,19 @@ type codexRunner struct {
 
 func (r codexRunner) Execute(ctx context.Context, req executionRequest) (executionResult, error) {
 	result := executionResult{
-		Runner:    normalizeRunner(req.Runner),
-		SpecID:    req.SpecID,
-		WorkDir:   req.WorkDir,
-		StartedAt: r.now().Format(time.RFC3339),
+		Runner:       normalizeRunner(req.Runner),
+		SpecID:       req.SpecID,
+		WorkDir:      req.WorkDir,
+		ApprovalMode: normalizeApprovalMode(req.ApprovalMode),
+		SandboxMode:  normalizeSandboxMode(req.SandboxMode),
+		StartedAt:    r.now().Format(time.RFC3339),
+	}
+
+	args, err := buildCodexExecArgs(req)
+	if err != nil {
+		result.FinishedAt = r.now().Format(time.RFC3339)
+		result.Error = err.Error()
+		return result, err
 	}
 
 	if _, err := r.lookPath("codex"); err != nil {
@@ -77,7 +88,7 @@ func (r codexRunner) Execute(ctx context.Context, req executionRequest) (executi
 		return result, fmt.Errorf(result.Error)
 	}
 
-	output, err := r.runBinary(ctx, "codex", []string{"exec", "--full-auto", req.Prompt}, req.WorkDir)
+	output, err := r.runBinary(ctx, "codex", args, req.WorkDir)
 	result.Output = output
 	result.FinishedAt = r.now().Format(time.RFC3339)
 	if err != nil {
@@ -89,6 +100,20 @@ func (r codexRunner) Execute(ctx context.Context, req executionRequest) (executi
 	return result, nil
 }
 
+func buildCodexExecArgs(req executionRequest) ([]string, error) {
+	approval := normalizeApprovalMode(req.ApprovalMode)
+	if !isAllowedApprovalMode(approval) {
+		return nil, fmt.Errorf("approval_mode %q is not supported", req.ApprovalMode)
+	}
+
+	sandbox := normalizeSandboxMode(req.SandboxMode)
+	if !isAllowedSandboxMode(sandbox) {
+		return nil, fmt.Errorf("sandbox_mode %q is not supported", req.SandboxMode)
+	}
+
+	return []string{"exec", "-a", approval, "-s", sandbox, req.Prompt}, nil
+}
+
 func (a *App) loadSystemConfig(root string) (systemConfig, error) {
 	values, err := readKeyValueFile(filepath.Join(root, configDir, "system.yaml"))
 	if err != nil {
@@ -97,8 +122,8 @@ func (a *App) loadSystemConfig(root string) (systemConfig, error) {
 
 	return systemConfig{
 		Runner:       normalizeRunner(values["runner"]),
-		ApprovalMode: values["approval_mode"],
-		SandboxMode:  values["sandbox_mode"],
+		ApprovalMode: normalizeApprovalMode(values["approval_mode"]),
+		SandboxMode:  normalizeSandboxMode(values["sandbox_mode"]),
 	}, nil
 }
 
@@ -121,8 +146,8 @@ func (a *App) newExecutionRequest(specID, workDir, prompt string, cfg systemConf
 		WorkDir:      workDir,
 		Prompt:       prompt,
 		Runner:       normalizeRunner(cfg.Runner),
-		ApprovalMode: cfg.ApprovalMode,
-		SandboxMode:  cfg.SandboxMode,
+		ApprovalMode: normalizeApprovalMode(cfg.ApprovalMode),
+		SandboxMode:  normalizeSandboxMode(cfg.SandboxMode),
 	}
 }
 
@@ -219,4 +244,38 @@ func normalizeRunner(name string) string {
 		return "codex"
 	}
 	return normalized
+}
+
+func normalizeApprovalMode(value string) string {
+	normalized := strings.TrimSpace(strings.ToLower(value))
+	if normalized == "" {
+		return "on-request"
+	}
+	return normalized
+}
+
+func normalizeSandboxMode(value string) string {
+	normalized := strings.TrimSpace(strings.ToLower(value))
+	if normalized == "" {
+		return "workspace-write"
+	}
+	return normalized
+}
+
+func isAllowedApprovalMode(value string) bool {
+	switch value {
+	case "untrusted", "on-failure", "on-request", "never":
+		return true
+	default:
+		return false
+	}
+}
+
+func isAllowedSandboxMode(value string) bool {
+	switch value {
+	case "read-only", "workspace-write", "danger-full-access":
+		return true
+	default:
+		return false
+	}
 }

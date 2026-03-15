@@ -30,6 +30,7 @@ func TestRunWritesStructuredLogs(t *testing.T) {
 			if dir != tmp {
 				t.Fatalf("expected codex workdir %s, got %s", tmp, dir)
 			}
+			mustContainArgs(t, args, []string{"-a", "on-request", "-s", "workspace-write"})
 			return "runner output", nil
 		case isShellCommand(name):
 			return "validation ok", nil
@@ -50,6 +51,9 @@ func TestRunWritesStructuredLogs(t *testing.T) {
 	if result.Runner != "codex" {
 		t.Fatalf("expected codex runner, got %s", result.Runner)
 	}
+	if result.ApprovalMode != "on-request" || result.SandboxMode != "workspace-write" {
+		t.Fatalf("unexpected runtime modes: %+v", result)
+	}
 
 	report := mustReadValidationReport(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-validation.json"))
 	if !report.Passed {
@@ -57,6 +61,40 @@ func TestRunWritesStructuredLogs(t *testing.T) {
 	}
 	if len(report.Steps) != 3 {
 		t.Fatalf("expected 3 validation steps, got %d", len(report.Steps))
+	}
+}
+
+func TestRunUsesConfiguredApprovalAndSandbox(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), "runner: codex\napproval_mode: never\nsandbox_mode: read-only\n")
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			mustContainArgs(t, args, []string{"-a", "never", "-s", "read-only"})
+			return "runner output", nil
+		case isShellCommand(name):
+			return "validation ok", nil
+		default:
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"run", "SPEC-001"}); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	result := mustReadExecutionResult(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-execution.json"))
+	if result.ApprovalMode != "never" || result.SandboxMode != "read-only" {
+		t.Fatalf("unexpected runtime modes: %+v", result)
 	}
 }
 
@@ -75,6 +113,78 @@ func TestRunRejectsUnsupportedRunner(t *testing.T) {
 	}
 }
 
+func TestRunRejectsInvalidApprovalMode(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), "runner: codex\napproval_mode: maybe\nsandbox_mode: workspace-write\n")
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if isShellCommand(name) {
+			t.Fatal("validators should not run when approval mode is invalid")
+		}
+		if isCodexExec(name, args) {
+			t.Fatal("codex should not run when approval mode is invalid")
+		}
+		return "", nil
+	}
+
+	err := app.Run(context.Background(), []string{"run", "SPEC-001"})
+	if err == nil {
+		t.Fatal("expected invalid approval mode error")
+	}
+	if !strings.Contains(err.Error(), "approval_mode") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result := mustReadExecutionResult(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-execution.json"))
+	if !strings.Contains(result.Error, "approval_mode") {
+		t.Fatalf("expected approval mode error in execution result: %+v", result)
+	}
+}
+
+func TestRunRejectsInvalidSandboxMode(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), "runner: codex\napproval_mode: on-request\nsandbox_mode: moon-write\n")
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if isShellCommand(name) {
+			t.Fatal("validators should not run when sandbox mode is invalid")
+		}
+		if isCodexExec(name, args) {
+			t.Fatal("codex should not run when sandbox mode is invalid")
+		}
+		return "", nil
+	}
+
+	err := app.Run(context.Background(), []string{"run", "SPEC-001"})
+	if err == nil {
+		t.Fatal("expected invalid sandbox mode error")
+	}
+	if !strings.Contains(err.Error(), "sandbox_mode") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result := mustReadExecutionResult(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-execution.json"))
+	if !strings.Contains(result.Error, "sandbox_mode") {
+		t.Fatalf("expected sandbox mode error in execution result: %+v", result)
+	}
+}
+
 func TestRunWritesExecutionLogOnRunnerFailure(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
@@ -87,6 +197,7 @@ func TestRunWritesExecutionLogOnRunnerFailure(t *testing.T) {
 	}
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 		if isCodexExec(name, args) {
+			mustContainArgs(t, args, []string{"-a", "on-request", "-s", "workspace-write"})
 			return "partial output", errors.New("runner failed")
 		}
 		if isShellCommand(name) {
@@ -130,6 +241,7 @@ func TestRunWritesValidationReportOnValidationFailure(t *testing.T) {
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 		switch {
 		case isCodexExec(name, args):
+			mustContainArgs(t, args, []string{"-a", "on-request", "-s", "workspace-write"})
 			return "runner output", nil
 		case isShellCommand(name):
 			command := args[len(args)-1]
@@ -195,13 +307,32 @@ func chdirExecution(t *testing.T, dir string) func() {
 
 func isCodexExec(name string, args []string) bool {
 	if runtime.GOOS == "windows" {
-		return name == "cmd" && len(args) >= 3 && args[0] == "/c" && args[1] == "codex"
+		return name == "cmd" && len(args) >= 7 && args[0] == "/c" && args[1] == "codex" && args[2] == "exec"
 	}
-	return name == "codex" && len(args) >= 1 && args[0] == "exec"
+	return name == "codex" && len(args) >= 6 && args[0] == "exec"
 }
 
 func isShellCommand(name string) bool {
 	return name == "powershell" || name == "sh"
+}
+
+func mustContainArgs(t *testing.T, args []string, expected []string) {
+	t.Helper()
+	for i := 0; i < len(expected); i += 2 {
+		index := indexOfArg(args, expected[i])
+		if index == -1 || index+1 >= len(args) || args[index+1] != expected[i+1] {
+			t.Fatalf("expected args to contain %s %s, got %v", expected[i], expected[i+1], args)
+		}
+	}
+}
+
+func indexOfArg(args []string, needle string) int {
+	for i, arg := range args {
+		if arg == needle {
+			return i
+		}
+	}
+	return -1
 }
 
 func mustReadExecutionResult(t *testing.T, path string) executionResult {
