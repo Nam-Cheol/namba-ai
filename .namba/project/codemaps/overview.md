@@ -1,4 +1,6 @@
 # Overview
 
-NambaAI contains a small Go CLI that scaffolds Codex-focused project assets and
-runs a phased `project -> plan -> run -> sync` workflow.
+namba-ai is managed by NambaAI.
+
+- Language: go
+- Framework: none

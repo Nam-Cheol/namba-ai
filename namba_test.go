@@ -87,6 +87,47 @@ func TestProjectRunDryRunAndSync(t *testing.T) {
 	mustExist(t, filepath.Join(tmp, ".namba", "project", "pr-checklist.md"))
 }
 
+func TestInitConfiguresGoFormatTargets(t *testing.T) {
+	tmp := t.TempDir()
+	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	if err := os.WriteFile(filepath.Join(tmp, "go.mod"), []byte("module example.com/demo\n\ngo 1.24.0\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, "cmd", "demo"), 0o755); err != nil {
+		t.Fatalf("mkdir cmd: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "cmd", "demo", "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatalf("write main.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "root_test.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("write root_test.go: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, "external", "ref"), 0o755); err != nil {
+		t.Fatalf("mkdir external: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "external", "ref", "ignored.go"), []byte("package ref\n"), 0o644); err != nil {
+		t.Fatalf("write ignored.go: %v", err)
+	}
+
+	if err := app.Run(context.Background(), []string{"init", tmp}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	quality, err := os.ReadFile(filepath.Join(tmp, ".namba", "config", "sections", "quality.yaml"))
+	if err != nil {
+		t.Fatalf("read quality config: %v", err)
+	}
+
+	text := string(quality)
+	if !strings.Contains(text, `lint_command: gofmt -l "cmd" "root_test.go"`) {
+		t.Fatalf("unexpected lint command: %s", text)
+	}
+	if strings.Contains(text, "external") {
+		t.Fatalf("expected external paths to be excluded: %s", text)
+	}
+}
+
 func mustExist(t *testing.T, path string) {
 	t.Helper()
 	if _, err := os.Stat(path); err != nil {
