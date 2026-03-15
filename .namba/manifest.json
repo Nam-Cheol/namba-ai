@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-15T21:02:32+09:00",
+  "generated_at": "2026-03-15T21:53:56+09:00",
   "entries": [
     {
       "path": ".codex/skills/namba-foundation-core/SKILL.md",
@@ -46,56 +46,56 @@
     {
       "path": ".namba/project/change-summary.md",
       "kind": "project-doc",
-      "checksum": "f93e69b720afb50248ae00f67f9854e44b5593c1ca4d9eb799bb2363cd4a274d",
-      "updated_at": "2026-03-15T21:02:32+09:00"
+      "checksum": "247d59ec135c1f5bb21f49bd9cb73b7ce070a977b6c4ea70b2ba3e792e9611d4",
+      "updated_at": "2026-03-15T21:53:56+09:00"
     },
     {
       "path": ".namba/project/codemaps/data-flow.md",
       "kind": "project-doc",
       "checksum": "aa5fbb67155d059f315f59c009341d6301818f9a368869712334b4806b7712ce",
-      "updated_at": "2026-03-15T21:02:32+09:00"
+      "updated_at": "2026-03-15T21:53:56+09:00"
     },
     {
       "path": ".namba/project/codemaps/dependencies.md",
       "kind": "project-doc",
       "checksum": "2a274798db2f870478c4c1a5dc6867e8d751030efbe4d5e2095f2ef3cc396ea7",
-      "updated_at": "2026-03-15T21:02:32+09:00"
+      "updated_at": "2026-03-15T21:53:56+09:00"
     },
     {
       "path": ".namba/project/codemaps/entry-points.md",
       "kind": "project-doc",
       "checksum": "3fa3c20d7d972a3cf3638c3a920697cd892c81372a83e32f23c9863275a9be6f",
-      "updated_at": "2026-03-15T21:02:32+09:00"
+      "updated_at": "2026-03-15T21:53:56+09:00"
     },
     {
       "path": ".namba/project/codemaps/overview.md",
       "kind": "project-doc",
       "checksum": "8e78657ecf38baa34b08551a3a239b0782ca311ffb19580f1c5773c51213321c",
-      "updated_at": "2026-03-15T21:02:32+09:00"
+      "updated_at": "2026-03-15T21:53:56+09:00"
     },
     {
       "path": ".namba/project/pr-checklist.md",
       "kind": "project-doc",
       "checksum": "8633659242980e41e4fff11255a5a37fac76f0ef9a678bdebf6821158548c131",
-      "updated_at": "2026-03-15T21:02:32+09:00"
+      "updated_at": "2026-03-15T21:53:56+09:00"
     },
     {
       "path": ".namba/project/product.md",
       "kind": "project-doc",
       "checksum": "592fb17ea8dcb6a44d3ac9f77182b5af367df665c79cba7ecb9f490f37f909da",
-      "updated_at": "2026-03-15T21:02:32+09:00"
+      "updated_at": "2026-03-15T21:53:56+09:00"
     },
     {
       "path": ".namba/project/structure.md",
       "kind": "project-doc",
-      "checksum": "43970a193461827b4bbe9450b0cf89240c40f882ed1aa3b8b1cf05f79d036ef7",
-      "updated_at": "2026-03-15T21:02:32+09:00"
+      "checksum": "9dd315b097bcaf3dd807c728189ecc35ff3eb8effabca7e20fa2a13eccd9990f",
+      "updated_at": "2026-03-15T21:53:55+09:00"
     },
     {
       "path": ".namba/project/tech.md",
       "kind": "project-doc",
       "checksum": "39b774d547d75a02b4c287418762261bc4061c82810e360a63d761c320b9e1f3",
-      "updated_at": "2026-03-15T21:02:32+09:00"
+      "updated_at": "2026-03-15T21:53:56+09:00"
     },
     {
       "path": "AGENTS.md",

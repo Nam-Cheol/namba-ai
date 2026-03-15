@@ -356,7 +356,14 @@ func (a *App) runExecute(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	qualityCfg, _ := a.loadQualityConfig(root)
+	qualityCfg, err := a.loadQualityConfig(root)
+	if err != nil {
+		return err
+	}
+	systemCfg, err := a.loadSystemConfig(root)
+	if err != nil {
+		return err
+	}
 	prompt, tasks, err := a.buildExecutionPrompt(root, specPkg, qualityCfg)
 	if err != nil {
 		return err
@@ -372,7 +379,7 @@ func (a *App) runExecute(ctx context.Context, args []string) error {
 	}
 
 	if parallel {
-		return a.runParallel(ctx, root, specPkg, tasks, prompt, dryRun)
+		return a.runParallel(ctx, root, specPkg, tasks, prompt, qualityCfg, systemCfg, dryRun)
 	}
 
 	if dryRun {
@@ -380,18 +387,12 @@ func (a *App) runExecute(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	output, err := a.runCodexExec(ctx, root, prompt)
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(filepath.Join(logDir, strings.ToLower(specID)+"-result.txt"), []byte(output), 0o644); err != nil {
-		return err
-	}
-	if err := a.runValidators(ctx, root, qualityCfg); err != nil {
+	request := a.newExecutionRequest(specPkg.ID, root, prompt, systemCfg)
+	if _, _, err := a.executeRun(ctx, root, strings.ToLower(specID), request, root, qualityCfg); err != nil {
 		return err
 	}
 
-	fmt.Fprintf(a.stdout, "Executed %s with Codex\n", specID)
+	fmt.Fprintf(a.stdout, "Executed %s with %s\n", specID, request.Runner)
 	return nil
 }
 
@@ -510,7 +511,7 @@ func (a *App) runWorktree(ctx context.Context, args []string) error {
 	}
 }
 
-func (a *App) runParallel(ctx context.Context, root string, specPkg specPackage, tasks []string, prompt string, dryRun bool) error {
+func (a *App) runParallel(ctx context.Context, root string, specPkg specPackage, tasks []string, prompt string, qualityCfg qualityConfig, systemCfg systemConfig, dryRun bool) error {
 	if _, err := a.lookPath("git"); err != nil {
 		return errors.New("parallel execution requires git")
 	}
@@ -553,13 +554,8 @@ func (a *App) runParallel(ctx context.Context, root string, specPkg specPackage,
 			continue
 		}
 
-		output, err := a.runCodexExec(ctx, path, workerPrompt)
-		if err == nil {
-			err = a.runValidators(ctx, path, mustLoadQualityConfig(a, root))
-		}
-		if err == nil {
-			err = os.WriteFile(filepath.Join(root, logsDir, "runs", name+"-result.txt"), []byte(output), 0o644)
-		}
+		request := a.newExecutionRequest(specPkg.ID, path, workerPrompt, systemCfg)
+		_, _, err := a.executeRun(ctx, root, name, request, path, qualityCfg)
 		results = append(results, workResult{name: name, err: err})
 	}
 
@@ -580,7 +576,7 @@ func (a *App) runParallel(ctx context.Context, root string, specPkg specPackage,
 		fmt.Fprintf(a.stdout, "Prepared %d parallel work packages for %s\n", len(results), specPkg.ID)
 		return nil
 	}
-	fmt.Fprintf(a.stdout, "Executed %s in %d parallel worktrees\n", specPkg.ID, len(results))
+	fmt.Fprintf(a.stdout, "Executed %s in %d parallel worktrees with %s\n", specPkg.ID, len(results), normalizeRunner(systemCfg.Runner))
 	return nil
 }
 
