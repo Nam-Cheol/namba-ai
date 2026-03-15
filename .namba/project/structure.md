@@ -16,6 +16,7 @@
 .namba\specs\.gitkeep
 .namba\specs\SPEC-001
 .namba\specs\SPEC-002
+.namba\specs\SPEC-003
 AGENTS.md
 README.md
 SECURITY.md
