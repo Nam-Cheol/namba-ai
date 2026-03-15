@@ -1,3 +1,3 @@
-module github.com/namba-ai/namba
+module github.com/Nam-Cheol/namba-ai
 
 go 1.22

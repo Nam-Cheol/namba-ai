@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/namba-ai/namba/internal/namba"
+	"github.com/Nam-Cheol/namba-ai/internal/namba"
 )
 
 func TestInitCreatesScaffold(t *testing.T) {

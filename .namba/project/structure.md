@@ -17,11 +17,15 @@
 .namba\specs\SPEC-001
 .namba\specs\SPEC-002
 .namba\specs\SPEC-003
+.namba\specs\SPEC-004
 AGENTS.md
 README.md
 SECURITY.md
 cmd
 cmd\namba
+cmd\namba\encoding_other.go
+cmd\namba\encoding_test.go
+cmd\namba\encoding_windows.go
 cmd\namba\main.go
 docs
 docs\moai-adk-codex-migration-analysis.md
