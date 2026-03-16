@@ -9,17 +9,18 @@ func renderAgents(profile initProfile) string {
 	return fmt.Sprintf("# NambaAI\n\n"+
 		"You are the NambaAI orchestrator for this repository.\n\n"+
 		"## Codex-Native Mode\n\n"+
-		"When the user references `namba`, `namba project`, `namba plan`, `namba fix`, `namba run SPEC-XXX`, or `namba sync`, treat those as Namba workflow commands inside the current Codex session.\n\n"+
+		"When the user references `namba`, `namba project`, `namba update`, `namba plan`, `namba fix`, `namba run SPEC-XXX`, or `namba sync`, treat those as Namba workflow commands inside the current Codex session.\n\n"+
 		"- Prefer direct Codex-native execution for `namba run SPEC-XXX`: read the SPEC package, implement the work in-session, run validation, and sync artifacts.\n"+
-		"- Use the installed `namba` CLI for `init`, `doctor`, `project`, `plan`, `fix`, and `sync` when it is available and the command will update repository state more reliably.\n"+
+		"- Use the installed `namba` CLI for `init`, `doctor`, `project`, `update`, `plan`, `fix`, and `sync` when it is available and the command will update repository state more reliably.\n"+
 		"- If the `namba` CLI is unavailable, perform the equivalent workflow manually with `.namba/` as the source of truth.\n"+
 		"- Use repo skills under `.agents/skills/` first. `.codex/skills/` exists as a compatibility mirror.\n"+
 		"- When delegating work with Codex multi-agent features, use the role cards under `.codex/agents/` as the agent prompt source.\n\n"+
 		"## Workflow\n\n"+
-		"1. Run `namba project` to refresh project docs and codemaps.\n"+
-		"2. Run `namba plan \"<description>\"` for feature work or `namba fix \"<description>\"` for bug fixes.\n"+
-		"3. Run `namba run SPEC-XXX` to execute the SPEC with Codex-native workflow.\n"+
-		"4. Run `namba sync` to refresh artifacts and PR-ready documents.\n\n"+
+		"1. Run `namba update` when template-generated Codex assets need regeneration.\n"+
+		"2. Run `namba project` to refresh project docs and codemaps.\n"+
+		"3. Run `namba plan \"<description>\"` for feature work or `namba fix \"<description>\"` for bug fixes.\n"+
+		"4. Run `namba run SPEC-XXX` to execute the SPEC with Codex-native workflow.\n"+
+		"5. Run `namba sync` to refresh artifacts and PR-ready documents.\n\n"+
 		"## Rules\n\n"+
 		"- Prefer `.namba/` as the source of truth.\n"+
 		"- Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md` before implementation.\n"+
@@ -42,10 +43,11 @@ func renderNambaSkill() string {
 		"description: Codex-native Namba command surface for SPEC orchestration inside a repository.",
 		"---",
 		"",
-		"Use this skill whenever the user mentions `namba`, `namba project`, `namba plan`, `namba fix`, `namba run`, `namba sync`, or asks to use the Namba workflow.",
+		"Use this skill whenever the user mentions `namba`, `namba project`, `namba update`, `namba plan`, `namba fix`, `namba run`, `namba sync`, or asks to use the Namba workflow.",
 		"",
 		"Command mapping:",
 		"- `namba project`: refresh repository docs and codemaps.",
+		"- `namba update`: regenerate AGENTS, repo-local skills, compatibility skills, role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
 		"- `namba plan \"<description>\"`: create the next feature SPEC package under `.namba/specs/`.",
 		"- `namba fix \"<description>\"`: create the next bugfix SPEC package under `.namba/specs/`.",
 
@@ -56,7 +58,7 @@ func renderNambaSkill() string {
 		"Execution rules:",
 		"1. Treat `.namba/` as the source of truth.",
 		"2. Prefer repo-local skills in `.agents/skills/`.",
-		"3. Use the installed `namba` CLI for `project`, `plan`, `fix`, and `sync` when it will update repo state more reliably.",
+		"3. Use the installed `namba` CLI for `project`, `update`, `plan`, `fix`, and `sync` when it will update repo state more reliably.",
 		"4. For `namba run` in an interactive Codex session, prefer Codex-native in-session execution over recursively calling `namba run`.",
 		"5. Run validation commands from `.namba/config/sections/quality.yaml` before finishing.",
 	}
@@ -168,7 +170,7 @@ func renderCodexUsage(profile initProfile) string {
 		"2. Codex loads `AGENTS.md` and repo skills.",
 		"3. Invoke `$namba` or ask Codex to use the Namba workflow.",
 		"4. Use built-in Codex delegation with the role cards in `.codex/agents/` when multi-agent work is appropriate.",
-		"5. Use `namba project`, `namba plan`, `namba fix`, `namba run SPEC-XXX`, and `namba sync` as workflow commands.",
+		"5. Use `namba project`, `namba update`, `namba plan`, `namba fix`, `namba run SPEC-XXX`, and `namba sync` as workflow commands.",
 		"",
 		"## Claude to Codex Mapping",
 		"",

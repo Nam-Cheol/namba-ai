@@ -1,3 +1,6 @@
 # Dependencies
 
-Run `namba project` to refresh this document.
+- Go standard library
+- External runtime: Codex CLI
+- External runtime: Git
+- Project module detected via `go.mod`

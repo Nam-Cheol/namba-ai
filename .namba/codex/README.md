@@ -17,7 +17,7 @@
 2. Codex loads `AGENTS.md` and repo skills.
 3. Invoke `$namba` or ask Codex to use the Namba workflow.
 4. Use built-in Codex delegation with the role cards in `.codex/agents/` when multi-agent work is appropriate.
-5. Use `namba project`, `namba plan`, `namba run SPEC-XXX`, and `namba sync` as workflow commands.
+5. Use `namba project`, `namba update`, `namba plan`, `namba fix`, `namba run SPEC-XXX`, and `namba sync` as workflow commands.
 
 ## Claude to Codex Mapping
 

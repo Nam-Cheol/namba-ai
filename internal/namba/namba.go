@@ -106,6 +106,8 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return a.runStatus(ctx, args[1:])
 	case "project":
 		return a.runProject(ctx, args[1:])
+	case "update":
+		return a.runUpdate(ctx, args[1:])
 	case "plan":
 		return a.runPlan(ctx, args[1:])
 	case "fix":
@@ -138,6 +140,7 @@ Usage:
   namba doctor
   namba status
   namba project
+  namba update
   namba plan "<description>"
   namba fix "<description>"
   namba run SPEC-XXX [--parallel] [--dry-run]
@@ -578,73 +581,15 @@ func (a *App) runWorktree(ctx context.Context, args []string) error {
 	}
 }
 
+type parallelWorkerState struct {
+	name   string
+	path   string
+	branch string
+	err    error
+}
+
 func (a *App) runParallel(ctx context.Context, root string, specPkg specPackage, tasks []string, prompt string, qualityCfg qualityConfig, systemCfg systemConfig, dryRun bool) error {
-	if _, err := a.lookPath("git"); err != nil {
-		return errors.New("parallel execution requires git")
-	}
-	if !isGitRepository(root) {
-		return errors.New("parallel execution requires a git repository")
-	}
-
-	baseBranch, err := a.currentBranch(ctx, root)
-	if err != nil {
-		return err
-	}
-	workers := minInt(len(tasks), 3)
-	if workers == 0 {
-		workers = 1
-	}
-	chunks := chunkTasks(tasks, workers)
-
-	type workResult struct {
-		name string
-		err  error
-	}
-	results := make([]workResult, 0, len(chunks))
-
-	for i, chunk := range chunks {
-		name := strings.ToLower(specPkg.ID) + "-p" + strconv.Itoa(i+1)
-		path := filepath.Join(root, worktreesDir, name)
-		branch := "namba/" + name
-		if _, err := a.runBinary(ctx, "git", []string{"worktree", "add", "-b", branch, path, baseBranch}, root); err != nil {
-			return err
-		}
-
-		workerPrompt := prompt + "\n\n## Assigned work package\n\n" + strings.Join(chunk, "\n")
-		logPath := filepath.Join(root, logsDir, "runs", name+"-request.md")
-		if err := os.WriteFile(logPath, []byte(workerPrompt), 0o644); err != nil {
-			return err
-		}
-
-		if dryRun {
-			results = append(results, workResult{name: name})
-			continue
-		}
-
-		request := a.newExecutionRequest(specPkg.ID, path, workerPrompt, systemCfg)
-		_, _, err := a.executeRun(ctx, root, name, request, path, qualityCfg)
-		results = append(results, workResult{name: name, err: err})
-	}
-
-	for _, result := range results {
-		if result.err != nil {
-			return fmt.Errorf("parallel worker %s failed: %w", result.name, result.err)
-		}
-		if dryRun {
-			continue
-		}
-		branch := "namba/" + result.name
-		if _, err := a.runBinary(ctx, "git", []string{"merge", "--no-ff", branch, "-m", "merge " + branch}, root); err != nil {
-			return fmt.Errorf("merge %s: %w", branch, err)
-		}
-	}
-
-	if dryRun {
-		fmt.Fprintf(a.stdout, "Prepared %d parallel work packages for %s\n", len(results), specPkg.ID)
-		return nil
-	}
-	fmt.Fprintf(a.stdout, "Executed %s in %d parallel worktrees with %s\n", specPkg.ID, len(results), normalizeRunner(systemCfg.Runner))
-	return nil
+	return a.executeParallelRun(ctx, root, specPkg, tasks, prompt, qualityCfg, systemCfg, dryRun)
 }
 
 func (a *App) runCodexExec(ctx context.Context, dir, prompt string) (string, error) {
@@ -763,6 +708,88 @@ func (a *App) loadQualityConfig(root string) (qualityConfig, error) {
 	}, nil
 }
 
+func (a *App) loadInitProfileFromConfig(root string) (initProfile, error) {
+	profile := a.detectInitProfile(root)
+
+	projectValues, err := readKeyValueFile(filepath.Join(root, configDir, "project.yaml"))
+	if err != nil {
+		return initProfile{}, err
+	}
+	qualityValues, err := readKeyValueFile(filepath.Join(root, configDir, "quality.yaml"))
+	if err != nil {
+		return initProfile{}, err
+	}
+	languageValues, err := readKeyValueFile(filepath.Join(root, configDir, "language.yaml"))
+	if err != nil {
+		return initProfile{}, err
+	}
+	userValues, err := readKeyValueFile(filepath.Join(root, configDir, "user.yaml"))
+	if err != nil {
+		return initProfile{}, err
+	}
+	gitValues, err := readKeyValueFile(filepath.Join(root, configDir, "git-strategy.yaml"))
+	if err != nil {
+		return initProfile{}, err
+	}
+	codexValues, err := readKeyValueFile(filepath.Join(root, configDir, "codex.yaml"))
+	if err != nil {
+		return initProfile{}, err
+	}
+
+	if value := strings.TrimSpace(projectValues["name"]); value != "" {
+		profile.ProjectName = value
+	}
+	if value := strings.TrimSpace(projectValues["project_type"]); value != "" {
+		profile.ProjectType = value
+	}
+	if value := strings.TrimSpace(projectValues["language"]); value != "" {
+		profile.Language = value
+	}
+	if value := strings.TrimSpace(projectValues["framework"]); value != "" {
+		profile.Framework = value
+	}
+	if value := strings.TrimSpace(projectValues["created_at"]); value != "" {
+		profile.CreatedAt = value
+	}
+	if value := strings.TrimSpace(qualityValues["development_mode"]); value != "" {
+		profile.DevelopmentMode = value
+	}
+	if value := strings.TrimSpace(languageValues["conversation_language"]); value != "" {
+		profile.ConversationLanguage = value
+	}
+	if value := strings.TrimSpace(languageValues["documentation_language"]); value != "" {
+		profile.DocumentationLanguage = value
+	}
+	if value := strings.TrimSpace(languageValues["comment_language"]); value != "" {
+		profile.CommentLanguage = value
+	}
+	if value := strings.TrimSpace(userValues["user_name"]); value != "" {
+		profile.UserName = value
+	}
+	if value := strings.TrimSpace(gitValues["mode"]); value != "" {
+		profile.GitMode = value
+	}
+	if value := strings.TrimSpace(gitValues["provider"]); value != "" {
+		profile.GitProvider = value
+	}
+	if value := strings.TrimSpace(gitValues["username"]); value != "" {
+		profile.GitUsername = value
+	}
+	if value := strings.TrimSpace(gitValues["gitlab_instance_url"]); value != "" {
+		profile.GitLabInstanceURL = value
+	}
+	if value := strings.TrimSpace(codexValues["agent_mode"]); value != "" {
+		profile.AgentMode = value
+	}
+	if value := strings.TrimSpace(codexValues["status_line_preset"]); value != "" {
+		profile.StatusLinePreset = value
+	}
+
+	if err := validateInitProfile(profile); err != nil {
+		return initProfile{}, err
+	}
+	return profile, nil
+}
 func (a *App) loadSpec(root, specID string) (specPackage, error) {
 	specPath := filepath.Join(root, specsDir, specID)
 	if _, err := os.Stat(specPath); err != nil {
@@ -2085,4 +2112,3 @@ func parseInitArgs(args []string) (initOptions, error) {
 
 	return opts, nil
 }
-

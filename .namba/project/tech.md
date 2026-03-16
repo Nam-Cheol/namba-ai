@@ -1,3 +1,8 @@
 # Tech
 
-Run `namba project` to refresh this document.
+- Language: go
+- Framework: none
+- Runtime adapter: Codex
+- Repo-local skills: .agents/skills
+- Repo-local agent role cards: .codex/agents
+- State directory: .namba

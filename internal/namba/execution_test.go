@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -289,22 +290,28 @@ func prepareExecutionProject(t *testing.T) (string, *App, func()) {
 	return tmp, app, restore
 }
 
+var cwdMu sync.Mutex
+
 func chdirExecution(t *testing.T, dir string) func() {
 	t.Helper()
+	cwdMu.Lock()
+
 	previous, err := os.Getwd()
 	if err != nil {
+		cwdMu.Unlock()
 		t.Fatalf("getwd: %v", err)
 	}
 	if err := os.Chdir(dir); err != nil {
+		cwdMu.Unlock()
 		t.Fatalf("chdir %s: %v", dir, err)
 	}
 	return func() {
+		defer cwdMu.Unlock()
 		if err := os.Chdir(previous); err != nil {
 			t.Fatalf("restore cwd: %v", err)
 		}
 	}
 }
-
 func isCodexExec(name string, args []string) bool {
 	if runtime.GOOS == "windows" {
 		return name == "cmd" && len(args) >= 7 && args[0] == "/c" && args[1] == "codex" && args[2] == "exec"
