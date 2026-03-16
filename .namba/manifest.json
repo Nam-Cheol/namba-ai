@@ -1,263 +1,263 @@
 {
-  "generated_at": "2026-03-16T17:24:52+09:00",
-  "entries": [
-    {
-      "path": ".agents/skills/namba-foundation-core/SKILL.md",
-      "kind": "skill",
-      "checksum": "b24a14a4935d151fed9707b80156febff0f227741fd97a4588156348b37e6700",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".agents/skills/namba-workflow-execution/SKILL.md",
-      "kind": "skill",
-      "checksum": "c8ac0efd1ad5c2df7d0145ae0a7ae84e61dc6d160175c183ca5b3a547c0890a0",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".agents/skills/namba-workflow-init/SKILL.md",
-      "kind": "skill",
-      "checksum": "79a7a2160b7b00e99440f2018548d35dffa9123f8658f749ff4cba17ed68462e",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".agents/skills/namba-workflow-project/SKILL.md",
-      "kind": "skill",
-      "checksum": "90dd3f2fb075ed2b13334fe804acf44b75679ee4f845056fa793c7305755d2f4",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".agents/skills/namba/SKILL.md",
-      "kind": "skill",
-      "checksum": "b2d297c5ad6dca635953c567f578ae1e9b1750c3bc6d12af9bac2f469a3c37b8",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".codex/agents/namba-implementer.md",
-      "kind": "agent",
-      "checksum": "ede42fb5448c243edfa892cdfb3ce3385aaef852ab6fa5df22ee8061d822c24a",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".codex/agents/namba-planner.md",
-      "kind": "agent",
-      "checksum": "331b300c1a600c3f689579b415583f7128eaf714989f14c2880acb8014b7f000",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".codex/agents/namba-reviewer.md",
-      "kind": "agent",
-      "checksum": "2d3d8fbaf7fb7bb4213bdf9c573e91c0e560beb8fcae0d328786d69fd1ce3bc4",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".codex/config.toml",
-      "kind": "asset",
-      "checksum": "30d7a6735078e2d19cc99b404a9e40fee907f66280873314ab99bae2f55461c3",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".codex/skills/namba-foundation-core/SKILL.md",
-      "kind": "skill",
-      "checksum": "b24a14a4935d151fed9707b80156febff0f227741fd97a4588156348b37e6700",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".codex/skills/namba-workflow-execution/SKILL.md",
-      "kind": "skill",
-      "checksum": "c8ac0efd1ad5c2df7d0145ae0a7ae84e61dc6d160175c183ca5b3a547c0890a0",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".codex/skills/namba-workflow-init/SKILL.md",
-      "kind": "skill",
-      "checksum": "79a7a2160b7b00e99440f2018548d35dffa9123f8658f749ff4cba17ed68462e",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".codex/skills/namba-workflow-project/SKILL.md",
-      "kind": "skill",
-      "checksum": "90dd3f2fb075ed2b13334fe804acf44b75679ee4f845056fa793c7305755d2f4",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".codex/skills/namba/SKILL.md",
-      "kind": "skill",
-      "checksum": "b2d297c5ad6dca635953c567f578ae1e9b1750c3bc6d12af9bac2f469a3c37b8",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".namba/codex/README.md",
-      "kind": "asset",
-      "checksum": "101615a682e294f6ef9973e108c77bd9fbbc943af3957c1d07445cb399acf12e",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".namba/codex/claude-codex-mapping.md",
-      "kind": "asset",
-      "checksum": "52732fba8a0b78ccdac3cee76ba01a541c5cb500dc98a300b5728f72dbfbc0e8",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".namba/codex/statusline.example.toml",
-      "kind": "asset",
-      "checksum": "bbd81bca531916bda86ab311a04a1b74d8041ef667e865ce6346f1ed2108676e",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    },
-    {
-      "path": ".namba/config/sections/codex.yaml",
-      "kind": "config",
-      "checksum": "6c9ccfd7462eda2d83d1ff5b18281a6f56f99f8417dad22628e7b6be50b4bbe5",
-      "updated_at": "2026-03-15T23:57:06+09:00"
-    },
-    {
-      "path": ".namba/config/sections/git-strategy.yaml",
-      "kind": "config",
-      "checksum": "902e9c9119b4977114b2be800672a2fabd5bd4ce9b3ece3078008cd101120f3e",
-      "updated_at": "2026-03-15T23:57:06+09:00"
-    },
-    {
-      "path": ".namba/config/sections/language.yaml",
-      "kind": "config",
-      "checksum": "fd9315b293d089ffa7cd838b1ffe232da36d06b2bf0da9a5c563e3ad62bc477a",
-      "updated_at": "2026-03-15T23:57:06+09:00"
-    },
-    {
-      "path": ".namba/config/sections/project.yaml",
-      "kind": "config",
-      "checksum": "a7cd45420f6de44682d432c8ca4102d69e2aa8e3f14b79a7db5f26ccaabf1c3c",
-      "updated_at": "2026-03-15T23:57:06+09:00"
-    },
-    {
-      "path": ".namba/config/sections/quality.yaml",
-      "kind": "config",
-      "checksum": "1f37602d6f4004beabc7038079eb7c6cc1d798749b01c348cda941de01104de3",
-      "updated_at": "2026-03-15T23:57:06+09:00"
-    },
-    {
-      "path": ".namba/config/sections/system.yaml",
-      "kind": "config",
-      "checksum": "ba6872139bee17031b36462a3a2ca771a134c8ec6d777ded8922d142a811a0a9",
-      "updated_at": "2026-03-15T23:57:06+09:00"
-    },
-    {
-      "path": ".namba/config/sections/user.yaml",
-      "kind": "config",
-      "checksum": "a79235ae541b89d01398dbfdff97550b2937d2c589dbd86d58436b305322c034",
-      "updated_at": "2026-03-15T23:57:06+09:00"
-    },
-    {
-      "path": ".namba/config/sections/workflow.yaml",
-      "kind": "config",
-      "checksum": "ade8f3b4db7744449ad7722e633f7ac8f0f0a4a6d840814c7b259ee699ec11bb",
-      "updated_at": "2026-03-15T23:57:06+09:00"
-    },
-    {
-      "path": ".namba/logs/.gitkeep",
-      "kind": "asset",
-      "checksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "updated_at": "2026-03-15T23:57:06+09:00"
-    },
-    {
-      "path": ".namba/project/change-summary.md",
-      "kind": "project-doc",
-      "checksum": "311f5d0e93015914baaced54dbe9fb30c8c4153bc9eeee54b4044bc7c23554b8",
-      "updated_at": "2026-03-16T17:22:34+09:00"
-    },
-    {
-      "path": ".namba/project/codemaps/data-flow.md",
-      "kind": "project-doc",
-      "checksum": "b16bd2823cf63eb5faac765f82deea5e8118cb102ebacc433697cf8d02bb9e1e",
-      "updated_at": "2026-03-16T17:22:34+09:00"
-    },
-    {
-      "path": ".namba/project/codemaps/dependencies.md",
-      "kind": "project-doc",
-      "checksum": "2a274798db2f870478c4c1a5dc6867e8d751030efbe4d5e2095f2ef3cc396ea7",
-      "updated_at": "2026-03-16T17:22:34+09:00"
-    },
-    {
-      "path": ".namba/project/codemaps/entry-points.md",
-      "kind": "project-doc",
-      "checksum": "3fa3c20d7d972a3cf3638c3a920697cd892c81372a83e32f23c9863275a9be6f",
-      "updated_at": "2026-03-16T17:22:34+09:00"
-    },
-    {
-      "path": ".namba/project/codemaps/overview.md",
-      "kind": "project-doc",
-      "checksum": "8e78657ecf38baa34b08551a3a239b0782ca311ffb19580f1c5773c51213321c",
-      "updated_at": "2026-03-16T17:22:34+09:00"
-    },
-    {
-      "path": ".namba/project/pr-checklist.md",
-      "kind": "project-doc",
-      "checksum": "8633659242980e41e4fff11255a5a37fac76f0ef9a678bdebf6821158548c131",
-      "updated_at": "2026-03-16T17:22:34+09:00"
-    },
-    {
-      "path": ".namba/project/product.md",
-      "kind": "project-doc",
-      "checksum": "36dcd0a7be20abc7a89bc4ede746e65d17b6990a7e85480f051ac95296f9b6e8",
-      "updated_at": "2026-03-16T17:22:34+09:00"
-    },
-    {
-      "path": ".namba/project/release-checklist.md",
-      "kind": "project-doc",
-      "checksum": "3756a48d84ce9116b1135793e28c3b17bd3f8b1d34f50fa50187243d81d8aa82",
-      "updated_at": "2026-03-16T17:22:34+09:00"
-    },
-    {
-      "path": ".namba/project/release-notes.md",
-      "kind": "project-doc",
-      "checksum": "e8ec78c79820878d1c685d3e21a8b3e84785af77e0d492b6aa9cc77063a193b5",
-      "updated_at": "2026-03-16T17:22:34+09:00"
-    },
-    {
-      "path": ".namba/project/structure.md",
-      "kind": "project-doc",
-      "checksum": "121fec6607eb44ccbeeab81d6865763803c93bf6885878b0336e88077095d8f1",
-      "updated_at": "2026-03-16T17:22:34+09:00"
-    },
-    {
-      "path": ".namba/project/tech.md",
-      "kind": "project-doc",
-      "checksum": "ff0225158af5a2a2c00eebcc8d69d353ee8e61c54b4aea8d4b8d77e75cc1dd5b",
-      "updated_at": "2026-03-16T17:22:34+09:00"
-    },
-    {
-      "path": ".namba/specs/.gitkeep",
-      "kind": "spec",
-      "checksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "updated_at": "2026-03-15T23:57:06+09:00"
-    },
-    {
-      "path": ".namba/specs/SPEC-008/acceptance.md",
-      "kind": "spec",
-      "checksum": "59d2019c35bad16a5b670a851c096a46dfd5905ee0c19a11ffa5a92e68691970",
-      "updated_at": "2026-03-16T17:24:52+09:00"
-    },
-    {
-      "path": ".namba/specs/SPEC-008/plan.md",
-      "kind": "spec",
-      "checksum": "4e5fe931ea352b9965b1c64fdda0cd7dffdecd27f30f65c59afda1aabb49809b",
-      "updated_at": "2026-03-16T17:24:52+09:00"
-    },
-    {
-      "path": ".namba/specs/SPEC-008/spec.md",
-      "kind": "spec",
-      "checksum": "c897925850f03fff4a92a381e1da1b4f66e95a6ef391ae1a4e04333b4ced89f3",
-      "updated_at": "2026-03-16T17:24:52+09:00"
-    },
-    {
-      "path": ".namba/worktrees/.gitkeep",
-      "kind": "asset",
-      "checksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "updated_at": "2026-03-15T23:57:06+09:00"
-    },
-    {
-      "path": "AGENTS.md",
-      "kind": "asset",
-      "checksum": "6a8d20440b0bc4ccd5dddd8bbb737c7d746309b1dfd56ee5c3bfd1daef9194c0",
-      "updated_at": "2026-03-16T17:19:31+09:00"
-    }
-  ]
+    "generated_at":  "2026-03-16T17:45:00+09:00",
+    "entries":  [
+                    {
+                        "path":  ".agents/skills/namba-foundation-core/SKILL.md",
+                        "kind":  "skill",
+                        "checksum":  "b24a14a4935d151fed9707b80156febff0f227741fd97a4588156348b37e6700",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".agents/skills/namba-workflow-execution/SKILL.md",
+                        "kind":  "skill",
+                        "checksum":  "c8ac0efd1ad5c2df7d0145ae0a7ae84e61dc6d160175c183ca5b3a547c0890a0",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".agents/skills/namba-workflow-init/SKILL.md",
+                        "kind":  "skill",
+                        "checksum":  "79a7a2160b7b00e99440f2018548d35dffa9123f8658f749ff4cba17ed68462e",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".agents/skills/namba-workflow-project/SKILL.md",
+                        "kind":  "skill",
+                        "checksum":  "90dd3f2fb075ed2b13334fe804acf44b75679ee4f845056fa793c7305755d2f4",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".agents/skills/namba/SKILL.md",
+                        "kind":  "skill",
+                        "checksum":  "b2d297c5ad6dca635953c567f578ae1e9b1750c3bc6d12af9bac2f469a3c37b8",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".codex/agents/namba-implementer.md",
+                        "kind":  "agent",
+                        "checksum":  "ede42fb5448c243edfa892cdfb3ce3385aaef852ab6fa5df22ee8061d822c24a",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".codex/agents/namba-planner.md",
+                        "kind":  "agent",
+                        "checksum":  "331b300c1a600c3f689579b415583f7128eaf714989f14c2880acb8014b7f000",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".codex/agents/namba-reviewer.md",
+                        "kind":  "agent",
+                        "checksum":  "2d3d8fbaf7fb7bb4213bdf9c573e91c0e560beb8fcae0d328786d69fd1ce3bc4",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".codex/config.toml",
+                        "kind":  "asset",
+                        "checksum":  "30d7a6735078e2d19cc99b404a9e40fee907f66280873314ab99bae2f55461c3",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".codex/skills/namba-foundation-core/SKILL.md",
+                        "kind":  "skill",
+                        "checksum":  "b24a14a4935d151fed9707b80156febff0f227741fd97a4588156348b37e6700",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".codex/skills/namba-workflow-execution/SKILL.md",
+                        "kind":  "skill",
+                        "checksum":  "c8ac0efd1ad5c2df7d0145ae0a7ae84e61dc6d160175c183ca5b3a547c0890a0",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".codex/skills/namba-workflow-init/SKILL.md",
+                        "kind":  "skill",
+                        "checksum":  "79a7a2160b7b00e99440f2018548d35dffa9123f8658f749ff4cba17ed68462e",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".codex/skills/namba-workflow-project/SKILL.md",
+                        "kind":  "skill",
+                        "checksum":  "90dd3f2fb075ed2b13334fe804acf44b75679ee4f845056fa793c7305755d2f4",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".codex/skills/namba/SKILL.md",
+                        "kind":  "skill",
+                        "checksum":  "b2d297c5ad6dca635953c567f578ae1e9b1750c3bc6d12af9bac2f469a3c37b8",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".namba/codex/README.md",
+                        "kind":  "asset",
+                        "checksum":  "101615a682e294f6ef9973e108c77bd9fbbc943af3957c1d07445cb399acf12e",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".namba/codex/claude-codex-mapping.md",
+                        "kind":  "asset",
+                        "checksum":  "52732fba8a0b78ccdac3cee76ba01a541c5cb500dc98a300b5728f72dbfbc0e8",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".namba/codex/statusline.example.toml",
+                        "kind":  "asset",
+                        "checksum":  "bbd81bca531916bda86ab311a04a1b74d8041ef667e865ce6346f1ed2108676e",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    },
+                    {
+                        "path":  ".namba/config/sections/codex.yaml",
+                        "kind":  "config",
+                        "checksum":  "6c9ccfd7462eda2d83d1ff5b18281a6f56f99f8417dad22628e7b6be50b4bbe5",
+                        "updated_at":  "2026-03-15T23:57:06+09:00"
+                    },
+                    {
+                        "path":  ".namba/config/sections/git-strategy.yaml",
+                        "kind":  "config",
+                        "checksum":  "902e9c9119b4977114b2be800672a2fabd5bd4ce9b3ece3078008cd101120f3e",
+                        "updated_at":  "2026-03-15T23:57:06+09:00"
+                    },
+                    {
+                        "path":  ".namba/config/sections/language.yaml",
+                        "kind":  "config",
+                        "checksum":  "fd9315b293d089ffa7cd838b1ffe232da36d06b2bf0da9a5c563e3ad62bc477a",
+                        "updated_at":  "2026-03-15T23:57:06+09:00"
+                    },
+                    {
+                        "path":  ".namba/config/sections/project.yaml",
+                        "kind":  "config",
+                        "checksum":  "a7cd45420f6de44682d432c8ca4102d69e2aa8e3f14b79a7db5f26ccaabf1c3c",
+                        "updated_at":  "2026-03-15T23:57:06+09:00"
+                    },
+                    {
+                        "path":  ".namba/config/sections/quality.yaml",
+                        "kind":  "config",
+                        "checksum":  "1f37602d6f4004beabc7038079eb7c6cc1d798749b01c348cda941de01104de3",
+                        "updated_at":  "2026-03-15T23:57:06+09:00"
+                    },
+                    {
+                        "path":  ".namba/config/sections/system.yaml",
+                        "kind":  "config",
+                        "checksum":  "ba6872139bee17031b36462a3a2ca771a134c8ec6d777ded8922d142a811a0a9",
+                        "updated_at":  "2026-03-15T23:57:06+09:00"
+                    },
+                    {
+                        "path":  ".namba/config/sections/user.yaml",
+                        "kind":  "config",
+                        "checksum":  "a79235ae541b89d01398dbfdff97550b2937d2c589dbd86d58436b305322c034",
+                        "updated_at":  "2026-03-15T23:57:06+09:00"
+                    },
+                    {
+                        "path":  ".namba/config/sections/workflow.yaml",
+                        "kind":  "config",
+                        "checksum":  "ade8f3b4db7744449ad7722e633f7ac8f0f0a4a6d840814c7b259ee699ec11bb",
+                        "updated_at":  "2026-03-15T23:57:06+09:00"
+                    },
+                    {
+                        "path":  ".namba/logs/.gitkeep",
+                        "kind":  "asset",
+                        "checksum":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                        "updated_at":  "2026-03-15T23:57:06+09:00"
+                    },
+                    {
+                        "path":  ".namba/project/change-summary.md",
+                        "kind":  "project-doc",
+                        "checksum":  "21fd8a21b6286f8fea2814792061e97b0ea75f0ee87d762ddd054d4efa741fe9",
+                        "updated_at":  "2026-03-16T17:45:00+09:00"
+                    },
+                    {
+                        "path":  ".namba/project/codemaps/data-flow.md",
+                        "kind":  "project-doc",
+                        "checksum":  "b16bd2823cf63eb5faac765f82deea5e8118cb102ebacc433697cf8d02bb9e1e",
+                        "updated_at":  "2026-03-16T17:40:00+09:00"
+                    },
+                    {
+                        "path":  ".namba/project/codemaps/dependencies.md",
+                        "kind":  "project-doc",
+                        "checksum":  "2a274798db2f870478c4c1a5dc6867e8d751030efbe4d5e2095f2ef3cc396ea7",
+                        "updated_at":  "2026-03-16T17:40:00+09:00"
+                    },
+                    {
+                        "path":  ".namba/project/codemaps/entry-points.md",
+                        "kind":  "project-doc",
+                        "checksum":  "3fa3c20d7d972a3cf3638c3a920697cd892c81372a83e32f23c9863275a9be6f",
+                        "updated_at":  "2026-03-16T17:40:00+09:00"
+                    },
+                    {
+                        "path":  ".namba/project/codemaps/overview.md",
+                        "kind":  "project-doc",
+                        "checksum":  "8e78657ecf38baa34b08551a3a239b0782ca311ffb19580f1c5773c51213321c",
+                        "updated_at":  "2026-03-16T17:40:00+09:00"
+                    },
+                    {
+                        "path":  ".namba/project/pr-checklist.md",
+                        "kind":  "project-doc",
+                        "checksum":  "8633659242980e41e4fff11255a5a37fac76f0ef9a678bdebf6821158548c131",
+                        "updated_at":  "2026-03-16T17:40:00+09:00"
+                    },
+                    {
+                        "path":  ".namba/project/product.md",
+                        "kind":  "project-doc",
+                        "checksum":  "36dcd0a7be20abc7a89bc4ede746e65d17b6990a7e85480f051ac95296f9b6e8",
+                        "updated_at":  "2026-03-16T17:40:00+09:00"
+                    },
+                    {
+                        "path":  ".namba/project/release-checklist.md",
+                        "kind":  "project-doc",
+                        "checksum":  "3756a48d84ce9116b1135793e28c3b17bd3f8b1d34f50fa50187243d81d8aa82",
+                        "updated_at":  "2026-03-16T17:40:00+09:00"
+                    },
+                    {
+                        "path":  ".namba/project/release-notes.md",
+                        "kind":  "project-doc",
+                        "checksum":  "024582618784b69228aa53d13f3c6ef3906b0c8631b9053e4d0896d065a174ed",
+                        "updated_at":  "2026-03-16T17:45:00+09:00"
+                    },
+                    {
+                        "path":  ".namba/project/structure.md",
+                        "kind":  "project-doc",
+                        "checksum":  "121fec6607eb44ccbeeab81d6865763803c93bf6885878b0336e88077095d8f1",
+                        "updated_at":  "2026-03-16T17:40:00+09:00"
+                    },
+                    {
+                        "path":  ".namba/project/tech.md",
+                        "kind":  "project-doc",
+                        "checksum":  "ff0225158af5a2a2c00eebcc8d69d353ee8e61c54b4aea8d4b8d77e75cc1dd5b",
+                        "updated_at":  "2026-03-16T17:40:00+09:00"
+                    },
+                    {
+                        "path":  ".namba/specs/.gitkeep",
+                        "kind":  "spec",
+                        "checksum":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                        "updated_at":  "2026-03-15T23:57:06+09:00"
+                    },
+                    {
+                        "path":  ".namba/specs/SPEC-008/acceptance.md",
+                        "kind":  "spec",
+                        "checksum":  "59d2019c35bad16a5b670a851c096a46dfd5905ee0c19a11ffa5a92e68691970",
+                        "updated_at":  "2026-03-16T17:24:52+09:00"
+                    },
+                    {
+                        "path":  ".namba/specs/SPEC-008/plan.md",
+                        "kind":  "spec",
+                        "checksum":  "4e5fe931ea352b9965b1c64fdda0cd7dffdecd27f30f65c59afda1aabb49809b",
+                        "updated_at":  "2026-03-16T17:24:52+09:00"
+                    },
+                    {
+                        "path":  ".namba/specs/SPEC-008/spec.md",
+                        "kind":  "spec",
+                        "checksum":  "c897925850f03fff4a92a381e1da1b4f66e95a6ef391ae1a4e04333b4ced89f3",
+                        "updated_at":  "2026-03-16T17:24:52+09:00"
+                    },
+                    {
+                        "path":  ".namba/worktrees/.gitkeep",
+                        "kind":  "asset",
+                        "checksum":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                        "updated_at":  "2026-03-15T23:57:06+09:00"
+                    },
+                    {
+                        "path":  "AGENTS.md",
+                        "kind":  "asset",
+                        "checksum":  "6a8d20440b0bc4ccd5dddd8bbb737c7d746309b1dfd56ee5c3bfd1daef9194c0",
+                        "updated_at":  "2026-03-16T17:19:31+09:00"
+                    }
+                ]
 }

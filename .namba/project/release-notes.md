@@ -2,23 +2,34 @@
 
 Project: namba-ai
 Project type: existing
-Reference SPEC: SPEC-007
-Generated: 2026-03-16T17:22:34+09:00
+Reference SPEC: SPEC-008
+Generated: 2026-03-16T17:45:00+09:00
+
+## Release Target
+
+- Candidate version: `v0.1.1`
+- Base semantic version: `v0.1.0`
 
 ## Highlights
 
-- Init wizard supports project type selection for new versus existing repositories.
-- Init wizard includes Java as a primary language option.
-- Interactive terminal selection supports arrow keys and Enter where the terminal allows it.
-- `namba fix "<description>"` creates bugfix-oriented SPEC packages.
-- `namba release` can create and optionally push a release tag.
+- Added explicit workflow permission handling for Codex execution.
+- Expanded the init wizard with project type selection, Java support, and improved interactive terminal controls.
+- Added `namba fix "<description>"` for bugfix-oriented SPEC packages.
+- Added `namba release` to create and optionally push release tags after validators pass.
+- Added `namba update` plus structured parallel run sync and reporting.
+- Synced README, AGENTS, repo skills, and generated project docs with the current workflow.
+
+## Validation Status
+
+- Validation commands were completed before release.
+- CI remains configured to run tests, `go vet`, formatting checks, and secret scanning.
 
 ## Release Command
 
 ```text
-namba release --version vX.Y.Z
+namba release --version v0.1.1
 git push origin main
-git push origin vX.Y.Z
+git push origin v0.1.1
 ```
 
 ## Expected Assets
