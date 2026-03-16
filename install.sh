@@ -25,15 +25,33 @@ download() {
     url="$1"
     output="$2"
     if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$url" -o "$output"
-        return
+        if curl -fsSL "$url" -o "$output"; then
+            return
+        fi
+        print_download_error "$url"
+        exit 1
     fi
     if command -v wget >/dev/null 2>&1; then
-        wget -qO "$output" "$url"
-        return
+        if wget -qO "$output" "$url"; then
+            return
+        fi
+        print_download_error "$url"
+        exit 1
     fi
     printf '%s\n' "curl or wget is required to install NambaAI." >&2
     exit 1
+}
+
+print_download_error() {
+    url="$1"
+    printf '%s\n' "Failed to download $url" >&2
+    if [ "$VERSION" = "latest" ]; then
+        printf '%s\n' "No GitHub Release has been published yet, or the latest release does not contain $ASSET_NAME." >&2
+    else
+        printf '%s\n' "Release '$VERSION' was not found, or it does not contain $ASSET_NAME." >&2
+    fi
+    printf '%s\n' "Common causes: no published release, missing asset, repository access restrictions, or a network error." >&2
+    printf '%s\n' "Fallback: go install github.com/Nam-Cheol/namba-ai/cmd/namba@main" >&2
 }
 
 append_path() {
@@ -91,4 +109,5 @@ esac
 printf '\n%s\n' "NambaAI installed."
 printf '%s\n' "Binary: $INSTALL_DIR/namba"
 printf '%s\n' "Command: namba"
-printf '%s\n' "If the command is not available in your current shell, run 'exec \$SHELL -l' or open a new terminal."
+printf '%s\n' "If the command is not available in your current shell, run 'exec $SHELL -l' or open a new terminal."
+

@@ -51,7 +51,27 @@ New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
 
 try {
     $archivePath = Join-Path $tempRoot $assetName
-    Invoke-WebRequest -Uri $downloadUrl -OutFile $archivePath -Headers @{ "User-Agent" = "NambaAI-Installer" }
+    try {
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $archivePath -Headers @{ "User-Agent" = "NambaAI-Installer" }
+    } catch {
+        $statusCode = $null
+        if ($_.Exception.Response) {
+            try {
+                $statusCode = [int]$_.Exception.Response.StatusCode
+            } catch {
+            }
+        }
+
+        if ($statusCode -eq 404) {
+            if ($Version -eq "latest") {
+                throw "Failed to download $downloadUrl (404). No GitHub Release has been published yet, or the latest release does not contain $assetName. Publish a release first, or install from source with 'go install github.com/Nam-Cheol/namba-ai/cmd/namba@main'."
+            }
+
+            throw "Failed to download $downloadUrl (404). Release '$Version' was not found, or it does not contain $assetName."
+        }
+
+        throw "Failed to download $downloadUrl. Common causes: no published release, missing asset, repository access restrictions, or a network error. Original error: $($_.Exception.Message)"
+    }
     Expand-Archive -Path $archivePath -DestinationPath $tempRoot -Force
 
     $binary = Get-ChildItem -Path $tempRoot -Filter "namba.exe" -File -Recurse | Select-Object -First 1

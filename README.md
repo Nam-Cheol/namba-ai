@@ -1,4 +1,4 @@
-﻿# 🚇 NambaAI
+# 🚇 NambaAI
 
 NambaAI는 **MoAI의 워크플로 감각을 Codex 환경으로 이식한 프로젝트 부트스트랩 + 실행 오케스트레이터**입니다.
 핵심 목표는 `project -> plan -> run -> sync` 흐름, SPEC 중심 실행, TDD/DDD 방법론, 그리고 Codex 친화적인 skill/agent 자산을 한 번에 구성하는 것입니다.
@@ -54,6 +54,19 @@ irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex
 
 ```bash
 NAMBA_VERSION=v0.1.0 curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh
+```
+
+### 아직 Release가 없을 때
+
+Release가 아직 발행되지 않았다면 설치 스크립트는 `releases/latest`에서 404를 반환합니다.
+이 경우에는 Go가 설치된 환경에서 아래처럼 소스 기준으로 설치합니다.
+
+```powershell
+go install github.com/Nam-Cheol/namba-ai/cmd/namba@main
+```
+
+```bash
+go install github.com/Nam-Cheol/namba-ai/cmd/namba@main
 ```
 
 ## 🗑️ 제거 방법

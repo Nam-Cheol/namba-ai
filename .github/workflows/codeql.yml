@@ -6,9 +6,12 @@ on:
   pull_request:
   schedule:
     - cron: "0 3 * * 1"
+  workflow_dispatch:
 
 jobs:
   analyze:
+    # Enable this job after repository code scanning is turned on.
+    if: vars.ENABLE_CODEQL == 'true'
     runs-on: ubuntu-latest
     permissions:
       actions: read
