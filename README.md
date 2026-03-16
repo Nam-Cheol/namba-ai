@@ -219,7 +219,7 @@ namba sync
 
 ### 명령어 목록
 
-- `namba init [path] [--yes] [--name NAME] [--mode tdd|ddd]`
+- `namba init [path] [--yes] [--name NAME] [--mode tdd|ddd] [--project-type new|existing]`
 - `namba doctor`
 - `namba status`
 - `namba project`

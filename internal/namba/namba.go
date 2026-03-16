@@ -55,9 +55,10 @@ type ManifestEntry struct {
 }
 
 type projectConfig struct {
-	Name      string
-	Language  string
-	Framework string
+	Name        string
+	ProjectType string
+	Language    string
+	Framework   string
 }
 
 type qualityConfig struct {
@@ -107,10 +108,14 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return a.runProject(ctx, args[1:])
 	case "plan":
 		return a.runPlan(ctx, args[1:])
+	case "fix":
+		return a.runFix(ctx, args[1:])
 	case "run":
 		return a.runExecute(ctx, args[1:])
 	case "sync":
 		return a.runSync(ctx, args[1:])
+	case "release":
+		return a.runRelease(ctx, args[1:])
 	case "worktree":
 		return a.runWorktree(ctx, args[1:])
 	case "help", "-h", "--help":
@@ -129,13 +134,15 @@ func usageText() string {
 	return `NambaAI CLI
 
 Usage:
-  namba init [path] [--yes] [--name NAME] [--mode tdd|ddd]
+  namba init [path] [--yes] [--name NAME] [--mode tdd|ddd] [--project-type new|existing]
   namba doctor
   namba status
   namba project
   namba plan "<description>"
+  namba fix "<description>"
   namba run SPEC-XXX [--parallel] [--dry-run]
   namba sync
+  namba release [--bump patch|minor|major] [--version vX.Y.Z] [--push] [--remote origin]
   namba worktree <new|list|remove|clean>
 `
 }
@@ -159,7 +166,7 @@ func (a *App) runInit(_ context.Context, args []string) error {
 		return err
 	}
 
-	testCmd, lintCmd, typecheckCmd := defaultQualityCommands(root, profile.Language)
+	testCmd, lintCmd, typecheckCmd := defaultQualityCommands(root, profile.Language, profile.Framework)
 	files := map[string]string{
 		"AGENTS.md": renderAgents(profile),
 		filepath.ToSlash(filepath.Join(configDir, "project.yaml")):      renderProjectConfig(profile),
@@ -208,7 +215,7 @@ func (a *App) runInit(_ context.Context, args []string) error {
 	}
 
 	fmt.Fprintf(a.stdout, "Initialized NambaAI in %s\n", root)
-	fmt.Fprintf(a.stdout, "Project: %s | Mode: %s | Agent mode: %s\n", profile.ProjectName, profile.DevelopmentMode, profile.AgentMode)
+	fmt.Fprintf(a.stdout, "Project: %s | Type: %s | Mode: %s | Agent mode: %s\n", profile.ProjectName, profile.ProjectType, profile.DevelopmentMode, profile.AgentMode)
 	fmt.Fprintln(a.stdout, "Codex-native mode is ready. Open Codex in this directory and invoke `$namba` or ask to use the Namba workflow.")
 	return nil
 }
@@ -226,6 +233,7 @@ func (a *App) runDoctor(ctx context.Context, _ []string) error {
 	nambaPath, nambaErr := a.lookPath("namba")
 
 	fmt.Fprintf(a.stdout, "Project: %s\n", projectCfg.Name)
+	fmt.Fprintf(a.stdout, "Project type: %s\n", projectCfg.ProjectType)
 	fmt.Fprintf(a.stdout, "Language: %s\n", projectCfg.Language)
 	fmt.Fprintf(a.stdout, "Framework: %s\n", projectCfg.Framework)
 	fmt.Fprintf(a.stdout, "Mode: %s\n", qualityCfg.DevelopmentMode)
@@ -266,6 +274,7 @@ func (a *App) runStatus(_ context.Context, _ []string) error {
 	specCount := countDirectories(filepath.Join(root, specsDir), "SPEC-")
 
 	fmt.Fprintf(a.stdout, "Project: %s\n", projectCfg.Name)
+	fmt.Fprintf(a.stdout, "Project type: %s\n", projectCfg.ProjectType)
 	fmt.Fprintf(a.stdout, "Language: %s\n", projectCfg.Language)
 	fmt.Fprintf(a.stdout, "Framework: %s\n", projectCfg.Framework)
 	fmt.Fprintf(a.stdout, "Development mode: %s\n", qualityCfg.DevelopmentMode)
@@ -311,12 +320,20 @@ func (a *App) runProject(_ context.Context, _ []string) error {
 }
 
 func (a *App) runPlan(_ context.Context, args []string) error {
+	return a.createSpecPackage("plan", args)
+}
+
+func (a *App) runFix(_ context.Context, args []string) error {
+	return a.createSpecPackage("fix", args)
+}
+
+func (a *App) createSpecPackage(kind string, args []string) error {
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
 	}
 	if len(args) == 0 {
-		return errors.New("plan requires a description")
+		return errors.New(kind + " requires a description")
 	}
 
 	desc := strings.TrimSpace(strings.Join(args, " "))
@@ -332,9 +349,9 @@ func (a *App) runPlan(_ context.Context, args []string) error {
 		return err
 	}
 
-	spec := fmt.Sprintf("# %s\n\n## Goal\n\n%s\n\n## Context\n\n- Project: %s\n- Language: %s\n- Mode: %s\n", specID, desc, projectCfg.Name, projectCfg.Language, qualityCfg.DevelopmentMode)
-	plan := fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Implement the requested change\n3. Run validation commands\n4. Sync artifacts with `namba sync`\n", specID)
-	acceptance := buildAcceptanceDoc(desc, qualityCfg.DevelopmentMode)
+	spec := buildSpecDoc(kind, specID, desc, projectCfg, qualityCfg)
+	plan := buildSpecPlanDoc(kind, specID)
+	acceptance := buildSpecAcceptanceDoc(kind, desc, qualityCfg.DevelopmentMode)
 
 	outputs := map[string]string{
 		filepath.ToSlash(filepath.Join(specsDir, specID, "spec.md")):       spec,
@@ -347,6 +364,31 @@ func (a *App) runPlan(_ context.Context, args []string) error {
 
 	fmt.Fprintf(a.stdout, "Created %s\n", specID)
 	return nil
+}
+
+func buildSpecDoc(kind, specID, description string, projectCfg projectConfig, qualityCfg qualityConfig) string {
+	switch kind {
+	case "fix":
+		return fmt.Sprintf("# %s\n\n## Problem\n\n%s\n\n## Goal\n\nApply the smallest safe fix that resolves the reported issue.\n\n## Context\n\n- Project: %s\n- Project type: %s\n- Language: %s\n- Mode: %s\n- Work type: fix\n", specID, description, projectCfg.Name, projectCfg.ProjectType, projectCfg.Language, qualityCfg.DevelopmentMode)
+	default:
+		return fmt.Sprintf("# %s\n\n## Goal\n\n%s\n\n## Context\n\n- Project: %s\n- Project type: %s\n- Language: %s\n- Mode: %s\n- Work type: plan\n", specID, description, projectCfg.Name, projectCfg.ProjectType, projectCfg.Language, qualityCfg.DevelopmentMode)
+	}
+}
+
+func buildSpecPlanDoc(kind, specID string) string {
+	switch kind {
+	case "fix":
+		return fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Reproduce or inspect the reported issue\n3. Implement the smallest safe fix\n4. Run validation commands and targeted regression checks\n5. Sync artifacts with `namba sync`\n", specID)
+	default:
+		return fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Implement the requested change\n3. Run validation commands\n4. Sync artifacts with `namba sync`\n", specID)
+	}
+}
+
+func buildSpecAcceptanceDoc(kind, description, mode string) string {
+	if kind == "fix" {
+		return buildFixAcceptanceDoc(description, mode)
+	}
+	return buildAcceptanceDoc(description, mode)
 }
 
 func (a *App) runExecute(ctx context.Context, args []string) error {
@@ -428,11 +470,16 @@ func (a *App) runSync(ctx context.Context, _ []string) error {
 		return err
 	}
 
-	summary := fmt.Sprintf("# Change Summary\n\nProject: %s\nLatest SPEC: %s\nGenerated: %s\n", projectCfg.Name, latestSpec, a.now().Format(time.RFC3339))
-	checklist := "# PR Checklist\n\n- [ ] Project docs refreshed\n- [ ] SPEC artifacts reviewed\n- [ ] Validation commands passed\n- [ ] Diff reviewed\n"
+	generatedAt := a.now().Format(time.RFC3339)
+	summary := buildChangeSummaryDoc(projectCfg, latestSpec, generatedAt)
+	checklist := buildPRChecklistDoc()
+	releaseNotes := buildReleaseNotesDoc(projectCfg, latestSpec, generatedAt)
+	releaseChecklist := buildReleaseChecklistDoc()
 	outputs := map[string]string{
-		filepath.ToSlash(filepath.Join(projectDir, "change-summary.md")): summary,
-		filepath.ToSlash(filepath.Join(projectDir, "pr-checklist.md")):   checklist,
+		filepath.ToSlash(filepath.Join(projectDir, "change-summary.md")):    summary,
+		filepath.ToSlash(filepath.Join(projectDir, "pr-checklist.md")):      checklist,
+		filepath.ToSlash(filepath.Join(projectDir, "release-notes.md")):     releaseNotes,
+		filepath.ToSlash(filepath.Join(projectDir, "release-checklist.md")): releaseChecklist,
 	}
 	if err := a.writeOutputs(root, outputs); err != nil {
 		return err
@@ -696,9 +743,10 @@ func (a *App) loadProjectConfig(root string) (projectConfig, error) {
 		return projectConfig{}, err
 	}
 	return projectConfig{
-		Name:      values["name"],
-		Language:  values["language"],
-		Framework: values["framework"],
+		Name:        values["name"],
+		ProjectType: values["project_type"],
+		Language:    values["language"],
+		Framework:   values["framework"],
 	}, nil
 }
 
@@ -756,6 +804,8 @@ func detectLanguageFramework(root string) (string, string) {
 	switch {
 	case exists(filepath.Join(root, "go.mod")):
 		return "go", "none"
+	case exists(filepath.Join(root, "pom.xml")) || exists(filepath.Join(root, "build.gradle")) || exists(filepath.Join(root, "build.gradle.kts")) || exists(filepath.Join(root, "gradlew")) || exists(filepath.Join(root, "gradlew.bat")) || treeContainsExtension(root, ".java"):
+		return "java", detectJavaFramework(root)
 	case exists(filepath.Join(root, "package.json")):
 		return "typescript", detectNodeFramework(root)
 	case exists(filepath.Join(root, "pyproject.toml")) || exists(filepath.Join(root, "requirements.txt")):
@@ -765,6 +815,32 @@ func detectLanguageFramework(root string) (string, string) {
 	}
 }
 
+func detectJavaFramework(root string) string {
+	if exists(filepath.Join(root, "pom.xml")) {
+		data, err := os.ReadFile(filepath.Join(root, "pom.xml"))
+		if err == nil && strings.Contains(strings.ToLower(string(data)), "spring-boot") {
+			return "spring-boot"
+		}
+		return "maven"
+	}
+
+	for _, name := range []string{"build.gradle", "build.gradle.kts"} {
+		if !exists(filepath.Join(root, name)) {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(root, name))
+		if err == nil && strings.Contains(strings.ToLower(string(data)), "spring-boot") {
+			return "spring-boot"
+		}
+		return "gradle"
+	}
+
+	if exists(filepath.Join(root, "gradlew")) || exists(filepath.Join(root, "gradlew.bat")) {
+		return "gradle"
+	}
+
+	return "none"
+}
 func detectNodeFramework(root string) string {
 	data, err := os.ReadFile(filepath.Join(root, "package.json"))
 	if err != nil {
@@ -794,7 +870,7 @@ func detectMethodology(root string) string {
 			return nil
 		}
 		switch filepath.Ext(path) {
-		case ".go", ".js", ".ts", ".tsx", ".py", ".rs":
+		case ".go", ".java", ".js", ".ts", ".tsx", ".py", ".rs":
 			source++
 			if strings.Contains(strings.ToLower(filepath.Base(path)), "test") {
 				tests++
@@ -811,10 +887,23 @@ func detectMethodology(root string) string {
 	return "ddd"
 }
 
-func defaultQualityCommands(root, language string) (string, string, string) {
+func detectProjectType(root string) string {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return "new"
+	}
+	if len(entries) == 0 {
+		return "new"
+	}
+	return "existing"
+}
+
+func defaultQualityCommands(root, language, framework string) (string, string, string) {
 	switch language {
 	case "go":
 		return "go test ./...", defaultGoFormatCommand(root), "go vet ./..."
+	case "java":
+		return defaultJavaQualityCommands(root, framework)
 	case "typescript":
 		return "npm test", "npm run lint", "npm run typecheck"
 	case "python":
@@ -824,6 +913,46 @@ func defaultQualityCommands(root, language string) (string, string, string) {
 	}
 }
 
+func defaultJavaQualityCommands(root, framework string) (string, string, string) {
+	switch normalizeFramework(framework) {
+	case "spring-boot", "maven":
+		return "mvn -q test", "mvn -q spotless:check", "mvn -q -DskipTests compile"
+	case "gradle":
+		gradle := defaultGradleCommand(root)
+		return gradle + " test", gradle + " check", gradle + " compileJava"
+	default:
+		detected := detectJavaFramework(root)
+		if detected != "none" {
+			return defaultJavaQualityCommands(root, detected)
+		}
+		return "none", "none", "none"
+	}
+}
+
+func defaultGradleCommand(root string) string {
+	switch {
+	case exists(filepath.Join(root, "gradlew")):
+		return "./gradlew"
+	case exists(filepath.Join(root, "gradlew.bat")):
+		return ".\\gradlew.bat"
+	default:
+		return "gradle"
+	}
+}
+
+func treeContainsExtension(root, ext string) bool {
+	found := false
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		if filepath.Ext(path) == ext {
+			found = true
+		}
+		return nil
+	})
+	return found
+}
 func defaultGoFormatCommand(root string) string {
 	skipDirs := map[string]bool{
 		".git":     true,
@@ -946,6 +1075,102 @@ func buildAcceptanceDoc(description, mode string) string {
 		bullets = append(bullets, "- [ ] Tests covering the new behavior are present")
 	} else {
 		bullets = append(bullets, "- [ ] Existing behavior is preserved while improving the target area")
+	}
+	return strings.Join(bullets, "\n")
+}
+
+func buildChangeSummaryDoc(projectCfg projectConfig, latestSpec, generatedAt string) string {
+	projectType := projectCfg.ProjectType
+	if strings.TrimSpace(projectType) == "" {
+		projectType = "existing"
+	}
+	if strings.TrimSpace(latestSpec) == "" {
+		latestSpec = "none"
+	}
+	return fmt.Sprintf(
+		"# Change Summary\n\nProject: %s\nProject type: %s\nLatest SPEC: %s\nGenerated: %s\n",
+		projectCfg.Name,
+		projectType,
+		latestSpec,
+		generatedAt,
+	)
+}
+
+func buildPRChecklistDoc() string {
+	return "# PR Checklist\n\n- [ ] Project docs refreshed\n- [ ] SPEC artifacts reviewed\n- [ ] Validation commands passed\n- [ ] Diff reviewed\n"
+}
+
+func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt string) string {
+	projectType := projectCfg.ProjectType
+	if strings.TrimSpace(projectType) == "" {
+		projectType = "existing"
+	}
+	if strings.TrimSpace(latestSpec) == "" {
+		latestSpec = "none"
+	}
+	lines := []string{
+		"# Release Notes Draft",
+		"",
+		fmt.Sprintf("Project: %s", projectCfg.Name),
+		fmt.Sprintf("Project type: %s", projectType),
+		fmt.Sprintf("Reference SPEC: %s", latestSpec),
+		fmt.Sprintf("Generated: %s", generatedAt),
+		"",
+		"## Highlights",
+		"",
+		"- Init wizard supports project type selection for new versus existing repositories.",
+		"- Init wizard includes Java as a primary language option.",
+		"- Interactive terminal selection supports arrow keys and Enter where the terminal allows it.",
+		"- `namba fix \"<description>\"` creates bugfix-oriented SPEC packages.",
+		"- `namba release` can create and optionally push a release tag.",
+		"",
+		"## Release Command",
+		"",
+		"```text",
+		"namba release --version vX.Y.Z",
+		"git push origin main",
+		"git push origin vX.Y.Z",
+		"```",
+		"",
+		"## Expected Assets",
+		"",
+		"- `namba_Windows_x86_64.zip`",
+		"- `namba_Windows_arm64.zip`",
+		"- `namba_Linux_x86_64.tar.gz`",
+		"- `namba_Linux_arm64.tar.gz`",
+		"- `namba_macOS_x86_64.tar.gz`",
+		"- `namba_macOS_arm64.tar.gz`",
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func buildReleaseChecklistDoc() string {
+	return strings.Join([]string{
+		"# Release Checklist",
+		"",
+		"- [ ] `namba sync` artifacts refreshed",
+		"- [ ] README and repo skills reflect the current workflow",
+		"- [ ] Validation commands passed",
+		"- [ ] Release notes draft reviewed",
+		"- [ ] `namba release --version vX.Y.Z` executed from a clean `main` branch",
+		"- [ ] Tag pushed and GitHub Release workflow completed successfully",
+		"- [ ] Release assets and checksums verified",
+	}, "\n") + "\n"
+}
+
+func buildFixAcceptanceDoc(description, mode string) string {
+	bullets := []string{
+		"# Acceptance",
+		"",
+		"- [ ] The reported issue described below is resolved:",
+		"  " + description,
+		"- [ ] Validation commands pass",
+		"- [ ] Existing behavior around the affected area is preserved",
+	}
+	if mode == "tdd" {
+		bullets = append(bullets, "- [ ] A regression test covering the fix is present")
+	} else {
+		bullets = append(bullets, "- [ ] A targeted reproduction or verification step is documented")
 	}
 	return strings.Join(bullets, "\n")
 }
@@ -1158,6 +1383,7 @@ func (a *App) detectInitProfile(root string) initProfile {
 
 	return initProfile{
 		ProjectName:           name,
+		ProjectType:           detectProjectType(root),
 		Language:              language,
 		Framework:             framework,
 		DevelopmentMode:       detectMethodology(root),
@@ -1177,6 +1403,9 @@ func (a *App) detectInitProfile(root string) initProfile {
 func applyInitOverrides(profile *initProfile, opts initOptions) {
 	if value := strings.TrimSpace(opts.ProjectName); value != "" {
 		profile.ProjectName = value
+	}
+	if value := strings.TrimSpace(opts.ProjectType); value != "" {
+		profile.ProjectType = value
 	}
 	if value := strings.TrimSpace(opts.Language); value != "" {
 		profile.Language = value
@@ -1223,12 +1452,12 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 	reader := bufio.NewReader(a.stdin)
 	profile := defaults
 
+	renderInitBanner(a.stdout)
 	fmt.Fprintln(a.stdout, "NambaAI init wizard (Codex edition)")
 	fmt.Fprintln(a.stdout, "This adapts the MoAI init flow to Codex-native assets.")
 
-	profile.ProjectName = promptInput(reader, a.stdout, "Project name", profile.ProjectName)
 	profile.DevelopmentMode = promptSelect(
-		reader,
+		a.stdin,
 		a.stdout,
 		"Development methodology",
 		[]option{
@@ -1237,24 +1466,13 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 		},
 		profile.DevelopmentMode,
 	)
-	profile.Language = promptSelect(
-		reader,
-		a.stdout,
-		"Primary language",
-		[]option{
-			{Value: "go", Label: "Go", Description: "Compiled CLI and services"},
-			{Value: "typescript", Label: "TypeScript", Description: "Node.js and frontend projects"},
-			{Value: "python", Label: "Python", Description: "Scripting and backend"},
-			{Value: "unknown", Label: "Unknown", Description: "Leave as a generic project"},
-		},
-		profile.Language,
-	)
-	profile.Framework = promptSelect(reader, a.stdout, "Framework", frameworkOptions(profile.Language), normalizeFramework(profile.Framework))
-	profile.ConversationLanguage = promptSelect(reader, a.stdout, "Conversation language", languageOptions(), profile.ConversationLanguage)
-	profile.DocumentationLanguage = promptSelect(reader, a.stdout, "Documentation language", languageOptions(), profile.DocumentationLanguage)
-	profile.CommentLanguage = promptSelect(reader, a.stdout, "Comment language", languageOptions(), profile.CommentLanguage)
+	profile.ProjectType = promptSelect(a.stdin, a.stdout, "Project type", projectTypeOptions(), profile.ProjectType)
+	profile = a.promptProjectScaffold(reader, profile)
+	profile.ConversationLanguage = promptSelect(a.stdin, a.stdout, "Conversation language", languageOptions(), profile.ConversationLanguage)
+	profile.DocumentationLanguage = promptSelect(a.stdin, a.stdout, "Documentation language", languageOptions(), profile.DocumentationLanguage)
+	profile.CommentLanguage = promptSelect(a.stdin, a.stdout, "Comment language", languageOptions(), profile.CommentLanguage)
 	profile.AgentMode = promptSelect(
-		reader,
+		a.stdin,
 		a.stdout,
 		"Codex agent mode",
 		[]option{
@@ -1264,7 +1482,7 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 		profile.AgentMode,
 	)
 	profile.StatusLinePreset = promptSelect(
-		reader,
+		a.stdin,
 		a.stdout,
 		"Status line preset",
 		[]option{
@@ -1274,7 +1492,7 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 		profile.StatusLinePreset,
 	)
 	profile.GitMode = promptSelect(
-		reader,
+		a.stdin,
 		a.stdout,
 		"Git automation mode",
 		[]option{
@@ -1286,7 +1504,7 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 	)
 	if profile.GitMode != "manual" {
 		profile.GitProvider = promptSelect(
-			reader,
+			a.stdin,
 			a.stdout,
 			"Git provider",
 			[]option{
@@ -1306,6 +1524,42 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 	return profile, nil
 }
 
+func (a *App) promptProjectScaffold(reader *bufio.Reader, profile initProfile) initProfile {
+	profile.ProjectName = promptInput(reader, a.stdout, "Project name", profile.ProjectName)
+
+	if profile.ProjectType == "existing" {
+		fmt.Fprintf(a.stdout, "Detected defaults: language=%s, framework=%s\n", profile.Language, normalizeFramework(profile.Framework))
+		keepDetected := promptSelect(
+			a.stdin,
+			a.stdout,
+			"Language and framework setup",
+			[]option{
+				{Value: "keep", Label: "Keep detected", Description: "Use detected values for the existing repository"},
+				{Value: "override", Label: "Override", Description: "Choose language and framework manually"},
+			},
+			"keep",
+		)
+		if keepDetected == "keep" {
+			return profile
+		}
+	}
+
+	profile.Language = promptSelect(
+		a.stdin,
+		a.stdout,
+		"Primary language",
+		[]option{
+			{Value: "go", Label: "Go", Description: "Compiled CLI and services"},
+			{Value: "java", Label: "Java", Description: "JVM services and enterprise applications"},
+			{Value: "typescript", Label: "TypeScript", Description: "Node.js and frontend projects"},
+			{Value: "python", Label: "Python", Description: "Scripting and backend"},
+			{Value: "unknown", Label: "Unknown", Description: "Leave as a generic project"},
+		},
+		profile.Language,
+	)
+	profile.Framework = promptSelect(a.stdin, a.stdout, "Framework", frameworkOptions(profile.Language), normalizeFramework(profile.Framework))
+	return profile
+}
 func promptInput(reader *bufio.Reader, out io.Writer, label, defaultValue string) string {
 	fmt.Fprintf(out, "%s [%s]: ", label, defaultValue)
 	line, err := reader.ReadString('\n')
@@ -1319,7 +1573,27 @@ func promptInput(reader *bufio.Reader, out io.Writer, label, defaultValue string
 	return line
 }
 
-func promptSelect(reader *bufio.Reader, out io.Writer, label string, choices []option, defaultValue string) string {
+func renderInitBanner(out io.Writer) {
+	fmt.Fprintln(out, " _   _    _    __  __ ____    _      ___ ")
+	fmt.Fprintln(out, "| \\ | |  / \\  |  \\/  | __ )  / \\    |_ _|")
+	fmt.Fprintln(out, "|  \\| | / _ \\ | |\\/| |  _ \\ / _ \\    | | ")
+	fmt.Fprintln(out, "| |\\  |/ ___ \\| |  | | |_) / ___ \\   | | ")
+	fmt.Fprintln(out, "|_| \\_/_/   \\_\\_|  |_|____/_/   \\_\\ |___|")
+	fmt.Fprintln(out)
+}
+
+func promptSelect(in io.Reader, out io.Writer, label string, choices []option, defaultValue string) string {
+	if file, ok := in.(*os.File); ok && isTerminalReader(in) && isTerminalWriter(out) {
+		if value, ok := promptSelectInteractive(file, out, label, choices, defaultValue); ok {
+			return value
+		}
+	}
+
+	reader := bufio.NewReader(in)
+	return promptSelectLine(reader, out, label, choices, defaultValue)
+}
+
+func promptSelectLine(reader *bufio.Reader, out io.Writer, label string, choices []option, defaultValue string) string {
 	fmt.Fprintln(out, label)
 	defaultIndex := 0
 	for i, choice := range choices {
@@ -1350,6 +1624,133 @@ func promptSelect(reader *bufio.Reader, out io.Writer, label string, choices []o
 	return defaultValue
 }
 
+type menuAction int
+
+const (
+	menuActionUnknown menuAction = iota
+	menuActionUp
+	menuActionDown
+	menuActionSubmit
+)
+
+func promptSelectInteractive(in *os.File, out io.Writer, label string, choices []option, defaultValue string) (string, bool) {
+	restoreInput, err := enableRawConsoleInput(in)
+	if err != nil {
+		return "", false
+	}
+	defer restoreInput()
+
+	restoreOutput := enableVirtualTerminalOutput(out)
+	defer restoreOutput()
+
+	selected := 0
+	for i, choice := range choices {
+		if choice.Value == defaultValue {
+			selected = i
+			break
+		}
+	}
+
+	reader := bufio.NewReader(in)
+	lines := 0
+	fmt.Fprint(out, "\x1b[?25l")
+	defer fmt.Fprint(out, "\x1b[?25h")
+
+	for {
+		if lines > 0 {
+			fmt.Fprintf(out, "\x1b[%dA", lines)
+		}
+		lines = renderInteractiveSelect(out, label, choices, selected)
+
+		action, err := readMenuAction(reader)
+		if err != nil {
+			fmt.Fprintln(out)
+			return defaultValue, true
+		}
+
+		switch action {
+		case menuActionUp:
+			selected = (selected - 1 + len(choices)) % len(choices)
+		case menuActionDown:
+			selected = (selected + 1) % len(choices)
+		case menuActionSubmit:
+			fmt.Fprintln(out)
+			return choices[selected].Value, true
+		}
+	}
+}
+
+func renderInteractiveSelect(out io.Writer, label string, choices []option, selected int) int {
+	lines := 0
+	fmt.Fprintf(out, "\r\x1b[2K%s\n", label)
+	lines++
+	fmt.Fprint(out, "\r\x1b[2KUse arrow keys and Enter. Number input still works when interactive mode is unavailable.\n")
+	lines++
+	for i, choice := range choices {
+		prefix := "  "
+		if i == selected {
+			prefix = "> "
+		}
+		fmt.Fprintf(out, "\r\x1b[2K%s%d. %s - %s\n", prefix, i+1, choice.Label, choice.Description)
+		lines++
+	}
+	return lines
+}
+
+func readMenuAction(reader *bufio.Reader) (menuAction, error) {
+	b, err := reader.ReadByte()
+	if err != nil {
+		return menuActionUnknown, err
+	}
+
+	switch b {
+	case '\r', '\n':
+		return menuActionSubmit, nil
+	case 0x1b:
+		next, err := reader.ReadByte()
+		if err != nil {
+			return menuActionUnknown, err
+		}
+		if next != '[' {
+			return menuActionUnknown, nil
+		}
+		code, err := reader.ReadByte()
+		if err != nil {
+			return menuActionUnknown, err
+		}
+		switch code {
+		case 'A':
+			return menuActionUp, nil
+		case 'B':
+			return menuActionDown, nil
+		default:
+			return menuActionUnknown, nil
+		}
+	case 0x00, 0xe0:
+		code, err := reader.ReadByte()
+		if err != nil {
+			return menuActionUnknown, err
+		}
+		switch code {
+		case 72:
+			return menuActionUp, nil
+		case 80:
+			return menuActionDown, nil
+		default:
+			return menuActionUnknown, nil
+		}
+	default:
+		return menuActionUnknown, nil
+	}
+}
+
+func projectTypeOptions() []option {
+	return []option{
+		{Value: "new", Label: "New project", Description: "Bootstrap a fresh repository or directory"},
+		{Value: "existing", Label: "Existing project", Description: "Adapt NambaAI to a repository that already has code"},
+	}
+}
+
 func frameworkOptions(language string) []option {
 	switch language {
 	case "go":
@@ -1358,6 +1759,13 @@ func frameworkOptions(language string) []option {
 			{Value: "cobra", Label: "Cobra", Description: "CLI application"},
 			{Value: "gin", Label: "Gin", Description: "HTTP service"},
 			{Value: "echo", Label: "Echo", Description: "HTTP service"},
+		}
+	case "java":
+		return []option{
+			{Value: "none", Label: "None", Description: "Keep a generic Java project"},
+			{Value: "maven", Label: "Maven", Description: "Standard JVM build with pom.xml"},
+			{Value: "gradle", Label: "Gradle", Description: "Gradle-based JVM build"},
+			{Value: "spring-boot", Label: "Spring Boot", Description: "Spring Boot application"},
 		}
 	case "typescript":
 		return []option{
@@ -1421,7 +1829,10 @@ func validateInitProfile(profile initProfile) error {
 	if !containsValue([]string{"tdd", "ddd"}, profile.DevelopmentMode) {
 		return fmt.Errorf("development mode %q is not supported", profile.DevelopmentMode)
 	}
-	if !containsValue([]string{"go", "typescript", "python", "unknown"}, profile.Language) {
+	if !containsValue([]string{"new", "existing"}, profile.ProjectType) {
+		return fmt.Errorf("project type %q is not supported", profile.ProjectType)
+	}
+	if !containsValue([]string{"go", "java", "typescript", "python", "unknown"}, profile.Language) {
 		return fmt.Errorf("language %q is not supported", profile.Language)
 	}
 	if !containsValue([]string{"manual", "personal", "team"}, profile.GitMode) {
@@ -1481,6 +1892,18 @@ func (a *App) isInteractiveTerminal() bool {
 	return isTerminalWriter(a.stdout)
 }
 
+func isTerminalReader(r io.Reader) bool {
+	file, ok := r.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return false
+	}
+	return (info.Mode() & os.ModeCharDevice) != 0
+}
+
 func isTerminalWriter(w io.Writer) bool {
 	file, ok := w.(*os.File)
 	if !ok {
@@ -1495,6 +1918,7 @@ func isTerminalWriter(w io.Writer) bool {
 
 type initProfile struct {
 	ProjectName           string
+	ProjectType           string
 	Language              string
 	Framework             string
 	DevelopmentMode       string
@@ -1515,6 +1939,7 @@ type initOptions struct {
 	Path                  string
 	Yes                   bool
 	ProjectName           string
+	ProjectType           string
 	Language              string
 	Framework             string
 	DevelopmentMode       string
@@ -1569,6 +1994,12 @@ func parseInitArgs(args []string) (initOptions, error) {
 				return initOptions{}, err
 			}
 			opts.ProjectName = value
+		case "--project-type":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.ProjectType = value
 		case "--language":
 			value, err := consumeValue(args, &i, arg)
 			if err != nil {
@@ -1654,3 +2085,4 @@ func parseInitArgs(args []string) (initOptions, error) {
 
 	return opts, nil
 }
+
