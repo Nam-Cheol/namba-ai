@@ -11,31 +11,31 @@ import (
 )
 
 type systemConfig struct {
-	Runner       string
-	ApprovalMode string
-	SandboxMode  string
+	Runner         string
+	ApprovalPolicy string
+	SandboxMode    string
 }
 
 type executionRequest struct {
-	SpecID       string
-	WorkDir      string
-	Prompt       string
-	Runner       string
-	ApprovalMode string
-	SandboxMode  string
+	SpecID         string
+	WorkDir        string
+	Prompt         string
+	Runner         string
+	ApprovalPolicy string
+	SandboxMode    string
 }
 
 type executionResult struct {
-	Runner       string `json:"runner"`
-	SpecID       string `json:"spec_id"`
-	WorkDir      string `json:"work_dir"`
-	ApprovalMode string `json:"approval_mode"`
-	SandboxMode  string `json:"sandbox_mode"`
-	Output       string `json:"output"`
-	Succeeded    bool   `json:"succeeded"`
-	StartedAt    string `json:"started_at"`
-	FinishedAt   string `json:"finished_at"`
-	Error        string `json:"error,omitempty"`
+	Runner         string `json:"runner"`
+	SpecID         string `json:"spec_id"`
+	WorkDir        string `json:"work_dir"`
+	ApprovalPolicy string `json:"approval_policy"`
+	SandboxMode    string `json:"sandbox_mode"`
+	Output         string `json:"output"`
+	Succeeded      bool   `json:"succeeded"`
+	StartedAt      string `json:"started_at"`
+	FinishedAt     string `json:"finished_at"`
+	Error          string `json:"error,omitempty"`
 }
 
 type validationReport struct {
@@ -67,12 +67,12 @@ type codexRunner struct {
 
 func (r codexRunner) Execute(ctx context.Context, req executionRequest) (executionResult, error) {
 	result := executionResult{
-		Runner:       normalizeRunner(req.Runner),
-		SpecID:       req.SpecID,
-		WorkDir:      req.WorkDir,
-		ApprovalMode: normalizeApprovalMode(req.ApprovalMode),
-		SandboxMode:  normalizeSandboxMode(req.SandboxMode),
-		StartedAt:    r.now().Format(time.RFC3339),
+		Runner:         normalizeRunner(req.Runner),
+		SpecID:         req.SpecID,
+		WorkDir:        req.WorkDir,
+		ApprovalPolicy: normalizeApprovalPolicy(req.ApprovalPolicy),
+		SandboxMode:    normalizeSandboxMode(req.SandboxMode),
+		StartedAt:      r.now().Format(time.RFC3339),
 	}
 
 	args, err := buildCodexExecArgs(req)
@@ -101,9 +101,9 @@ func (r codexRunner) Execute(ctx context.Context, req executionRequest) (executi
 }
 
 func buildCodexExecArgs(req executionRequest) ([]string, error) {
-	approval := normalizeApprovalMode(req.ApprovalMode)
-	if !isAllowedApprovalMode(approval) {
-		return nil, fmt.Errorf("approval_mode %q is not supported", req.ApprovalMode)
+	approval := normalizeApprovalPolicy(req.ApprovalPolicy)
+	if !isAllowedApprovalPolicy(approval) {
+		return nil, fmt.Errorf("approval_policy %q is not supported", req.ApprovalPolicy)
 	}
 
 	sandbox := normalizeSandboxMode(req.SandboxMode)
@@ -121,9 +121,9 @@ func (a *App) loadSystemConfig(root string) (systemConfig, error) {
 	}
 
 	return systemConfig{
-		Runner:       normalizeRunner(values["runner"]),
-		ApprovalMode: normalizeApprovalMode(values["approval_mode"]),
-		SandboxMode:  normalizeSandboxMode(values["sandbox_mode"]),
+		Runner:         normalizeRunner(values["runner"]),
+		ApprovalPolicy: normalizeApprovalPolicy(firstNonBlank(values["approval_policy"], values["approval_mode"])),
+		SandboxMode:    normalizeSandboxMode(values["sandbox_mode"]),
 	}, nil
 }
 
@@ -142,12 +142,12 @@ func (a *App) runnerFor(cfg systemConfig) (runner, error) {
 
 func (a *App) newExecutionRequest(specID, workDir, prompt string, cfg systemConfig) executionRequest {
 	return executionRequest{
-		SpecID:       specID,
-		WorkDir:      workDir,
-		Prompt:       prompt,
-		Runner:       normalizeRunner(cfg.Runner),
-		ApprovalMode: normalizeApprovalMode(cfg.ApprovalMode),
-		SandboxMode:  normalizeSandboxMode(cfg.SandboxMode),
+		SpecID:         specID,
+		WorkDir:        workDir,
+		Prompt:         prompt,
+		Runner:         normalizeRunner(cfg.Runner),
+		ApprovalPolicy: normalizeApprovalPolicy(cfg.ApprovalPolicy),
+		SandboxMode:    normalizeSandboxMode(cfg.SandboxMode),
 	}
 }
 
@@ -246,7 +246,7 @@ func normalizeRunner(name string) string {
 	return normalized
 }
 
-func normalizeApprovalMode(value string) string {
+func normalizeApprovalPolicy(value string) string {
 	normalized := strings.TrimSpace(strings.ToLower(value))
 	if normalized == "" {
 		return "on-request"
@@ -262,7 +262,7 @@ func normalizeSandboxMode(value string) string {
 	return normalized
 }
 
-func isAllowedApprovalMode(value string) bool {
+func isAllowedApprovalPolicy(value string) bool {
 	switch value {
 	case "untrusted", "on-failure", "on-request", "never":
 		return true

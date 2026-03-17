@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,14 +33,19 @@ const (
 )
 
 type App struct {
-	stdin    io.Reader
-	stdout   io.Writer
-	stderr   io.Writer
-	now      func() time.Time
-	getenv   func(string) string
-	getwd    func() (string, error)
-	lookPath func(string) (string, error)
-	runCmd   func(context.Context, string, []string, string) (string, error)
+	stdin          io.Reader
+	stdout         io.Writer
+	stderr         io.Writer
+	now            func() time.Time
+	getenv         func(string) string
+	getwd          func() (string, error)
+	lookPath       func(string) (string, error)
+	runCmd         func(context.Context, string, []string, string) (string, error)
+	startCmd       func(string, []string, string) error
+	downloadURL    func(context.Context, string) ([]byte, error)
+	executablePath func() (string, error)
+	goos           string
+	goarch         string
 }
 
 type Manifest struct {
@@ -76,18 +82,43 @@ type specPackage struct {
 
 func NewApp(stdout, stderr io.Writer) *App {
 	return &App{
-		stdin:    os.Stdin,
-		stdout:   stdout,
-		stderr:   stderr,
-		now:      time.Now,
-		getenv:   os.Getenv,
-		getwd:    os.Getwd,
-		lookPath: exec.LookPath,
+		stdin:          os.Stdin,
+		stdout:         stdout,
+		stderr:         stderr,
+		now:            time.Now,
+		getenv:         os.Getenv,
+		getwd:          os.Getwd,
+		lookPath:       exec.LookPath,
+		executablePath: os.Executable,
+		goos:           runtime.GOOS,
+		goarch:         runtime.GOARCH,
 		runCmd: func(ctx context.Context, name string, args []string, dir string) (string, error) {
 			cmd := exec.CommandContext(ctx, name, args...)
 			cmd.Dir = dir
 			output, err := cmd.CombinedOutput()
 			return strings.TrimSpace(string(output)), err
+		},
+		startCmd: func(name string, args []string, dir string) error {
+			cmd := exec.Command(name, args...)
+			cmd.Dir = dir
+			return cmd.Start()
+		},
+		downloadURL: func(ctx context.Context, url string) ([]byte, error) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+			if err != nil {
+				return nil, err
+			}
+			req.Header.Set("User-Agent", "NambaAI-Updater")
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				return nil, err
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+				return nil, fmt.Errorf("download %s failed with status %d: %s", url, resp.StatusCode, strings.TrimSpace(string(body)))
+			}
+			return io.ReadAll(resp.Body)
 		},
 	}
 }
@@ -108,6 +139,8 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return a.runProject(ctx, args[1:])
 	case "update":
 		return a.runUpdate(ctx, args[1:])
+	case "regen":
+		return a.runRegen(ctx, args[1:])
 	case "plan":
 		return a.runPlan(ctx, args[1:])
 	case "fix":
@@ -140,7 +173,8 @@ Usage:
   namba doctor
   namba status
   namba project
-  namba update
+  namba update [--version vX.Y.Z]
+  namba regen
   namba plan "<description>"
   namba fix "<description>"
   namba run SPEC-XXX [--parallel] [--dry-run]
@@ -175,7 +209,7 @@ func (a *App) runInit(_ context.Context, args []string) error {
 		filepath.ToSlash(filepath.Join(configDir, "project.yaml")):      renderProjectConfig(profile),
 		filepath.ToSlash(filepath.Join(configDir, "quality.yaml")):      renderQualityConfig(profile.DevelopmentMode, testCmd, lintCmd, typecheckCmd),
 		filepath.ToSlash(filepath.Join(configDir, "workflow.yaml")):     renderWorkflowConfig(),
-		filepath.ToSlash(filepath.Join(configDir, "system.yaml")):       renderSystemConfig(),
+		filepath.ToSlash(filepath.Join(configDir, "system.yaml")):       renderSystemConfig(profile),
 		filepath.ToSlash(filepath.Join(configDir, "language.yaml")):     renderLanguageConfig(profile),
 		filepath.ToSlash(filepath.Join(configDir, "user.yaml")):         renderUserConfig(profile),
 		filepath.ToSlash(filepath.Join(configDir, "git-strategy.yaml")): renderGitStrategyConfig(profile),
@@ -474,9 +508,14 @@ func (a *App) runSync(ctx context.Context, _ []string) error {
 	}
 
 	generatedAt := a.now().Format(time.RFC3339)
-	summary := buildChangeSummaryDoc(projectCfg, latestSpec, generatedAt)
-	checklist := buildPRChecklistDoc()
-	releaseNotes := buildReleaseNotesDoc(projectCfg, latestSpec, generatedAt)
+	profile, err := a.loadInitProfileFromConfig(root)
+	if err != nil {
+		return err
+	}
+
+	summary := buildChangeSummaryDoc(projectCfg, latestSpec, generatedAt, profile)
+	checklist := buildPRChecklistDoc(profile)
+	releaseNotes := buildReleaseNotesDoc(projectCfg, latestSpec, generatedAt, profile)
 	releaseChecklist := buildReleaseChecklistDoc()
 	outputs := map[string]string{
 		filepath.ToSlash(filepath.Join(projectDir, "change-summary.md")):    summary,
@@ -735,6 +774,10 @@ func (a *App) loadInitProfileFromConfig(root string) (initProfile, error) {
 	if err != nil {
 		return initProfile{}, err
 	}
+	systemValues, err := readKeyValueFile(filepath.Join(root, configDir, "system.yaml"))
+	if err != nil {
+		return initProfile{}, err
+	}
 
 	if value := strings.TrimSpace(projectValues["name"]); value != "" {
 		profile.ProjectName = value
@@ -766,23 +809,49 @@ func (a *App) loadInitProfileFromConfig(root string) (initProfile, error) {
 	if value := strings.TrimSpace(userValues["user_name"]); value != "" {
 		profile.UserName = value
 	}
-	if value := strings.TrimSpace(gitValues["mode"]); value != "" {
+	if value := firstNonBlank(gitValues["git_mode"], gitValues["mode"]); value != "" {
 		profile.GitMode = value
 	}
-	if value := strings.TrimSpace(gitValues["provider"]); value != "" {
+	if value := firstNonBlank(gitValues["git_provider"], gitValues["provider"]); value != "" {
 		profile.GitProvider = value
 	}
-	if value := strings.TrimSpace(gitValues["username"]); value != "" {
+	if value := firstNonBlank(gitValues["git_username"], gitValues["username"]); value != "" {
 		profile.GitUsername = value
 	}
-	if value := strings.TrimSpace(gitValues["gitlab_instance_url"]); value != "" {
+	if value := firstNonBlank(gitValues["gitlab_instance_url"]); value != "" {
 		profile.GitLabInstanceURL = value
+	}
+	profile.BranchPerWork = parseBoolValue(gitValues["branch_per_work"], profile.BranchPerWork)
+	profile.AutoCodexReview = parseBoolValue(gitValues["auto_codex_review"], profile.AutoCodexReview)
+	if value := firstNonBlank(gitValues["branch_base"]); value != "" {
+		profile.BranchBase = value
+	}
+	if value := firstNonBlank(gitValues["spec_branch_prefix"]); value != "" {
+		profile.SpecBranchPrefix = value
+	}
+	if value := firstNonBlank(gitValues["task_branch_prefix"]); value != "" {
+		profile.TaskBranchPrefix = value
+	}
+	if value := firstNonBlank(gitValues["pr_base_branch"]); value != "" {
+		profile.PRBaseBranch = value
+	}
+	if value := firstNonBlank(gitValues["pr_language"]); value != "" {
+		profile.PRLanguage = value
+	}
+	if value := firstNonBlank(gitValues["codex_review_comment"]); value != "" {
+		profile.CodexReviewComment = value
 	}
 	if value := strings.TrimSpace(codexValues["agent_mode"]); value != "" {
 		profile.AgentMode = value
 	}
 	if value := strings.TrimSpace(codexValues["status_line_preset"]); value != "" {
 		profile.StatusLinePreset = value
+	}
+	if value := firstNonBlank(systemValues["approval_policy"], systemValues["approval_mode"]); value != "" {
+		profile.ApprovalPolicy = value
+	}
+	if value := firstNonBlank(systemValues["sandbox_mode"]); value != "" {
+		profile.SandboxMode = value
 	}
 
 	if err := validateInitProfile(profile); err != nil {
@@ -1082,14 +1151,14 @@ func shouldSkipStructureEntry(rel string) bool {
 }
 
 func buildTechDoc(cfg projectConfig) string {
-	return fmt.Sprintf("# Tech\n\n- Language: %s\n- Framework: %s\n- Runtime adapter: Codex\n- Repo-local skills: .agents/skills\n- Repo-local agent role cards: .codex/agents\n- State directory: .namba\n", cfg.Language, cfg.Framework)
+	return fmt.Sprintf("# Tech\n\n- Language: %s\n- Framework: %s\n- Runtime adapter: Codex\n- Repo-local skills: .agents/skills\n- Repo-local custom agents: .codex/agents/*.toml\n- Readable agent mirrors: .codex/agents/*.md\n- State directory: .namba\n", cfg.Language, cfg.Framework)
 }
 
 func buildCodemaps(root string, cfg projectConfig) (string, string, string, string) {
 	overview := fmt.Sprintf("# Overview\n\n%s is managed by NambaAI.\n\n- Language: %s\n- Framework: %s\n", cfg.Name, cfg.Language, cfg.Framework)
 	entries := "# Entry Points\n\n- `cmd/namba/main.go`: CLI entry point\n- `internal/namba/namba.go`: command orchestration\n"
 	deps := "# Dependencies\n\n- Go standard library\n- External runtime: Codex CLI\n- External runtime: Git\n"
-	flow := "# Data Flow\n\n1. `init` runs a Codex-adapted project wizard, writes `.namba/config/sections/*.yaml`, repo skills under `.agents/skills`, role cards under `.codex/agents`, a compatibility mirror under `.codex/skills`, and Codex repo config under `.codex/config.toml`\n2. `project` refreshes docs and codemaps\n3. `plan` creates a SPEC package\n4. `run` either builds a non-interactive Codex execution request or is interpreted as Codex-native in-session execution\n5. `sync` emits PR-ready artifacts\n"
+	flow := "# Data Flow\n\n1. `init` runs a Codex-adapted project wizard, writes `.namba/config/sections/*.yaml`, repo skills under `.agents/skills`, Codex custom agents under `.codex/agents/*.toml`, readable `.md` agent mirrors, a compatibility mirror under `.codex/skills`, and Codex repo config under `.codex/config.toml`\n2. `project` refreshes docs and codemaps\n3. `plan` creates a SPEC package\n4. `run` either builds a non-interactive Codex execution request or is interpreted as Codex-native in-session execution\n5. `sync` emits PR-ready artifacts\n"
 	if exists(filepath.Join(root, "go.mod")) {
 		deps += "- Project module detected via `go.mod`\n"
 	}
@@ -1106,7 +1175,7 @@ func buildAcceptanceDoc(description, mode string) string {
 	return strings.Join(bullets, "\n")
 }
 
-func buildChangeSummaryDoc(projectCfg projectConfig, latestSpec, generatedAt string) string {
+func buildChangeSummaryDoc(projectCfg projectConfig, latestSpec, generatedAt string, profile initProfile) string {
 	projectType := projectCfg.ProjectType
 	if strings.TrimSpace(projectType) == "" {
 		projectType = "existing"
@@ -1124,24 +1193,30 @@ func buildChangeSummaryDoc(projectCfg projectConfig, latestSpec, generatedAt str
 		"",
 		"## Workflow Docs Synced",
 		"",
-		"- README and product docs describe when to use `namba update` versus `namba sync`.",
+		"- README and product docs describe when to use `namba update`, `namba regen`, and `namba sync`.",
 		"- Release docs describe `namba release` guardrails on a clean `main` branch plus optional `--push` behavior.",
 		"- Parallel run docs describe the worktree fan-out and merge-blocking policy for `namba run SPEC-XXX --parallel`.",
+		fmt.Sprintf("- Collaboration docs require one branch per SPEC/task from `%s`, PRs into `%s`, %s PR content, and Codex review requests via `%s`.", branchBase(profile), prBaseBranch(profile), strings.ToLower(humanLanguageName(profile.PRLanguage)), codexReviewComment(profile)),
 		"",
 		"## Refresh Commands",
 		"",
-		"- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, role cards, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
+		"- `namba update` self-updates the installed `namba` binary from GitHub Release assets.",
+		"- `namba regen` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
 		"- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, and codemaps.",
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func buildPRChecklistDoc() string {
+func buildPRChecklistDoc(profile initProfile) string {
 	return strings.Join([]string{
 		"# PR Checklist",
 		"",
+		fmt.Sprintf("- [ ] Dedicated work branch created from `%s` for this SPEC/task", branchBase(profile)),
+		fmt.Sprintf("- [ ] PR targets `%s`", prBaseBranch(profile)),
+		fmt.Sprintf("- [ ] PR title and body are written in %s", humanLanguageName(profile.PRLanguage)),
+		fmt.Sprintf("- [ ] `%s` review request is present on GitHub", codexReviewComment(profile)),
 		"- [ ] README / user-facing docs refreshed",
-		"- [ ] `namba update` rerun if template-generated Codex assets changed",
+		"- [ ] `namba regen` rerun if template-generated Codex assets changed",
 		"- [ ] `namba sync` artifacts refreshed",
 		"- [ ] SPEC artifacts reviewed",
 		"- [ ] Validation commands passed",
@@ -1149,7 +1224,7 @@ func buildPRChecklistDoc() string {
 	}, "\n") + "\n"
 }
 
-func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt string) string {
+func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt string, profile initProfile) string {
 	projectType := projectCfg.ProjectType
 	if strings.TrimSpace(projectType) == "" {
 		projectType = "existing"
@@ -1167,9 +1242,11 @@ func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt stri
 		"",
 		"## Workflow Changes",
 		"",
-		"- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
+		"- `namba update` self-updates the installed `namba` binary from GitHub Release assets.",
+		"- `namba regen` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
 		"- `namba sync` refreshes product docs, codemaps, change summary, PR checklist, and release docs.",
 		"- `namba run SPEC-XXX --parallel` fans out into up to three git worktrees, merges only after every worker passes execution and validation, and preserves failing worktrees and branches for inspection.",
+		fmt.Sprintf("- Active collaboration defaults: one branch per SPEC/task from `%s`, PRs into `%s`, %s PR content, and Codex review requests via `%s`.", branchBase(profile), prBaseBranch(profile), strings.ToLower(humanLanguageName(profile.PRLanguage)), codexReviewComment(profile)),
 		"",
 		"## Release Guardrails",
 		"",
@@ -1204,7 +1281,7 @@ func buildReleaseChecklistDoc() string {
 	return strings.Join([]string{
 		"# Release Checklist",
 		"",
-		"- [ ] `namba update` rerun if template-generated Codex assets changed",
+		"- [ ] `namba regen` rerun if template-generated Codex assets changed",
 		"- [ ] `namba sync` artifacts refreshed",
 		"- [ ] README and `.namba/codex/README.md` reflect update, release, and parallel workflow behavior",
 		"- [ ] Working tree is clean and the current branch is `main`",
@@ -1282,9 +1359,40 @@ func readKeyValueFile(path string) (map[string]string, error) {
 		if len(parts) != 2 {
 			continue
 		}
-		result[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		result[strings.TrimSpace(parts[0])] = trimConfigValue(strings.TrimSpace(parts[1]))
 	}
 	return result, nil
+}
+
+func trimConfigValue(value string) string {
+	if len(value) >= 2 {
+		if (value[0] == '"' && value[len(value)-1] == '"') || (value[0] == '\'' && value[len(value)-1] == '\'') {
+			return value[1 : len(value)-1]
+		}
+	}
+	return value
+}
+
+func firstNonBlank(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func parseBoolValue(raw string, fallback bool) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "":
+		return fallback
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
+	}
 }
 
 func extractAcceptanceTasks(text string) []string {
@@ -1450,6 +1558,16 @@ func (a *App) detectInitProfile(root string) initProfile {
 		GitMode:               "manual",
 		GitProvider:           "github",
 		GitLabInstanceURL:     "https://gitlab.com",
+		ApprovalPolicy:        "on-request",
+		SandboxMode:           "workspace-write",
+		BranchPerWork:         true,
+		BranchBase:            "main",
+		SpecBranchPrefix:      "spec/",
+		TaskBranchPrefix:      "task/",
+		PRBaseBranch:          "main",
+		PRLanguage:            locale,
+		CodexReviewComment:    "@codex review",
+		AutoCodexReview:       true,
 		AgentMode:             "single",
 		StatusLinePreset:      "namba",
 		UserName:              detectUserName(a.getenv),
@@ -1458,6 +1576,9 @@ func (a *App) detectInitProfile(root string) initProfile {
 }
 
 func applyInitOverrides(profile *initProfile, opts initOptions) {
+	if value := strings.TrimSpace(opts.HumanLanguage); value != "" {
+		applyHumanLanguage(profile, value)
+	}
 	if value := strings.TrimSpace(opts.ProjectName); value != "" {
 		profile.ProjectName = value
 	}
@@ -1482,6 +1603,15 @@ func applyInitOverrides(profile *initProfile, opts initOptions) {
 	if value := strings.TrimSpace(opts.CommentLanguage); value != "" {
 		profile.CommentLanguage = value
 	}
+	if value := strings.TrimSpace(opts.DocumentationLanguage); value != "" {
+		profile.PRLanguage = value
+	}
+	if value := strings.TrimSpace(opts.ApprovalPolicy); value != "" {
+		profile.ApprovalPolicy = value
+	}
+	if value := strings.TrimSpace(opts.SandboxMode); value != "" {
+		profile.SandboxMode = value
+	}
 	if value := strings.TrimSpace(opts.GitMode); value != "" {
 		profile.GitMode = value
 	}
@@ -1505,6 +1635,17 @@ func applyInitOverrides(profile *initProfile, opts initOptions) {
 	}
 }
 
+func applyHumanLanguage(profile *initProfile, language string) {
+	value := strings.TrimSpace(language)
+	if value == "" {
+		return
+	}
+	profile.ConversationLanguage = value
+	profile.DocumentationLanguage = value
+	profile.CommentLanguage = value
+	profile.PRLanguage = value
+}
+
 func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 	reader := bufio.NewReader(a.stdin)
 	profile := defaults
@@ -1526,9 +1667,7 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 	)
 	profile.ProjectType = promptSelect(a.stdin, a.stdout, "\U0001f4e6 \ud504\ub85c\uc81d\ud2b8 \uc720\ud615", projectTypeOptions(), profile.ProjectType)
 	profile = a.promptProjectScaffold(reader, profile)
-	profile.ConversationLanguage = promptSelect(a.stdin, a.stdout, "\U0001f4ac \ub300\ud654 \uc5b8\uc5b4", languageOptions(), profile.ConversationLanguage)
-	profile.DocumentationLanguage = promptSelect(a.stdin, a.stdout, "\U0001f4dd \ubb38\uc11c \uc5b8\uc5b4", languageOptions(), profile.DocumentationLanguage)
-	profile.CommentLanguage = promptSelect(a.stdin, a.stdout, "\U0001f4bb \ucf54\ub4dc \uc8fc\uc11d \uc5b8\uc5b4", languageOptions(), profile.CommentLanguage)
+	applyHumanLanguage(&profile, promptSelect(a.stdin, a.stdout, "\U0001f310 \uc791\uc5c5 \uc5b8\uc5b4", languageOptions(), profile.ConversationLanguage))
 	profile.AgentMode = promptSelect(
 		a.stdin,
 		a.stdout,
@@ -1548,6 +1687,20 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 			{Value: "off", Label: "\ub044\uae30", Description: "\ucd94\ucc9c \uc124\uc815 \uc0dd\uc131 \uc548 \ud568"},
 		},
 		profile.StatusLinePreset,
+	)
+	profile.ApprovalPolicy = promptSelect(
+		a.stdin,
+		a.stdout,
+		"\u2705 approval_policy",
+		approvalPolicyOptions(),
+		approvalPolicy(profile),
+	)
+	profile.SandboxMode = promptSelect(
+		a.stdin,
+		a.stdout,
+		"\U0001f512 sandbox_mode",
+		sandboxModeOptions(),
+		sandboxMode(profile),
 	)
 	profile.GitMode = promptSelect(
 		a.stdin,
@@ -1892,6 +2045,22 @@ func languageOptions() []option {
 	}
 }
 
+func approvalPolicyOptions() []option {
+	return []option{
+		{Value: "on-request", Label: "on-request", Description: "\ud544\uc694\ud560 \ub54c Codex\uac00 \uc2b9\uc778 \uc694\uccad"},
+		{Value: "untrusted", Label: "untrusted", Description: "\ubbff\uc744 \uc218 \uc5c6\ub294 \uc791\uc5c5\ub9cc \uc2b9\uc778 \ud655\uc778"},
+		{Value: "never", Label: "never", Description: "\uc2b9\uc778 \uc5c6\uc774 \uacc4\uc18d \uc9c4\ud589"},
+	}
+}
+
+func sandboxModeOptions() []option {
+	return []option{
+		{Value: "workspace-write", Label: "workspace-write", Description: "\ud604\uc7ac \uc791\uc5c5 \uacf5\uac04\ub9cc \uc4f0\uae30 \ud5c8\uc6a9"},
+		{Value: "read-only", Label: "read-only", Description: "\ud30c\uc77c \uc4f0\uae30 \uc5c6\uc774 \uc77d\uae30 \uc804\uc6a9"},
+		{Value: "danger-full-access", Label: "danger-full-access", Description: "\uc0cc\ub4dc\ubc15\uc2a4 \uc81c\ud55c \uc5c6\uc774 \uc804\uccb4 \uc811\uadfc"},
+	}
+}
+
 func detectLocale(getenv func(string) string) string {
 	for _, key := range []string{"NAMBA_LANG", "LC_ALL", "LANG"} {
 		value := strings.ToLower(getenv(key))
@@ -1946,6 +2115,26 @@ func validateInitProfile(profile initProfile) error {
 	for _, value := range []string{profile.ConversationLanguage, profile.DocumentationLanguage, profile.CommentLanguage} {
 		if !containsValue([]string{"en", "ko", "ja", "zh"}, value) {
 			return fmt.Errorf("language preference %q is not supported", value)
+		}
+	}
+	if profile.PRLanguage != "" && !containsValue([]string{"en", "ko", "ja", "zh"}, profile.PRLanguage) {
+		return fmt.Errorf("PR language %q is not supported", profile.PRLanguage)
+	}
+	if !isAllowedApprovalPolicy(normalizeApprovalPolicy(profile.ApprovalPolicy)) {
+		return fmt.Errorf("approval policy %q is not supported", profile.ApprovalPolicy)
+	}
+	if !isAllowedSandboxMode(normalizeSandboxMode(profile.SandboxMode)) {
+		return fmt.Errorf("sandbox mode %q is not supported", profile.SandboxMode)
+	}
+	for field, value := range map[string]string{
+		"branch base":          profile.BranchBase,
+		"spec branch prefix":   profile.SpecBranchPrefix,
+		"task branch prefix":   profile.TaskBranchPrefix,
+		"PR base branch":       profile.PRBaseBranch,
+		"codex review comment": profile.CodexReviewComment,
+	} {
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("%s is required", field)
 		}
 	}
 	return nil
@@ -2021,10 +2210,20 @@ type initProfile struct {
 	ConversationLanguage  string
 	DocumentationLanguage string
 	CommentLanguage       string
+	ApprovalPolicy        string
+	SandboxMode           string
 	GitMode               string
 	GitProvider           string
 	GitUsername           string
 	GitLabInstanceURL     string
+	BranchPerWork         bool
+	BranchBase            string
+	SpecBranchPrefix      string
+	TaskBranchPrefix      string
+	PRBaseBranch          string
+	PRLanguage            string
+	CodexReviewComment    string
+	AutoCodexReview       bool
 	AgentMode             string
 	StatusLinePreset      string
 	UserName              string
@@ -2042,6 +2241,9 @@ type initOptions struct {
 	ConversationLanguage  string
 	DocumentationLanguage string
 	CommentLanguage       string
+	HumanLanguage         string
+	ApprovalPolicy        string
+	SandboxMode           string
 	GitMode               string
 	GitProvider           string
 	GitUsername           string
@@ -2132,6 +2334,24 @@ func parseInitArgs(args []string) (initOptions, error) {
 				return initOptions{}, err
 			}
 			opts.CommentLanguage = value
+		case "--human-language":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.HumanLanguage = value
+		case "--approval-policy":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.ApprovalPolicy = value
+		case "--sandbox-mode":
+			value, err := consumeValue(args, &i, arg)
+			if err != nil {
+				return initOptions{}, err
+			}
+			opts.SandboxMode = value
 		case "--git-mode":
 			value, err := consumeValue(args, &i, arg)
 			if err != nil {

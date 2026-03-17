@@ -31,7 +31,7 @@ func TestRunParallelSkipsMergeWhenAnyWorkerFails(t *testing.T) {
 		}
 	})
 
-	err := app.runParallel(context.Background(), root, specPackage{ID: "SPEC-001"}, []string{"task one", "task two"}, "prompt", qualityConfig{TestCommand: "echo ok", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex", ApprovalMode: "on-request", SandboxMode: "workspace-write"}, false)
+	err := app.runParallel(context.Background(), root, specPackage{ID: "SPEC-001"}, []string{"task one", "task two"}, "prompt", qualityConfig{TestCommand: "echo ok", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"}, false)
 	if err == nil {
 		t.Fatal("expected parallel failure")
 	}
@@ -71,7 +71,7 @@ func TestRunParallelMergesOnlyAfterAllWorkersPass(t *testing.T) {
 		}
 	})
 
-	err := app.runParallel(context.Background(), root, specPackage{ID: "SPEC-002"}, []string{"task one", "task two"}, "prompt", qualityConfig{TestCommand: "echo ok", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex", ApprovalMode: "on-request", SandboxMode: "workspace-write"}, false)
+	err := app.runParallel(context.Background(), root, specPackage{ID: "SPEC-002"}, []string{"task one", "task two"}, "prompt", qualityConfig{TestCommand: "echo ok", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"}, false)
 	if err != nil {
 		t.Fatalf("parallel run failed: %v", err)
 	}
@@ -111,7 +111,7 @@ func TestRunParallelReportsCleanupFailures(t *testing.T) {
 		}
 	})
 
-	err := app.runParallel(context.Background(), root, specPackage{ID: "SPEC-003"}, []string{"task one"}, "prompt", qualityConfig{TestCommand: "echo ok", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex", ApprovalMode: "on-request", SandboxMode: "workspace-write"}, false)
+	err := app.runParallel(context.Background(), root, specPackage{ID: "SPEC-003"}, []string{"task one"}, "prompt", qualityConfig{TestCommand: "echo ok", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"}, false)
 	if err == nil {
 		t.Fatal("expected cleanup failure")
 	}
