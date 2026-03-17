@@ -23,7 +23,6 @@ func TestInitCreatesScaffold(t *testing.T) {
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-foundation-core", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-workflow-init", "SKILL.md"))
-	mustExist(t, filepath.Join(tmp, ".codex", "skills", "namba", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".codex", "config.toml"))
 	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.md"))
 	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-implementer.md"))
@@ -34,6 +33,26 @@ func TestInitCreatesScaffold(t *testing.T) {
 	mustExist(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"))
 	mustExist(t, filepath.Join(tmp, ".namba", "codex", "claude-codex-mapping.md"))
 	mustExist(t, filepath.Join(tmp, ".namba", "manifest.json"))
+	mustNotExist(t, filepath.Join(tmp, ".codex", "skills", "namba", "SKILL.md"))
+
+	codexProfile := mustRead(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"))
+	if !strings.Contains(codexProfile, "compat_skills_path: \n") {
+		t.Fatalf("expected empty compat_skills_path for new project, got: %s", codexProfile)
+	}
+}
+
+func TestInitCreatesCompatibilityMirrorForExistingProject(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tmp, "README.md"), []byte("# existing"), 0o644); err != nil {
+		t.Fatalf("seed existing repo file: %v", err)
+	}
+	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	if err := app.Run(context.Background(), []string{"init", tmp}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	mustExist(t, filepath.Join(tmp, ".codex", "skills", "namba", "SKILL.md"))
 }
 
 func TestInitSupportsCodexProfileFlags(t *testing.T) {
@@ -276,6 +295,15 @@ func mustExist(t *testing.T, path string) {
 	t.Helper()
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("expected %s to exist: %v", path, err)
+	}
+}
+
+func mustNotExist(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Stat(path); err == nil {
+		t.Fatalf("expected %s not to exist", path)
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat %s: %v", path, err)
 	}
 }
 

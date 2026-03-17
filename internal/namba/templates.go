@@ -24,7 +24,7 @@ func renderAgents(profile initProfile) string {
 		"## Rules\n\n"+
 		"- Prefer `.namba/` as the source of truth.\n"+
 		"- Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md` before implementation.\n"+
-		"- Use the `$namba` skill as the primary command surface when the user explicitly invokes Namba inside Codex.\n"+
+		"- Use the `$namba` skill as the primary command surface when the user explicitly invokes Namba inside Codex; treat aliases like `$namba-run` as triggers for the same workflow.\n"+
 		"- Do not bypass validation. Run the configured quality commands after changes.\n"+
 		"- Use worktrees for parallel execution; do not modify multiple branches in one workspace.\n\n"+
 		"Project: %s\n"+
@@ -43,7 +43,7 @@ func renderNambaSkill() string {
 		"description: Codex-native Namba command surface for SPEC orchestration inside a repository.",
 		"---",
 		"",
-		"Use this skill whenever the user mentions `namba`, `namba project`, `namba update`, `namba plan`, `namba fix`, `namba run`, `namba sync`, or asks to use the Namba workflow.",
+		"Use this skill whenever the user mentions `namba`, `namba project`, `namba update`, `namba plan`, `namba fix`, `namba run`, `namba sync`, aliases like `$namba-run`, or asks to use the Namba workflow.",
 		"",
 		"Command mapping:",
 		"- `namba project`: refresh repository docs and codemaps.",
@@ -96,7 +96,7 @@ func renderInitSkill() string {
 		"",
 		"Core mapping:",
 		"- `CLAUDE.md` -> `AGENTS.md`",
-		"- `.claude/skills/*` -> `.agents/skills/*` with `.codex/skills/*` as a compatibility mirror",
+		"- `.claude/skills/*` -> `.agents/skills/*` with optional `.codex/skills/*` compatibility mirror",
 		"- `.claude/agents/*` -> `.codex/agents/*.md` role cards for Codex delegation",
 		"- `.claude/hooks/*` -> explicit validation pipeline and `namba` orchestration",
 		"- Claude custom slash-command workflows -> built-in Codex slash commands plus the `$namba` skill and `namba` CLI",
@@ -159,7 +159,7 @@ func renderCodexUsage(profile initProfile) string {
 		"",
 		"- Creates `AGENTS.md` with Namba orchestration rules.",
 		"- Creates repo-local skills under `.agents/skills/`.",
-		"- Creates a compatibility mirror under `.codex/skills/`.",
+		"- Optionally creates a compatibility mirror when `compat_skills_path` is configured.",
 		"- Creates Codex delegation role cards under `.codex/agents/`.",
 		"- Creates repo-local Codex config under `.codex/config.toml`.",
 		"- Creates `.namba/` project state, configs, docs, and SPEC storage.",
@@ -174,7 +174,7 @@ func renderCodexUsage(profile initProfile) string {
 		"",
 		"## Workflow Command Semantics",
 		"",
-		"- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, role cards, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
+		"- `namba update` regenerates `AGENTS.md`, repo-local skills, optional compatibility mirror skills, role cards, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
 		"- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, and codemaps.",
 		"- `namba release` requires a clean `main` branch and passing validators before it creates a tag. `--push` pushes both `main` and the new tag.",
 		"- `namba run SPEC-XXX --parallel` refers to the standalone runner path. It uses git worktrees, merges only after every worker passes execution and validation, and preserves failed worktrees and branches for inspection.",
@@ -207,7 +207,7 @@ func renderClaudeCodexMapping() string {
 		"This repository uses a Codex-adapted variant of the MoAI bootstrap model.",
 		"",
 		"- `CLAUDE.md` -> `AGENTS.md`",
-		"- `.claude/skills/*` -> `.agents/skills/*` and `.codex/skills/*`",
+		"- `.claude/skills/*` -> `.agents/skills/*` (optional compatibility mirror path supported)",
 		"- `.claude/agents/*.md` -> `.codex/agents/*.md` role cards",
 		"- `.claude/hooks/*` -> explicit validation commands, structured run logs, and `namba sync`",
 		"- Claude slash-command-centric workflows -> built-in Codex slash commands plus `$namba` and `namba`",
@@ -331,7 +331,7 @@ func renderCodexProfileConfig(profile initProfile) string {
 		profile.AgentMode,
 		profile.StatusLinePreset,
 		repoSkillsDir,
-		compatSkillsDir,
+		strings.TrimSpace(profile.CompatSkillsPath),
 		repoCodexAgentsDir,
 	)
 }

@@ -55,10 +55,11 @@ type ManifestEntry struct {
 }
 
 type projectConfig struct {
-	Name        string
-	ProjectType string
-	Language    string
-	Framework   string
+	Name             string
+	ProjectType      string
+	Language         string
+	Framework        string
+	CompatSkillsPath string
 }
 
 type qualityConfig struct {
@@ -241,7 +242,7 @@ func (a *App) runDoctor(ctx context.Context, _ []string) error {
 	fmt.Fprintf(a.stdout, "Framework: %s\n", projectCfg.Framework)
 	fmt.Fprintf(a.stdout, "Mode: %s\n", qualityCfg.DevelopmentMode)
 	fmt.Fprintf(a.stdout, "Codex native repo: %s\n", formatDoctorStatus(codexNativeIssues(root)))
-	fmt.Fprintf(a.stdout, "Codex compatibility mirror: %s\n", formatDoctorStatus(codexCompatibilityIssues(root)))
+	fmt.Fprintf(a.stdout, "Codex compatibility mirror: %s\n", formatDoctorStatus(codexCompatibilityIssues(root, projectCfg.CompatSkillsPath)))
 	if codexErr != nil {
 		fmt.Fprintln(a.stdout, "Codex: missing")
 	} else {
@@ -687,11 +688,16 @@ func (a *App) loadProjectConfig(root string) (projectConfig, error) {
 	if err != nil {
 		return projectConfig{}, err
 	}
+	codexValues, err := readKeyValueFile(filepath.Join(root, configDir, "codex.yaml"))
+	if err != nil {
+		return projectConfig{}, err
+	}
 	return projectConfig{
-		Name:        values["name"],
-		ProjectType: values["project_type"],
-		Language:    values["language"],
-		Framework:   values["framework"],
+		Name:             values["name"],
+		ProjectType:      values["project_type"],
+		Language:         values["language"],
+		Framework:        values["framework"],
+		CompatSkillsPath: strings.TrimSpace(codexValues["compat_skills_path"]),
 	}, nil
 }
 
@@ -783,6 +789,9 @@ func (a *App) loadInitProfileFromConfig(root string) (initProfile, error) {
 	}
 	if value := strings.TrimSpace(codexValues["status_line_preset"]); value != "" {
 		profile.StatusLinePreset = value
+	}
+	if value, ok := codexValues["compat_skills_path"]; ok {
+		profile.CompatSkillsPath = strings.TrimSpace(value)
 	}
 
 	if err := validateInitProfile(profile); err != nil {
@@ -1438,9 +1447,15 @@ func (a *App) detectInitProfile(root string) initProfile {
 		name = "my-project"
 	}
 
+	projectType := detectProjectType(root)
+	compatSkillsPath := defaultCompatSkillsDir
+	if projectType == "new" {
+		compatSkillsPath = ""
+	}
+
 	return initProfile{
 		ProjectName:           name,
-		ProjectType:           detectProjectType(root),
+		ProjectType:           projectType,
 		Language:              language,
 		Framework:             framework,
 		DevelopmentMode:       detectMethodology(root),
@@ -1452,6 +1467,7 @@ func (a *App) detectInitProfile(root string) initProfile {
 		GitLabInstanceURL:     "https://gitlab.com",
 		AgentMode:             "single",
 		StatusLinePreset:      "namba",
+		CompatSkillsPath:      compatSkillsPath,
 		UserName:              detectUserName(a.getenv),
 		CreatedAt:             a.now().Format(timeLayoutDateTime),
 	}
@@ -2027,6 +2043,7 @@ type initProfile struct {
 	GitLabInstanceURL     string
 	AgentMode             string
 	StatusLinePreset      string
+	CompatSkillsPath      string
 	UserName              string
 	CreatedAt             string
 }

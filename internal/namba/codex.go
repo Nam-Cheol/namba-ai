@@ -7,11 +7,11 @@ import (
 )
 
 const (
-	repoSkillsDir       = ".agents/skills"
-	compatSkillsDir     = ".codex/skills"
-	repoCodexAgentsDir  = ".codex/agents"
-	repoCodexConfigPath = ".codex/config.toml"
-	codexStateDir       = ".namba/codex"
+	repoSkillsDir          = ".agents/skills"
+	defaultCompatSkillsDir = ".codex/skills"
+	repoCodexAgentsDir     = ".codex/agents"
+	repoCodexConfigPath    = ".codex/config.toml"
+	codexStateDir          = ".namba/codex"
 )
 
 func codexScaffoldFiles(profile initProfile) map[string]string {
@@ -26,7 +26,11 @@ func codexScaffoldFiles(profile initProfile) map[string]string {
 	}
 	for rel, content := range codexSkillTemplates() {
 		files[filepath.ToSlash(filepath.Join(repoSkillsDir, rel))] = content
-		files[filepath.ToSlash(filepath.Join(compatSkillsDir, rel))] = content
+	}
+	if compatDir := strings.TrimSpace(profile.CompatSkillsPath); compatDir != "" {
+		for rel, content := range codexSkillTemplates() {
+			files[filepath.ToSlash(filepath.Join(compatDir, rel))] = content
+		}
 	}
 	return files
 }
@@ -55,12 +59,16 @@ func codexNativeIssues(root string) []string {
 	return missingChecks(checks)
 }
 
-func codexCompatibilityIssues(root string) []string {
+func codexCompatibilityIssues(root string, compatPath string) []string {
+	compatPath = strings.TrimSpace(compatPath)
+	if compatPath == "" {
+		return nil
+	}
 	checks := []struct {
 		label string
 		path  string
 	}{
-		{label: ".codex/skills/namba/SKILL.md", path: filepath.Join(root, ".codex", "skills", "namba", "SKILL.md")},
+		{label: filepath.ToSlash(filepath.Join(compatPath, "namba", "SKILL.md")), path: filepath.Join(root, filepath.FromSlash(compatPath), "namba", "SKILL.md")},
 	}
 	return missingChecks(checks)
 }
