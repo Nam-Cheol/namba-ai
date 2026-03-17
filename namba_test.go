@@ -21,9 +21,10 @@ func TestInitCreatesScaffold(t *testing.T) {
 
 	mustExist(t, filepath.Join(tmp, "AGENTS.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-run", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-project", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-foundation-core", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-workflow-init", "SKILL.md"))
-	mustExist(t, filepath.Join(tmp, ".codex", "skills", "namba", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".codex", "config.toml"))
 	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.md"))
 	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.toml"))
@@ -45,6 +46,7 @@ func TestInitCreatesScaffold(t *testing.T) {
 	if strings.Contains(plannerAgent, `prompt = "`) {
 		t.Fatalf("expected planner custom agent to use developer_instructions, got: %s", plannerAgent)
 	}
+	mustNotExist(t, filepath.Join(tmp, ".codex", "skills"))
 }
 
 func TestInitSupportsCodexProfileFlags(t *testing.T) {
@@ -95,6 +97,9 @@ func TestInitSupportsCodexProfileFlags(t *testing.T) {
 	if !strings.Contains(codexProfile, "agent_mode: multi") || !strings.Contains(codexProfile, "status_line_preset: off") {
 		t.Fatalf("unexpected codex config: %s", codexProfile)
 	}
+	if strings.Contains(codexProfile, "compat_skills_path:") {
+		t.Fatalf("expected deprecated compat skill path to be removed: %s", codexProfile)
+	}
 
 	system := mustRead(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"))
 	if !strings.Contains(system, "approval_policy: never") || !strings.Contains(system, "sandbox_mode: read-only") {
@@ -143,8 +148,8 @@ func TestDoctorReportsCodexNativeReadiness(t *testing.T) {
 	if !strings.Contains(text, "Codex native repo: ready") {
 		t.Fatalf("expected codex native readiness in doctor output: %s", text)
 	}
-	if !strings.Contains(text, "Codex compatibility mirror: ready") {
-		t.Fatalf("expected codex compatibility readiness in doctor output: %s", text)
+	if strings.Contains(text, "Codex compatibility mirror") {
+		t.Fatalf("expected compatibility mirror line to be removed, got: %s", text)
 	}
 }
 
@@ -300,6 +305,15 @@ func mustExist(t *testing.T, path string) {
 	t.Helper()
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("expected %s to exist: %v", path, err)
+	}
+}
+
+func mustNotExist(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Stat(path); err == nil {
+		t.Fatalf("expected %s to be absent", path)
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat %s: %v", path, err)
 	}
 }
 

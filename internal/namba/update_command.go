@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 func (a *App) runRegen(_ context.Context, args []string) error {
@@ -27,10 +30,60 @@ func (a *App) runRegen(_ context.Context, args []string) error {
 	for rel, body := range codexScaffoldFiles(profile) {
 		outputs[rel] = body
 	}
-	if err := a.writeOutputs(root, outputs); err != nil {
+	if err := a.replaceManagedOutputs(root, outputs, isRegenManagedPath); err != nil {
 		return err
 	}
 
-	fmt.Fprintln(a.stdout, "Regenerated NambaAI AGENTS, repo skills, Codex agents, and Codex config.")
+	fmt.Fprintln(a.stdout, "Regenerated NambaAI AGENTS, repo skills, command-entry skills, Codex agents, and Codex config.")
 	return nil
+}
+
+func (a *App) replaceManagedOutputs(root string, outputs map[string]string, managed func(string) bool) error {
+	if err := os.RemoveAll(filepath.Join(root, ".codex", "skills")); err != nil {
+		return fmt.Errorf("remove deprecated codex skill mirror: %w", err)
+	}
+
+	manifest, err := a.readManifest(root)
+	if err != nil {
+		return err
+	}
+
+	filtered := manifest.Entries[:0]
+	for _, entry := range manifest.Entries {
+		if managed(entry.Path) {
+			if _, keep := outputs[entry.Path]; keep {
+				filtered = append(filtered, entry)
+				continue
+			}
+			if err := os.RemoveAll(filepath.Join(root, filepath.FromSlash(entry.Path))); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("remove obsolete generated file %s: %w", entry.Path, err)
+			}
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	manifest.Entries = filtered
+	if err := a.writeManifest(root, manifest); err != nil {
+		return err
+	}
+	return a.writeOutputs(root, outputs)
+}
+
+func isRegenManagedPath(rel string) bool {
+	switch {
+	case rel == "AGENTS.md":
+		return true
+	case rel == repoCodexConfigPath:
+		return true
+	case strings.HasPrefix(rel, repoSkillsDir+"/"):
+		return true
+	case strings.HasPrefix(rel, ".codex/skills/"):
+		return true
+	case strings.HasPrefix(rel, repoCodexAgentsDir+"/"):
+		return true
+	case strings.HasPrefix(rel, codexStateDir+"/"):
+		return true
+	default:
+		return false
+	}
 }

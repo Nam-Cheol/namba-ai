@@ -9,7 +9,7 @@ When the user references `namba`, `namba project`, `namba regen`, `namba update`
 - Prefer direct Codex-native execution for `namba run SPEC-XXX`: read the SPEC package, implement the work in-session, run validation, and sync artifacts.
 - Use the installed `namba` CLI for `init`, `doctor`, `project`, `regen`, `update`, `plan`, `fix`, and `sync` when it is available and the command should mutate repo state or maintain the installed CLI directly.
 - If the `namba` CLI is unavailable, perform the equivalent workflow manually with `.namba/` as the source of truth.
-- Use repo skills under `.agents/skills/` first. `.codex/skills/` exists as a compatibility mirror.
+- Use repo skills under `.agents/skills/` as the single skill surface. Command-entry skills such as `$namba-run` and `$namba-plan` replace provider-specific custom command wrappers.
 - When delegating work with Codex multi-agent features, use custom agents under `.codex/agents/*.toml` and keep `.md` role cards as readable mirrors.
 
 ## Workflow
@@ -32,7 +32,7 @@ When the user references `namba`, `namba project`, `namba regen`, `namba update`
 
 - Prefer `.namba/` as the source of truth.
 - Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md` before implementation.
-- Use the `$namba` skill as the primary command surface when the user explicitly invokes Namba inside Codex.
+- Use `$namba` for general routing, or command-entry skills such as `$namba-run`, `$namba-plan`, `$namba-project`, and `$namba-sync` when the user invokes one command directly.
 - Do not bypass validation. Run the configured quality commands after changes.
 - Use worktrees for parallel execution; do not modify multiple branches in one workspace.
 

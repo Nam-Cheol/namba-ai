@@ -7,10 +7,11 @@ Use this skill when the user asks about `namba init`, project bootstrap, or Clau
 
 Core mapping:
 - `CLAUDE.md` -> `AGENTS.md`
-- `.claude/skills/*` -> `.agents/skills/*` with `.codex/skills/*` as a compatibility mirror
+- `.claude/skills/*` -> `.agents/skills/*`
+- `.claude/commands/*` -> command-entry repo skills such as `.agents/skills/namba-run/SKILL.md`
 - `.claude/agents/*` -> `.codex/agents/*.toml` custom agents with `.md` role-card mirrors
 - `.claude/hooks/*` -> explicit validation pipeline and `namba` orchestration
-- Claude custom slash-command workflows -> built-in Codex slash commands plus the `$namba` skill and `namba` CLI
+- Claude custom slash-command workflows -> built-in Codex slash commands plus repo skills such as `$namba-run`, `$namba-plan`, `$namba-sync`, and the `namba` CLI
 
 When implementing init changes:
 1. Keep `.namba/config/sections/*.yaml` as the durable source of truth.

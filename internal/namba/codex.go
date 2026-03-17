@@ -8,7 +8,6 @@ import (
 
 const (
 	repoSkillsDir       = ".agents/skills"
-	compatSkillsDir     = ".codex/skills"
 	repoCodexAgentsDir  = ".codex/agents"
 	repoCodexConfigPath = ".codex/config.toml"
 	codexStateDir       = ".namba/codex"
@@ -29,7 +28,6 @@ func codexScaffoldFiles(profile initProfile) map[string]string {
 	}
 	for rel, content := range codexSkillTemplates(profile) {
 		files[filepath.ToSlash(filepath.Join(repoSkillsDir, rel))] = content
-		files[filepath.ToSlash(filepath.Join(compatSkillsDir, rel))] = content
 	}
 	return files
 }
@@ -37,6 +35,14 @@ func codexScaffoldFiles(profile initProfile) map[string]string {
 func codexSkillTemplates(profile initProfile) map[string]string {
 	return map[string]string{
 		filepath.ToSlash(filepath.Join("namba", "SKILL.md")):                    renderNambaSkill(profile),
+		filepath.ToSlash(filepath.Join("namba-init", "SKILL.md")):               renderInitCommandSkill(),
+		filepath.ToSlash(filepath.Join("namba-project", "SKILL.md")):            renderProjectCommandSkill(),
+		filepath.ToSlash(filepath.Join("namba-regen", "SKILL.md")):              renderRegenCommandSkill(),
+		filepath.ToSlash(filepath.Join("namba-update", "SKILL.md")):             renderUpdateCommandSkill(),
+		filepath.ToSlash(filepath.Join("namba-plan", "SKILL.md")):               renderPlanCommandSkill(),
+		filepath.ToSlash(filepath.Join("namba-fix", "SKILL.md")):                renderFixCommandSkill(),
+		filepath.ToSlash(filepath.Join("namba-run", "SKILL.md")):                renderRunCommandSkill(profile),
+		filepath.ToSlash(filepath.Join("namba-sync", "SKILL.md")):               renderSyncCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-foundation-core", "SKILL.md")):    renderFoundationSkill(),
 		filepath.ToSlash(filepath.Join("namba-workflow-init", "SKILL.md")):      renderInitSkill(),
 		filepath.ToSlash(filepath.Join("namba-workflow-project", "SKILL.md")):   renderProjectSkill(),
@@ -51,19 +57,10 @@ func codexNativeIssues(root string) []string {
 	}{
 		{label: "AGENTS.md", path: filepath.Join(root, "AGENTS.md")},
 		{label: ".agents/skills/namba/SKILL.md", path: filepath.Join(root, ".agents", "skills", "namba", "SKILL.md")},
+		{label: ".agents/skills/namba-run/SKILL.md", path: filepath.Join(root, ".agents", "skills", "namba-run", "SKILL.md")},
 		{label: ".codex/config.toml", path: filepath.Join(root, ".codex", "config.toml")},
 		{label: ".codex/agents/namba-planner.toml", path: filepath.Join(root, ".codex", "agents", "namba-planner.toml")},
 		{label: ".namba/config/sections/codex.yaml", path: filepath.Join(root, ".namba", "config", "sections", "codex.yaml")},
-	}
-	return missingChecks(checks)
-}
-
-func codexCompatibilityIssues(root string) []string {
-	checks := []struct {
-		label string
-		path  string
-	}{
-		{label: ".codex/skills/namba/SKILL.md", path: filepath.Join(root, ".codex", "skills", "namba", "SKILL.md")},
 	}
 	return missingChecks(checks)
 }

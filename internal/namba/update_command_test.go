@@ -27,6 +27,12 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), []byte("runner: codex\napproval_policy: never\nsandbox_mode: read-only\n"), 0o644); err != nil {
 		t.Fatalf("write system config: %v", err)
 	}
+	if err := os.MkdirAll(filepath.Join(tmp, ".codex", "skills", "namba"), 0o755); err != nil {
+		t.Fatalf("mkdir stale compat skill: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, ".codex", "skills", "namba", "SKILL.md"), []byte("stale compat skill\n"), 0o644); err != nil {
+		t.Fatalf("write stale compat skill: %v", err)
+	}
 	if err := os.WriteFile(filepath.Join(tmp, "AGENTS.md"), []byte("stale\n"), 0o644); err != nil {
 		t.Fatalf("write AGENTS: %v", err)
 	}
@@ -46,6 +52,14 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 		t.Fatalf("expected regenerated AGENTS to reflect git collaboration policy, got %q", agents)
 	}
 
+	runSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-run", "SKILL.md"))
+	if !strings.Contains(runSkill, "$namba-run") || !strings.Contains(runSkill, "namba run SPEC-XXX") {
+		t.Fatalf("expected command-entry run skill, got %q", runSkill)
+	}
+	if _, err := os.Stat(filepath.Join(tmp, ".codex", "skills")); !os.IsNotExist(err) {
+		t.Fatalf("expected deprecated codex skills mirror to be removed, stat err=%v", err)
+	}
+
 	config := mustReadFile(t, filepath.Join(tmp, ".codex", "config.toml"))
 	if !strings.Contains(config, "max_threads = 3") || !strings.Contains(config, `approval_policy = "never"`) || !strings.Contains(config, `sandbox_mode = "read-only"`) {
 		t.Fatalf("expected multi-agent Codex config, got %q", config)
@@ -60,6 +74,9 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	}
 	if !strings.Contains(codexReadme, ".codex/agents/*.toml") {
 		t.Fatalf("expected codex README to describe custom agents, got %q", codexReadme)
+	}
+	if !strings.Contains(codexReadme, "$namba-run") || strings.Contains(codexReadme, ".codex/skills/") {
+		t.Fatalf("expected codex README to describe command-entry skills without codex skill mirror, got %q", codexReadme)
 	}
 	if !strings.Contains(codexReadme, "PR titles and bodies should be written in Korean") || !strings.Contains(codexReadme, "`@codex review`") {
 		t.Fatalf("expected codex README to describe PR collaboration defaults, got %q", codexReadme)

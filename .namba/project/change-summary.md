@@ -3,7 +3,7 @@
 Project: namba-ai
 Project type: existing
 Latest SPEC: SPEC-009
-Generated: 2026-03-18T00:41:03+09:00
+Generated: 2026-03-18T00:58:37+09:00
 
 ## Workflow Docs Synced
 
@@ -15,5 +15,5 @@ Generated: 2026-03-18T00:41:03+09:00
 ## Refresh Commands
 
 - `namba update` self-updates the installed `namba` binary from GitHub Release assets.
-- `namba regen` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.
+- `namba regen` regenerates `AGENTS.md`, repo-local skills and command-entry skills under `.agents/skills`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.
 - `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, and codemaps.
