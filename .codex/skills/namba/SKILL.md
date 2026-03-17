@@ -7,7 +7,7 @@ Use this skill whenever the user mentions `namba`, `namba project`, `namba updat
 
 Command mapping:
 - `namba project`: refresh repository docs and codemaps.
-- `namba update`: regenerate AGENTS, repo-local skills, compatibility skills, role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.
+- `namba update`: regenerate AGENTS, repo-local skills, compatibility skills, custom agents, and repo-local Codex config from `.namba/config/sections/*.yaml`.
 - `namba plan "<description>"`: create the next feature SPEC package under `.namba/specs/`.
 - `namba fix "<description>"`: create the next bugfix SPEC package under `.namba/specs/`.
 - `namba run SPEC-XXX`: execute the SPEC in the current Codex session. Read `spec.md`, `plan.md`, and `acceptance.md`, implement directly, validate, and sync artifacts.

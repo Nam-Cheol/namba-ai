@@ -16,13 +16,13 @@ const (
 
 func codexScaffoldFiles(profile initProfile) map[string]string {
 	files := map[string]string{
-		filepath.ToSlash(filepath.Join(codexStateDir, "README.md")):                 renderCodexUsage(profile),
-		filepath.ToSlash(filepath.Join(codexStateDir, "statusline.example.toml")):   renderCodexStatusLineExample(),
-		filepath.ToSlash(filepath.Join(codexStateDir, "claude-codex-mapping.md")):   renderClaudeCodexMapping(),
-		filepath.ToSlash(repoCodexConfigPath):                                       renderRepoCodexConfig(profile),
-		filepath.ToSlash(filepath.Join(repoCodexAgentsDir, "namba-planner.md")):     renderPlannerRoleCard(),
-		filepath.ToSlash(filepath.Join(repoCodexAgentsDir, "namba-implementer.md")): renderImplementerRoleCard(),
-		filepath.ToSlash(filepath.Join(repoCodexAgentsDir, "namba-reviewer.md")):    renderReviewerRoleCard(),
+		filepath.ToSlash(filepath.Join(codexStateDir, "README.md")):                   renderCodexUsage(profile),
+		filepath.ToSlash(filepath.Join(codexStateDir, "statusline.example.toml")):     renderCodexStatusLineExample(),
+		filepath.ToSlash(filepath.Join(codexStateDir, "claude-codex-mapping.md")):     renderClaudeCodexMapping(),
+		filepath.ToSlash(repoCodexConfigPath):                                         renderRepoCodexConfig(profile),
+		filepath.ToSlash(filepath.Join(repoCodexAgentsDir, "namba-planner.toml")):     renderPlannerCustomAgent(),
+		filepath.ToSlash(filepath.Join(repoCodexAgentsDir, "namba-implementer.toml")): renderImplementerCustomAgent(),
+		filepath.ToSlash(filepath.Join(repoCodexAgentsDir, "namba-reviewer.toml")):    renderReviewerCustomAgent(),
 	}
 	for rel, content := range codexSkillTemplates() {
 		files[filepath.ToSlash(filepath.Join(repoSkillsDir, rel))] = content
@@ -49,7 +49,7 @@ func codexNativeIssues(root string) []string {
 		{label: "AGENTS.md", path: filepath.Join(root, "AGENTS.md")},
 		{label: ".agents/skills/namba/SKILL.md", path: filepath.Join(root, ".agents", "skills", "namba", "SKILL.md")},
 		{label: ".codex/config.toml", path: filepath.Join(root, ".codex", "config.toml")},
-		{label: ".codex/agents/namba-planner.md", path: filepath.Join(root, ".codex", "agents", "namba-planner.md")},
+		{label: ".codex/agents/namba-planner.toml", path: filepath.Join(root, ".codex", "agents", "namba-planner.toml")},
 		{label: ".namba/config/sections/codex.yaml", path: filepath.Join(root, ".namba", "config", "sections", "codex.yaml")},
 	}
 	return missingChecks(checks)
