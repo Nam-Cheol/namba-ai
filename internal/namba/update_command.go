@@ -6,9 +6,9 @@ import (
 	"fmt"
 )
 
-func (a *App) runUpdate(_ context.Context, args []string) error {
+func (a *App) runRegen(_ context.Context, args []string) error {
 	if len(args) != 0 {
-		return errors.New("update does not accept arguments")
+		return errors.New("regen does not accept arguments")
 	}
 
 	root, err := a.requireProjectRoot()
@@ -31,6 +31,6 @@ func (a *App) runUpdate(_ context.Context, args []string) error {
 		return err
 	}
 
-	fmt.Fprintln(a.stdout, "Refreshed NambaAI AGENTS, repo skills, Codex agents, and Codex config.")
+	fmt.Fprintln(a.stdout, "Regenerated NambaAI AGENTS, repo skills, Codex agents, and Codex config.")
 	return nil
 }

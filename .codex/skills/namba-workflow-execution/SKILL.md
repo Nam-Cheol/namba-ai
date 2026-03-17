@@ -13,4 +13,6 @@ Execution pattern:
 5. Run configured validation commands
 6. Summarize results in `.namba/logs` and sync artifacts
 
+Collaboration defaults: use a dedicated branch from `main` for the SPEC, open the PR into `main`, write the PR in Korean, and request `@codex review` on GitHub after the PR is open.
+
 Do not call `namba run` from inside Codex unless the user explicitly requests the non-interactive CLI runner.

@@ -4,7 +4,7 @@ This repository uses a Codex-adapted variant of the MoAI bootstrap model.
 
 - `CLAUDE.md` -> `AGENTS.md`
 - `.claude/skills/*` -> `.agents/skills/*` and `.codex/skills/*`
-- `.claude/agents/*.md` -> `.codex/agents/*.md` role cards
+- `.claude/agents/*.md` -> `.codex/agents/*.toml` custom agents with `.md` role-card mirrors
 - `.claude/hooks/*` -> explicit validation commands, structured run logs, and `namba sync`
 - Claude slash-command-centric workflows -> built-in Codex slash commands plus `$namba` and `namba`
 
