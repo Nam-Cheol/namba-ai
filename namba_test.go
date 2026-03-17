@@ -22,6 +22,7 @@ func TestInitCreatesScaffold(t *testing.T) {
 	mustExist(t, filepath.Join(tmp, "AGENTS.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-foundation-core", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-run", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-workflow-init", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".codex", "skills", "namba", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".codex", "config.toml"))
@@ -34,6 +35,11 @@ func TestInitCreatesScaffold(t *testing.T) {
 	mustExist(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"))
 	mustExist(t, filepath.Join(tmp, ".namba", "codex", "claude-codex-mapping.md"))
 	mustExist(t, filepath.Join(tmp, ".namba", "manifest.json"))
+
+	compatSkill := mustRead(t, filepath.Join(tmp, ".codex", "skills", "namba", "SKILL.md"))
+	if strings.Contains(compatSkill, "name: namba") {
+		t.Fatalf("expected compatibility mirror skill to avoid canonical skill metadata: %s", compatSkill)
+	}
 }
 
 func TestInitSupportsCodexProfileFlags(t *testing.T) {

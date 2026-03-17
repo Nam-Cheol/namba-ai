@@ -24,7 +24,7 @@ func renderAgents(profile initProfile) string {
 		"## Rules\n\n"+
 		"- Prefer `.namba/` as the source of truth.\n"+
 		"- Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md` before implementation.\n"+
-		"- Use the `$namba` skill as the primary command surface when the user explicitly invokes Namba inside Codex.\n"+
+		"- Use the `$namba` skill as the primary command surface when the user explicitly invokes Namba inside Codex; use `$namba-run` for SPEC execution-focused requests.\n"+
 		"- Do not bypass validation. Run the configured quality commands after changes.\n"+
 		"- Use worktrees for parallel execution; do not modify multiple branches in one workspace.\n\n"+
 		"Project: %s\n"+
@@ -65,6 +65,24 @@ func renderNambaSkill() string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
+func renderNambaRunSkill() string {
+	lines := []string{
+		"---",
+		"name: namba-run",
+		"description: Focused entry point for `namba run SPEC-XXX` execution inside Codex.",
+		"---",
+		"",
+		"Use this skill when the user explicitly asks for `namba run`, `$namba-run`, or SPEC package implementation.",
+		"",
+		"Execution checklist:",
+		"1. Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md`.",
+		"2. Implement directly in-session (Codex-native), without recursively calling `namba run`.",
+		"3. Run configured quality commands from `.namba/config/sections/quality.yaml`.",
+		"4. Refresh artifacts with `namba sync` when implementation is complete.",
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
 func renderFoundationSkill() string {
 	lines := []string{
 		"---",
@@ -99,7 +117,7 @@ func renderInitSkill() string {
 		"- `.claude/skills/*` -> `.agents/skills/*` with `.codex/skills/*` as a compatibility mirror",
 		"- `.claude/agents/*` -> `.codex/agents/*.md` role cards for Codex delegation",
 		"- `.claude/hooks/*` -> explicit validation pipeline and `namba` orchestration",
-		"- Claude custom slash-command workflows -> built-in Codex slash commands plus the `$namba` skill and `namba` CLI",
+		"- Claude custom slash-command workflows -> built-in Codex slash commands plus the `$namba` / `$namba-run` skills and `namba` CLI",
 		"",
 		"When implementing init changes:",
 		"1. Keep `.namba/config/sections/*.yaml` as the durable source of truth.",
@@ -185,7 +203,7 @@ func renderCodexUsage(profile initProfile) string {
 		"- Claude skills become repo-local Codex skills.",
 		"- Claude subagents become explicit role-card files used with Codex multi-agent delegation.",
 		"- Claude hooks become explicit validator and sync steps in Namba.",
-		"- Claude custom workflow commands become `$namba`, built-in Codex slash commands, and the `namba` CLI.",
+		"- Claude custom workflow commands become `$namba`/`$namba-run`, built-in Codex slash commands, and the `namba` CLI.",
 		"",
 		"## Important Distinction",
 		"",

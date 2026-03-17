@@ -26,7 +26,7 @@ func codexScaffoldFiles(profile initProfile) map[string]string {
 	}
 	for rel, content := range codexSkillTemplates() {
 		files[filepath.ToSlash(filepath.Join(repoSkillsDir, rel))] = content
-		files[filepath.ToSlash(filepath.Join(compatSkillsDir, rel))] = content
+		files[filepath.ToSlash(filepath.Join(compatSkillsDir, rel))] = renderCompatibilitySkill(rel)
 	}
 	return files
 }
@@ -34,6 +34,7 @@ func codexScaffoldFiles(profile initProfile) map[string]string {
 func codexSkillTemplates() map[string]string {
 	return map[string]string{
 		filepath.ToSlash(filepath.Join("namba", "SKILL.md")):                    renderNambaSkill(),
+		filepath.ToSlash(filepath.Join("namba-run", "SKILL.md")):                renderNambaRunSkill(),
 		filepath.ToSlash(filepath.Join("namba-foundation-core", "SKILL.md")):    renderFoundationSkill(),
 		filepath.ToSlash(filepath.Join("namba-workflow-init", "SKILL.md")):      renderInitSkill(),
 		filepath.ToSlash(filepath.Join("namba-workflow-project", "SKILL.md")):   renderProjectSkill(),
@@ -83,4 +84,9 @@ func formatDoctorStatus(issues []string) string {
 		return "ready"
 	}
 	return fmt.Sprintf("missing %s", strings.Join(issues, ", "))
+}
+
+func renderCompatibilitySkill(rel string) string {
+	skillDir := filepath.Base(filepath.Dir(rel))
+	return fmt.Sprintf("# Compatibility Mirror Placeholder\n\nThis file exists for compatibility with tools that expect `.codex/skills`.\n\nUse the canonical skill at `.agents/skills/%s/SKILL.md` to avoid duplicate skill registration in Codex.\n", skillDir)
 }
