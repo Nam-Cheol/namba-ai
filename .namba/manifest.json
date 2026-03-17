@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-17T17:30:02+09:00",
+  "generated_at": "2026-03-17T18:04:23+09:00",
   "entries": [
     {
       "path": ".agents/skills/namba-foundation-core/SKILL.md",
@@ -246,6 +246,24 @@
       "kind": "spec",
       "checksum": "c897925850f03fff4a92a381e1da1b4f66e95a6ef391ae1a4e04333b4ced89f3",
       "updated_at": "2026-03-16T17:24:52+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-009/acceptance.md",
+      "kind": "spec",
+      "checksum": "d09023d2868f4edcb7507867ff9523441dab7258acbb5d6df7211ee428b48184",
+      "updated_at": "2026-03-17T18:04:23+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-009/plan.md",
+      "kind": "spec",
+      "checksum": "b27d61be0b8b172f87bff6be4884454fee7c00caaf1c7244119e22186b181960",
+      "updated_at": "2026-03-17T18:04:23+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-009/spec.md",
+      "kind": "spec",
+      "checksum": "9260090eacaf9d07e7b45f474b516236a94593fb0dec4af7ad7a1b91b9ddc7a3",
+      "updated_at": "2026-03-17T18:04:23+09:00"
     },
     {
       "path": ".namba/worktrees/.gitkeep",
