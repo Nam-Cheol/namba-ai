@@ -3,13 +3,13 @@
 Project: namba-ai
 Project type: existing
 Reference SPEC: SPEC-009
-Generated: 2026-03-18T01:33:38+09:00
+Generated: 2026-03-18T02:26:37+09:00
 
 ## Workflow Changes
 
 - `namba update` self-updates the installed `namba` binary from GitHub Release assets.
 - `namba regen` regenerates `AGENTS.md`, repo-local skills and command-entry skills under `.agents/skills`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, and repo-local Codex config from `.namba/config/sections/*.yaml`.
-- `namba sync` refreshes product docs, codemaps, change summary, PR checklist, and release docs.
+- `namba sync` refreshes README bundles, product docs, codemaps, change summary, PR checklist, and release docs.
 - `namba run SPEC-XXX --parallel` fans out into up to three git worktrees, merges only after every worker passes execution and validation, and preserves failing worktrees and branches for inspection.
 - Active collaboration defaults: one branch per SPEC/task from `main`, PRs into `main`, korean PR content, and Codex review requests via `@codex review`.
 

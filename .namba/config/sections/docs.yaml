@@ -1,0 +1,5 @@
+manage_readme: true
+readme_profile: namba-cli
+readme_default_language: en
+readme_additional_languages: ko,ja,zh
+readme_hero_image: assets/images/namba-ai-hero.png
