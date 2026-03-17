@@ -19,6 +19,13 @@
 4. Use built-in Codex delegation with the role cards in `.codex/agents/` when multi-agent work is appropriate.
 5. Use `namba project`, `namba update`, `namba plan`, `namba fix`, `namba run SPEC-XXX`, and `namba sync` as workflow commands.
 
+## Workflow Command Semantics
+
+- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, role cards, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.
+- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, and codemaps.
+- `namba release` requires a clean `main` branch and passing validators before it creates a tag. `--push` pushes both `main` and the new tag.
+- `namba run SPEC-XXX --parallel` refers to the standalone runner path. It uses git worktrees, merges only after every worker passes execution and validation, and preserves failed worktrees and branches for inspection.
+
 ## Claude to Codex Mapping
 
 - `CLAUDE.md` becomes `AGENTS.md`.

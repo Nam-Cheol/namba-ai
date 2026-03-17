@@ -44,4 +44,12 @@ func TestRunUpdateRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if strings.Contains(config, "status_line =") {
 		t.Fatalf("expected status line preset off to omit status line, got %q", config)
 	}
+
+	codexReadme := mustReadFile(t, filepath.Join(tmp, ".namba", "codex", "README.md"))
+	if !strings.Contains(codexReadme, "`namba update` regenerates") {
+		t.Fatalf("expected codex README to describe update semantics, got %q", codexReadme)
+	}
+	if !strings.Contains(codexReadme, "`namba run SPEC-XXX --parallel`") {
+		t.Fatalf("expected codex README to describe standalone parallel semantics, got %q", codexReadme)
+	}
 }

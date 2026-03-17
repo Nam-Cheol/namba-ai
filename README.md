@@ -200,6 +200,7 @@ codex
 
 - `$namba`를 직접 호출
 - `namba project`
+- `namba update`
 - `namba plan "로그인 기능 추가"`
 - `namba run SPEC-001`
 - `namba sync`
@@ -207,26 +208,57 @@ codex
 중요한 점:
 - interactive Codex 세션에서 `namba run SPEC-XXX`는 **Codex가 현재 세션에서 SPEC를 직접 수행하라**는 뜻입니다.
 - 비대화형 자동 실행이 필요하면 standalone `namba run SPEC-XXX` CLI를 사용할 수 있습니다.
-
-## 🛠️ 기본 워크플로
+## Workflow Reference
 
 ```text
 namba project
-namba plan "작업 설명"
+namba update   # only when template-generated Codex assets need regeneration
+namba plan "work description"
 namba run SPEC-XXX
 namba sync
 ```
 
-### 명령어 목록
+`namba update` and `namba sync` are different commands. You do not run both on every iteration unless the change actually requires both refresh paths.
+
+### Command List
 
 - `namba init [path] [--yes] [--name NAME] [--mode tdd|ddd] [--project-type new|existing]`
 - `namba doctor`
 - `namba status`
 - `namba project`
+- `namba update`
 - `namba plan "<description>"`
+- `namba fix "<description>"`
 - `namba run SPEC-XXX [--parallel] [--dry-run]`
 - `namba sync`
+- `namba release [--bump patch|minor|major] [--version vX.Y.Z] [--push] [--remote origin]`
 - `namba worktree <new|list|remove|clean>`
+
+## Update vs Sync
+
+- `namba update`: regenerate `AGENTS.md`, `.agents/skills/`, `.codex/skills/`, `.codex/agents/`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.
+- `namba sync`: refresh `.namba/project/*` docs, codemaps, change summary, PR checklist, and release notes/checklists.
+- If you edit template-generated assets directly, a later `namba update` can overwrite them. Durable settings belong in `.namba/config/sections/*.yaml`.
+
+## Parallel Run Policy
+
+`namba run SPEC-XXX --parallel` below refers to the standalone CLI runner path. In an interactive Codex session, `namba run SPEC-XXX` still means execute the SPEC directly in the current session.
+
+- `--parallel` uses git worktree fan-out/fan-in execution.
+- The current implementation splits work into at most three worker worktrees.
+- Merge begins only after every worker passes execution and validation.
+- Any execution, validation, or merge failure blocks fan-in merge and preserves worker worktrees and branches for inspection.
+- Successful runs remove temporary worktrees, delete worker branches, and run `git worktree prune`.
+- `--dry-run` prepares worker request docs and the parallel report only. It does not run the runner, merge, or cleanup.
+- Reports are written under `.namba/logs/runs/<spec>-parallel.json`.
+
+## Release Flow
+
+- `namba release` requires a git repository, the `main` branch, and a clean working tree.
+- Validators from `.namba/config/sections/quality.yaml` run before the release tag is created.
+- Without an explicit version, `namba release` calculates the next `patch` tag. Use `--bump minor|major` or `--version vX.Y.Z` when needed.
+- `--push` pushes both `main` and the new tag to the selected remote. Without it, Namba prints the next push commands only.
+- The GitHub Release workflow publishes six platform archives plus `checksums.txt`.
 
 ## 🧪 예시: 빈 디렉토리에서 시작하기
 
@@ -319,4 +351,4 @@ go build -o namba ./cmd/namba
 - repo-local skills / compatibility mirror 지원
 - repo-local Codex role card 지원
 - structured execution logs 지원
-- parallel worktree 정책은 계속 고도화 중
+- README now documents update, release, and parallel worktree merge/cleanup policy

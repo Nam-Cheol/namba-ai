@@ -3,33 +3,28 @@
 Project: namba-ai
 Project type: existing
 Reference SPEC: SPEC-008
-Generated: 2026-03-16T17:45:00+09:00
+Generated: 2026-03-17T17:30:02+09:00
 
-## Release Target
+## Workflow Changes
 
-- Candidate version: `v0.1.1`
-- Base semantic version: `v0.1.0`
+- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.
+- `namba sync` refreshes product docs, codemaps, change summary, PR checklist, and release docs.
+- `namba run SPEC-XXX --parallel` fans out into up to three git worktrees, merges only after every worker passes execution and validation, and preserves failing worktrees and branches for inspection.
 
-## Highlights
+## Release Guardrails
 
-- Added explicit workflow permission handling for Codex execution.
-- Expanded the init wizard with project type selection, Java support, and improved interactive terminal controls.
-- Added `namba fix "<description>"` for bugfix-oriented SPEC packages.
-- Added `namba release` to create and optionally push release tags after validators pass.
-- Added `namba update` plus structured parallel run sync and reporting.
-- Synced README, AGENTS, repo skills, and generated project docs with the current workflow.
+- `namba release` requires a git repository, the `main` branch, and a clean working tree.
+- Validators from `.namba/config/sections/quality.yaml` run before the release tag is created.
+- With no explicit version, `namba release` defaults to the next `patch` tag. Use `--bump minor|major` or `--version vX.Y.Z` when needed.
+- `namba release --push` pushes both `main` and the new tag to the selected remote.
 
-## Validation Status
-
-- Validation commands were completed before release.
-- CI remains configured to run tests, `go vet`, formatting checks, and secret scanning.
-
-## Release Command
+## Release Commands
 
 ```text
-namba release --version v0.1.1
-git push origin main
-git push origin v0.1.1
+namba sync
+namba release --bump patch
+# or
+namba release --version vX.Y.Z --push
 ```
 
 ## Expected Assets
@@ -40,3 +35,4 @@ git push origin v0.1.1
 - `namba_Linux_arm64.tar.gz`
 - `namba_macOS_x86_64.tar.gz`
 - `namba_macOS_arm64.tar.gz`
+- `checksums.txt`

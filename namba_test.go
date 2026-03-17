@@ -191,6 +191,46 @@ func TestProjectRunDryRunAndSync(t *testing.T) {
 	mustExist(t, filepath.Join(tmp, ".namba", "project", "pr-checklist.md"))
 }
 
+func TestSyncRefreshesWorkflowDocs(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	stdout := &bytes.Buffer{}
+	app := namba.NewApp(stdout, &bytes.Buffer{})
+
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "README.md"), []byte("# Demo\n\nWorkflow docs.\n"), 0o644); err != nil {
+		t.Fatalf("write readme: %v", err)
+	}
+
+	restore := chdir(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"plan", "sync", "workflow", "docs"}); err != nil {
+		t.Fatalf("plan failed: %v", err)
+	}
+	if err := app.Run(context.Background(), []string{"sync"}); err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+
+	changeSummary := mustRead(t, filepath.Join(tmp, ".namba", "project", "change-summary.md"))
+	if !strings.Contains(changeSummary, "`namba update`") || !strings.Contains(changeSummary, "`namba run SPEC-XXX --parallel`") {
+		t.Fatalf("expected synced change summary to describe update and parallel workflow, got: %s", changeSummary)
+	}
+
+	releaseNotes := mustRead(t, filepath.Join(tmp, ".namba", "project", "release-notes.md"))
+	if !strings.Contains(releaseNotes, "`namba release --push`") || !strings.Contains(releaseNotes, "`checksums.txt`") {
+		t.Fatalf("expected synced release notes to describe release flow, got: %s", releaseNotes)
+	}
+
+	releaseChecklist := mustRead(t, filepath.Join(tmp, ".namba", "project", "release-checklist.md"))
+	if !strings.Contains(releaseChecklist, "current branch is `main`") || !strings.Contains(releaseChecklist, "`namba update` rerun") {
+		t.Fatalf("expected synced release checklist to describe release guardrails, got: %s", releaseChecklist)
+	}
+}
+
 func TestInitConfiguresGoFormatTargets(t *testing.T) {
 	tmp := t.TempDir()
 	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})

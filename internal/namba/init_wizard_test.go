@@ -130,3 +130,47 @@ func TestReadMenuAction(t *testing.T) {
 		})
 	}
 }
+
+func TestPromptSelectLineUsesKoreanPrompt(t *testing.T) {
+	t.Parallel()
+
+	reader := bufio.NewReader(strings.NewReader("\n"))
+	var out bytes.Buffer
+	got := promptSelectLine(reader, &out, "\U0001f9ea \uac1c\ubc1c \ubc29\ubc95\ub860", []option{
+		{Value: "tdd", Label: "TDD", Description: "\uc0c8 \uae30\ub2a5 RED-GREEN"},
+		{Value: "ddd", Label: "DDD", Description: "\uae30\uc874 \ucf54\ub4dc \ubd84\uc11d/\uac1c\uc120"},
+	}, "ddd")
+	if got != "ddd" {
+		t.Fatalf("promptSelectLine default = %q, want %q", got, "ddd")
+	}
+	output := out.String()
+	if !strings.Contains(output, "\uc120\ud0dd [2]:") {
+		t.Fatalf("expected Korean select prompt, got %q", output)
+	}
+	if strings.Contains(output, "Select [2]:") {
+		t.Fatalf("expected English prompt to be removed, got %q", output)
+	}
+}
+
+func TestRenderInteractiveSelectUsesShortLocalizedHint(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	lines := renderInteractiveSelect(&out, "\U0001f9ea \uac1c\ubc1c \ubc29\ubc95\ub860", []option{
+		{Value: "tdd", Label: "TDD", Description: "\uc0c8 \uae30\ub2a5 RED-GREEN"},
+		{Value: "ddd", Label: "DDD", Description: "\uae30\uc874 \ucf54\ub4dc \ubd84\uc11d/\uac1c\uc120"},
+	}, 1)
+	if lines != 4 {
+		t.Fatalf("renderInteractiveSelect lines = %d, want %d", lines, 4)
+	}
+	output := out.String()
+	if !strings.Contains(output, "\u2191/\u2193 \uc774\ub3d9 \u00b7 Enter \uc120\ud0dd") {
+		t.Fatalf("expected localized interactive hint, got %q", output)
+	}
+	if strings.Contains(output, "Use arrow keys") {
+		t.Fatalf("expected long English hint to be removed, got %q", output)
+	}
+	if !strings.Contains(output, "\u276f 2. DDD - \uae30\uc874 \ucf54\ub4dc \ubd84\uc11d/\uac1c\uc120") {
+		t.Fatalf("expected selected marker output, got %q", output)
+	}
+}

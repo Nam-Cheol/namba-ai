@@ -1114,17 +1114,39 @@ func buildChangeSummaryDoc(projectCfg projectConfig, latestSpec, generatedAt str
 	if strings.TrimSpace(latestSpec) == "" {
 		latestSpec = "none"
 	}
-	return fmt.Sprintf(
-		"# Change Summary\n\nProject: %s\nProject type: %s\nLatest SPEC: %s\nGenerated: %s\n",
-		projectCfg.Name,
-		projectType,
-		latestSpec,
-		generatedAt,
-	)
+	lines := []string{
+		"# Change Summary",
+		"",
+		fmt.Sprintf("Project: %s", projectCfg.Name),
+		fmt.Sprintf("Project type: %s", projectType),
+		fmt.Sprintf("Latest SPEC: %s", latestSpec),
+		fmt.Sprintf("Generated: %s", generatedAt),
+		"",
+		"## Workflow Docs Synced",
+		"",
+		"- README and product docs describe when to use `namba update` versus `namba sync`.",
+		"- Release docs describe `namba release` guardrails on a clean `main` branch plus optional `--push` behavior.",
+		"- Parallel run docs describe the worktree fan-out and merge-blocking policy for `namba run SPEC-XXX --parallel`.",
+		"",
+		"## Refresh Commands",
+		"",
+		"- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, role cards, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
+		"- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, and codemaps.",
+	}
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func buildPRChecklistDoc() string {
-	return "# PR Checklist\n\n- [ ] Project docs refreshed\n- [ ] SPEC artifacts reviewed\n- [ ] Validation commands passed\n- [ ] Diff reviewed\n"
+	return strings.Join([]string{
+		"# PR Checklist",
+		"",
+		"- [ ] README / user-facing docs refreshed",
+		"- [ ] `namba update` rerun if template-generated Codex assets changed",
+		"- [ ] `namba sync` artifacts refreshed",
+		"- [ ] SPEC artifacts reviewed",
+		"- [ ] Validation commands passed",
+		"- [ ] Diff reviewed",
+	}, "\n") + "\n"
 }
 
 func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt string) string {
@@ -1143,20 +1165,26 @@ func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt stri
 		fmt.Sprintf("Reference SPEC: %s", latestSpec),
 		fmt.Sprintf("Generated: %s", generatedAt),
 		"",
-		"## Highlights",
+		"## Workflow Changes",
 		"",
-		"- Init wizard supports project type selection for new versus existing repositories.",
-		"- Init wizard includes Java as a primary language option.",
-		"- Interactive terminal selection supports arrow keys and Enter where the terminal allows it.",
-		"- `namba fix \"<description>\"` creates bugfix-oriented SPEC packages.",
-		"- `namba release` can create and optionally push a release tag.",
+		"- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
+		"- `namba sync` refreshes product docs, codemaps, change summary, PR checklist, and release docs.",
+		"- `namba run SPEC-XXX --parallel` fans out into up to three git worktrees, merges only after every worker passes execution and validation, and preserves failing worktrees and branches for inspection.",
 		"",
-		"## Release Command",
+		"## Release Guardrails",
+		"",
+		"- `namba release` requires a git repository, the `main` branch, and a clean working tree.",
+		"- Validators from `.namba/config/sections/quality.yaml` run before the release tag is created.",
+		"- With no explicit version, `namba release` defaults to the next `patch` tag. Use `--bump minor|major` or `--version vX.Y.Z` when needed.",
+		"- `namba release --push` pushes both `main` and the new tag to the selected remote.",
+		"",
+		"## Release Commands",
 		"",
 		"```text",
-		"namba release --version vX.Y.Z",
-		"git push origin main",
-		"git push origin vX.Y.Z",
+		"namba sync",
+		"namba release --bump patch",
+		"# or",
+		"namba release --version vX.Y.Z --push",
 		"```",
 		"",
 		"## Expected Assets",
@@ -1167,6 +1195,7 @@ func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt stri
 		"- `namba_Linux_arm64.tar.gz`",
 		"- `namba_macOS_x86_64.tar.gz`",
 		"- `namba_macOS_arm64.tar.gz`",
+		"- `checksums.txt`",
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
@@ -1175,13 +1204,14 @@ func buildReleaseChecklistDoc() string {
 	return strings.Join([]string{
 		"# Release Checklist",
 		"",
+		"- [ ] `namba update` rerun if template-generated Codex assets changed",
 		"- [ ] `namba sync` artifacts refreshed",
-		"- [ ] README and repo skills reflect the current workflow",
+		"- [ ] README and `.namba/codex/README.md` reflect update, release, and parallel workflow behavior",
+		"- [ ] Working tree is clean and the current branch is `main`",
 		"- [ ] Validation commands passed",
-		"- [ ] Release notes draft reviewed",
-		"- [ ] `namba release --version vX.Y.Z` executed from a clean `main` branch",
-		"- [ ] Tag pushed and GitHub Release workflow completed successfully",
-		"- [ ] Release assets and checksums verified",
+		"- [ ] `namba release --version vX.Y.Z` or `namba release --bump patch` executed",
+		"- [ ] If `--push` was not used, `main` and the release tag were pushed manually",
+		"- [ ] GitHub Release workflow completed and published assets plus `checksums.txt`",
 	}, "\n") + "\n"
 }
 
@@ -1480,52 +1510,53 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 	profile := defaults
 
 	renderInitBanner(a.stdout)
-	fmt.Fprintln(a.stdout, "NambaAI init wizard (Codex edition)")
-	fmt.Fprintln(a.stdout, "This adapts the MoAI init flow to Codex-native assets.")
+	fmt.Fprintln(a.stdout, wizardHeading(a.stdout, "\U0001f680 NambaAI \ucd08\uae30\ud654 \ub9c8\ubc95\uc0ac"))
+	fmt.Fprintln(a.stdout, wizardHint(a.stdout, "MoAI init \ud750\ub984\uc744 Codex \ub124\uc774\ud2f0\ube0c \uc790\uc0b0\uc5d0 \ub9de\uac8c \uad6c\uc131\ud569\ub2c8\ub2e4."))
+	fmt.Fprintln(a.stdout)
 
 	profile.DevelopmentMode = promptSelect(
 		a.stdin,
 		a.stdout,
-		"Development methodology",
+		"\U0001f9ea \uac1c\ubc1c \ubc29\ubc95\ub860",
 		[]option{
-			{Value: "tdd", Label: "TDD", Description: "RED-GREEN-REFACTOR for new work"},
-			{Value: "ddd", Label: "DDD", Description: "ANALYZE-PRESERVE-IMPROVE for brownfield"},
+			{Value: "tdd", Label: "TDD", Description: "\uc0c8 \uae30\ub2a5 RED-GREEN"},
+			{Value: "ddd", Label: "DDD", Description: "\uae30\uc874 \ucf54\ub4dc \ubd84\uc11d/\uac1c\uc120"},
 		},
 		profile.DevelopmentMode,
 	)
-	profile.ProjectType = promptSelect(a.stdin, a.stdout, "Project type", projectTypeOptions(), profile.ProjectType)
+	profile.ProjectType = promptSelect(a.stdin, a.stdout, "\U0001f4e6 \ud504\ub85c\uc81d\ud2b8 \uc720\ud615", projectTypeOptions(), profile.ProjectType)
 	profile = a.promptProjectScaffold(reader, profile)
-	profile.ConversationLanguage = promptSelect(a.stdin, a.stdout, "Conversation language", languageOptions(), profile.ConversationLanguage)
-	profile.DocumentationLanguage = promptSelect(a.stdin, a.stdout, "Documentation language", languageOptions(), profile.DocumentationLanguage)
-	profile.CommentLanguage = promptSelect(a.stdin, a.stdout, "Comment language", languageOptions(), profile.CommentLanguage)
+	profile.ConversationLanguage = promptSelect(a.stdin, a.stdout, "\U0001f4ac \ub300\ud654 \uc5b8\uc5b4", languageOptions(), profile.ConversationLanguage)
+	profile.DocumentationLanguage = promptSelect(a.stdin, a.stdout, "\U0001f4dd \ubb38\uc11c \uc5b8\uc5b4", languageOptions(), profile.DocumentationLanguage)
+	profile.CommentLanguage = promptSelect(a.stdin, a.stdout, "\U0001f4bb \ucf54\ub4dc \uc8fc\uc11d \uc5b8\uc5b4", languageOptions(), profile.CommentLanguage)
 	profile.AgentMode = promptSelect(
 		a.stdin,
 		a.stdout,
-		"Codex agent mode",
+		"\U0001f916 Codex \uc5d0\uc774\uc804\ud2b8 \ubaa8\ub4dc",
 		[]option{
-			{Value: "single", Label: "Single-agent", Description: "Recommended for stable serial execution"},
-			{Value: "multi", Label: "Multi-agent", Description: "Prepare repo-local agent role cards and higher concurrency"},
+			{Value: "single", Label: "\uc2f1\uae00", Description: "\uc548\uc815\uc801\uc778 \ub2e8\uc77c \ud750\ub984"},
+			{Value: "multi", Label: "\uba40\ud2f0", Description: "\ubcd1\ub82c \uc791\uc5c5 \uc900\ube44"},
 		},
 		profile.AgentMode,
 	)
 	profile.StatusLinePreset = promptSelect(
 		a.stdin,
 		a.stdout,
-		"Status line preset",
+		"\U0001f39b\ufe0f \uc0c1\ud0dc\uc904 \ud504\ub9ac\uc14b",
 		[]option{
-			{Value: "namba", Label: "Namba", Description: "Project-focused Codex status line"},
-			{Value: "off", Label: "Off", Description: "Do not write a repo status line recommendation"},
+			{Value: "namba", Label: "Namba", Description: "\ud504\ub85c\uc81d\ud2b8 \uc911\uc2ec \ud45c\uc2dc"},
+			{Value: "off", Label: "\ub044\uae30", Description: "\ucd94\ucc9c \uc124\uc815 \uc0dd\uc131 \uc548 \ud568"},
 		},
 		profile.StatusLinePreset,
 	)
 	profile.GitMode = promptSelect(
 		a.stdin,
 		a.stdout,
-		"Git automation mode",
+		"\U0001f33f Git \uc790\ub3d9\ud654 \ubaa8\ub4dc",
 		[]option{
-			{Value: "manual", Label: "Manual", Description: "AI never pushes or opens PRs"},
-			{Value: "personal", Label: "Personal", Description: "AI may branch and commit locally"},
-			{Value: "team", Label: "Team", Description: "AI prepares branch and PR-ready artifacts"},
+			{Value: "manual", Label: "\uc218\ub3d9", Description: "push/PR \uc790\ub3d9\ud654 \uc5c6\uc74c"},
+			{Value: "personal", Label: "\uac1c\uc778", Description: "\ube0c\ub79c\uce58/\ucee4\ubc0b \ud5c8\uc6a9"},
+			{Value: "team", Label: "\ud300", Description: "PR \uc900\ube44 \uc0b0\ucd9c\ubb3c \uc0dd\uc131"},
 		},
 		profile.GitMode,
 	)
@@ -1533,36 +1564,37 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 		profile.GitProvider = promptSelect(
 			a.stdin,
 			a.stdout,
-			"Git provider",
+			"\u2601\ufe0f Git \uc81c\uacf5\uc790",
 			[]option{
-				{Value: "github", Label: "GitHub", Description: "Use gh CLI or existing credentials"},
-				{Value: "gitlab", Label: "GitLab", Description: "Use glab CLI or existing credentials"},
+				{Value: "github", Label: "GitHub", Description: "gh CLI \ub610\ub294 \uae30\uc874 \uc778\uc99d"},
+				{Value: "gitlab", Label: "GitLab", Description: "glab CLI \ub610\ub294 \uae30\uc874 \uc778\uc99d"},
 			},
 			profile.GitProvider,
 		)
 		if profile.GitProvider == "gitlab" {
-			profile.GitLabInstanceURL = promptInput(reader, a.stdout, "GitLab instance URL", profile.GitLabInstanceURL)
+			profile.GitLabInstanceURL = promptInput(reader, a.stdout, "\U0001f517 GitLab \uc778\uc2a4\ud134\uc2a4 URL", profile.GitLabInstanceURL)
 		}
-		profile.GitUsername = promptInput(reader, a.stdout, "Git username", profile.GitUsername)
+		profile.GitUsername = promptInput(reader, a.stdout, "\U0001f464 Git \uc0ac\uc6a9\uc790\uba85", profile.GitUsername)
 	}
-	profile.UserName = promptInput(reader, a.stdout, "Display name", profile.UserName)
+	profile.UserName = promptInput(reader, a.stdout, "\U0001f64b \ud45c\uc2dc \uc774\ub984", profile.UserName)
 
-	fmt.Fprintln(a.stdout, "Note: tokens and secrets are not stored in NambaAI config. Use gh/glab login instead.")
+	fmt.Fprintln(a.stdout)
+	fmt.Fprintln(a.stdout, wizardHint(a.stdout, "\U0001f510 \ud1a0\ud070\uacfc \ube44\ubc00\uac12\uc740 \uc124\uc815 \ud30c\uc77c\uc5d0 \uc800\uc7a5\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4. gh/glab login\uc744 \uc0ac\uc6a9\ud558\uc138\uc694."))
 	return profile, nil
 }
 
 func (a *App) promptProjectScaffold(reader *bufio.Reader, profile initProfile) initProfile {
-	profile.ProjectName = promptInput(reader, a.stdout, "Project name", profile.ProjectName)
+	profile.ProjectName = promptInput(reader, a.stdout, "\U0001f4db \ud504\ub85c\uc81d\ud2b8 \uc774\ub984", profile.ProjectName)
 
 	if profile.ProjectType == "existing" {
-		fmt.Fprintf(a.stdout, "Detected defaults: language=%s, framework=%s\n", profile.Language, normalizeFramework(profile.Framework))
+		fmt.Fprintln(a.stdout, wizardHint(a.stdout, fmt.Sprintf("\U0001f50e \uac10\uc9c0\ub41c \uae30\ubcf8\uac12: \uc5b8\uc5b4=%s, \ud504\ub808\uc784\uc6cc\ud06c=%s", profile.Language, normalizeFramework(profile.Framework))))
 		keepDetected := promptSelect(
 			a.stdin,
 			a.stdout,
-			"Language and framework setup",
+			"\U0001f9ed \uc5b8\uc5b4/\ud504\ub808\uc784\uc6cc\ud06c \uc124\uc815",
 			[]option{
-				{Value: "keep", Label: "Keep detected", Description: "Use detected values for the existing repository"},
-				{Value: "override", Label: "Override", Description: "Choose language and framework manually"},
+				{Value: "keep", Label: "\uac10\uc9c0\uac12 \uc720\uc9c0", Description: "\ud604\uc7ac \uc800\uc7a5\uc18c \uae30\uc900 \uc0ac\uc6a9"},
+				{Value: "override", Label: "\uc9c1\uc811 \uc120\ud0dd", Description: "\uc5b8\uc5b4\uc640 \ud504\ub808\uc784\uc6cc\ud06c \ub2e4\uc2dc \uace0\ub984"},
 			},
 			"keep",
 		)
@@ -1574,21 +1606,26 @@ func (a *App) promptProjectScaffold(reader *bufio.Reader, profile initProfile) i
 	profile.Language = promptSelect(
 		a.stdin,
 		a.stdout,
-		"Primary language",
+		"\U0001f4a1 \uc8fc \uc0ac\uc6a9 \uc5b8\uc5b4",
 		[]option{
-			{Value: "go", Label: "Go", Description: "Compiled CLI and services"},
-			{Value: "java", Label: "Java", Description: "JVM services and enterprise applications"},
-			{Value: "typescript", Label: "TypeScript", Description: "Node.js and frontend projects"},
-			{Value: "python", Label: "Python", Description: "Scripting and backend"},
-			{Value: "unknown", Label: "Unknown", Description: "Leave as a generic project"},
+			{Value: "go", Label: "Go", Description: "CLI/\uc11c\ube44\uc2a4"},
+			{Value: "java", Label: "Java", Description: "JVM \uc571"},
+			{Value: "typescript", Label: "TypeScript", Description: "Node/\ud504\ub860\ud2b8"},
+			{Value: "python", Label: "Python", Description: "\uc2a4\ud06c\ub9bd\ud2b8/API"},
+			{Value: "unknown", Label: "\ubbf8\uc815", Description: "\uc77c\ubc18 \ud504\ub85c\uc81d\ud2b8"},
 		},
 		profile.Language,
 	)
-	profile.Framework = promptSelect(a.stdin, a.stdout, "Framework", frameworkOptions(profile.Language), normalizeFramework(profile.Framework))
+	profile.Framework = promptSelect(a.stdin, a.stdout, "\U0001f9e9 \ud504\ub808\uc784\uc6cc\ud06c", frameworkOptions(profile.Language), normalizeFramework(profile.Framework))
 	return profile
 }
 func promptInput(reader *bufio.Reader, out io.Writer, label, defaultValue string) string {
-	fmt.Fprintf(out, "%s [%s]: ", label, defaultValue)
+	prompt := wizardPrompt(out, label)
+	if strings.TrimSpace(defaultValue) == "" {
+		fmt.Fprintf(out, "%s: ", prompt)
+	} else {
+		fmt.Fprintf(out, "%s [%s]: ", prompt, defaultValue)
+	}
 	line, err := reader.ReadString('\n')
 	if err != nil {
 		return strings.TrimSpace(defaultValue)
@@ -1606,7 +1643,38 @@ func renderInitBanner(out io.Writer) {
 	fmt.Fprintln(out, "|  \\| | / _ \\ | |\\/| |  _ \\ / _ \\    | | ")
 	fmt.Fprintln(out, "| |\\  |/ ___ \\| |  | | |_) / ___ \\   | | ")
 	fmt.Fprintln(out, "|_| \\_/_/   \\_\\_|  |_|____/_/   \\_\\ |___|")
+	fmt.Fprintln(out, wizardHint(out, "\u2728 \ud504\ub85c\uc81d\ud2b8 \uc124\uc815\uc744 \uc2dc\uc791\ud569\ub2c8\ub2e4"))
 	fmt.Fprintln(out)
+}
+
+func wizardHeading(out io.Writer, text string) string {
+	return styleWizardText(out, "1;36", text)
+}
+
+func wizardHint(out io.Writer, text string) string {
+	return styleWizardText(out, "2;37", text)
+}
+
+func wizardPrompt(out io.Writer, text string) string {
+	return styleWizardText(out, "1;33", text)
+}
+
+func wizardSelected(out io.Writer, text string) string {
+	return styleWizardText(out, "1;32", text)
+}
+
+func styleWizardText(out io.Writer, code, text string) string {
+	if !isTerminalWriter(out) {
+		return text
+	}
+	return "\x1b[" + code + "m" + text + "\x1b[0m"
+}
+
+func formatWizardChoice(choice option) string {
+	if strings.TrimSpace(choice.Description) == "" {
+		return choice.Label
+	}
+	return fmt.Sprintf("%s - %s", choice.Label, choice.Description)
 }
 
 func promptSelect(in io.Reader, out io.Writer, label string, choices []option, defaultValue string) string {
@@ -1621,15 +1689,15 @@ func promptSelect(in io.Reader, out io.Writer, label string, choices []option, d
 }
 
 func promptSelectLine(reader *bufio.Reader, out io.Writer, label string, choices []option, defaultValue string) string {
-	fmt.Fprintln(out, label)
+	fmt.Fprintln(out, wizardHeading(out, label))
 	defaultIndex := 0
 	for i, choice := range choices {
 		if choice.Value == defaultValue {
 			defaultIndex = i
 		}
-		fmt.Fprintf(out, "  %d. %s - %s\n", i+1, choice.Label, choice.Description)
+		fmt.Fprintf(out, "  %d. %s\n", i+1, formatWizardChoice(choice))
 	}
-	fmt.Fprintf(out, "Select [%d]: ", defaultIndex+1)
+	fmt.Fprintf(out, "%s [%d]: ", wizardPrompt(out, "\uc120\ud0dd"), defaultIndex+1)
 
 	line, err := reader.ReadString('\n')
 	if err != nil {
@@ -1709,16 +1777,17 @@ func promptSelectInteractive(in *os.File, out io.Writer, label string, choices [
 
 func renderInteractiveSelect(out io.Writer, label string, choices []option, selected int) int {
 	lines := 0
-	fmt.Fprintf(out, "\r\x1b[2K%s\n", label)
+	fmt.Fprintf(out, "\r\x1b[2K%s\n", wizardHeading(out, label))
 	lines++
-	fmt.Fprint(out, "\r\x1b[2KUse arrow keys and Enter. Number input still works when interactive mode is unavailable.\n")
+	fmt.Fprintf(out, "\r\x1b[2K%s\n", wizardHint(out, "\u2191/\u2193 \uc774\ub3d9 \u00b7 Enter \uc120\ud0dd"))
 	lines++
 	for i, choice := range choices {
-		prefix := "  "
+		line := fmt.Sprintf("%d. %s", i+1, formatWizardChoice(choice))
 		if i == selected {
-			prefix = "> "
+			fmt.Fprintf(out, "\r\x1b[2K%s\n", wizardSelected(out, "\u276f "+line))
+		} else {
+			fmt.Fprintf(out, "\r\x1b[2K  %s\n", line)
 		}
-		fmt.Fprintf(out, "\r\x1b[2K%s%d. %s - %s\n", prefix, i+1, choice.Label, choice.Description)
 		lines++
 	}
 	return lines
@@ -1773,8 +1842,8 @@ func readMenuAction(reader *bufio.Reader) (menuAction, error) {
 
 func projectTypeOptions() []option {
 	return []option{
-		{Value: "new", Label: "New project", Description: "Bootstrap a fresh repository or directory"},
-		{Value: "existing", Label: "Existing project", Description: "Adapt NambaAI to a repository that already has code"},
+		{Value: "new", Label: "\uc0c8 \ud504\ub85c\uc81d\ud2b8", Description: "\ube48 \uc800\uc7a5\uc18c/\uc0c8 \ud3f4\ub354"},
+		{Value: "existing", Label: "\uae30\uc874 \ud504\ub85c\uc81d\ud2b8", Description: "\ucf54\ub4dc\uac00 \uc788\ub294 \uc800\uc7a5\uc18c"},
 	}
 }
 
@@ -1782,44 +1851,44 @@ func frameworkOptions(language string) []option {
 	switch language {
 	case "go":
 		return []option{
-			{Value: "none", Label: "None", Description: "Keep a generic Go project"},
-			{Value: "cobra", Label: "Cobra", Description: "CLI application"},
-			{Value: "gin", Label: "Gin", Description: "HTTP service"},
-			{Value: "echo", Label: "Echo", Description: "HTTP service"},
+			{Value: "none", Label: "\uc5c6\uc74c", Description: "\uae30\ubcf8 Go \ud504\ub85c\uc81d\ud2b8"},
+			{Value: "cobra", Label: "Cobra", Description: "CLI \uc571"},
+			{Value: "gin", Label: "Gin", Description: "HTTP \uc11c\ube44\uc2a4"},
+			{Value: "echo", Label: "Echo", Description: "HTTP \uc11c\ube44\uc2a4"},
 		}
 	case "java":
 		return []option{
-			{Value: "none", Label: "None", Description: "Keep a generic Java project"},
-			{Value: "maven", Label: "Maven", Description: "Standard JVM build with pom.xml"},
-			{Value: "gradle", Label: "Gradle", Description: "Gradle-based JVM build"},
-			{Value: "spring-boot", Label: "Spring Boot", Description: "Spring Boot application"},
+			{Value: "none", Label: "\uc5c6\uc74c", Description: "\uae30\ubcf8 Java \ud504\ub85c\uc81d\ud2b8"},
+			{Value: "maven", Label: "Maven", Description: "pom.xml \uae30\ubc18"},
+			{Value: "gradle", Label: "Gradle", Description: "Gradle \ube4c\ub4dc"},
+			{Value: "spring-boot", Label: "Spring Boot", Description: "Boot \uc571"},
 		}
 	case "typescript":
 		return []option{
-			{Value: "none", Label: "None", Description: "Keep a generic Node project"},
-			{Value: "nextjs", Label: "Next.js", Description: "React full-stack"},
-			{Value: "react", Label: "React", Description: "Client application"},
-			{Value: "nest", Label: "NestJS", Description: "Backend service"},
+			{Value: "none", Label: "\uc5c6\uc74c", Description: "\uae30\ubcf8 Node \ud504\ub85c\uc81d\ud2b8"},
+			{Value: "nextjs", Label: "Next.js", Description: "React \ud480\uc2a4\ud0dd"},
+			{Value: "react", Label: "React", Description: "\ud074\ub77c\uc774\uc5b8\ud2b8 \uc571"},
+			{Value: "nest", Label: "NestJS", Description: "\ubc31\uc5d4\ub4dc \uc11c\ube44\uc2a4"},
 		}
 	case "python":
 		return []option{
-			{Value: "none", Label: "None", Description: "Keep a generic Python project"},
-			{Value: "fastapi", Label: "FastAPI", Description: "Modern API service"},
-			{Value: "django", Label: "Django", Description: "Full-stack web framework"},
+			{Value: "none", Label: "\uc5c6\uc74c", Description: "\uae30\ubcf8 Python \ud504\ub85c\uc81d\ud2b8"},
+			{Value: "fastapi", Label: "FastAPI", Description: "API \uc11c\ube44\uc2a4"},
+			{Value: "django", Label: "Django", Description: "\uc6f9 \uc571"},
 		}
 	default:
 		return []option{
-			{Value: "none", Label: "None", Description: "No framework selected"},
+			{Value: "none", Label: "\uc5c6\uc74c", Description: "\ud504\ub808\uc784\uc6cc\ud06c \ubbf8\uc120\ud0dd"},
 		}
 	}
 }
 
 func languageOptions() []option {
 	return []option{
-		{Value: "en", Label: "English", Description: "English"},
-		{Value: "ko", Label: "Korean", Description: "Korean"},
-		{Value: "ja", Label: "Japanese", Description: "Japanese"},
-		{Value: "zh", Label: "Chinese", Description: "Chinese"},
+		{Value: "ko", Label: "\ud55c\uad6d\uc5b4", Description: "ko"},
+		{Value: "en", Label: "\uc601\uc5b4", Description: "en"},
+		{Value: "ja", Label: "\uc77c\ubcf8\uc5b4", Description: "ja"},
+		{Value: "zh", Label: "\uc911\uad6d\uc5b4", Description: "zh"},
 	}
 }
 

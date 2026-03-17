@@ -48,6 +48,7 @@
 .namba\specs\SPEC-005
 .namba\specs\SPEC-006
 .namba\specs\SPEC-007
+.namba\specs\SPEC-008
 AGENTS.md
 README.md
 SECURITY.md
