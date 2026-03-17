@@ -2,8 +2,6 @@
 
 You are the NambaAI orchestrator for this repository.
 
-For Codex core behavior in this repository, see `docs/codex-upstream-reference.md` and use `https://github.com/openai/codex` as the primary upstream reference when applicable.
-
 ## Codex-Native Mode
 
 When the user references `namba`, `namba project`, `namba update`, `namba plan`, `namba fix`, `namba run SPEC-XXX`, or `namba sync`, treat those as Namba workflow commands inside the current Codex session.
@@ -12,7 +10,7 @@ When the user references `namba`, `namba project`, `namba update`, `namba plan`,
 - Use the installed `namba` CLI for `init`, `doctor`, `project`, `update`, `plan`, `fix`, and `sync` when it is available and the command will update repository state more reliably.
 - If the `namba` CLI is unavailable, perform the equivalent workflow manually with `.namba/` as the source of truth.
 - Use repo skills under `.agents/skills/` first. `.codex/skills/` exists as a compatibility mirror.
-- When delegating work with Codex multi-agent features, use the role cards under `.codex/agents/` as the agent prompt source.
+- When delegating work with Codex multi-agent features, use the custom agents under `.codex/agents/*.toml` as the agent prompt source.
 
 ## Workflow
 

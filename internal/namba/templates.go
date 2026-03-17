@@ -14,7 +14,7 @@ func renderAgents(profile initProfile) string {
 		"- Use the installed `namba` CLI for `init`, `doctor`, `project`, `update`, `plan`, `fix`, and `sync` when it is available and the command will update repository state more reliably.\n"+
 		"- If the `namba` CLI is unavailable, perform the equivalent workflow manually with `.namba/` as the source of truth.\n"+
 		"- Use repo skills under `.agents/skills/` first. `.codex/skills/` exists as a compatibility mirror.\n"+
-		"- When delegating work with Codex multi-agent features, use the role cards under `.codex/agents/` as the agent prompt source.\n\n"+
+		"- When delegating work with Codex multi-agent features, use the custom agents under `.codex/agents/*.toml` as the agent prompt source.\n\n"+
 		"## Workflow\n\n"+
 		"1. Run `namba update` when template-generated Codex assets need regeneration.\n"+
 		"2. Run `namba project` to refresh project docs and codemaps.\n"+
@@ -47,7 +47,7 @@ func renderNambaSkill() string {
 		"",
 		"Command mapping:",
 		"- `namba project`: refresh repository docs and codemaps.",
-		"- `namba update`: regenerate AGENTS, repo-local skills, compatibility skills, role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
+		"- `namba update`: regenerate AGENTS, repo-local skills, compatibility skills, custom agents, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
 		"- `namba plan \"<description>\"`: create the next feature SPEC package under `.namba/specs/`.",
 		"- `namba fix \"<description>\"`: create the next bugfix SPEC package under `.namba/specs/`.",
 
@@ -97,14 +97,14 @@ func renderInitSkill() string {
 		"Core mapping:",
 		"- `CLAUDE.md` -> `AGENTS.md`",
 		"- `.claude/skills/*` -> `.agents/skills/*` with `.codex/skills/*` as a compatibility mirror",
-		"- `.claude/agents/*` -> `.codex/agents/*.md` role cards for Codex delegation",
+		"- `.claude/agents/*` -> `.codex/agents/*.toml` custom agents for Codex delegation",
 		"- `.claude/hooks/*` -> explicit validation pipeline and `namba` orchestration",
 		"- Claude custom slash-command workflows -> built-in Codex slash commands plus the `$namba` skill and `namba` CLI",
 		"",
 		"When implementing init changes:",
 		"1. Keep `.namba/config/sections/*.yaml` as the durable source of truth.",
 		"2. Never write tokens or secrets into generated config files.",
-		"3. Prefer repo-local skills and agent role cards over provider-specific hidden state.",
+		"3. Prefer repo-local skills and custom agents over provider-specific hidden state.",
 		"4. Keep generated assets readable so users can understand what `namba init .` changed.",
 	}
 	return strings.Join(lines, "\n") + "\n"
@@ -160,7 +160,7 @@ func renderCodexUsage(profile initProfile) string {
 		"- Creates `AGENTS.md` with Namba orchestration rules.",
 		"- Creates repo-local skills under `.agents/skills/`.",
 		"- Creates a compatibility mirror under `.codex/skills/`.",
-		"- Creates Codex delegation role cards under `.codex/agents/`.",
+		"- Creates Codex delegation custom agents under `.codex/agents/*.toml`.",
 		"- Creates repo-local Codex config under `.codex/config.toml`.",
 		"- Creates `.namba/` project state, configs, docs, and SPEC storage.",
 		"",
@@ -169,12 +169,12 @@ func renderCodexUsage(profile initProfile) string {
 		"1. Open Codex in the initialized project directory.",
 		"2. Codex loads `AGENTS.md` and repo skills.",
 		"3. Invoke `$namba` or ask Codex to use the Namba workflow.",
-		"4. Use built-in Codex delegation with the role cards in `.codex/agents/` when multi-agent work is appropriate.",
+		"4. Use built-in Codex delegation with the custom agents in `.codex/agents/` when multi-agent work is appropriate.",
 		"5. Use `namba project`, `namba update`, `namba plan`, `namba fix`, `namba run SPEC-XXX`, and `namba sync` as workflow commands.",
 		"",
 		"## Workflow Command Semantics",
 		"",
-		"- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, role cards, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
+		"- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, custom agents, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
 		"- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, and codemaps.",
 		"- `namba release` requires a clean `main` branch and passing validators before it creates a tag. `--push` pushes both `main` and the new tag.",
 		"- `namba run SPEC-XXX --parallel` refers to the standalone runner path. It uses git worktrees, merges only after every worker passes execution and validation, and preserves failed worktrees and branches for inspection.",
@@ -183,7 +183,7 @@ func renderCodexUsage(profile initProfile) string {
 		"",
 		"- `CLAUDE.md` becomes `AGENTS.md`.",
 		"- Claude skills become repo-local Codex skills.",
-		"- Claude subagents become explicit role-card files used with Codex multi-agent delegation.",
+		"- Claude subagents become explicit custom agent TOML files used with Codex multi-agent delegation.",
 		"- Claude hooks become explicit validator and sync steps in Namba.",
 		"- Claude custom workflow commands become `$namba`, built-in Codex slash commands, and the `namba` CLI.",
 		"",
@@ -208,7 +208,7 @@ func renderClaudeCodexMapping() string {
 		"",
 		"- `CLAUDE.md` -> `AGENTS.md`",
 		"- `.claude/skills/*` -> `.agents/skills/*` and `.codex/skills/*`",
-		"- `.claude/agents/*.md` -> `.codex/agents/*.md` role cards",
+		"- `.claude/agents/*.md` -> `.codex/agents/*.toml` custom agents",
 		"- `.claude/hooks/*` -> explicit validation commands, structured run logs, and `namba sync`",
 		"- Claude slash-command-centric workflows -> built-in Codex slash commands plus `$namba` and `namba`",
 		"",
@@ -236,46 +236,26 @@ func renderRepoCodexConfig(profile initProfile) string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func renderPlannerRoleCard() string {
+func renderPlannerAgent() string {
 	lines := []string{
-		"# Namba Planner",
-		"",
-		"Use this role when breaking down a SPEC package before implementation.",
-		"",
-		"Responsibilities:",
-		"- Read `spec.md`, `plan.md`, and `acceptance.md`.",
-		"- Identify target files, risks, and validation commands.",
-		"- Produce a concise execution plan for the main session.",
-		"- Do not edit files directly.",
+		"description = \"Break down a SPEC package into an actionable execution plan before implementation.\"",
+		"prompt = \"You are Namba Planner. Read spec.md, plan.md, and acceptance.md. Identify target files, risks, and validation commands. Produce a concise execution plan for the main session. Do not edit files directly.\"",
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func renderImplementerRoleCard() string {
+func renderImplementerAgent() string {
 	lines := []string{
-		"# Namba Implementer",
-		"",
-		"Use this role when implementing an approved portion of a SPEC package.",
-		"",
-		"Responsibilities:",
-		"- Change only the files assigned by the main session.",
-		"- Preserve methodology rules from `.namba/config/sections/quality.yaml`.",
-		"- Leave notes about validation status and residual risk.",
+		"description = \"Implement an approved SPEC scope while preserving quality and methodology constraints.\"",
+		"prompt = \"You are Namba Implementer. Change only the files assigned by the main session. Preserve methodology rules from .namba/config/sections/quality.yaml. Leave notes about validation status and residual risk.\"",
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func renderReviewerRoleCard() string {
+func renderReviewerAgent() string {
 	lines := []string{
-		"# Namba Reviewer",
-		"",
-		"Use this role for acceptance and quality review before sync.",
-		"",
-		"Responsibilities:",
-		"- Compare the implementation with `acceptance.md`.",
-		"- Check that validation output and artifacts exist.",
-		"- Call out regressions, missing tests, or documentation drift.",
-		"- Do not rewrite the implementation unless asked.",
+		"description = \"Review implementation quality and acceptance coverage before sync.\"",
+		"prompt = \"You are Namba Reviewer. Compare implementation with acceptance.md. Check that validation output and artifacts exist. Call out regressions, missing tests, or documentation drift. Do not rewrite the implementation unless asked.\"",
 	}
 	return strings.Join(lines, "\n") + "\n"
 }

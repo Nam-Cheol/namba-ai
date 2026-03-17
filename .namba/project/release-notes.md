@@ -2,12 +2,12 @@
 
 Project: namba-ai
 Project type: existing
-Reference SPEC: SPEC-008
-Generated: 2026-03-17T17:30:02+09:00
+Reference SPEC: SPEC-009
+Generated: 2026-03-17T09:59:18Z
 
 ## Workflow Changes
 
-- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.
+- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, custom agents, and repo-local Codex config from `.namba/config/sections/*.yaml`.
 - `namba sync` refreshes product docs, codemaps, change summary, PR checklist, and release docs.
 - `namba run SPEC-XXX --parallel` fans out into up to three git worktrees, merges only after every worker passes execution and validation, and preserves failing worktrees and branches for inspection.
 
