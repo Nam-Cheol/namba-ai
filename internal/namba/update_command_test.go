@@ -78,11 +78,24 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(codexReadme, "$namba-run") || strings.Contains(codexReadme, ".codex/skills/") {
 		t.Fatalf("expected codex README to describe command-entry skills without codex skill mirror, got %q", codexReadme)
 	}
+	if !strings.Contains(codexReadme, "Namba closing frame") || !strings.Contains(codexReadme, "validate-output-contract.py") {
+		t.Fatalf("expected codex README to describe output contract fallback validation, got %q", codexReadme)
+	}
 	if !strings.Contains(codexReadme, "PR titles and bodies should be written in Korean") || !strings.Contains(codexReadme, "`@codex review`") {
 		t.Fatalf("expected codex README to describe PR collaboration defaults, got %q", codexReadme)
 	}
 	if !strings.Contains(codexReadme, "`namba run SPEC-XXX --parallel`") {
 		t.Fatalf("expected codex README to describe standalone parallel semantics, got %q", codexReadme)
+	}
+
+	outputContractDoc := mustReadFile(t, filepath.Join(tmp, ".namba", "codex", "output-contract.md"))
+	if !strings.Contains(outputContractDoc, "오늘의 결정") || !strings.Contains(outputContractDoc, "무너지는 조건") {
+		t.Fatalf("expected output contract doc, got %q", outputContractDoc)
+	}
+
+	validator := mustReadFile(t, filepath.Join(tmp, ".namba", "codex", "validate-output-contract.py"))
+	if !strings.Contains(validator, "output-contract: ok") || !strings.Contains(validator, "판단 근거") {
+		t.Fatalf("expected output contract validator, got %q", validator)
 	}
 
 	customAgent := mustReadFile(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.toml"))

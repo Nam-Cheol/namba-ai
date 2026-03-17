@@ -3,13 +3,14 @@
 Project: namba-ai
 Project type: existing
 Latest SPEC: SPEC-009
-Generated: 2026-03-18T00:58:37+09:00
+Generated: 2026-03-18T01:14:10+09:00
 
 ## Workflow Docs Synced
 
 - README and product docs describe when to use `namba update`, `namba regen`, and `namba sync`.
 - Release docs describe `namba release` guardrails on a clean `main` branch plus optional `--push` behavior.
 - Parallel run docs describe the worktree fan-out and merge-blocking policy for `namba run SPEC-XXX --parallel`.
+- AGENTS and Codex docs define the Namba output contract plus the fallback validator script at `.namba/codex/validate-output-contract.py`.
 - Collaboration docs require one branch per SPEC/task from `main`, PRs into `main`, korean PR content, and Codex review requests via `@codex review`.
 
 ## Refresh Commands

@@ -12,3 +12,4 @@ Key ideas:
 - DDD-style preserve/improve flow for brownfield projects with weak test coverage
 - TRUST gates after each execution phase
 - Worktree-based isolation for parallel work
+- Namba closing frame for substantial user-facing responses: conclusion, reason, verification path, failure boundary, next move

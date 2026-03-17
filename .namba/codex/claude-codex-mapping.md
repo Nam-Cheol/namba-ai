@@ -6,7 +6,7 @@ This repository uses a Codex-adapted variant of the MoAI bootstrap model.
 - `.claude/skills/*` -> `.agents/skills/*`
 - `.claude/commands/*` -> `.agents/skills/namba-*/SKILL.md` command-entry skills
 - `.claude/agents/*.md` -> `.codex/agents/*.toml` custom agents with `.md` role-card mirrors
-- `.claude/hooks/*` -> explicit validation commands, structured run logs, and `namba sync`
+- `.claude/hooks/*` -> explicit validation commands, output-contract validator scripts, structured run logs, and `namba sync`
 - Claude slash-command-centric workflows -> built-in Codex slash commands plus `$namba` and `namba`
 
 Why this is different:

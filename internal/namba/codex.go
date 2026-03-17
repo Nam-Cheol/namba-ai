@@ -18,6 +18,8 @@ func codexScaffoldFiles(profile initProfile) map[string]string {
 		filepath.ToSlash(filepath.Join(codexStateDir, "README.md")):                   renderCodexUsage(profile),
 		filepath.ToSlash(filepath.Join(codexStateDir, "statusline.example.toml")):     renderCodexStatusLineExample(),
 		filepath.ToSlash(filepath.Join(codexStateDir, "claude-codex-mapping.md")):     renderClaudeCodexMapping(),
+		filepath.ToSlash(filepath.Join(codexStateDir, "output-contract.md")):          renderOutputContractDoc(),
+		filepath.ToSlash(filepath.Join(codexStateDir, "validate-output-contract.py")): renderOutputContractValidator(),
 		filepath.ToSlash(repoCodexConfigPath):                                         renderRepoCodexConfig(profile),
 		filepath.ToSlash(filepath.Join(repoCodexAgentsDir, "namba-planner.md")):       renderPlannerRoleCard(),
 		filepath.ToSlash(filepath.Join(repoCodexAgentsDir, "namba-planner.toml")):     renderPlannerCustomAgent(),
@@ -60,6 +62,8 @@ func codexNativeIssues(root string) []string {
 		{label: ".agents/skills/namba-run/SKILL.md", path: filepath.Join(root, ".agents", "skills", "namba-run", "SKILL.md")},
 		{label: ".codex/config.toml", path: filepath.Join(root, ".codex", "config.toml")},
 		{label: ".codex/agents/namba-planner.toml", path: filepath.Join(root, ".codex", "agents", "namba-planner.toml")},
+		{label: ".namba/codex/output-contract.md", path: filepath.Join(root, ".namba", "codex", "output-contract.md")},
+		{label: ".namba/codex/validate-output-contract.py", path: filepath.Join(root, ".namba", "codex", "validate-output-contract.py")},
 		{label: ".namba/config/sections/codex.yaml", path: filepath.Join(root, ".namba", "config", "sections", "codex.yaml")},
 	}
 	return missingChecks(checks)

@@ -264,6 +264,14 @@ namba sync
 - 특히 `namba run` 계열은 `$namba-run`으로 부르면 Codex 세션 안에서 SPEC 실행 규칙을 바로 적용할 수 있습니다.
 - skill 중복을 피하기 위해 repo skill은 `.agents/skills/`만 사용하고 `.codex/skills/` mirror는 생성하지 않습니다.
 
+## Output Contract
+
+- `AGENTS.md`는 NambaAI의 응답 계약을 정의합니다. 큰 응답은 `오늘의 결정 -> 판단 근거 -> 검증 경로 -> 무너지는 조건 -> 다음 수`의 의미 순서를 따릅니다.
+- 출력이 기계적으로 보이지 않도록, 의미 순서는 고정하지만 표면 라벨은 `핵심 판단`, `왜 이렇게 봤나`, `확인 루트`, `실패 조건`, `권장 흐름`처럼 변주할 수 있습니다.
+- scaffold는 [`.namba/codex/output-contract.md`](/C:/project/namba-ai/.namba/codex/output-contract.md)와 [`.namba/codex/validate-output-contract.py`](/C:/project/namba-ai/.namba/codex/validate-output-contract.py)를 같이 생성합니다.
+- OpenAI Codex 공식 문서에서는 AGENTS, repo skill, built-in slash commands는 확인되지만 repository-configurable Stop hook은 문서화된 설정을 찾지 못했습니다. 그래서 현재는 validator script를 fallback enforcement로 둡니다.
+- 저장된 응답 파일은 `python .namba/codex/validate-output-contract.py --file response.md`로 검사할 수 있고, stdin으로도 검사할 수 있습니다.
+
 ## 브랜치 / PR 운영 원칙
 
 - 모든 SPEC 또는 새 작업은 `main`에서 분기한 전용 브랜치에서 진행합니다.

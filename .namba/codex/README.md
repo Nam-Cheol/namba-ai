@@ -8,6 +8,7 @@
 - Creates repo-local skills under `.agents/skills/`, including command-entry skills such as `namba-run`, `namba-plan`, and `namba-sync`.
 - Creates Codex custom agents under `.codex/agents/*.toml` and readable `.md` role-card mirrors.
 - Creates repo-local Codex config under `.codex/config.toml`, including the selected `approval_policy` and `sandbox_mode`.
+- Creates `.namba/codex/output-contract.md` plus `.namba/codex/validate-output-contract.py` for NambaAI response-shape guidance and fallback validation.
 - Creates `.namba/` project state, configs, docs, and SPEC storage.
 
 ## How Codex Uses Namba After Init
@@ -26,6 +27,13 @@
 - `namba release` requires a clean `main` branch and passing validators before it creates a tag. `--push` pushes both `main` and the new tag.
 - `namba run SPEC-XXX --parallel` refers to the standalone runner path. It uses git worktrees, merges only after every worker passes execution and validation, and preserves failed worktrees and branches for inspection.
 
+## Output Contract
+
+- `AGENTS.md` defines the Namba closing frame for substantial responses: `오늘의 결정` -> `판단 근거` -> `검증 경로` -> `무너지는 조건` -> `다음 수`.
+- The semantic order stays fixed, but the exact labels can vary within the Namba palette so the writing does not become robotic.
+- `.namba/codex/validate-output-contract.py` checks this contract from a saved response file or stdin.
+- OpenAI Codex docs currently describe AGENTS, repo skills, and built-in slash commands, but they do not document a repository-configurable stop-hook surface. Treat the validator script as the fallback until upstream hook support is documented.
+
 ## Git Collaboration Defaults
 
 - Each SPEC or new task uses a dedicated branch from `main`.
@@ -40,7 +48,7 @@
 - Claude skills become repo-local Codex skills under `.agents/skills/`.
 - Claude command wrappers become command-entry skills such as `$namba-run`, `$namba-plan`, and `$namba-sync`.
 - Claude subagents become explicit `.toml` custom agents used with Codex multi-agent delegation, with `.md` mirrors kept for readability.
-- Claude hooks become explicit validator and sync steps in Namba.
+- Claude hooks become explicit validator scripts, documented response contracts, and sync steps in Namba.
 - Claude custom workflow commands become `$namba`, command-entry repo skills, built-in Codex slash commands, and the `namba` CLI.
 
 ## Important Distinction

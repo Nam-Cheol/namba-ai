@@ -1195,6 +1195,7 @@ func buildChangeSummaryDoc(projectCfg projectConfig, latestSpec, generatedAt str
 		"- README and product docs describe when to use `namba update`, `namba regen`, and `namba sync`.",
 		"- Release docs describe `namba release` guardrails on a clean `main` branch plus optional `--push` behavior.",
 		"- Parallel run docs describe the worktree fan-out and merge-blocking policy for `namba run SPEC-XXX --parallel`.",
+		"- AGENTS and Codex docs define the Namba output contract plus the fallback validator script at `.namba/codex/validate-output-contract.py`.",
 		fmt.Sprintf("- Collaboration docs require one branch per SPEC/task from `%s`, PRs into `%s`, %s PR content, and Codex review requests via `%s`.", branchBase(profile), prBaseBranch(profile), strings.ToLower(humanLanguageName(profile.PRLanguage)), codexReviewComment(profile)),
 		"",
 		"## Refresh Commands",

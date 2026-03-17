@@ -38,8 +38,11 @@
 .namba
 .namba\codex
 .namba\codex\README.md
+.namba\codex\__pycache__
 .namba\codex\claude-codex-mapping.md
+.namba\codex\output-contract.md
 .namba\codex\statusline.example.toml
+.namba\codex\validate-output-contract.py
 .namba\config
 .namba\config\sections
 .namba\manifest.json
@@ -325,7 +328,7 @@
 .tmp\gocache\trim.txt
 .tmp\gomodcache
 .tmp\gotmp
-.tmp\gotmp\go-build1174539021
+.tmp\gotmp\go-build2611445025
 AGENTS.md
 README.md
 SECURITY.md
