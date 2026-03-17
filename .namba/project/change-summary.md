@@ -3,7 +3,7 @@
 Project: namba-ai
 Project type: existing
 Latest SPEC: SPEC-009
-Generated: 2026-03-18T01:14:10+09:00
+Generated: 2026-03-18T01:33:38+09:00
 
 ## Workflow Docs Synced
 

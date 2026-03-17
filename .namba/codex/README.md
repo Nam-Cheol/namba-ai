@@ -29,8 +29,9 @@
 
 ## Output Contract
 
-- `AGENTS.md` defines the Namba closing frame for substantial responses: `오늘의 결정` -> `판단 근거` -> `검증 경로` -> `무너지는 조건` -> `다음 수`.
-- The semantic order stays fixed, but the exact labels can vary within the Namba palette so the writing does not become robotic.
+- `AGENTS.md` defines a Namba report header such as `# NAMBA-AI 작업 결과 보고` for substantial responses.
+- The report sections follow this semantic order: `🧭 작업 정의` -> `🧠 판단` -> `🛠 수행한 작업` -> `🚧 현재 이슈` -> `⚠ 잠재 문제` -> `➡ 다음 스텝`.
+- The semantic order stays fixed, but the exact labels can vary within the selected language palette so the writing does not become robotic.
 - `.namba/codex/validate-output-contract.py` checks this contract from a saved response file or stdin.
 - OpenAI Codex docs currently describe AGENTS, repo skills, and built-in slash commands, but they do not document a repository-configurable stop-hook surface. Treat the validator script as the fallback until upstream hook support is documented.
 

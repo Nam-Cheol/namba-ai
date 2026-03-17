@@ -8,24 +8,95 @@ import pathlib
 import re
 import sys
 
-SECTIONS = [
-    ("오늘의 결정", ["오늘의 결정", "핵심 판단", "이번 수", "결론"]),
-    ("판단 근거", ["판단 근거", "왜 이렇게 봤나", "근거", "이유"]),
-    ("검증 경로", ["검증 경로", "검증 방법", "확인 루트", "검증"]),
-    ("무너지는 조건", ["무너지는 조건", "실패 조건", "경계 조건", "리스크"]),
-    ("다음 수", ["다음 수", "추천", "권장 흐름", "다음 단계"]),
-]
+SPEC = {
+  "header": "NAMBA-AI 작업 결과 보고",
+  "header_aliases": [
+    "NAMBA-AI 작업 결과 보고",
+    "NAMBA-AI 작업 보고",
+    "NAMBA-AI 엔지니어링 보고"
+  ],
+  "sections": [
+    {
+      "emoji": "🧭",
+      "primary": "작업 정의",
+      "aliases": [
+        "작업 정의",
+        "정의",
+        "정의한 범위",
+        "문제 정의"
+      ]
+    },
+    {
+      "emoji": "🧠",
+      "primary": "판단",
+      "aliases": [
+        "판단",
+        "내린 판단",
+        "핵심 판단",
+        "결정"
+      ]
+    },
+    {
+      "emoji": "🛠",
+      "primary": "수행한 작업",
+      "aliases": [
+        "수행한 작업",
+        "진행한 작업",
+        "작업 내용",
+        "적용한 작업"
+      ]
+    },
+    {
+      "emoji": "🚧",
+      "primary": "현재 이슈",
+      "aliases": [
+        "현재 이슈",
+        "이슈",
+        "남은 이슈",
+        "현재 문제"
+      ]
+    },
+    {
+      "emoji": "⚠",
+      "primary": "잠재 문제",
+      "aliases": [
+        "잠재 문제",
+        "잠재 리스크",
+        "위험 요소",
+        "잠재 이슈"
+      ]
+    },
+    {
+      "emoji": "➡",
+      "primary": "다음 스텝",
+      "aliases": [
+        "다음 스텝",
+        "다음 단계",
+        "추천",
+        "권장 흐름"
+      ]
+    }
+  ]
+}
 
 
 def build_pattern(aliases: list[str]) -> re.Pattern[str]:
     escaped = "|".join(re.escape(alias) for alias in aliases)
-    return re.compile(r"^\s*(?:#{1,6}\s*|[-*]\s+)?(?:\*\*)?(?P<label>(" + escaped + r"))(?:\*\*)?\s*(?:[:：-].*)?$")
+    return re.compile(r"^\s*(?:#{1,6}\s*|[-*]\s+)?(?:\*\*)?[\W_]*(?P<label>(" + escaped + r"))(?:\*\*)?\s*(?:[:：-].*)?$")
 
 
 def read_text(args: argparse.Namespace) -> str:
     if args.file:
         return pathlib.Path(args.file).read_text(encoding="utf-8")
     return sys.stdin.read().lstrip('\ufeff')
+
+
+def find_first_match(lines: list[str], aliases: list[str], start: int = 0) -> int:
+    pattern = build_pattern(aliases)
+    for index, line in enumerate(lines[start:], start=start):
+        if pattern.match(line.strip()):
+            return index
+    return -1
 
 
 def main() -> int:
@@ -39,23 +110,19 @@ def main() -> int:
         return 1
 
     lines = [line.lstrip('\ufeff') for line in text.lstrip('\ufeff').splitlines()]
-    positions: list[tuple[str, int]] = []
-    for expected, aliases in SECTIONS:
-        pattern = build_pattern(aliases)
-        found = -1
-        for index, line in enumerate(lines):
-            if pattern.match(line.strip()):
-                found = index
-                break
-        if found < 0:
-            print(f"output-contract: missing section '{expected}'", file=sys.stderr)
-            return 1
-        positions.append((expected, found))
+    header_index = find_first_match(lines, SPEC['header_aliases'])
+    if header_index < 0:
+        print(f"output-contract: missing header '{SPEC['header']}'", file=sys.stderr)
+        return 1
 
-    previous = -1
-    for expected, found in positions:
+    previous = header_index
+    for section in SPEC['sections']:
+        found = find_first_match(lines, section['aliases'], start=previous + 1)
+        if found < 0:
+            print(f"output-contract: missing section '{section['primary']}'", file=sys.stderr)
+            return 1
         if found <= previous:
-            print(f"output-contract: section '{expected}' is out of order", file=sys.stderr)
+            print(f"output-contract: section '{section['primary']}' is out of order", file=sys.stderr)
             return 1
         previous = found
 

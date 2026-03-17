@@ -4,23 +4,28 @@ This repository uses a NambaAI-specific output contract for substantial task res
 
 ## Contract
 
-Keep the semantic flow in this order:
-1. `오늘의 결정`
-2. `판단 근거`
-3. `검증 경로`
-4. `무너지는 조건`
-5. `다음 수`
+- Use a decorated header such as `# NAMBA-AI 작업 결과 보고`.
+- Keep the report sections in this order:
+1. `🧭 작업 정의`
+2. `🧠 판단`
+3. `🛠 수행한 작업`
+4. `🚧 현재 이슈`
+5. `⚠ 잠재 문제`
+6. `➡ 다음 스텝`
 
 ## Namba Style
 
-- The semantic order is fixed, but the exact labels may vary.
-- Recommended Namba label palette:
-  - `오늘의 결정`, `핵심 판단`, `이번 수`
-  - `판단 근거`, `왜 이렇게 봤나`, `근거`
-  - `검증 경로`, `검증 방법`, `확인 루트`
-  - `무너지는 조건`, `실패 조건`, `경계 조건`
-  - `다음 수`, `추천`, `권장 흐름`
-- The answer should read like a concise engineering handoff rather than a stiff checklist.
+- The header and label palette should follow the init-selected language: Korean.
+- The semantic order is fixed, but the exact labels may vary within the selected language palette.
+- Light visual styling such as simple emoji section markers is encouraged when it improves scanability.
+- Recommended label palette:
+  - `🧭 작업 정의`: `작업 정의`, `정의`, `정의한 범위`, `문제 정의`
+  - `🧠 판단`: `판단`, `내린 판단`, `핵심 판단`, `결정`
+  - `🛠 수행한 작업`: `수행한 작업`, `진행한 작업`, `작업 내용`, `적용한 작업`
+  - `🚧 현재 이슈`: `현재 이슈`, `이슈`, `남은 이슈`, `현재 문제`
+  - `⚠ 잠재 문제`: `잠재 문제`, `잠재 리스크`, `위험 요소`, `잠재 이슈`
+  - `➡ 다음 스텝`: `다음 스텝`, `다음 단계`, `추천`, `권장 흐름`
+- The answer should read like a concise engineering field report rather than a stiff checklist.
 
 ## Scope
 

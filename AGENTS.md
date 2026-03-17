@@ -33,8 +33,8 @@ When the user references `namba`, `namba project`, `namba regen`, `namba update`
 - Prefer `.namba/` as the source of truth.
 - Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md` before implementation.
 - Use `$namba` for general routing, or command-entry skills such as `$namba-run`, `$namba-plan`, `$namba-project`, and `$namba-sync` when the user invokes one command directly.
-- For substantial task responses, use the Namba closing frame in this semantic order: `오늘의 결정` -> `판단 근거` -> `검증 경로` -> `무너지는 조건` -> `다음 수`. Keep the order stable, but vary the exact labels so the tone does not become mechanical.
-- Keep the Namba closing frame concise and high-signal. The response should feel like a sharp engineering handoff, not a rigid template dump.
+- For substantial task responses, use a decorated report header such as `# NAMBA-AI 작업 결과 보고`, then keep the Namba report frame in this semantic order: `🧭 작업 정의` -> `🧠 판단` -> `🛠 수행한 작업` -> `🚧 현재 이슈` -> `⚠ 잠재 문제` -> `➡ 다음 스텝`. Use simple emoji section markers when they improve scanability. Keep the order stable, but vary the exact labels inside the language-specific palette so the tone does not become mechanical.
+- Keep the Namba report frame concise and high-signal. The response should feel like an engineering field report, not a rigid template dump.
 - Until Codex exposes a documented stop-hook surface, treat `.namba/codex/validate-output-contract.py` as the fallback validator for this contract.
 - Do not bypass validation. Run the configured quality commands after changes.
 - Use worktrees for parallel execution; do not modify multiple branches in one workspace.

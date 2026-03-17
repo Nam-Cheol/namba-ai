@@ -42,7 +42,7 @@ func TestInitCreatesScaffold(t *testing.T) {
 	mustExist(t, filepath.Join(tmp, ".namba", "manifest.json"))
 
 	agents := mustRead(t, filepath.Join(tmp, "AGENTS.md"))
-	if !strings.Contains(agents, "오늘의 결정") || !strings.Contains(agents, "validate-output-contract.py") {
+	if !strings.Contains(agents, "NAMBA-AI Work Report") || !strings.Contains(agents, "🧭 Scope") || !strings.Contains(agents, "validate-output-contract.py") {
 		t.Fatalf("expected AGENTS to describe the Namba output contract, got: %s", agents)
 	}
 
@@ -56,7 +56,7 @@ func TestInitCreatesScaffold(t *testing.T) {
 	mustNotExist(t, filepath.Join(tmp, ".codex", "skills"))
 
 	validator := mustRead(t, filepath.Join(tmp, ".namba", "codex", "validate-output-contract.py"))
-	if !strings.Contains(validator, "output-contract: ok") || !strings.Contains(validator, "오늘의 결정") {
+	if !strings.Contains(validator, "output-contract: ok") || !strings.Contains(validator, "Scope") || !strings.Contains(validator, "missing header") || !strings.Contains(validator, "start=previous + 1") {
 		t.Fatalf("expected output contract validator script, got: %s", validator)
 	}
 }
@@ -124,6 +124,11 @@ func TestInitSupportsCodexProfileFlags(t *testing.T) {
 	}
 	if strings.Contains(codexConfig, "status_line") {
 		t.Fatalf("expected status line to be omitted when preset is off: %s", codexConfig)
+	}
+
+	agents := mustRead(t, filepath.Join(tmp, "AGENTS.md"))
+	if !strings.Contains(agents, "NAMBA-AI 작업 결과 보고") || !strings.Contains(agents, "🧭 작업 정의") || !strings.Contains(agents, "➡ 다음 스텝") {
+		t.Fatalf("expected localized Korean output contract in AGENTS, got: %s", agents)
 	}
 }
 

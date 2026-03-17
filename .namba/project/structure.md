@@ -38,7 +38,6 @@
 .namba
 .namba\codex
 .namba\codex\README.md
-.namba\codex\__pycache__
 .namba\codex\claude-codex-mapping.md
 .namba\codex\output-contract.md
 .namba\codex\statusline.example.toml
@@ -326,12 +325,12 @@
 .tmp\gocache\fe
 .tmp\gocache\ff
 .tmp\gocache\trim.txt
-.tmp\gomodcache
-.tmp\gotmp
-.tmp\gotmp\go-build2611445025
 AGENTS.md
 README.md
 SECURITY.md
+assets
+assets\images
+assets\images\namba-ai-hero.png
 cmd
 cmd\namba
 cmd\namba\encoding_other.go
