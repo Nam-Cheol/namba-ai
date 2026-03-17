@@ -1,12 +1,18 @@
 package namba
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
 
 func renderAgents(profile initProfile) string {
 	collab := renderCollaborationPolicy(profile)
+	reportRule := fmt.Sprintf(
+		"- For substantial task responses, use a decorated report header such as `%s`, then keep the Namba report frame in this semantic order: %s. Use simple emoji section markers when they improve scanability. Keep the order stable, but vary the exact labels inside the language-specific palette so the tone does not become mechanical.\n",
+		outputContractHeaderExample(profile),
+		outputContractSequence(profile),
+	)
 	return fmt.Sprintf("# NambaAI\n\n"+
 		"You are the NambaAI orchestrator for this repository.\n\n"+
 		"## Codex-Native Mode\n\n"+
@@ -28,12 +34,16 @@ func renderAgents(profile initProfile) string {
 		"- Prefer `.namba/` as the source of truth.\n"+
 		"- Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md` before implementation.\n"+
 		"- Use `$namba` for general routing, or command-entry skills such as `$namba-run`, `$namba-plan`, `$namba-project`, and `$namba-sync` when the user invokes one command directly.\n"+
+		"%s"+
+		"- Keep the Namba report frame concise and high-signal. The response should feel like an engineering field report, not a rigid template dump.\n"+
+		"- Until Codex exposes a documented stop-hook surface, treat `.namba/codex/validate-output-contract.py` as the fallback validator for this contract.\n"+
 		"- Do not bypass validation. Run the configured quality commands after changes.\n"+
 		"- Use worktrees for parallel execution; do not modify multiple branches in one workspace.\n\n"+
 		"Project: %s\n"+
 		"Methodology: %s\n"+
 		"Agent mode: %s\n",
 		collab,
+		reportRule,
 		profile.ProjectName,
 		profile.DevelopmentMode,
 		profile.AgentMode,
@@ -224,6 +234,7 @@ func renderFoundationSkill() string {
 		"- DDD-style preserve/improve flow for brownfield projects with weak test coverage",
 		"- TRUST gates after each execution phase",
 		"- Worktree-based isolation for parallel work",
+		"- Namba report frame for substantial user-facing responses: scoped definition, judgment, work completed, current issues, potential risks, next steps",
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
@@ -308,6 +319,7 @@ func renderCodexUsage(profile initProfile) string {
 		"- Creates repo-local skills under `.agents/skills/`, including command-entry skills such as `namba-run`, `namba-plan`, and `namba-sync`.",
 		"- Creates Codex custom agents under `.codex/agents/*.toml` and readable `.md` role-card mirrors.",
 		"- Creates repo-local Codex config under `.codex/config.toml`, including the selected `approval_policy` and `sandbox_mode`.",
+		"- Creates `.namba/codex/output-contract.md` plus `.namba/codex/validate-output-contract.py` for NambaAI response-shape guidance and fallback validation.",
 		"- Creates `.namba/` project state, configs, docs, and SPEC storage.",
 		"",
 		"## How Codex Uses Namba After Init",
@@ -326,6 +338,14 @@ func renderCodexUsage(profile initProfile) string {
 		"- `namba release` requires a clean `main` branch and passing validators before it creates a tag. `--push` pushes both `main` and the new tag.",
 		"- `namba run SPEC-XXX --parallel` refers to the standalone runner path. It uses git worktrees, merges only after every worker passes execution and validation, and preserves failed worktrees and branches for inspection.",
 		"",
+		"## Output Contract",
+		"",
+		fmt.Sprintf("- `AGENTS.md` defines a Namba report header such as `%s` for substantial responses.", outputContractHeaderExample(profile)),
+		fmt.Sprintf("- The report sections follow this semantic order: %s.", outputContractSequence(profile)),
+		"- The semantic order stays fixed, but the exact labels can vary within the selected language palette so the writing does not become robotic.",
+		"- `.namba/codex/validate-output-contract.py` checks this contract from a saved response file or stdin.",
+		"- OpenAI Codex docs currently describe AGENTS, repo skills, and built-in slash commands, but they do not document a repository-configurable stop-hook surface. Treat the validator script as the fallback until upstream hook support is documented.",
+		"",
 		"## Git Collaboration Defaults",
 		"",
 		fmt.Sprintf("- Each SPEC or new task uses a dedicated branch from `%s`.", branchBase(profile)),
@@ -340,7 +360,7 @@ func renderCodexUsage(profile initProfile) string {
 		"- Claude skills become repo-local Codex skills under `.agents/skills/`.",
 		"- Claude command wrappers become command-entry skills such as `$namba-run`, `$namba-plan`, and `$namba-sync`.",
 		"- Claude subagents become explicit `.toml` custom agents used with Codex multi-agent delegation, with `.md` mirrors kept for readability.",
-		"- Claude hooks become explicit validator and sync steps in Namba.",
+		"- Claude hooks become explicit validator scripts, documented response contracts, and sync steps in Namba.",
 		"- Claude custom workflow commands become `$namba`, command-entry repo skills, built-in Codex slash commands, and the `namba` CLI.",
 		"",
 		"## Important Distinction",
@@ -366,7 +386,7 @@ func renderClaudeCodexMapping() string {
 		"- `.claude/skills/*` -> `.agents/skills/*`",
 		"- `.claude/commands/*` -> `.agents/skills/namba-*/SKILL.md` command-entry skills",
 		"- `.claude/agents/*.md` -> `.codex/agents/*.toml` custom agents with `.md` role-card mirrors",
-		"- `.claude/hooks/*` -> explicit validation commands, structured run logs, and `namba sync`",
+		"- `.claude/hooks/*` -> explicit validation commands, output-contract validator scripts, structured run logs, and `namba sync`",
 		"- Claude slash-command-centric workflows -> built-in Codex slash commands plus `$namba` and `namba`",
 		"",
 		"Why this is different:",
@@ -375,6 +395,215 @@ func renderClaudeCodexMapping() string {
 		"- NambaAI keeps the workflow semantics but ports the control surface into Codex-compatible assets.",
 	}
 	return strings.Join(lines, "\n") + "\n"
+}
+
+type outputContractSection struct {
+	Emoji   string   `json:"emoji"`
+	Primary string   `json:"primary"`
+	Aliases []string `json:"aliases"`
+}
+
+type outputContractSpec struct {
+	Header        string                  `json:"header"`
+	HeaderAliases []string                `json:"header_aliases"`
+	Sections      []outputContractSection `json:"sections"`
+}
+
+func outputContractLanguage(profile initProfile) string {
+	return firstNonBlank(profile.ConversationLanguage, profile.DocumentationLanguage, profile.PRLanguage, "en")
+}
+
+func outputContractSpecFor(profile initProfile) outputContractSpec {
+	switch outputContractLanguage(profile) {
+	case "ko":
+		return outputContractSpec{
+			Header:        "NAMBA-AI 작업 결과 보고",
+			HeaderAliases: []string{"NAMBA-AI 작업 결과 보고", "NAMBA-AI 작업 보고", "NAMBA-AI 엔지니어링 보고"},
+			Sections: []outputContractSection{
+				{Emoji: "🧭", Primary: "작업 정의", Aliases: []string{"작업 정의", "정의", "정의한 범위", "문제 정의"}},
+				{Emoji: "🧠", Primary: "판단", Aliases: []string{"판단", "내린 판단", "핵심 판단", "결정"}},
+				{Emoji: "🛠", Primary: "수행한 작업", Aliases: []string{"수행한 작업", "진행한 작업", "작업 내용", "적용한 작업"}},
+				{Emoji: "🚧", Primary: "현재 이슈", Aliases: []string{"현재 이슈", "이슈", "남은 이슈", "현재 문제"}},
+				{Emoji: "⚠", Primary: "잠재 문제", Aliases: []string{"잠재 문제", "잠재 리스크", "위험 요소", "잠재 이슈"}},
+				{Emoji: "➡", Primary: "다음 스텝", Aliases: []string{"다음 스텝", "다음 단계", "추천", "권장 흐름"}},
+			},
+		}
+	case "ja":
+		return outputContractSpec{
+			Header:        "NAMBA-AI 作業結果報告",
+			HeaderAliases: []string{"NAMBA-AI 作業結果報告", "NAMBA-AI 作業報告", "NAMBA-AI エンジニアリング報告"},
+			Sections: []outputContractSection{
+				{Emoji: "🧭", Primary: "作業定義", Aliases: []string{"作業定義", "定義", "スコープ定義", "問題定義"}},
+				{Emoji: "🧠", Primary: "判断", Aliases: []string{"判断", "判断内容", "見立て", "決定"}},
+				{Emoji: "🛠", Primary: "実施した作業", Aliases: []string{"実施した作業", "対応内容", "実施内容", "作業内容"}},
+				{Emoji: "🚧", Primary: "現在の課題", Aliases: []string{"現在の課題", "現在のイシュー", "残課題", "現状の問題"}},
+				{Emoji: "⚠", Primary: "潜在リスク", Aliases: []string{"潜在リスク", "潜在課題", "想定リスク", "潜在問題"}},
+				{Emoji: "➡", Primary: "次のステップ", Aliases: []string{"次のステップ", "次の一手", "推奨フロー", "次段階"}},
+			},
+		}
+	case "zh":
+		return outputContractSpec{
+			Header:        "NAMBA-AI 工作结果报告",
+			HeaderAliases: []string{"NAMBA-AI 工作结果报告", "NAMBA-AI 工作报告", "NAMBA-AI 工程报告"},
+			Sections: []outputContractSection{
+				{Emoji: "🧭", Primary: "工作定义", Aliases: []string{"工作定义", "定义", "范围定义", "问题定义"}},
+				{Emoji: "🧠", Primary: "判断", Aliases: []string{"判断", "判断结论", "研判", "决定"}},
+				{Emoji: "🛠", Primary: "已完成工作", Aliases: []string{"已完成工作", "执行工作", "已做事项", "工作内容"}},
+				{Emoji: "🚧", Primary: "当前问题", Aliases: []string{"当前问题", "当前议题", "现有问题", "剩余问题"}},
+				{Emoji: "⚠", Primary: "潜在风险", Aliases: []string{"潜在风险", "潜在问题", "风险点", "潜在议题"}},
+				{Emoji: "➡", Primary: "下一步", Aliases: []string{"下一步", "建议步骤", "推荐动作", "后续步骤"}},
+			},
+		}
+	default:
+		return outputContractSpec{
+			Header:        "NAMBA-AI Work Report",
+			HeaderAliases: []string{"NAMBA-AI Work Report", "NAMBA-AI Engineering Report", "NAMBA-AI Task Report"},
+			Sections: []outputContractSection{
+				{Emoji: "🧭", Primary: "Scope", Aliases: []string{"Scope", "Framing", "Problem Framing", "Definition"}},
+				{Emoji: "🧠", Primary: "Decision", Aliases: []string{"Decision", "Judgment", "Judgement", "Assessment"}},
+				{Emoji: "🛠", Primary: "Work Completed", Aliases: []string{"Work Completed", "Work Done", "Actions Taken", "Completed Work"}},
+				{Emoji: "🚧", Primary: "Current Issues", Aliases: []string{"Current Issues", "Open Issues", "Current Gaps", "Current Problems"}},
+				{Emoji: "⚠", Primary: "Potential Risks", Aliases: []string{"Potential Risks", "Risks", "Potential Problems", "Risk Boundaries"}},
+				{Emoji: "➡", Primary: "Next Steps", Aliases: []string{"Next Steps", "Recommended Next Steps", "Recommendations", "Next Move"}},
+			},
+		}
+	}
+}
+
+func outputContractHeaderExample(profile initProfile) string {
+	return "# " + outputContractSpecFor(profile).Header
+}
+
+func outputContractSequence(profile initProfile) string {
+	spec := outputContractSpecFor(profile)
+	parts := make([]string, 0, len(spec.Sections))
+	for _, section := range spec.Sections {
+		parts = append(parts, fmt.Sprintf("`%s %s`", section.Emoji, section.Primary))
+	}
+	return strings.Join(parts, " -> ")
+}
+
+func renderOutputContractDocLocalized(profile initProfile) string {
+	spec := outputContractSpecFor(profile)
+	lines := []string{
+		"# Namba Output Contract",
+		"",
+		"This repository uses a NambaAI-specific output contract for substantial task responses.",
+		"",
+		"## Contract",
+		"",
+		fmt.Sprintf("- Use a decorated header such as `%s`.", outputContractHeaderExample(profile)),
+		"- Keep the report sections in this order:",
+	}
+	for index, section := range spec.Sections {
+		lines = append(lines, fmt.Sprintf("%d. `%s %s`", index+1, section.Emoji, section.Primary))
+	}
+	lines = append(lines,
+		"",
+		"## Namba Style",
+		"",
+		fmt.Sprintf("- The header and label palette should follow the init-selected language: %s.", humanLanguageName(outputContractLanguage(profile))),
+		"- The semantic order is fixed, but the exact labels may vary within the selected language palette.",
+		"- Light visual styling such as simple emoji section markers is encouraged when it improves scanability.",
+		"- Recommended label palette:",
+	)
+	for _, section := range spec.Sections {
+		aliases := make([]string, 0, len(section.Aliases))
+		for _, alias := range section.Aliases {
+			aliases = append(aliases, fmt.Sprintf("`%s`", alias))
+		}
+		lines = append(lines, fmt.Sprintf("  - `%s %s`: %s", section.Emoji, section.Primary, strings.Join(aliases, ", ")))
+	}
+	lines = append(lines,
+		"- The answer should read like a concise engineering field report rather than a stiff checklist.",
+		"",
+		"## Scope",
+		"",
+		"- Apply the full contract to implementation summaries, design decisions, operational guidance, code reviews, and other substantial responses.",
+		"- Very short acknowledgements or one-line factual replies may stay shorter, but substantial responses should keep the same semantic order.",
+		"",
+		"## Validation",
+		"",
+		"- Use `.namba/codex/validate-output-contract.py --file <response.md>` to validate a saved response.",
+		"- Use `.namba/codex/validate-output-contract.py` and pipe UTF-8 text through stdin to validate ad hoc content.",
+		"",
+		"## Hook Status",
+		"",
+		"- OpenAI Codex docs currently document AGENTS, repo skills, built-in slash commands, and config, but they do not document a repository-configurable stop-hook surface.",
+		"- Treat the validator script as the fallback enforcement path until upstream hook support is documented.",
+	)
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func renderOutputContractValidatorLocalized(profile initProfile) string {
+	specJSON, _ := json.MarshalIndent(outputContractSpecFor(profile), "", "  ")
+	return strings.Join([]string{
+		"#!/usr/bin/env python3",
+		`"""Validate the NambaAI output contract from stdin or a file."""`,
+		"",
+		"from __future__ import annotations",
+		"",
+		"import argparse",
+		"import pathlib",
+		"import re",
+		"import sys",
+		"",
+		"SPEC = " + string(specJSON),
+		"",
+		"",
+		"def build_pattern(aliases: list[str]) -> re.Pattern[str]:",
+		`    escaped = "|".join(re.escape(alias) for alias in aliases)`,
+		`    return re.compile(r"^\s*(?:#{1,6}\s*|[-*]\s+)?(?:\*\*)?[\W_]*(?P<label>(" + escaped + r"))(?:\*\*)?\s*(?:[:：-].*)?$")`,
+		"",
+		"",
+		"def read_text(args: argparse.Namespace) -> str:",
+		"    if args.file:",
+		`        return pathlib.Path(args.file).read_text(encoding="utf-8")`,
+		"    return sys.stdin.read().lstrip('\\ufeff')",
+		"",
+		"",
+		"def find_first_match(lines: list[str], aliases: list[str], start: int = 0) -> int:",
+		"    pattern = build_pattern(aliases)",
+		"    for index, line in enumerate(lines[start:], start=start):",
+		"        if pattern.match(line.strip()):",
+		"            return index",
+		"    return -1",
+		"",
+		"",
+		"def main() -> int:",
+		`    parser = argparse.ArgumentParser(description="Validate the NambaAI output contract.")`,
+		`    parser.add_argument("--file", help="Path to a saved response file.")`,
+		"    args = parser.parse_args()",
+		"",
+		"    text = read_text(args)",
+		"    if not text.strip():",
+		`        print("output-contract: empty input", file=sys.stderr)`,
+		"        return 1",
+		"",
+		"    lines = [line.lstrip('\\ufeff') for line in text.lstrip('\\ufeff').splitlines()]",
+		"    header_index = find_first_match(lines, SPEC['header_aliases'])",
+		"    if header_index < 0:",
+		`        print(f"output-contract: missing header '{SPEC['header']}'", file=sys.stderr)`,
+		"        return 1",
+		"",
+		"    previous = header_index",
+		"    for section in SPEC['sections']:",
+		"        found = find_first_match(lines, section['aliases'], start=previous + 1)",
+		"        if found < 0:",
+		`            print(f"output-contract: missing section '{section['primary']}'", file=sys.stderr)`,
+		"            return 1",
+		"        if found <= previous:",
+		`            print(f"output-contract: section '{section['primary']}' is out of order", file=sys.stderr)`,
+		"            return 1",
+		"        previous = found",
+		"",
+		`    print("output-contract: ok")`,
+		"    return 0",
+		"",
+		"",
+		`if __name__ == "__main__":`,
+		"    raise SystemExit(main())",
+	}, "\n") + "\n"
 }
 
 func renderRepoCodexConfig(profile initProfile) string {

@@ -113,6 +113,20 @@ func TestApplyHumanLanguageSyncsAllHumanFacingOutputs(t *testing.T) {
 	}
 }
 
+func TestOutputContractSpecLocalizedByLanguage(t *testing.T) {
+	t.Parallel()
+
+	ko := outputContractSpecFor(initProfile{ConversationLanguage: "ko"})
+	if ko.Header != "NAMBA-AI 작업 결과 보고" || ko.Sections[0].Primary != "작업 정의" || ko.Sections[5].Primary != "다음 스텝" {
+		t.Fatalf("unexpected Korean output contract spec: %+v", ko)
+	}
+
+	en := outputContractSpecFor(initProfile{ConversationLanguage: "en"})
+	if en.Header != "NAMBA-AI Work Report" || en.Sections[0].Primary != "Scope" || en.Sections[5].Primary != "Next Steps" {
+		t.Fatalf("unexpected English output contract spec: %+v", en)
+	}
+}
+
 func TestRenderProjectConfigIncludesProjectType(t *testing.T) {
 	t.Parallel()
 
