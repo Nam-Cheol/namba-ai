@@ -74,6 +74,14 @@ type qualityConfig struct {
 	TypecheckCommand string
 }
 
+type docsConfig struct {
+	ManageReadme        bool
+	ReadmeProfile       string
+	DefaultLanguage     string
+	AdditionalLanguages []string
+	HeroImage           string
+}
+
 type specPackage struct {
 	ID          string
 	Description string
@@ -214,6 +222,7 @@ func (a *App) runInit(_ context.Context, args []string) error {
 		filepath.ToSlash(filepath.Join(configDir, "user.yaml")):         renderUserConfig(profile),
 		filepath.ToSlash(filepath.Join(configDir, "git-strategy.yaml")): renderGitStrategyConfig(profile),
 		filepath.ToSlash(filepath.Join(configDir, "codex.yaml")):        renderCodexProfileConfig(profile),
+		filepath.ToSlash(filepath.Join(configDir, "docs.yaml")):         renderDocsConfig(profile),
 		filepath.ToSlash(filepath.Join(projectDir, "product.md")):       "# Product\n\nDescribe the product goals here.\n",
 		filepath.ToSlash(filepath.Join(projectDir, "structure.md")):     "# Structure\n\nRun `namba project` to refresh this document.\n",
 		filepath.ToSlash(filepath.Join(projectDir, "tech.md")):          "# Tech\n\nRun `namba project` to refresh this document.\n",
@@ -227,6 +236,15 @@ func (a *App) runInit(_ context.Context, args []string) error {
 	}
 	for rel, scaffold := range codexScaffoldFiles(profile) {
 		files[rel] = scaffold
+	}
+	projectCfg := projectConfig{
+		Name:        profile.ProjectName,
+		ProjectType: profile.ProjectType,
+		Language:    profile.Language,
+		Framework:   profile.Framework,
+	}
+	for rel, body := range buildReadmeOutputs(projectCfg, profile, defaultDocsConfig(profile.ProjectType)) {
+		files[rel] = body
 	}
 
 	manifest := Manifest{GeneratedAt: a.now().Format(time.RFC3339)}
@@ -500,17 +518,25 @@ func (a *App) runSync(ctx context.Context, _ []string) error {
 		return err
 	}
 	projectCfg, _ := a.loadProjectConfig(root)
-
 	latestSpec, _ := latestSpecID(filepath.Join(root, specsDir))
+	profile, err := a.loadInitProfileFromConfig(root)
+	if err != nil {
+		return err
+	}
+	docsCfg, err := a.loadDocsConfig(root)
+	if err != nil {
+		return err
+	}
+	if readmeOutputs := buildReadmeOutputs(projectCfg, profile, docsCfg); len(readmeOutputs) > 0 {
+		if err := a.writeOutputs(root, readmeOutputs); err != nil {
+			return err
+		}
+	}
 	if err := a.runProject(ctx, nil); err != nil {
 		return err
 	}
 
 	generatedAt := a.now().Format(time.RFC3339)
-	profile, err := a.loadInitProfileFromConfig(root)
-	if err != nil {
-		return err
-	}
 
 	summary := buildChangeSummaryDoc(projectCfg, latestSpec, generatedAt, profile)
 	checklist := buildPRChecklistDoc(profile)
@@ -744,6 +770,35 @@ func (a *App) loadQualityConfig(root string) (qualityConfig, error) {
 		LintCommand:      values["lint_command"],
 		TypecheckCommand: values["typecheck_command"],
 	}, nil
+}
+
+func (a *App) loadDocsConfig(root string) (docsConfig, error) {
+	projectCfg, err := a.loadProjectConfig(root)
+	if err != nil {
+		return docsConfig{}, err
+	}
+	cfg := defaultDocsConfig(projectCfg.ProjectType)
+	values, err := readKeyValueFile(filepath.Join(root, configDir, "docs.yaml"))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return cfg, nil
+		}
+		return docsConfig{}, err
+	}
+	cfg.ManageReadme = parseBoolValue(values["manage_readme"], cfg.ManageReadme)
+	if value := strings.TrimSpace(values["readme_profile"]); value != "" {
+		cfg.ReadmeProfile = value
+	}
+	if value := strings.TrimSpace(values["readme_default_language"]); value != "" {
+		cfg.DefaultLanguage = value
+	}
+	if value := strings.TrimSpace(values["readme_additional_languages"]); value != "" {
+		cfg.AdditionalLanguages = parseCommaSeparatedList(value)
+	}
+	if value := strings.TrimSpace(values["readme_hero_image"]); value != "" {
+		cfg.HeroImage = value
+	}
+	return normalizeDocsConfig(cfg, projectCfg.ProjectType), nil
 }
 
 func (a *App) loadInitProfileFromConfig(root string) (initProfile, error) {
@@ -1192,7 +1247,7 @@ func buildChangeSummaryDoc(projectCfg projectConfig, latestSpec, generatedAt str
 		"",
 		"## Workflow Docs Synced",
 		"",
-		"- README and product docs describe when to use `namba update`, `namba regen`, and `namba sync`.",
+		"- README bundles and product docs describe when to use `namba update`, `namba regen`, and `namba sync`.",
 		"- Release docs describe `namba release` guardrails on a clean `main` branch plus optional `--push` behavior.",
 		"- Parallel run docs describe the worktree fan-out and merge-blocking policy for `namba run SPEC-XXX --parallel`.",
 		"- AGENTS and Codex docs define the Namba output contract plus the fallback validator script at `.namba/codex/validate-output-contract.py`.",
@@ -1202,7 +1257,7 @@ func buildChangeSummaryDoc(projectCfg projectConfig, latestSpec, generatedAt str
 		"",
 		"- `namba update` self-updates the installed `namba` binary from GitHub Release assets.",
 		"- `namba regen` regenerates `AGENTS.md`, repo-local skills and command-entry skills under `.agents/skills`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
-		"- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, and codemaps.",
+		"- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, codemaps, and any README bundles enabled in `.namba/config/sections/docs.yaml`.",
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
@@ -1244,7 +1299,7 @@ func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt stri
 		"",
 		"- `namba update` self-updates the installed `namba` binary from GitHub Release assets.",
 		"- `namba regen` regenerates `AGENTS.md`, repo-local skills and command-entry skills under `.agents/skills`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
-		"- `namba sync` refreshes product docs, codemaps, change summary, PR checklist, and release docs.",
+		"- `namba sync` refreshes README bundles, product docs, codemaps, change summary, PR checklist, and release docs.",
 		"- `namba run SPEC-XXX --parallel` fans out into up to three git worktrees, merges only after every worker passes execution and validation, and preserves failing worktrees and branches for inspection.",
 		fmt.Sprintf("- Active collaboration defaults: one branch per SPEC/task from `%s`, PRs into `%s`, %s PR content, and Codex review requests via `%s`.", branchBase(profile), prBaseBranch(profile), strings.ToLower(humanLanguageName(profile.PRLanguage)), codexReviewComment(profile)),
 		"",

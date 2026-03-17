@@ -211,7 +211,7 @@ func renderSyncCommandSkill() string {
 			"Use this skill when the user explicitly says `$namba-sync`, `namba sync`, or asks to refresh PR-ready Namba artifacts after changes.",
 			"",
 			"Behavior:",
-			"- Refresh `.namba/project/*` docs, release notes/checklists, and codemaps after implementation.",
+			"- Refresh `.namba/project/*` docs, release notes/checklists, codemaps, and any README bundles enabled by `.namba/config/sections/docs.yaml` after implementation.",
 			"- Use `namba regen` separately when template-generated scaffold assets changed.",
 			"- Run validation first when code changed and the quality config requires it.",
 		},
@@ -762,6 +762,18 @@ func renderLanguageConfig(profile initProfile) string {
 		profile.ConversationLanguage,
 		profile.DocumentationLanguage,
 		profile.CommentLanguage,
+	)
+}
+
+func renderDocsConfig(profile initProfile) string {
+	cfg := defaultDocsConfig(profile.ProjectType)
+	return fmt.Sprintf(
+		"manage_readme: %t\nreadme_profile: %s\nreadme_default_language: %s\nreadme_additional_languages: %s\nreadme_hero_image: %s\n",
+		cfg.ManageReadme,
+		cfg.ReadmeProfile,
+		cfg.DefaultLanguage,
+		strings.Join(cfg.AdditionalLanguages, ","),
+		cfg.HeroImage,
 	)
 }
 

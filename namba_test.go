@@ -36,10 +36,15 @@ func TestInitCreatesScaffold(t *testing.T) {
 	mustExist(t, filepath.Join(tmp, ".namba", "config", "sections", "language.yaml"))
 	mustExist(t, filepath.Join(tmp, ".namba", "config", "sections", "git-strategy.yaml"))
 	mustExist(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"))
+	mustExist(t, filepath.Join(tmp, ".namba", "config", "sections", "docs.yaml"))
 	mustExist(t, filepath.Join(tmp, ".namba", "codex", "claude-codex-mapping.md"))
 	mustExist(t, filepath.Join(tmp, ".namba", "codex", "output-contract.md"))
 	mustExist(t, filepath.Join(tmp, ".namba", "codex", "validate-output-contract.py"))
 	mustExist(t, filepath.Join(tmp, ".namba", "manifest.json"))
+	mustExist(t, filepath.Join(tmp, "README.md"))
+	mustExist(t, filepath.Join(tmp, "README.ko.md"))
+	mustExist(t, filepath.Join(tmp, "docs", "getting-started.md"))
+	mustExist(t, filepath.Join(tmp, "docs", "workflow-guide.md"))
 
 	agents := mustRead(t, filepath.Join(tmp, "AGENTS.md"))
 	if !strings.Contains(agents, "NAMBA-AI Work Report") || !strings.Contains(agents, "🧭 Scope") || !strings.Contains(agents, "validate-output-contract.py") {
@@ -58,6 +63,11 @@ func TestInitCreatesScaffold(t *testing.T) {
 	validator := mustRead(t, filepath.Join(tmp, ".namba", "codex", "validate-output-contract.py"))
 	if !strings.Contains(validator, "output-contract: ok") || !strings.Contains(validator, "Scope") || !strings.Contains(validator, "missing header") || !strings.Contains(validator, "start=previous + 1") {
 		t.Fatalf("expected output contract validator script, got: %s", validator)
+	}
+
+	readme := mustRead(t, filepath.Join(tmp, "README.md"))
+	if !strings.Contains(readme, "This repository is managed with NambaAI") || !strings.Contains(readme, "Workflow Guide") {
+		t.Fatalf("expected generated README bundle, got: %s", readme)
 	}
 }
 
@@ -130,6 +140,11 @@ func TestInitSupportsCodexProfileFlags(t *testing.T) {
 	if !strings.Contains(agents, "NAMBA-AI 작업 결과 보고") || !strings.Contains(agents, "🧭 작업 정의") || !strings.Contains(agents, "➡ 다음 스텝") {
 		t.Fatalf("expected localized Korean output contract in AGENTS, got: %s", agents)
 	}
+
+	docsCfg := mustRead(t, filepath.Join(tmp, ".namba", "config", "sections", "docs.yaml"))
+	if !strings.Contains(docsCfg, "manage_readme: true") || !strings.Contains(docsCfg, "readme_profile: managed-project") {
+		t.Fatalf("unexpected docs config: %s", docsCfg)
+	}
 }
 
 func TestInitRejectsUnsupportedMode(t *testing.T) {
@@ -200,9 +215,6 @@ func TestProjectRunDryRunAndSync(t *testing.T) {
 	if err := app.Run(context.Background(), []string{"init", tmp}); err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tmp, "README.md"), []byte("# Demo"), 0o644); err != nil {
-		t.Fatalf("write readme: %v", err)
-	}
 
 	restore := chdir(t, tmp)
 	defer restore()
@@ -224,7 +236,7 @@ func TestProjectRunDryRunAndSync(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read product doc: %v", err)
 	}
-	if !strings.Contains(string(product), "# Demo") {
+	if !strings.Contains(string(product), "This repository is managed with NambaAI") {
 		t.Fatalf("expected README content in product doc, got: %s", product)
 	}
 
@@ -241,9 +253,6 @@ func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 
 	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
 		t.Fatalf("init failed: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(tmp, "README.md"), []byte("# Demo\n\nWorkflow docs.\n"), 0o644); err != nil {
-		t.Fatalf("write readme: %v", err)
 	}
 
 	restore := chdir(t, tmp)
@@ -274,6 +283,21 @@ func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 	releaseChecklist := mustRead(t, filepath.Join(tmp, ".namba", "project", "release-checklist.md"))
 	if !strings.Contains(releaseChecklist, "current branch is `main`") || !strings.Contains(releaseChecklist, "`namba regen` rerun") {
 		t.Fatalf("expected synced release checklist to describe release guardrails, got: %s", releaseChecklist)
+	}
+
+	readme := mustRead(t, filepath.Join(tmp, "README.md"))
+	if !strings.Contains(readme, "What You Can Do In This Repository") || !strings.Contains(readme, "Workflow Guide") {
+		t.Fatalf("expected synced README bundle, got: %s", readme)
+	}
+
+	localizedReadme := mustRead(t, filepath.Join(tmp, "README.ko.md"))
+	if !strings.Contains(localizedReadme, "이 저장소에서 할 수 있는 일") {
+		t.Fatalf("expected localized README bundle, got: %s", localizedReadme)
+	}
+
+	workflowGuide := mustRead(t, filepath.Join(tmp, "docs", "workflow-guide.md"))
+	if !strings.Contains(workflowGuide, "Collaboration rules") {
+		t.Fatalf("expected workflow guide doc, got: %s", workflowGuide)
 	}
 }
 
