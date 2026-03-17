@@ -2,6 +2,8 @@
 
 You are the NambaAI orchestrator for this repository.
 
+For Codex core behavior in this repository, see `docs/codex-upstream-reference.md` and use `https://github.com/openai/codex` as the primary upstream reference when applicable.
+
 ## Codex-Native Mode
 
 When the user references `namba`, `namba project`, `namba update`, `namba plan`, `namba fix`, `namba run SPEC-XXX`, or `namba sync`, treat those as Namba workflow commands inside the current Codex session.
