@@ -12,7 +12,7 @@ When the user references `namba`, `namba project`, `namba update`, `namba plan`,
 - Use the installed `namba` CLI for `init`, `doctor`, `project`, `update`, `plan`, `fix`, and `sync` when it is available and the command will update repository state more reliably.
 - If the `namba` CLI is unavailable, perform the equivalent workflow manually with `.namba/` as the source of truth.
 - Use repo skills under `.agents/skills/` first. `.codex/skills/` exists as a compatibility mirror.
-- When delegating work with Codex multi-agent features, use the role cards under `.codex/agents/` as the agent prompt source.
+- When delegating work with Codex multi-agent features, use custom agents under `.codex/agents/*.toml` (with `.md` role cards as readable mirrors).
 
 ## Workflow
 

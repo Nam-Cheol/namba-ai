@@ -13,5 +13,5 @@ Generated: 2026-03-17T17:30:02+09:00
 
 ## Refresh Commands
 
-- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, role cards, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.
+- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, custom agent TOML files (plus readable role cards), and `.codex/config.toml` from `.namba/config/sections/*.yaml`.
 - `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, and codemaps.

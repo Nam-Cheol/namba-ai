@@ -10,9 +10,9 @@
 .agents\skills\namba-workflow-project
 .codex
 .codex\agents
-.codex\agents\namba-implementer.md
-.codex\agents\namba-planner.md
-.codex\agents\namba-reviewer.md
+.codex\agents\namba-implementer.toml
+.codex\agents\namba-planner.toml
+.codex\agents\namba-reviewer.toml
 .codex\config.toml
 .gitattributes
 .github
