@@ -52,7 +52,7 @@ func TestRunWritesStructuredLogs(t *testing.T) {
 	if result.Runner != "codex" {
 		t.Fatalf("expected codex runner, got %s", result.Runner)
 	}
-	if result.ApprovalMode != "on-request" || result.SandboxMode != "workspace-write" {
+	if result.ApprovalPolicy != "on-request" || result.SandboxMode != "workspace-write" {
 		t.Fatalf("unexpected runtime modes: %+v", result)
 	}
 
@@ -69,7 +69,7 @@ func TestRunUsesConfiguredApprovalAndSandbox(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
 
-	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), "runner: codex\napproval_mode: never\nsandbox_mode: read-only\n")
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), "runner: codex\napproval_policy: never\nsandbox_mode: read-only\n")
 
 	app.lookPath = func(name string) (string, error) {
 		if name == "codex" {
@@ -94,7 +94,7 @@ func TestRunUsesConfiguredApprovalAndSandbox(t *testing.T) {
 	}
 
 	result := mustReadExecutionResult(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-execution.json"))
-	if result.ApprovalMode != "never" || result.SandboxMode != "read-only" {
+	if result.ApprovalPolicy != "never" || result.SandboxMode != "read-only" {
 		t.Fatalf("unexpected runtime modes: %+v", result)
 	}
 }
@@ -103,7 +103,7 @@ func TestRunRejectsUnsupportedRunner(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
 
-	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), "runner: unsupported\napproval_mode: on-request\nsandbox_mode: workspace-write\n")
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), "runner: unsupported\napproval_policy: on-request\nsandbox_mode: workspace-write\n")
 
 	err := app.Run(context.Background(), []string{"run", "SPEC-001"})
 	if err == nil {
@@ -114,11 +114,11 @@ func TestRunRejectsUnsupportedRunner(t *testing.T) {
 	}
 }
 
-func TestRunRejectsInvalidApprovalMode(t *testing.T) {
+func TestRunRejectsInvalidApprovalPolicy(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
 
-	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), "runner: codex\napproval_mode: maybe\nsandbox_mode: workspace-write\n")
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), "runner: codex\napproval_policy: maybe\nsandbox_mode: workspace-write\n")
 
 	app.lookPath = func(name string) (string, error) {
 		if name == "codex" {
@@ -128,25 +128,25 @@ func TestRunRejectsInvalidApprovalMode(t *testing.T) {
 	}
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 		if isShellCommand(name) {
-			t.Fatal("validators should not run when approval mode is invalid")
+			t.Fatal("validators should not run when approval policy is invalid")
 		}
 		if isCodexExec(name, args) {
-			t.Fatal("codex should not run when approval mode is invalid")
+			t.Fatal("codex should not run when approval policy is invalid")
 		}
 		return "", nil
 	}
 
 	err := app.Run(context.Background(), []string{"run", "SPEC-001"})
 	if err == nil {
-		t.Fatal("expected invalid approval mode error")
+		t.Fatal("expected invalid approval policy error")
 	}
-	if !strings.Contains(err.Error(), "approval_mode") {
+	if !strings.Contains(err.Error(), "approval_policy") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	result := mustReadExecutionResult(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-execution.json"))
-	if !strings.Contains(result.Error, "approval_mode") {
-		t.Fatalf("expected approval mode error in execution result: %+v", result)
+	if !strings.Contains(result.Error, "approval_policy") {
+		t.Fatalf("expected approval policy error in execution result: %+v", result)
 	}
 }
 
@@ -154,7 +154,7 @@ func TestRunRejectsInvalidSandboxMode(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
 
-	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), "runner: codex\napproval_mode: on-request\nsandbox_mode: moon-write\n")
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), "runner: codex\napproval_policy: on-request\nsandbox_mode: moon-write\n")
 
 	app.lookPath = func(name string) (string, error) {
 		if name == "codex" {

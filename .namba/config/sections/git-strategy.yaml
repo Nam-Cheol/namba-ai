@@ -3,3 +3,11 @@ git_provider: github
 git_username: Nam-Cheol
 gitlab_instance_url: https://gitlab.com
 store_tokens: false
+branch_per_work: true
+branch_base: main
+spec_branch_prefix: spec/
+task_branch_prefix: task/
+pr_base_branch: main
+pr_language: ko
+codex_review_comment: "@codex review"
+auto_codex_review: true

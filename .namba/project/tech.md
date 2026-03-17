@@ -3,6 +3,7 @@
 - Language: go
 - Framework: none
 - Runtime adapter: Codex
-- Repo-local skills: .agents/skills
-- Repo-local agent role cards: .codex/agents
+- Repo-local skills and command-entry skills: .agents/skills
+- Repo-local custom agents: .codex/agents/*.toml
+- Readable agent mirrors: .codex/agents/*.md
 - State directory: .namba

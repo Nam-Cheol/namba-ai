@@ -21,19 +21,32 @@ func TestInitCreatesScaffold(t *testing.T) {
 
 	mustExist(t, filepath.Join(tmp, "AGENTS.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-run", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-project", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-foundation-core", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-workflow-init", "SKILL.md"))
-	mustExist(t, filepath.Join(tmp, ".codex", "skills", "namba", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".codex", "config.toml"))
 	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.md"))
+	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.toml"))
 	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-implementer.md"))
+	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-implementer.toml"))
 	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-reviewer.md"))
+	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-reviewer.toml"))
 	mustExist(t, filepath.Join(tmp, ".namba", "config", "sections", "project.yaml"))
 	mustExist(t, filepath.Join(tmp, ".namba", "config", "sections", "language.yaml"))
 	mustExist(t, filepath.Join(tmp, ".namba", "config", "sections", "git-strategy.yaml"))
 	mustExist(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"))
 	mustExist(t, filepath.Join(tmp, ".namba", "codex", "claude-codex-mapping.md"))
 	mustExist(t, filepath.Join(tmp, ".namba", "manifest.json"))
+
+	plannerAgent := mustRead(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.toml"))
+	if !strings.Contains(plannerAgent, `name = "namba-planner"`) || !strings.Contains(plannerAgent, `developer_instructions = """`) {
+		t.Fatalf("unexpected planner custom agent: %s", plannerAgent)
+	}
+	if strings.Contains(plannerAgent, `prompt = "`) {
+		t.Fatalf("expected planner custom agent to use developer_instructions, got: %s", plannerAgent)
+	}
+	mustNotExist(t, filepath.Join(tmp, ".codex", "skills"))
 }
 
 func TestInitSupportsCodexProfileFlags(t *testing.T) {
@@ -47,9 +60,9 @@ func TestInitSupportsCodexProfileFlags(t *testing.T) {
 		"--mode", "ddd",
 		"--language", "go",
 		"--framework", "cobra",
-		"--conversation-language", "ko",
-		"--documentation-language", "ko",
-		"--comment-language", "en",
+		"--human-language", "ko",
+		"--approval-policy", "never",
+		"--sandbox-mode", "read-only",
 		"--git-mode", "team",
 		"--git-provider", "github",
 		"--git-username", "alice",
@@ -68,7 +81,7 @@ func TestInitSupportsCodexProfileFlags(t *testing.T) {
 	}
 
 	language := mustRead(t, filepath.Join(tmp, ".namba", "config", "sections", "language.yaml"))
-	if !strings.Contains(language, "conversation_language: ko") || !strings.Contains(language, "comment_language: en") {
+	if !strings.Contains(language, "conversation_language: ko") || !strings.Contains(language, "documentation_language: ko") || !strings.Contains(language, "comment_language: ko") {
 		t.Fatalf("unexpected language config: %s", language)
 	}
 
@@ -76,14 +89,25 @@ func TestInitSupportsCodexProfileFlags(t *testing.T) {
 	if !strings.Contains(gitStrategy, "git_mode: team") || !strings.Contains(gitStrategy, "git_username: alice") || !strings.Contains(gitStrategy, "store_tokens: false") {
 		t.Fatalf("unexpected git strategy config: %s", gitStrategy)
 	}
+	if !strings.Contains(gitStrategy, "branch_per_work: true") || !strings.Contains(gitStrategy, "branch_base: main") || !strings.Contains(gitStrategy, "pr_base_branch: main") || !strings.Contains(gitStrategy, `codex_review_comment: "@codex review"`) || !strings.Contains(gitStrategy, "pr_language: ko") {
+		t.Fatalf("expected git collaboration defaults in git strategy config: %s", gitStrategy)
+	}
 
 	codexProfile := mustRead(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"))
 	if !strings.Contains(codexProfile, "agent_mode: multi") || !strings.Contains(codexProfile, "status_line_preset: off") {
 		t.Fatalf("unexpected codex config: %s", codexProfile)
 	}
+	if strings.Contains(codexProfile, "compat_skills_path:") {
+		t.Fatalf("expected deprecated compat skill path to be removed: %s", codexProfile)
+	}
+
+	system := mustRead(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"))
+	if !strings.Contains(system, "approval_policy: never") || !strings.Contains(system, "sandbox_mode: read-only") {
+		t.Fatalf("unexpected system config: %s", system)
+	}
 
 	codexConfig := mustRead(t, filepath.Join(tmp, ".codex", "config.toml"))
-	if !strings.Contains(codexConfig, "max_threads = 3") {
+	if !strings.Contains(codexConfig, "max_threads = 3") || !strings.Contains(codexConfig, `approval_policy = "never"`) || !strings.Contains(codexConfig, `sandbox_mode = "read-only"`) {
 		t.Fatalf("unexpected codex repo config: %s", codexConfig)
 	}
 	if strings.Contains(codexConfig, "status_line") {
@@ -124,8 +148,8 @@ func TestDoctorReportsCodexNativeReadiness(t *testing.T) {
 	if !strings.Contains(text, "Codex native repo: ready") {
 		t.Fatalf("expected codex native readiness in doctor output: %s", text)
 	}
-	if !strings.Contains(text, "Codex compatibility mirror: ready") {
-		t.Fatalf("expected codex compatibility readiness in doctor output: %s", text)
+	if strings.Contains(text, "Codex compatibility mirror") {
+		t.Fatalf("expected compatibility mirror line to be removed, got: %s", text)
 	}
 }
 
@@ -216,17 +240,22 @@ func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 	}
 
 	changeSummary := mustRead(t, filepath.Join(tmp, ".namba", "project", "change-summary.md"))
-	if !strings.Contains(changeSummary, "`namba update`") || !strings.Contains(changeSummary, "`namba run SPEC-XXX --parallel`") {
+	if !strings.Contains(changeSummary, "`namba update`") || !strings.Contains(changeSummary, "`namba regen`") || !strings.Contains(changeSummary, "`namba run SPEC-XXX --parallel`") || !strings.Contains(changeSummary, "`@codex review`") {
 		t.Fatalf("expected synced change summary to describe update and parallel workflow, got: %s", changeSummary)
 	}
 
+	prChecklist := mustRead(t, filepath.Join(tmp, ".namba", "project", "pr-checklist.md"))
+	if !strings.Contains(prChecklist, "PR targets `main`") || !strings.Contains(prChecklist, "`@codex review` review request is present on GitHub") {
+		t.Fatalf("expected synced PR checklist to describe branch and review policy, got: %s", prChecklist)
+	}
+
 	releaseNotes := mustRead(t, filepath.Join(tmp, ".namba", "project", "release-notes.md"))
-	if !strings.Contains(releaseNotes, "`namba release --push`") || !strings.Contains(releaseNotes, "`checksums.txt`") {
+	if !strings.Contains(releaseNotes, "`namba release --push`") || !strings.Contains(releaseNotes, "`checksums.txt`") || !strings.Contains(releaseNotes, "`@codex review`") {
 		t.Fatalf("expected synced release notes to describe release flow, got: %s", releaseNotes)
 	}
 
 	releaseChecklist := mustRead(t, filepath.Join(tmp, ".namba", "project", "release-checklist.md"))
-	if !strings.Contains(releaseChecklist, "current branch is `main`") || !strings.Contains(releaseChecklist, "`namba update` rerun") {
+	if !strings.Contains(releaseChecklist, "current branch is `main`") || !strings.Contains(releaseChecklist, "`namba regen` rerun") {
 		t.Fatalf("expected synced release checklist to describe release guardrails, got: %s", releaseChecklist)
 	}
 }
@@ -276,6 +305,15 @@ func mustExist(t *testing.T, path string) {
 	t.Helper()
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("expected %s to exist: %v", path, err)
+	}
+}
+
+func mustNotExist(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Stat(path); err == nil {
+		t.Fatalf("expected %s to be absent", path)
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat %s: %v", path, err)
 	}
 }
 

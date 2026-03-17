@@ -85,6 +85,34 @@ func TestParseInitArgsProjectType(t *testing.T) {
 	}
 }
 
+func TestParseInitArgsHumanLanguageAndSandbox(t *testing.T) {
+	t.Parallel()
+
+	opts, err := parseInitArgs([]string{".", "--human-language", "ko", "--approval-policy", "never", "--sandbox-mode", "read-only"})
+	if err != nil {
+		t.Fatalf("parseInitArgs returned error: %v", err)
+	}
+	if opts.HumanLanguage != "ko" || opts.ApprovalPolicy != "never" || opts.SandboxMode != "read-only" {
+		t.Fatalf("unexpected init options: %+v", opts)
+	}
+}
+
+func TestApplyHumanLanguageSyncsAllHumanFacingOutputs(t *testing.T) {
+	t.Parallel()
+
+	profile := initProfile{
+		ConversationLanguage:  "en",
+		DocumentationLanguage: "en",
+		CommentLanguage:       "en",
+		PRLanguage:            "en",
+	}
+	applyHumanLanguage(&profile, "ko")
+
+	if profile.ConversationLanguage != "ko" || profile.DocumentationLanguage != "ko" || profile.CommentLanguage != "ko" || profile.PRLanguage != "ko" {
+		t.Fatalf("expected human language sync, got %+v", profile)
+	}
+}
+
 func TestRenderProjectConfigIncludesProjectType(t *testing.T) {
 	t.Parallel()
 
