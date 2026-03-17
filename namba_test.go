@@ -23,7 +23,8 @@ func TestInitCreatesScaffold(t *testing.T) {
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-foundation-core", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-workflow-init", "SKILL.md"))
-	mustExist(t, filepath.Join(tmp, ".codex", "skills", "namba", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".codex", "skills", "README.md"))
+	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-run", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".codex", "config.toml"))
 	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.md"))
 	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-implementer.md"))
@@ -124,7 +125,7 @@ func TestDoctorReportsCodexNativeReadiness(t *testing.T) {
 	if !strings.Contains(text, "Codex native repo: ready") {
 		t.Fatalf("expected codex native readiness in doctor output: %s", text)
 	}
-	if !strings.Contains(text, "Codex compatibility mirror: ready") {
+	if !strings.Contains(text, "Codex compatibility marker: ready") {
 		t.Fatalf("expected codex compatibility readiness in doctor output: %s", text)
 	}
 }

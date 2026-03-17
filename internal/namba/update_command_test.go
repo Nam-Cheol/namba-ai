@@ -52,4 +52,17 @@ func TestRunUpdateRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(codexReadme, "`namba run SPEC-XXX --parallel`") {
 		t.Fatalf("expected codex README to describe standalone parallel semantics, got %q", codexReadme)
 	}
+
+	compatReadme := mustReadFile(t, filepath.Join(tmp, ".codex", "skills", "README.md"))
+	if !strings.Contains(compatReadme, "intentionally generated only under `.agents/skills/`") {
+		t.Fatalf("expected compatibility marker README, got %q", compatReadme)
+	}
+	if _, err := os.Stat(filepath.Join(tmp, ".codex", "skills", "namba", "SKILL.md")); !os.IsNotExist(err) {
+		t.Fatalf("expected mirrored .codex skill tree to be absent, stat err=%v", err)
+	}
+
+	runSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-run", "SKILL.md"))
+	if !strings.Contains(runSkill, "name: namba-run") {
+		t.Fatalf("expected namba-run skill to be generated, got %q", runSkill)
+	}
 }

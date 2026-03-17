@@ -241,7 +241,7 @@ func (a *App) runDoctor(ctx context.Context, _ []string) error {
 	fmt.Fprintf(a.stdout, "Framework: %s\n", projectCfg.Framework)
 	fmt.Fprintf(a.stdout, "Mode: %s\n", qualityCfg.DevelopmentMode)
 	fmt.Fprintf(a.stdout, "Codex native repo: %s\n", formatDoctorStatus(codexNativeIssues(root)))
-	fmt.Fprintf(a.stdout, "Codex compatibility mirror: %s\n", formatDoctorStatus(codexCompatibilityIssues(root)))
+	fmt.Fprintf(a.stdout, "Codex compatibility marker: %s\n", formatDoctorStatus(codexCompatibilityIssues(root)))
 	if codexErr != nil {
 		fmt.Fprintln(a.stdout, "Codex: missing")
 	} else {
@@ -1089,7 +1089,7 @@ func buildCodemaps(root string, cfg projectConfig) (string, string, string, stri
 	overview := fmt.Sprintf("# Overview\n\n%s is managed by NambaAI.\n\n- Language: %s\n- Framework: %s\n", cfg.Name, cfg.Language, cfg.Framework)
 	entries := "# Entry Points\n\n- `cmd/namba/main.go`: CLI entry point\n- `internal/namba/namba.go`: command orchestration\n"
 	deps := "# Dependencies\n\n- Go standard library\n- External runtime: Codex CLI\n- External runtime: Git\n"
-	flow := "# Data Flow\n\n1. `init` runs a Codex-adapted project wizard, writes `.namba/config/sections/*.yaml`, repo skills under `.agents/skills`, role cards under `.codex/agents`, a compatibility mirror under `.codex/skills`, and Codex repo config under `.codex/config.toml`\n2. `project` refreshes docs and codemaps\n3. `plan` creates a SPEC package\n4. `run` either builds a non-interactive Codex execution request or is interpreted as Codex-native in-session execution\n5. `sync` emits PR-ready artifacts\n"
+	flow := "# Data Flow\n\n1. `init` runs a Codex-adapted project wizard, writes `.namba/config/sections/*.yaml`, repo skills under `.agents/skills`, role cards under `.codex/agents`, `.codex/skills/README.md` compatibility marker (no duplicated skills), and Codex repo config under `.codex/config.toml`\n2. `project` refreshes docs and codemaps\n3. `plan` creates a SPEC package\n4. `run` either builds a non-interactive Codex execution request or is interpreted as Codex-native in-session execution\n5. `sync` emits PR-ready artifacts\n"
 	if exists(filepath.Join(root, "go.mod")) {
 		deps += "- Project module detected via `go.mod`\n"
 	}
@@ -1130,7 +1130,7 @@ func buildChangeSummaryDoc(projectCfg projectConfig, latestSpec, generatedAt str
 		"",
 		"## Refresh Commands",
 		"",
-		"- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, role cards, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
+		"- `namba update` regenerates `AGENTS.md`, repo-local skills, role cards, `.codex/skills/README.md`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
 		"- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, and codemaps.",
 	}
 	return strings.Join(lines, "\n") + "\n"
@@ -1167,7 +1167,7 @@ func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt stri
 		"",
 		"## Workflow Changes",
 		"",
-		"- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
+		"- `namba update` regenerates `AGENTS.md`, repo-local skills, role cards, `.codex/skills/README.md`, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
 		"- `namba sync` refreshes product docs, codemaps, change summary, PR checklist, and release docs.",
 		"- `namba run SPEC-XXX --parallel` fans out into up to three git worktrees, merges only after every worker passes execution and validation, and preserves failing worktrees and branches for inspection.",
 		"",

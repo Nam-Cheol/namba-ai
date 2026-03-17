@@ -13,7 +13,7 @@ func renderAgents(profile initProfile) string {
 		"- Prefer direct Codex-native execution for `namba run SPEC-XXX`: read the SPEC package, implement the work in-session, run validation, and sync artifacts.\n"+
 		"- Use the installed `namba` CLI for `init`, `doctor`, `project`, `update`, `plan`, `fix`, and `sync` when it is available and the command will update repository state more reliably.\n"+
 		"- If the `namba` CLI is unavailable, perform the equivalent workflow manually with `.namba/` as the source of truth.\n"+
-		"- Use repo skills under `.agents/skills/` first. `.codex/skills/` exists as a compatibility mirror.\n"+
+		"- Use repo skills under `.agents/skills/` first. `.codex/skills/` is a lightweight compatibility marker to avoid duplicate discovery.\n"+
 		"- When delegating work with Codex multi-agent features, use the role cards under `.codex/agents/` as the agent prompt source.\n\n"+
 		"## Workflow\n\n"+
 		"1. Run `namba update` when template-generated Codex assets need regeneration.\n"+
@@ -47,7 +47,7 @@ func renderNambaSkill() string {
 		"",
 		"Command mapping:",
 		"- `namba project`: refresh repository docs and codemaps.",
-		"- `namba update`: regenerate AGENTS, repo-local skills, compatibility skills, role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
+		"- `namba update`: regenerate AGENTS, repo-local skills, role cards, `.codex/skills/README.md`, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
 		"- `namba plan \"<description>\"`: create the next feature SPEC package under `.namba/specs/`.",
 		"- `namba fix \"<description>\"`: create the next bugfix SPEC package under `.namba/specs/`.",
 
@@ -61,6 +61,39 @@ func renderNambaSkill() string {
 		"3. Use the installed `namba` CLI for `project`, `update`, `plan`, `fix`, and `sync` when it will update repo state more reliably.",
 		"4. For `namba run` in an interactive Codex session, prefer Codex-native in-session execution over recursively calling `namba run`.",
 		"5. Run validation commands from `.namba/config/sections/quality.yaml` before finishing.",
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func renderNambaRunSkill() string {
+	lines := []string{
+		"---",
+		"name: namba-run",
+		"description: Focused trigger for executing `namba run SPEC-XXX` requests in Codex-native mode.",
+		"---",
+		"",
+		"Use this skill when the user explicitly asks for `namba run`, `run SPEC-XXX`, or requests execution of an existing SPEC package.",
+		"",
+		"Run protocol:",
+		"1. Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md`.",
+		"2. Implement directly in the current Codex session (do not recursively call `namba run` unless user asks for CLI runner mode).",
+		"3. Execute configured test/lint/typecheck commands.",
+		"4. Summarize results and call `namba sync` semantics before handoff.",
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func renderCompatSkillsReadme() string {
+	lines := []string{
+		"# Codex Skills Compatibility Marker",
+		"",
+		"Skills are intentionally generated only under `.agents/skills/` to avoid duplicate discovery noise.",
+		"",
+		"If tooling expects `.codex/skills/`, resolve skills from `.agents/skills/`.",
+		"",
+		"Primary skill entry points:",
+		"- `.agents/skills/namba/SKILL.md`",
+		"- `.agents/skills/namba-run/SKILL.md`",
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
@@ -96,7 +129,7 @@ func renderInitSkill() string {
 		"",
 		"Core mapping:",
 		"- `CLAUDE.md` -> `AGENTS.md`",
-		"- `.claude/skills/*` -> `.agents/skills/*` with `.codex/skills/*` as a compatibility mirror",
+		"- `.claude/skills/*` -> `.agents/skills/*` (primary source) and `.codex/skills/README.md` (compatibility marker)",
 		"- `.claude/agents/*` -> `.codex/agents/*.md` role cards for Codex delegation",
 		"- `.claude/hooks/*` -> explicit validation pipeline and `namba` orchestration",
 		"- Claude custom slash-command workflows -> built-in Codex slash commands plus the `$namba` skill and `namba` CLI",
@@ -159,7 +192,7 @@ func renderCodexUsage(profile initProfile) string {
 		"",
 		"- Creates `AGENTS.md` with Namba orchestration rules.",
 		"- Creates repo-local skills under `.agents/skills/`.",
-		"- Creates a compatibility mirror under `.codex/skills/`.",
+		"- Creates `.codex/skills/README.md` as a compatibility marker (no duplicated skill trees).",
 		"- Creates Codex delegation role cards under `.codex/agents/`.",
 		"- Creates repo-local Codex config under `.codex/config.toml`.",
 		"- Creates `.namba/` project state, configs, docs, and SPEC storage.",
@@ -174,7 +207,7 @@ func renderCodexUsage(profile initProfile) string {
 		"",
 		"## Workflow Command Semantics",
 		"",
-		"- `namba update` regenerates `AGENTS.md`, repo-local skills, compatibility mirror skills, role cards, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
+		"- `namba update` regenerates `AGENTS.md`, repo-local skills, role cards, `.codex/skills/README.md`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
 		"- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, and codemaps.",
 		"- `namba release` requires a clean `main` branch and passing validators before it creates a tag. `--push` pushes both `main` and the new tag.",
 		"- `namba run SPEC-XXX --parallel` refers to the standalone runner path. It uses git worktrees, merges only after every worker passes execution and validation, and preserves failed worktrees and branches for inspection.",
@@ -185,7 +218,7 @@ func renderCodexUsage(profile initProfile) string {
 		"- Claude skills become repo-local Codex skills.",
 		"- Claude subagents become explicit role-card files used with Codex multi-agent delegation.",
 		"- Claude hooks become explicit validator and sync steps in Namba.",
-		"- Claude custom workflow commands become `$namba`, built-in Codex slash commands, and the `namba` CLI.",
+		"- Claude custom workflow commands become `$namba` / `$namba-run`, built-in Codex slash commands, and the `namba` CLI.",
 		"",
 		"## Important Distinction",
 		"",
@@ -207,10 +240,10 @@ func renderClaudeCodexMapping() string {
 		"This repository uses a Codex-adapted variant of the MoAI bootstrap model.",
 		"",
 		"- `CLAUDE.md` -> `AGENTS.md`",
-		"- `.claude/skills/*` -> `.agents/skills/*` and `.codex/skills/*`",
+		"- `.claude/skills/*` -> `.agents/skills/*` plus `.codex/skills/README.md` marker",
 		"- `.claude/agents/*.md` -> `.codex/agents/*.md` role cards",
 		"- `.claude/hooks/*` -> explicit validation commands, structured run logs, and `namba sync`",
-		"- Claude slash-command-centric workflows -> built-in Codex slash commands plus `$namba` and `namba`",
+		"- Claude slash-command-centric workflows -> built-in Codex slash commands plus `$namba`, `$namba-run`, and `namba`",
 		"",
 		"Why this is different:",
 		"- Claude Code has first-class hooks, subagents, and project slash-command workflows.",

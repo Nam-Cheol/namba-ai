@@ -26,14 +26,15 @@ func codexScaffoldFiles(profile initProfile) map[string]string {
 	}
 	for rel, content := range codexSkillTemplates() {
 		files[filepath.ToSlash(filepath.Join(repoSkillsDir, rel))] = content
-		files[filepath.ToSlash(filepath.Join(compatSkillsDir, rel))] = content
 	}
+	files[filepath.ToSlash(filepath.Join(compatSkillsDir, "README.md"))] = renderCompatSkillsReadme()
 	return files
 }
 
 func codexSkillTemplates() map[string]string {
 	return map[string]string{
 		filepath.ToSlash(filepath.Join("namba", "SKILL.md")):                    renderNambaSkill(),
+		filepath.ToSlash(filepath.Join("namba-run", "SKILL.md")):                renderNambaRunSkill(),
 		filepath.ToSlash(filepath.Join("namba-foundation-core", "SKILL.md")):    renderFoundationSkill(),
 		filepath.ToSlash(filepath.Join("namba-workflow-init", "SKILL.md")):      renderInitSkill(),
 		filepath.ToSlash(filepath.Join("namba-workflow-project", "SKILL.md")):   renderProjectSkill(),
@@ -60,7 +61,7 @@ func codexCompatibilityIssues(root string) []string {
 		label string
 		path  string
 	}{
-		{label: ".codex/skills/namba/SKILL.md", path: filepath.Join(root, ".codex", "skills", "namba", "SKILL.md")},
+		{label: ".codex/skills/README.md", path: filepath.Join(root, ".codex", "skills", "README.md")},
 	}
 	return missingChecks(checks)
 }
