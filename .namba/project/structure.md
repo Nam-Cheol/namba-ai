@@ -138,6 +138,7 @@
 .tmp_pr17_review\internal\namba
 .tmp_pr17_review\namba_test.go
 .tmp_pr17_review\workflow_test.go
+.namba\specs\SPEC-012
 AGENTS.md
 README.ja.md
 README.ko.md
