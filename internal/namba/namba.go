@@ -75,11 +75,12 @@ type qualityConfig struct {
 }
 
 type docsConfig struct {
-	ManageReadme        bool
-	ReadmeProfile       string
-	DefaultLanguage     string
-	AdditionalLanguages []string
-	HeroImage           string
+	ManageReadme           bool
+	ReadmeProfile          string
+	DefaultLanguage        string
+	AdditionalLanguages    []string
+	AdditionalLanguagesSet bool
+	HeroImage              string
 }
 
 type specPackage struct {
@@ -527,10 +528,8 @@ func (a *App) runSync(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	if readmeOutputs := buildReadmeOutputs(projectCfg, profile, docsCfg); len(readmeOutputs) > 0 {
-		if err := a.writeOutputs(root, readmeOutputs); err != nil {
-			return err
-		}
+	if err := a.replaceManagedOutputs(root, buildReadmeOutputs(projectCfg, profile, docsCfg), isReadmeManagedPath); err != nil {
+		return err
 	}
 	if err := a.runProject(ctx, nil); err != nil {
 		return err
@@ -792,8 +791,9 @@ func (a *App) loadDocsConfig(root string) (docsConfig, error) {
 	if value := strings.TrimSpace(values["readme_default_language"]); value != "" {
 		cfg.DefaultLanguage = value
 	}
-	if value := strings.TrimSpace(values["readme_additional_languages"]); value != "" {
+	if value, ok := values["readme_additional_languages"]; ok {
 		cfg.AdditionalLanguages = parseCommaSeparatedList(value)
+		cfg.AdditionalLanguagesSet = true
 	}
 	if value := strings.TrimSpace(values["readme_hero_image"]); value != "" {
 		cfg.HeroImage = value

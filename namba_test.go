@@ -301,6 +301,53 @@ func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 	}
 }
 
+func TestSyncRespectsExplicitEmptyReadmeLanguages(t *testing.T) {
+	tmp := t.TempDir()
+	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, ".namba", "config", "sections", "docs.yaml"), []byte("manage_readme: true\nreadme_profile: managed-project\nreadme_default_language: en\nreadme_additional_languages:\nreadme_hero_image:\n"), 0o644); err != nil {
+		t.Fatalf("write docs config: %v", err)
+	}
+
+	restore := chdir(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"sync"}); err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+
+	mustExist(t, filepath.Join(tmp, "README.md"))
+	mustExist(t, filepath.Join(tmp, "docs", "workflow-guide.md"))
+	mustNotExist(t, filepath.Join(tmp, "README.ko.md"))
+	mustNotExist(t, filepath.Join(tmp, "docs", "workflow-guide.ko.md"))
+}
+
+func TestSyncRemovesManagedReadmesWhenDisabled(t *testing.T) {
+	tmp := t.TempDir()
+	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, ".namba", "config", "sections", "docs.yaml"), []byte("manage_readme: false\nreadme_profile: managed-project\nreadme_default_language: en\nreadme_additional_languages:\nreadme_hero_image:\n"), 0o644); err != nil {
+		t.Fatalf("write docs config: %v", err)
+	}
+
+	restore := chdir(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"sync"}); err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+
+	mustNotExist(t, filepath.Join(tmp, "README.md"))
+	mustNotExist(t, filepath.Join(tmp, "docs", "getting-started.md"))
+	mustNotExist(t, filepath.Join(tmp, "docs", "workflow-guide.md"))
+}
+
 func TestInitConfiguresGoFormatTargets(t *testing.T) {
 	tmp := t.TempDir()
 	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})

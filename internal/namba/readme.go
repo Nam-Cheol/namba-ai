@@ -32,7 +32,7 @@ func normalizeDocsConfig(cfg docsConfig, projectType string) docsConfig {
 		cfg.ReadmeProfile = defaults.ReadmeProfile
 	}
 	cfg.DefaultLanguage = normalizeReadmeLanguage(firstNonBlank(cfg.DefaultLanguage, defaults.DefaultLanguage))
-	if len(cfg.AdditionalLanguages) == 0 {
+	if !cfg.AdditionalLanguagesSet && len(cfg.AdditionalLanguages) == 0 {
 		cfg.AdditionalLanguages = defaults.AdditionalLanguages
 	}
 	cfg.AdditionalLanguages = uniqueReadmeLanguages(cfg.AdditionalLanguages)
@@ -114,6 +114,29 @@ func guidePath(base, lang string) string {
 		return fmt.Sprintf("docs/%s.md", base)
 	}
 	return fmt.Sprintf("docs/%s.%s.md", base, lang)
+}
+
+func isReadmeManagedPath(rel string) bool {
+	switch {
+	case rel == readmePath("en"):
+		return true
+	case strings.HasPrefix(rel, "README.") && strings.HasSuffix(rel, ".md"):
+		return true
+	case isGeneratedGuidePath(rel, "getting-started"):
+		return true
+	case isGeneratedGuidePath(rel, "workflow-guide"):
+		return true
+	default:
+		return false
+	}
+}
+
+func isGeneratedGuidePath(rel, base string) bool {
+	defaultPath := guidePath(base, "en")
+	if rel == defaultPath {
+		return true
+	}
+	return strings.HasPrefix(rel, "docs/"+base+".") && strings.HasSuffix(rel, ".md")
 }
 
 func renderReadmeRoot(lang string, projectCfg projectConfig, profile initProfile, cfg docsConfig) string {
