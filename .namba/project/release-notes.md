@@ -2,8 +2,8 @@
 
 Project: namba-ai
 Project type: existing
-Reference SPEC: SPEC-009
-Generated: 2026-03-18T02:26:37+09:00
+Reference SPEC: SPEC-011
+Generated: 2026-03-18T14:25:40+09:00
 
 ## Workflow Changes
 
