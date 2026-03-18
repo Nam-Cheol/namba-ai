@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -81,6 +82,13 @@ type docsConfig struct {
 	AdditionalLanguages    []string
 	AdditionalLanguagesSet bool
 	HeroImage              string
+}
+
+type packageManifest struct {
+	Name             string            `json:"name"`
+	Dependencies     map[string]string `json:"dependencies"`
+	DevDependencies  map[string]string `json:"devDependencies"`
+	PeerDependencies map[string]string `json:"peerDependencies"`
 }
 
 type specPackage struct {
@@ -1466,15 +1474,431 @@ func buildTechDoc(cfg projectConfig) string {
 	return fmt.Sprintf("# Tech\n\n- Language: %s\n- Framework: %s\n- Runtime adapter: Codex\n- Repo-local skills and command-entry skills: .agents/skills\n- Built-in Codex subagents: default, worker, explorer\n- Project-scoped custom agents: .codex/agents/*.toml\n- Readable agent mirrors: .codex/agents/*.md\n- State directory: .namba\n", cfg.Language, cfg.Framework)
 }
 
+var localJSImportPattern = regexp.MustCompile(`(?m)^\s*import(?:[\s\w{},*]+from\s+)?["']([^"']+)["']`)
+
 func buildCodemaps(root string, cfg projectConfig) (string, string, string, string) {
 	overview := fmt.Sprintf("# Overview\n\n%s is managed by NambaAI.\n\n- Language: %s\n- Framework: %s\n", cfg.Name, cfg.Language, cfg.Framework)
-	entries := "# Entry Points\n\n- `cmd/namba/main.go`: CLI entry point\n- `internal/namba/namba.go`: command orchestration\n"
-	deps := "# Dependencies\n\n- Go standard library\n- External runtime: Codex CLI\n- External runtime: Git\n"
+	entries := buildEntryPointsDoc(root, cfg)
+	deps := buildDependenciesDoc(root, cfg)
 	flow := "# Data Flow\n\n1. `init` runs a Codex-adapted project wizard, writes `.namba/config/sections/*.yaml`, repo skills under `.agents/skills`, command-entry skills such as `$namba-run`, project-scoped custom agents under `.codex/agents/*.toml`, readable `.md` agent mirrors, and Codex repo config under `.codex/config.toml`\n2. `project` refreshes docs and codemaps\n3. `plan` creates a SPEC package\n4. `run` supports the default standalone flow, explicit `--solo` and `--team` subagent-oriented requests, and worktree-based `--parallel` execution\n5. `sync` emits PR-ready artifacts\n"
-	if exists(filepath.Join(root, "go.mod")) {
-		deps += "- Project module detected via `go.mod`\n"
-	}
 	return overview, entries, deps, flow
+}
+
+func buildEntryPointsDoc(root string, cfg projectConfig) string {
+	lines := []string{"# Entry Points", ""}
+	var bullets []string
+
+	switch cfg.Language {
+	case "go":
+		bullets = buildGoEntryPoints(root)
+	case "java":
+		bullets = buildJavaEntryPoints(root)
+	case "python":
+		bullets = buildPythonEntryPoints(root)
+	default:
+		bullets = buildNodeEntryPoints(root)
+	}
+
+	if len(bullets) == 0 {
+		bullets = append(bullets, "- No conventional application entry point was detected automatically.")
+	}
+
+	lines = append(lines, bullets...)
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func buildDependenciesDoc(root string, cfg projectConfig) string {
+	lines := []string{"# Dependencies", ""}
+	var bullets []string
+
+	switch cfg.Language {
+	case "go":
+		if module := readGoModule(root); module != "" {
+			bullets = append(bullets, fmt.Sprintf("- Module: `%s`", module))
+		}
+		bullets = append(bullets, "- Runtime: Go standard library")
+		bullets = append(bullets, "- External runtime: Codex CLI")
+		bullets = append(bullets, "- External runtime: Git")
+	case "java":
+		if exists(filepath.Join(root, "pom.xml")) {
+			bullets = append(bullets, "- Build system: Maven (`pom.xml`)")
+		}
+		if exists(filepath.Join(root, "build.gradle")) || exists(filepath.Join(root, "build.gradle.kts")) || exists(filepath.Join(root, "gradlew")) || exists(filepath.Join(root, "gradlew.bat")) {
+			bullets = append(bullets, "- Build system: Gradle")
+		}
+	case "python":
+		if exists(filepath.Join(root, "pyproject.toml")) {
+			bullets = append(bullets, "- Dependency manifest: `pyproject.toml`")
+		}
+		if exists(filepath.Join(root, "requirements.txt")) {
+			bullets = append(bullets, "- Dependency manifest: `requirements.txt`")
+		}
+	default:
+		bullets = buildNodeDependencies(root)
+	}
+
+	if len(bullets) == 0 {
+		bullets = append(bullets, "- No dependency manifest was detected automatically.")
+	}
+
+	lines = append(lines, bullets...)
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func buildGoEntryPoints(root string) []string {
+	seen := map[string]bool{}
+	var bullets []string
+
+	if mainFile := firstExisting(root, "main.go"); mainFile != "" {
+		appendEntryPoint(&bullets, seen, mainFile, "application bootstrap")
+	}
+
+	cmdDir := filepath.Join(root, "cmd")
+	entries, err := os.ReadDir(cmdDir)
+	if err != nil {
+		return bullets
+	}
+
+	var candidates []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		candidate := filepath.ToSlash(filepath.Join("cmd", entry.Name(), "main.go"))
+		if exists(filepath.Join(root, candidate)) {
+			candidates = append(candidates, candidate)
+		}
+	}
+	sort.Strings(candidates)
+	for _, candidate := range candidates {
+		appendEntryPoint(&bullets, seen, candidate, "Go command entry point")
+	}
+
+	return bullets
+}
+
+func buildJavaEntryPoints(root string) []string {
+	var matches []string
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if shouldSkipDiscoveryDir(root, path) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		base := strings.ToLower(filepath.Base(path))
+		if strings.HasSuffix(base, "application.java") || base == "main.java" {
+			rel, relErr := filepath.Rel(root, path)
+			if relErr == nil {
+				matches = append(matches, filepath.ToSlash(rel))
+			}
+		}
+		return nil
+	})
+
+	sort.Strings(matches)
+	seen := map[string]bool{}
+	var bullets []string
+	for _, match := range matches {
+		appendEntryPoint(&bullets, seen, match, "Java application bootstrap")
+	}
+	return bullets
+}
+
+func buildPythonEntryPoints(root string) []string {
+	seen := map[string]bool{}
+	var bullets []string
+	for _, candidate := range []string{"main.py", "app.py", "manage.py", "src/main.py"} {
+		if exists(filepath.Join(root, candidate)) {
+			appendEntryPoint(&bullets, seen, candidate, "Python application entry point")
+		}
+	}
+	return bullets
+}
+
+func buildNodeEntryPoints(root string) []string {
+	seen := map[string]bool{}
+	var bullets []string
+
+	bootstrap := firstExisting(root, "src/main.tsx", "src/main.jsx", "src/index.tsx", "src/index.jsx", "main.tsx", "main.jsx", "src/main.ts", "src/main.js")
+	if bootstrap == "" {
+		bootstrap = firstFileContaining(root, "createRoot(")
+	}
+	if bootstrap != "" {
+		appendEntryPoint(&bullets, seen, bootstrap, summarizeEntryPoint(root, bootstrap))
+		if appShell := firstResolvedLocalJSImport(root, bootstrap); appShell != "" {
+			appendEntryPoint(&bullets, seen, appShell, summarizeEntryPoint(root, appShell))
+			if routerModule := firstResolvedLocalJSImport(root, appShell); looksLikeRouterModule(root, routerModule) {
+				appendEntryPoint(&bullets, seen, routerModule, summarizeEntryPoint(root, routerModule))
+			}
+		}
+	}
+
+	for _, candidate := range []string{"src/app/routes.ts", "src/app/routes.tsx", "src/routes.ts", "src/routes.tsx", "src/router.ts", "src/router.tsx"} {
+		if exists(filepath.Join(root, candidate)) {
+			appendEntryPoint(&bullets, seen, candidate, summarizeEntryPoint(root, candidate))
+		}
+	}
+
+	if routerModule := firstFileContaining(root, "createBrowserRouter("); routerModule != "" {
+		appendEntryPoint(&bullets, seen, routerModule, summarizeEntryPoint(root, routerModule))
+	}
+
+	return bullets
+}
+
+func buildNodeDependencies(root string) []string {
+	pkg, err := loadPackageManifest(root)
+	if err != nil {
+		return nil
+	}
+
+	var bullets []string
+
+	if runtime := collectPackageVersions(pkg, "react", "react-dom", "react-router", "react-router-dom", "next"); len(runtime) > 0 {
+		bullets = append(bullets, "- Runtime: "+strings.Join(runtime, ", "))
+	}
+
+	if build := collectPackageVersions(pkg, "vite", "@vitejs/plugin-react", "typescript", "tailwindcss", "@tailwindcss/vite"); len(build) > 0 {
+		bullets = append(bullets, "- Build and styling: "+strings.Join(build, ", "))
+	}
+
+	var ui []string
+	ui = append(ui, collectPackageVersions(pkg, "@mui/material", "@mui/icons-material", "@emotion/react", "@emotion/styled", "lucide-react")...)
+	if radixCount := countPackagesWithPrefix(pkg, "@radix-ui/"); radixCount > 0 {
+		ui = append(ui, fmt.Sprintf("%d Radix UI primitives", radixCount))
+	}
+	if len(ui) > 0 {
+		bullets = append(bullets, "- UI system: "+strings.Join(ui, ", "))
+	}
+
+	if feature := collectPackageVersions(pkg, "motion", "recharts", "react-hook-form", "date-fns", "sonner", "embla-carousel-react"); len(feature) > 0 {
+		bullets = append(bullets, "- Product features: "+strings.Join(feature, ", "))
+	}
+
+	if len(bullets) == 0 {
+		if fallback := topPackageVersions(pkg, 8); len(fallback) > 0 {
+			bullets = append(bullets, "- Packages: "+strings.Join(fallback, ", "))
+		}
+	}
+
+	return bullets
+}
+
+func appendEntryPoint(lines *[]string, seen map[string]bool, rel, summary string) {
+	rel = filepath.ToSlash(rel)
+	if rel == "" || seen[rel] {
+		return
+	}
+	*lines = append(*lines, fmt.Sprintf("- `%s`: %s", rel, summary))
+	seen[rel] = true
+}
+
+func summarizeEntryPoint(root, rel string) string {
+	data, err := os.ReadFile(filepath.Join(root, rel))
+	if err != nil {
+		return "application module"
+	}
+
+	text := strings.ToLower(string(data))
+	switch {
+	case strings.Contains(text, "createroot("):
+		return "React DOM bootstrap"
+	case strings.Contains(text, "routerprovider"):
+		return "application shell and router provider"
+	case strings.Contains(text, "createbrowserrouter("):
+		return "route table and page composition"
+	case strings.Contains(text, "express(") || strings.Contains(text, "fastify(") || strings.Contains(text, "app.listen("):
+		return "server bootstrap"
+	case strings.Contains(text, "export default function app") || strings.Contains(text, "function app("):
+		return "top-level application shell"
+	default:
+		return "application module"
+	}
+}
+
+func firstResolvedLocalJSImport(root, rel string) string {
+	data, err := os.ReadFile(filepath.Join(root, rel))
+	if err != nil {
+		return ""
+	}
+
+	for _, match := range localJSImportPattern.FindAllStringSubmatch(string(data), -1) {
+		specifier := strings.TrimSpace(match[1])
+		if !strings.HasPrefix(specifier, ".") {
+			continue
+		}
+		if resolved := resolveJSImport(root, filepath.Dir(rel), specifier); resolved != "" {
+			return resolved
+		}
+	}
+
+	return ""
+}
+
+func resolveJSImport(root, fromDir, specifier string) string {
+	base := filepath.Clean(filepath.Join(fromDir, specifier))
+	candidates := []string{base}
+	for _, ext := range []string{".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"} {
+		candidates = append(candidates, base+ext)
+		candidates = append(candidates, filepath.Join(base, "index"+ext))
+	}
+
+	for _, candidate := range candidates {
+		if !exists(filepath.Join(root, candidate)) {
+			continue
+		}
+		switch strings.ToLower(filepath.Ext(candidate)) {
+		case ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs":
+			return filepath.ToSlash(candidate)
+		}
+	}
+	return ""
+}
+
+func looksLikeRouterModule(root, rel string) bool {
+	if rel == "" {
+		return false
+	}
+	data, err := os.ReadFile(filepath.Join(root, rel))
+	if err != nil {
+		return false
+	}
+	text := strings.ToLower(string(data))
+	return strings.Contains(text, "createbrowserrouter(") || strings.Contains(text, "routerprovider") || strings.Contains(text, "routeobject")
+}
+
+func firstFileContaining(root, needle string) string {
+	match := ""
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if shouldSkipDiscoveryDir(root, path) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		switch strings.ToLower(filepath.Ext(path)) {
+		case ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs":
+		default:
+			return nil
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil
+		}
+		if strings.Contains(string(data), needle) {
+			rel, relErr := filepath.Rel(root, path)
+			if relErr == nil {
+				match = filepath.ToSlash(rel)
+				return io.EOF
+			}
+		}
+		return nil
+	})
+	return match
+}
+
+func shouldSkipDiscoveryDir(root, path string) bool {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return false
+	}
+	rel = filepath.ToSlash(rel)
+	if rel == "." {
+		return false
+	}
+	switch rel {
+	case ".git", ".namba", ".codex", ".agents", "dist", "external", "node_modules":
+		return true
+	}
+	return false
+}
+
+func loadPackageManifest(root string) (packageManifest, error) {
+	data, err := os.ReadFile(filepath.Join(root, "package.json"))
+	if err != nil {
+		return packageManifest{}, err
+	}
+	var pkg packageManifest
+	if err := json.Unmarshal(data, &pkg); err != nil {
+		return packageManifest{}, err
+	}
+	return pkg, nil
+}
+
+func collectPackageVersions(pkg packageManifest, names ...string) []string {
+	var labels []string
+	for _, name := range names {
+		if version := packageVersion(pkg, name); version != "" {
+			labels = append(labels, fmt.Sprintf("%s@%s", name, version))
+		}
+	}
+	return labels
+}
+
+func packageVersion(pkg packageManifest, name string) string {
+	for _, group := range []map[string]string{pkg.Dependencies, pkg.DevDependencies, pkg.PeerDependencies} {
+		if version, ok := group[name]; ok {
+			return version
+		}
+	}
+	return ""
+}
+
+func countPackagesWithPrefix(pkg packageManifest, prefix string) int {
+	seen := map[string]bool{}
+	for _, group := range []map[string]string{pkg.Dependencies, pkg.DevDependencies, pkg.PeerDependencies} {
+		for name := range group {
+			if strings.HasPrefix(name, prefix) {
+				seen[name] = true
+			}
+		}
+	}
+	return len(seen)
+}
+
+func topPackageVersions(pkg packageManifest, limit int) []string {
+	seen := map[string]bool{}
+	var names []string
+	for _, group := range []map[string]string{pkg.Dependencies, pkg.DevDependencies, pkg.PeerDependencies} {
+		for name := range group {
+			if seen[name] {
+				continue
+			}
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	if len(names) > limit {
+		names = names[:limit]
+	}
+
+	var labels []string
+	for _, name := range names {
+		labels = append(labels, fmt.Sprintf("%s@%s", name, packageVersion(pkg, name)))
+	}
+	return labels
+}
+
+func readGoModule(root string) string {
+	data, err := os.ReadFile(filepath.Join(root, "go.mod"))
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "module ") {
+			return strings.TrimSpace(strings.TrimPrefix(trimmed, "module "))
+		}
+	}
+	return ""
 }
 
 func buildAcceptanceDoc(description, mode string) string {

@@ -246,6 +246,86 @@ func TestProjectRunDryRunAndSync(t *testing.T) {
 	mustExist(t, filepath.Join(tmp, ".namba", "project", "pr-checklist.md"))
 }
 
+func TestProjectGeneratesReactCodemaps(t *testing.T) {
+	tmp := t.TempDir()
+	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	if err := os.MkdirAll(filepath.Join(tmp, "src", "app"), 0o755); err != nil {
+		t.Fatalf("mkdir src/app: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "package.json"), []byte(`{
+  "name": "aura",
+  "dependencies": {
+    "react-router": "7.13.0",
+    "@mui/material": "7.3.5",
+    "@emotion/react": "11.14.0",
+    "motion": "12.23.24",
+    "sonner": "2.0.3",
+    "@radix-ui/react-dialog": "1.1.6"
+  },
+  "devDependencies": {
+    "vite": "6.3.5",
+    "@vitejs/plugin-react": "4.7.0",
+    "tailwindcss": "4.1.12"
+  },
+  "peerDependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}`), 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "src", "main.tsx"), []byte(`import { createRoot } from "react-dom/client";
+import App from "./app/App";
+
+createRoot(document.getElementById("root")!).render(<App />);
+`), 0o644); err != nil {
+		t.Fatalf("write src/main.tsx: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "src", "app", "App.tsx"), []byte(`import { RouterProvider } from "react-router";
+import { router } from "./routes";
+
+export default function App() {
+  return <RouterProvider router={router} />;
+}
+`), 0o644); err != nil {
+		t.Fatalf("write src/app/App.tsx: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "src", "app", "routes.ts"), []byte(`import { createBrowserRouter } from "react-router";
+
+export const router = createBrowserRouter([]);
+`), 0o644); err != nil {
+		t.Fatalf("write src/app/routes.ts: %v", err)
+	}
+
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdir(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"project"}); err != nil {
+		t.Fatalf("project failed: %v", err)
+	}
+
+	entryPoints := mustRead(t, filepath.Join(tmp, ".namba", "project", "codemaps", "entry-points.md"))
+	if !strings.Contains(entryPoints, "`src/main.tsx`") || !strings.Contains(entryPoints, "`src/app/App.tsx`") || !strings.Contains(entryPoints, "`src/app/routes.ts`") {
+		t.Fatalf("expected React entry points, got: %s", entryPoints)
+	}
+	if strings.Contains(entryPoints, "cmd/namba/main.go") {
+		t.Fatalf("expected project entry points instead of Namba CLI defaults, got: %s", entryPoints)
+	}
+
+	deps := mustRead(t, filepath.Join(tmp, ".namba", "project", "codemaps", "dependencies.md"))
+	if !strings.Contains(deps, "react@18.3.1") || !strings.Contains(deps, "react-router@7.13.0") || !strings.Contains(deps, "vite@6.3.5") {
+		t.Fatalf("expected package.json-driven dependency summary, got: %s", deps)
+	}
+	if !strings.Contains(deps, "Radix UI primitives") {
+		t.Fatalf("expected grouped UI dependency summary, got: %s", deps)
+	}
+}
+
 func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 	t.Parallel()
 
