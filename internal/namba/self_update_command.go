@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -41,6 +43,15 @@ func (a *App) runUpdate(ctx context.Context, args []string) error {
 	archiveData, err := a.downloadURL(ctx, url)
 	if err != nil {
 		return formatUpdateDownloadError(err, url, opts.Version, assetName)
+	}
+
+	checksumsURL := releaseDownloadURL(opts.Version, "checksums.txt")
+	checksumsData, err := a.downloadURL(ctx, checksumsURL)
+	if err != nil {
+		return formatUpdateDownloadError(err, checksumsURL, opts.Version, "checksums.txt")
+	}
+	if err := verifyUpdateChecksum(assetName, archiveData, checksumsData); err != nil {
+		return err
 	}
 
 	binary, err := extractUpdatedBinary(assetName, archiveData)
@@ -104,6 +115,46 @@ func formatUpdateDownloadError(err error, url, version, assetName string) error 
 		return fmt.Errorf("failed to download %s (404). Release %q was not found, or it does not contain %s", url, version, assetName)
 	}
 	return fmt.Errorf("download update archive: %w", err)
+}
+
+func verifyUpdateChecksum(assetName string, archiveData, checksumsData []byte) error {
+	expected, err := parseChecksumManifest(assetName, checksumsData)
+	if err != nil {
+		return err
+	}
+
+	actualSum := sha256.Sum256(archiveData)
+	actual := hex.EncodeToString(actualSum[:])
+	if actual != expected {
+		return fmt.Errorf("checksum mismatch for %s", assetName)
+	}
+
+	return nil
+}
+
+func parseChecksumManifest(assetName string, checksumsData []byte) (string, error) {
+	for _, line := range strings.Split(string(checksumsData), "\n") {
+		fields := strings.Fields(strings.TrimSpace(line))
+		if len(fields) < 2 {
+			continue
+		}
+
+		name := strings.TrimPrefix(fields[len(fields)-1], "*")
+		if name != assetName {
+			continue
+		}
+
+		sum := strings.ToLower(fields[0])
+		if len(sum) != 64 {
+			return "", fmt.Errorf("invalid checksum for %s", assetName)
+		}
+		if _, err := hex.DecodeString(sum); err != nil {
+			return "", fmt.Errorf("invalid checksum for %s", assetName)
+		}
+		return sum, nil
+	}
+
+	return "", fmt.Errorf("checksums.txt does not contain %s", assetName)
 }
 
 func extractUpdatedBinary(assetName string, archiveData []byte) ([]byte, error) {
