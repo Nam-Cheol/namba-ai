@@ -27,11 +27,19 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), []byte("runner: codex\napproval_policy: never\nsandbox_mode: read-only\n"), 0o644); err != nil {
 		t.Fatalf("write system config: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Join(tmp, ".codex", "skills", "namba"), 0o755); err != nil {
+	legacySkillPath := filepath.Join(tmp, ".codex", "skills", "namba", "SKILL.md")
+	if err := os.MkdirAll(filepath.Dir(legacySkillPath), 0o755); err != nil {
 		t.Fatalf("mkdir stale compat skill: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tmp, ".codex", "skills", "namba", "SKILL.md"), []byte("stale compat skill\n"), 0o644); err != nil {
+	if err := os.WriteFile(legacySkillPath, []byte("stale compat skill\n"), 0o644); err != nil {
 		t.Fatalf("write stale compat skill: %v", err)
+	}
+	customSkillPath := filepath.Join(tmp, ".codex", "skills", "custom-skill", "SKILL.md")
+	if err := os.MkdirAll(filepath.Dir(customSkillPath), 0o755); err != nil {
+		t.Fatalf("mkdir custom skill: %v", err)
+	}
+	if err := os.WriteFile(customSkillPath, []byte("user custom skill\n"), 0o644); err != nil {
+		t.Fatalf("write custom skill: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(tmp, "AGENTS.md"), []byte("stale\n"), 0o644); err != nil {
 		t.Fatalf("write AGENTS: %v", err)
@@ -56,8 +64,11 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(runSkill, "$namba-run") || !strings.Contains(runSkill, "namba run SPEC-XXX") {
 		t.Fatalf("expected command-entry run skill, got %q", runSkill)
 	}
-	if _, err := os.Stat(filepath.Join(tmp, ".codex", "skills")); !os.IsNotExist(err) {
-		t.Fatalf("expected deprecated codex skills mirror to be removed, stat err=%v", err)
+	if _, err := os.Stat(legacySkillPath); !os.IsNotExist(err) {
+		t.Fatalf("expected legacy codex skill mirror to be removed, stat err=%v", err)
+	}
+	if _, err := os.Stat(customSkillPath); err != nil {
+		t.Fatalf("expected custom codex skill to be preserved, stat err=%v", err)
 	}
 
 	config := mustReadFile(t, filepath.Join(tmp, ".codex", "config.toml"))

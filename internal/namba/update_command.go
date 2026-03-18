@@ -30,6 +30,9 @@ func (a *App) runRegen(_ context.Context, args []string) error {
 	for rel, body := range codexScaffoldFiles(profile) {
 		outputs[rel] = body
 	}
+	if err := removeLegacyCodexSkillMirror(root); err != nil {
+		return err
+	}
 	if err := a.replaceManagedOutputs(root, outputs, isRegenManagedPath); err != nil {
 		return err
 	}
@@ -39,10 +42,6 @@ func (a *App) runRegen(_ context.Context, args []string) error {
 }
 
 func (a *App) replaceManagedOutputs(root string, outputs map[string]string, managed func(string) bool) error {
-	if err := os.RemoveAll(filepath.Join(root, ".codex", "skills")); err != nil {
-		return fmt.Errorf("remove deprecated codex skill mirror: %w", err)
-	}
-
 	manifest, err := a.readManifest(root)
 	if err != nil {
 		return err
@@ -86,4 +85,49 @@ func isRegenManagedPath(rel string) bool {
 	default:
 		return false
 	}
+}
+
+func removeLegacyCodexSkillMirror(root string) error {
+	for _, rel := range legacyCodexSkillMirrorPaths() {
+		if err := os.RemoveAll(filepath.Join(root, filepath.FromSlash(rel))); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("remove deprecated codex skill mirror %s: %w", rel, err)
+		}
+	}
+	legacyRoot := filepath.Join(root, ".codex", "skills")
+	entries, err := os.ReadDir(legacyRoot)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("read deprecated codex skills dir: %w", err)
+	}
+	if len(entries) == 0 {
+		if err := os.Remove(legacyRoot); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("remove empty deprecated codex skills dir: %w", err)
+		}
+	}
+	return nil
+}
+
+func legacyCodexSkillMirrorPaths() []string {
+	names := []string{
+		"namba",
+		"namba-init",
+		"namba-project",
+		"namba-regen",
+		"namba-update",
+		"namba-plan",
+		"namba-fix",
+		"namba-run",
+		"namba-sync",
+		"namba-foundation-core",
+		"namba-workflow-init",
+		"namba-workflow-project",
+		"namba-workflow-execution",
+	}
+	paths := make([]string, 0, len(names))
+	for _, name := range names {
+		paths = append(paths, filepath.ToSlash(filepath.Join(".codex", "skills", name)))
+	}
+	return paths
 }
