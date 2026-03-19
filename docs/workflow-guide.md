@@ -6,11 +6,13 @@
 
 [Getting Started](./getting-started.md) | [Workflow Guide](./workflow-guide.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
-## `update`, `regen`, and `sync` are different commands
+## `update`, `regen`, `sync`, `pr`, and `land` are different commands
 
 - `namba update`: self-update the installed CLI from GitHub Release assets
 - `namba regen`: regenerate AGENTS, skills, custom agents, and repo Codex config
 - `namba sync`: refresh README, project docs, codemaps, PR checklists, and release notes
+- `namba pr`: run sync plus validation by default, commit and push the current branch, open or reuse the PR, and ensure the Codex review marker exists
+- `namba land`: optionally wait for checks, merge only when the PR is clean, and update local `main` safely
 
 ## Key generated assets
 
@@ -22,8 +24,8 @@
 ## Collaboration defaults
 
 - Work happens on dedicated branches.
-- PRs target `main`.
-- PR title and body follow the selected PR language.
+- `namba pr` targets `main` and keeps the configured PR language plus review marker aligned.
+- `namba land` merges only clean PRs and updates local `main` without clobbering unrelated work.
 - GitHub review requests use `@codex review`.
 
 ## Release flow

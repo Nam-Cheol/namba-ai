@@ -44,6 +44,8 @@ func codexSkillTemplates(profile initProfile) map[string]string {
 		filepath.ToSlash(filepath.Join("namba-plan", "SKILL.md")):               renderPlanCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-fix", "SKILL.md")):                renderFixCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-run", "SKILL.md")):                renderRunCommandSkill(profile),
+		filepath.ToSlash(filepath.Join("namba-pr", "SKILL.md")):                 renderPRCommandSkill(profile),
+		filepath.ToSlash(filepath.Join("namba-land", "SKILL.md")):               renderLandCommandSkill(profile),
 		filepath.ToSlash(filepath.Join("namba-sync", "SKILL.md")):               renderSyncCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-foundation-core", "SKILL.md")):    renderFoundationSkill(),
 		filepath.ToSlash(filepath.Join("namba-workflow-init", "SKILL.md")):      renderInitSkill(),

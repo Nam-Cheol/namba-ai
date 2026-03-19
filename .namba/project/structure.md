@@ -7,7 +7,9 @@
 .agents\skills\namba-fix
 .agents\skills\namba-foundation-core
 .agents\skills\namba-init
+.agents\skills\namba-land
 .agents\skills\namba-plan
+.agents\skills\namba-pr
 .agents\skills\namba-project
 .agents\skills\namba-regen
 .agents\skills\namba-run
@@ -108,6 +110,8 @@ internal\namba\namba.go
 internal\namba\parallel_run.go
 internal\namba\parallel_run_test.go
 internal\namba\parallel_test.go
+internal\namba\pr_land_command.go
+internal\namba\pr_land_command_test.go
 internal\namba\readme.go
 internal\namba\release.go
 internal\namba\release_command.go
