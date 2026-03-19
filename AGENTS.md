@@ -10,7 +10,7 @@ When the user references `namba`, `namba project`, `namba regen`, `namba update`
 - Use the installed `namba` CLI for `init`, `doctor`, `project`, `regen`, `update`, `plan`, `fix`, `pr`, `land`, and `sync` when it is available and the command should mutate repo state or maintain the installed CLI directly.
 - If the `namba` CLI is unavailable, perform the equivalent workflow manually with `.namba/` as the source of truth.
 - Use repo skills under `.agents/skills/` as the single skill surface. Command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, and `$namba-plan` replace provider-specific custom command wrappers.
-- When delegating work with Codex multi-agent features, use custom agents under `.codex/agents/*.toml` and keep `.md` role cards as readable mirrors.
+- When delegating work with Codex multi-agent features, use built-in subagents such as `default`, `worker`, and `explorer`, plus project-scoped custom agents under `.codex/agents/*.toml`; keep `.md` role cards as readable mirrors.
 
 ## Workflow
 

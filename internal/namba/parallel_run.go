@@ -93,7 +93,7 @@ func (a *App) executeParallelRun(ctx context.Context, root string, specPkg specP
 			continue
 		}
 
-		request := a.newExecutionRequest(specPkg.ID, path, workerPrompt, systemCfg)
+		request := a.newExecutionRequest(specPkg.ID, path, workerPrompt, executionModeParallel, suggestDelegationPlan(executionModeParallel, workerPrompt, "", ""), systemCfg)
 		execResult, validationReport, runErr := a.executeRun(ctx, root, name, request, path, qualityCfg)
 		result.ExecutionPassed = execResult.Succeeded
 		result.ValidationPassed = validationReport.Passed

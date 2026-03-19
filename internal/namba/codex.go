@@ -21,17 +21,66 @@ func codexScaffoldFiles(profile initProfile) map[string]string {
 		filepath.ToSlash(filepath.Join(codexStateDir, "output-contract.md")):          renderOutputContractDocLocalized(profile),
 		filepath.ToSlash(filepath.Join(codexStateDir, "validate-output-contract.py")): renderOutputContractValidatorLocalized(profile),
 		filepath.ToSlash(repoCodexConfigPath):                                         renderRepoCodexConfig(profile),
-		filepath.ToSlash(filepath.Join(repoCodexAgentsDir, "namba-planner.md")):       renderPlannerRoleCard(),
-		filepath.ToSlash(filepath.Join(repoCodexAgentsDir, "namba-planner.toml")):     renderPlannerCustomAgent(),
-		filepath.ToSlash(filepath.Join(repoCodexAgentsDir, "namba-implementer.md")):   renderImplementerRoleCard(),
-		filepath.ToSlash(filepath.Join(repoCodexAgentsDir, "namba-implementer.toml")): renderImplementerCustomAgent(),
-		filepath.ToSlash(filepath.Join(repoCodexAgentsDir, "namba-reviewer.md")):      renderReviewerRoleCard(),
-		filepath.ToSlash(filepath.Join(repoCodexAgentsDir, "namba-reviewer.toml")):    renderReviewerCustomAgent(),
+	}
+	for rel, content := range codexAgentTemplates() {
+		files[filepath.ToSlash(filepath.Join(repoCodexAgentsDir, rel))] = content
 	}
 	for rel, content := range codexSkillTemplates(profile) {
 		files[filepath.ToSlash(filepath.Join(repoSkillsDir, rel))] = content
 	}
 	return files
+}
+
+func codexAgentTemplates() map[string]string {
+	return map[string]string{
+		"namba-planner.md":                renderPlannerRoleCard(),
+		"namba-planner.toml":              renderPlannerCustomAgent(),
+		"namba-product-manager.md":        renderProductManagerRoleCard(),
+		"namba-product-manager.toml":      renderProductManagerCustomAgent(),
+		"namba-frontend-architect.md":     renderFrontendArchitectRoleCard(),
+		"namba-frontend-architect.toml":   renderFrontendArchitectCustomAgent(),
+		"namba-frontend-implementer.md":   renderFrontendImplementerRoleCard(),
+		"namba-frontend-implementer.toml": renderFrontendImplementerCustomAgent(),
+		"namba-mobile-engineer.md":        renderMobileEngineerRoleCard(),
+		"namba-mobile-engineer.toml":      renderMobileEngineerCustomAgent(),
+		"namba-designer.md":               renderDesignerRoleCard(),
+		"namba-designer.toml":             renderDesignerCustomAgent(),
+		"namba-backend-architect.md":      renderBackendArchitectRoleCard(),
+		"namba-backend-architect.toml":    renderBackendArchitectCustomAgent(),
+		"namba-backend-implementer.md":    renderBackendImplementerRoleCard(),
+		"namba-backend-implementer.toml":  renderBackendImplementerCustomAgent(),
+		"namba-data-engineer.md":          renderDataEngineerRoleCard(),
+		"namba-data-engineer.toml":        renderDataEngineerCustomAgent(),
+		"namba-security-engineer.md":      renderSecurityEngineerRoleCard(),
+		"namba-security-engineer.toml":    renderSecurityEngineerCustomAgent(),
+		"namba-test-engineer.md":          renderTestEngineerRoleCard(),
+		"namba-test-engineer.toml":        renderTestEngineerCustomAgent(),
+		"namba-devops-engineer.md":        renderDevOpsEngineerRoleCard(),
+		"namba-devops-engineer.toml":      renderDevOpsEngineerCustomAgent(),
+		"namba-implementer.md":            renderImplementerRoleCard(),
+		"namba-implementer.toml":          renderImplementerCustomAgent(),
+		"namba-reviewer.md":               renderReviewerRoleCard(),
+		"namba-reviewer.toml":             renderReviewerCustomAgent(),
+	}
+}
+
+func requiredCodexAgentFiles() []string {
+	return []string{
+		"namba-planner.toml",
+		"namba-product-manager.toml",
+		"namba-frontend-architect.toml",
+		"namba-frontend-implementer.toml",
+		"namba-mobile-engineer.toml",
+		"namba-designer.toml",
+		"namba-backend-architect.toml",
+		"namba-backend-implementer.toml",
+		"namba-data-engineer.toml",
+		"namba-security-engineer.toml",
+		"namba-test-engineer.toml",
+		"namba-devops-engineer.toml",
+		"namba-implementer.toml",
+		"namba-reviewer.toml",
+	}
 }
 
 func codexSkillTemplates(profile initProfile) map[string]string {
@@ -63,10 +112,18 @@ func codexNativeIssues(root string) []string {
 		{label: ".agents/skills/namba/SKILL.md", path: filepath.Join(root, ".agents", "skills", "namba", "SKILL.md")},
 		{label: ".agents/skills/namba-run/SKILL.md", path: filepath.Join(root, ".agents", "skills", "namba-run", "SKILL.md")},
 		{label: ".codex/config.toml", path: filepath.Join(root, ".codex", "config.toml")},
-		{label: ".codex/agents/namba-planner.toml", path: filepath.Join(root, ".codex", "agents", "namba-planner.toml")},
 		{label: ".namba/codex/output-contract.md", path: filepath.Join(root, ".namba", "codex", "output-contract.md")},
 		{label: ".namba/codex/validate-output-contract.py", path: filepath.Join(root, ".namba", "codex", "validate-output-contract.py")},
 		{label: ".namba/config/sections/codex.yaml", path: filepath.Join(root, ".namba", "config", "sections", "codex.yaml")},
+	}
+	for _, rel := range requiredCodexAgentFiles() {
+		checks = append(checks, struct {
+			label string
+			path  string
+		}{
+			label: filepath.ToSlash(filepath.Join(repoCodexAgentsDir, rel)),
+			path:  filepath.Join(root, repoCodexAgentsDir, rel),
+		})
 	}
 	return missingChecks(checks)
 }

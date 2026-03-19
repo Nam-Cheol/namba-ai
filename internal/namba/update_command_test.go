@@ -64,6 +64,9 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(runSkill, "$namba-run") || !strings.Contains(runSkill, "namba run SPEC-XXX") {
 		t.Fatalf("expected command-entry run skill, got %q", runSkill)
 	}
+	if !strings.Contains(runSkill, "`--solo`, `--team`, `--parallel`, `--dry-run`") {
+		t.Fatalf("expected run skill to describe standalone run modes, got %q", runSkill)
+	}
 	prSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-pr", "SKILL.md"))
 	if !strings.Contains(prSkill, "$namba-pr") || !strings.Contains(prSkill, "namba pr") {
 		t.Fatalf("expected command-entry pr skill, got %q", prSkill)
@@ -91,8 +94,13 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(codexReadme, "`namba regen` regenerates") || !strings.Contains(codexReadme, "`namba update` self-updates") {
 		t.Fatalf("expected codex README to describe regen/update semantics, got %q", codexReadme)
 	}
-	if !strings.Contains(codexReadme, ".codex/agents/*.toml") {
-		t.Fatalf("expected codex README to describe custom agents, got %q", codexReadme)
+	if !strings.Contains(codexReadme, ".codex/agents/*.toml") || !strings.Contains(codexReadme, "`default`, `worker`, and `explorer`") {
+		t.Fatalf("expected codex README to describe built-in and custom agents, got %q", codexReadme)
+	}
+	for _, want := range []string{"## Namba Custom Agent Roster", "## Delegation Heuristics", "`namba-product-manager`", "`namba-mobile-engineer`", "`namba-designer`", "`namba-data-engineer`", "`namba-security-engineer`", "`namba-test-engineer`", "`namba-devops-engineer`"} {
+		if !strings.Contains(codexReadme, want) {
+			t.Fatalf("expected codex README to contain %q, got %q", want, codexReadme)
+		}
 	}
 	if !strings.Contains(codexReadme, "$namba-run") || strings.Contains(codexReadme, ".codex/skills/") {
 		t.Fatalf("expected codex README to describe command-entry skills without codex skill mirror, got %q", codexReadme)
@@ -106,8 +114,8 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(codexReadme, "`namba pr`") || !strings.Contains(codexReadme, "`namba land`") {
 		t.Fatalf("expected codex README to describe PR handoff commands, got %q", codexReadme)
 	}
-	if !strings.Contains(codexReadme, "`namba run SPEC-XXX --parallel`") {
-		t.Fatalf("expected codex README to describe standalone parallel semantics, got %q", codexReadme)
+	if !strings.Contains(codexReadme, "`namba run SPEC-XXX --solo`") || !strings.Contains(codexReadme, "`namba run SPEC-XXX --team`") || !strings.Contains(codexReadme, "`namba run SPEC-XXX --parallel`") {
+		t.Fatalf("expected codex README to describe standalone run modes, got %q", codexReadme)
 	}
 
 	outputContractDoc := mustReadFile(t, filepath.Join(tmp, ".namba", "codex", "output-contract.md"))
@@ -120,13 +128,57 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 		t.Fatalf("expected output contract validator, got %q", validator)
 	}
 
-	customAgent := mustReadFile(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.toml"))
-	if !strings.Contains(customAgent, `name = "namba-planner"`) || !strings.Contains(customAgent, `developer_instructions = """`) {
-		t.Fatalf("expected regenerated custom agent TOML, got %q", customAgent)
+	agentFiles := []struct {
+		path     string
+		snippets []string
+	}{
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-planner.toml"), snippets: []string{`name = "namba-planner"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "high"`, `developer_instructions = """`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-product-manager.toml"), snippets: []string{`name = "namba-product-manager"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-architect.toml"), snippets: []string{`name = "namba-frontend-architect"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-implementer.toml"), snippets: []string{`name = "namba-frontend-implementer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-mobile-engineer.toml"), snippets: []string{`name = "namba-mobile-engineer"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-designer.toml"), snippets: []string{`name = "namba-designer"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-backend-architect.toml"), snippets: []string{`name = "namba-backend-architect"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-backend-implementer.toml"), snippets: []string{`name = "namba-backend-implementer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-data-engineer.toml"), snippets: []string{`name = "namba-data-engineer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-security-engineer.toml"), snippets: []string{`name = "namba-security-engineer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4"`, `model_reasoning_effort = "high"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-test-engineer.toml"), snippets: []string{`name = "namba-test-engineer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-devops-engineer.toml"), snippets: []string{`name = "namba-devops-engineer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-implementer.toml"), snippets: []string{`name = "namba-implementer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-reviewer.toml"), snippets: []string{`name = "namba-reviewer"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "high"`}},
+	}
+	for _, tc := range agentFiles {
+		content := mustReadFile(t, tc.path)
+		for _, snippet := range tc.snippets {
+			if !strings.Contains(content, snippet) {
+				t.Fatalf("expected %s to contain %q, got %q", tc.path, snippet, content)
+			}
+		}
 	}
 
-	roleCard := mustReadFile(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.md"))
-	if !strings.Contains(roleCard, "# Namba Planner") {
-		t.Fatalf("expected readable role-card mirror, got %q", roleCard)
+	roleCards := []struct {
+		path    string
+		heading string
+	}{
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-planner.md"), heading: "# Namba Planner"},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-product-manager.md"), heading: "# Namba Product Manager"},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-architect.md"), heading: "# Namba Frontend Architect"},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-implementer.md"), heading: "# Namba Frontend Implementer"},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-mobile-engineer.md"), heading: "# Namba Mobile Engineer"},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-designer.md"), heading: "# Namba Designer"},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-backend-architect.md"), heading: "# Namba Backend Architect"},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-backend-implementer.md"), heading: "# Namba Backend Implementer"},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-data-engineer.md"), heading: "# Namba Data Engineer"},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-security-engineer.md"), heading: "# Namba Security Engineer"},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-test-engineer.md"), heading: "# Namba Test Engineer"},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-devops-engineer.md"), heading: "# Namba DevOps Engineer"},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-implementer.md"), heading: "# Namba Implementer"},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-reviewer.md"), heading: "# Namba Reviewer"},
+	}
+	for _, tc := range roleCards {
+		content := mustReadFile(t, tc.path)
+		if !strings.Contains(content, tc.heading) {
+			t.Fatalf("expected readable role-card mirror %s to contain %q, got %q", tc.path, tc.heading, content)
+		}
 	}
 }

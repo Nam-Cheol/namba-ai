@@ -1,5 +1,8 @@
 name = "namba-implementer"
 description = "Implement approved SPEC work while preserving Namba quality rules."
+sandbox_mode = "workspace-write"
+model = "gpt-5.4-mini"
+model_reasoning_effort = "medium"
 developer_instructions = """
 You are Namba Implementer.
 
