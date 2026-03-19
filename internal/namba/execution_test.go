@@ -52,8 +52,27 @@ func TestRunWritesStructuredLogs(t *testing.T) {
 	if result.Runner != "codex" {
 		t.Fatalf("expected codex runner, got %s", result.Runner)
 	}
+	if result.ExecutionMode != "default" {
+		t.Fatalf("expected default execution mode, got %+v", result)
+	}
 	if result.ApprovalPolicy != "on-request" || result.SandboxMode != "workspace-write" {
 		t.Fatalf("unexpected runtime modes: %+v", result)
+	}
+	if result.DelegationObserved {
+		t.Fatalf("expected standalone runner logs to record plan, not observed delegation: %+v", result)
+	}
+	if result.DelegationSummary == "" || result.DelegationPlan.IntegratorRole != "standalone-runner" {
+		t.Fatalf("expected delegation summary and integrator role in execution result: %+v", result)
+	}
+
+	requestJSON := mustReadExecutionRequest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-request.json"))
+	if requestJSON.DelegationPlan.IntegratorRole != "standalone-runner" {
+		t.Fatalf("expected request json to persist delegation plan: %+v", requestJSON)
+	}
+
+	request := mustReadFile(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-request.md"))
+	if !strings.Contains(request, "- Mode: default") || !strings.Contains(request, "## Delegation Heuristics") || !strings.Contains(request, "Default mode keeps work inside the standalone runner") {
+		t.Fatalf("expected default mode prompt guidance with delegation heuristics, got %q", request)
 	}
 
 	report := mustReadValidationReport(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-validation.json"))
@@ -62,6 +81,199 @@ func TestRunWritesStructuredLogs(t *testing.T) {
 	}
 	if len(report.Steps) != 3 {
 		t.Fatalf("expected 3 validation steps, got %d", len(report.Steps))
+	}
+}
+
+func TestBuildExecutionPromptIncludesModeGuidance(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	specPkg, err := app.loadSpec(tmp, "SPEC-001")
+	if err != nil {
+		t.Fatalf("load spec: %v", err)
+	}
+	qualityCfg, err := app.loadQualityConfig(tmp)
+	if err != nil {
+		t.Fatalf("load quality config: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		mode executionMode
+		want []string
+	}{
+		{
+			name: "default",
+			mode: executionModeDefault,
+			want: []string{"- Mode: default", "standard standalone Codex run in one workspace", "Default mode keeps work inside the standalone runner"},
+		},
+		{
+			name: "solo",
+			mode: executionModeSolo,
+			want: []string{"- Mode: solo", "explicit single-subagent workflow", "Use at most one delegated specialist"},
+		},
+		{
+			name: "team",
+			mode: executionModeTeam,
+			want: []string{"- Mode: team", "explicit multi-subagent coordination", "Prefer one specialist when one domain dominates"},
+		},
+		{
+			name: "parallel",
+			mode: executionModeParallel,
+			want: []string{"- Mode: parallel", "Namba worktree parallel mode", "not Codex subagent orchestration"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prompt, _, plan, err := app.buildExecutionPrompt(tmp, specPkg, qualityCfg, tt.mode)
+			if err != nil {
+				t.Fatalf("buildExecutionPrompt failed: %v", err)
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(prompt, want) {
+					t.Fatalf("expected prompt to contain %q, got %q", want, prompt)
+				}
+			}
+			if !strings.Contains(prompt, "## Delegation Heuristics") || plan.IntegratorRole != "standalone-runner" {
+				t.Fatalf("expected delegation heuristics and integrator role, got prompt=%q plan=%+v", prompt, plan)
+			}
+		})
+	}
+}
+
+func TestSuggestDelegationPlanRoutesSpecialists(t *testing.T) {
+	teamPlan := suggestDelegationPlan(
+		executionModeTeam,
+		"Implement a mobile settings screen that stores auth tokens securely.",
+		"Update the mobile app layout, tighten token handling, and validate the acceptance path.",
+		`- [ ] Ship the mobile UI
+- [ ] Harden auth token storage
+- [ ] Add regression coverage`,
+	)
+	for _, want := range []string{"mobile", "security", "quality"} {
+		if !strings.Contains(strings.Join(teamPlan.DominantDomains, ","), want) {
+			t.Fatalf("expected dominant domains to include %q, got %+v", want, teamPlan)
+		}
+	}
+	for _, want := range []string{"namba-mobile-engineer", "namba-security-engineer", "namba-reviewer"} {
+		if !strings.Contains(strings.Join(teamPlan.SelectedRoles, ","), want) {
+			t.Fatalf("expected selected roles to include %q, got %+v", want, teamPlan)
+		}
+	}
+	for role, want := range map[string]agentRuntimeProfile{
+		"namba-mobile-engineer":   {Role: "namba-mobile-engineer", Model: "gpt-5.4", ModelReasoningEffort: "medium"},
+		"namba-security-engineer": {Role: "namba-security-engineer", Model: "gpt-5.4", ModelReasoningEffort: "high"},
+		"namba-reviewer":          {Role: "namba-reviewer", Model: "gpt-5.4", ModelReasoningEffort: "high"},
+	} {
+		found := false
+		for _, profile := range teamPlan.SelectedRoleProfiles {
+			if profile.Role == role {
+				found = true
+				if profile.Model != want.Model || profile.ModelReasoningEffort != want.ModelReasoningEffort {
+					t.Fatalf("unexpected runtime profile for %s: %+v", role, profile)
+				}
+			}
+		}
+		if !found {
+			t.Fatalf("expected runtime profile for %s, got %+v", role, teamPlan.SelectedRoleProfiles)
+		}
+	}
+	if prompt := strings.Join(formatDelegationPlanPrompt(teamPlan), "\n"); !strings.Contains(prompt, "model_reasoning_effort `high`") || !strings.Contains(prompt, "`namba-mobile-engineer` -> model `gpt-5.4`") {
+		t.Fatalf("expected team prompt to include role runtime metadata, got %q", prompt)
+	}
+	if teamPlan.DelegationBudget < 2 {
+		t.Fatalf("expected team delegation budget to allow multiple specialists, got %+v", teamPlan)
+	}
+
+	soloPlan := suggestDelegationPlan(
+		executionModeSolo,
+		"Implement responsive UI filters and browser accessibility states.",
+		"Update the screen component and responsive layout.",
+		"- [ ] Ship the UI updates",
+	)
+	if len(soloPlan.SelectedRoles) != 1 || soloPlan.SelectedRoles[0] != "namba-frontend-implementer" {
+		t.Fatalf("expected solo plan to choose one frontend specialist, got %+v", soloPlan)
+	}
+	if soloPlan.DelegationBudget != 1 {
+		t.Fatalf("expected solo delegation budget 1, got %+v", soloPlan)
+	}
+}
+
+func TestRunExecutesExplicitSubagentModes(t *testing.T) {
+	tests := []struct {
+		name string
+		flag string
+		mode string
+	}{
+		{name: "solo", flag: "--solo", mode: "solo"},
+		{name: "team", flag: "--team", mode: "team"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmp, app, restore := prepareExecutionProject(t)
+			defer restore()
+
+			var promptArg string
+			app.lookPath = func(name string) (string, error) {
+				if name == "codex" {
+					return name, nil
+				}
+				return "", errors.New("missing dependency")
+			}
+			app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+				switch {
+				case isCodexExec(name, args):
+					promptArg = args[len(args)-1]
+					return "runner output", nil
+				case isShellCommand(name):
+					return "validation ok", nil
+				default:
+					t.Fatalf("unexpected command: %s %v", name, args)
+					return "", nil
+				}
+			}
+
+			if err := app.Run(context.Background(), []string{"run", "SPEC-001", tt.flag}); err != nil {
+				t.Fatalf("run failed: %v", err)
+			}
+			if !strings.Contains(promptArg, "- Mode: "+tt.mode) {
+				t.Fatalf("expected prompt to include mode %s, got %q", tt.mode, promptArg)
+			}
+
+			result := mustReadExecutionResult(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-execution.json"))
+			if result.ExecutionMode != tt.mode {
+				t.Fatalf("expected execution mode %s, got %+v", tt.mode, result)
+			}
+		})
+	}
+}
+
+func TestRunRejectsConflictingExecutionModes(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "solo and team", args: []string{"run", "SPEC-001", "--solo", "--team"}, want: "--solo, --team"},
+		{name: "solo and parallel", args: []string{"run", "SPEC-001", "--solo", "--parallel"}, want: "--solo, --parallel"},
+		{name: "team and parallel", args: []string{"run", "SPEC-001", "--team", "--parallel"}, want: "--team, --parallel"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, app, restore := prepareExecutionProject(t)
+			defer restore()
+
+			err := app.Run(context.Background(), tt.args)
+			if err == nil {
+				t.Fatal("expected conflicting mode error")
+			}
+			if !strings.Contains(err.Error(), "invalid flag combination") || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
 	}
 }
 
@@ -340,6 +552,19 @@ func indexOfArg(args []string, needle string) int {
 		}
 	}
 	return -1
+}
+
+func mustReadExecutionRequest(t *testing.T, path string) executionRequest {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read execution request: %v", err)
+	}
+	var request executionRequest
+	if err := json.Unmarshal(data, &request); err != nil {
+		t.Fatalf("unmarshal execution request: %v", err)
+	}
+	return request
 }
 
 func mustReadExecutionResult(t *testing.T, path string) executionResult {

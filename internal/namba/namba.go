@@ -190,7 +190,7 @@ Usage:
   namba regen
   namba plan "<description>"
   namba fix "<description>"
-  namba run SPEC-XXX [--parallel] [--dry-run]
+  namba run SPEC-XXX [--solo|--team|--parallel] [--dry-run]
   namba sync
   namba pr "<title>" [--remote origin] [--no-sync] [--no-validate]
   namba land [PR_NUMBER] [--wait] [--remote origin]
@@ -452,30 +452,74 @@ func buildSpecAcceptanceDoc(kind, description, mode string) string {
 	return buildAcceptanceDoc(description, mode)
 }
 
+type runExecuteOptions struct {
+	specID string
+	mode   executionMode
+	dryRun bool
+}
+
+func parseRunExecuteOptions(args []string) (runExecuteOptions, error) {
+	if len(args) == 0 {
+		return runExecuteOptions{}, errors.New("run requires a SPEC id")
+	}
+
+	options := runExecuteOptions{specID: args[0], mode: executionModeDefault}
+	var solo bool
+	var team bool
+	var parallel bool
+	for _, arg := range args[1:] {
+		switch arg {
+		case "--solo":
+			solo = true
+		case "--team":
+			team = true
+		case "--parallel":
+			parallel = true
+		case "--dry-run":
+			options.dryRun = true
+		default:
+			return runExecuteOptions{}, fmt.Errorf("unknown flag %q", arg)
+		}
+	}
+
+	selectedModes := make([]string, 0, 3)
+	if solo {
+		selectedModes = append(selectedModes, "--solo")
+	}
+	if team {
+		selectedModes = append(selectedModes, "--team")
+	}
+	if parallel {
+		selectedModes = append(selectedModes, "--parallel")
+	}
+	if len(selectedModes) > 1 {
+		return runExecuteOptions{}, fmt.Errorf("invalid flag combination: choose only one of --solo, --team, or --parallel (got %s)", strings.Join(selectedModes, ", "))
+	}
+
+	switch {
+	case solo:
+		options.mode = executionModeSolo
+	case team:
+		options.mode = executionModeTeam
+	case parallel:
+		options.mode = executionModeParallel
+	}
+
+	return options, nil
+}
+
 func (a *App) runExecute(ctx context.Context, args []string) error {
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
 	}
-	if len(args) == 0 {
-		return errors.New("run requires a SPEC id")
+
+	options, err := parseRunExecuteOptions(args)
+	if err != nil {
+		return err
 	}
 
-	specID := args[0]
-	parallel := false
-	dryRun := false
-	for _, arg := range args[1:] {
-		switch arg {
-		case "--parallel":
-			parallel = true
-		case "--dry-run":
-			dryRun = true
-		default:
-			return fmt.Errorf("unknown flag %q", arg)
-		}
-	}
-
-	specPkg, err := a.loadSpec(root, specID)
+	specPkg, err := a.loadSpec(root, options.specID)
 	if err != nil {
 		return err
 	}
@@ -487,7 +531,7 @@ func (a *App) runExecute(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	prompt, tasks, err := a.buildExecutionPrompt(root, specPkg, qualityCfg)
+	prompt, tasks, delegation, err := a.buildExecutionPrompt(root, specPkg, qualityCfg, options.mode)
 	if err != nil {
 		return err
 	}
@@ -496,26 +540,26 @@ func (a *App) runExecute(ctx context.Context, args []string) error {
 	if err := os.MkdirAll(logDir, 0o755); err != nil {
 		return err
 	}
-	promptPath := filepath.Join(logDir, strings.ToLower(specID)+"-request.md")
+	promptPath := filepath.Join(logDir, strings.ToLower(options.specID)+"-request.md")
 	if err := os.WriteFile(promptPath, []byte(prompt), 0o644); err != nil {
 		return err
 	}
 
-	if parallel {
-		return a.runParallel(ctx, root, specPkg, tasks, prompt, qualityCfg, systemCfg, dryRun)
+	if options.mode == executionModeParallel {
+		return a.runParallel(ctx, root, specPkg, tasks, prompt, qualityCfg, systemCfg, options.dryRun)
 	}
 
-	if dryRun {
+	if options.dryRun {
 		fmt.Fprintf(a.stdout, "Prepared execution request at %s\n", promptPath)
 		return nil
 	}
 
-	request := a.newExecutionRequest(specPkg.ID, root, prompt, systemCfg)
-	if _, _, err := a.executeRun(ctx, root, strings.ToLower(specID), request, root, qualityCfg); err != nil {
+	request := a.newExecutionRequest(specPkg.ID, root, prompt, options.mode, delegation, systemCfg)
+	if _, _, err := a.executeRun(ctx, root, strings.ToLower(options.specID), request, root, qualityCfg); err != nil {
 		return err
 	}
 
-	fmt.Fprintf(a.stdout, "Executed %s with %s\n", specID, request.Runner)
+	fmt.Fprintf(a.stdout, "Executed %s with %s\n", options.specID, request.Runner)
 	return nil
 }
 
@@ -560,25 +604,36 @@ func (a *App) runSync(ctx context.Context, _ []string) error {
 	return nil
 }
 
-func (a *App) buildExecutionPrompt(root string, specPkg specPackage, qualityCfg qualityConfig) (string, []string, error) {
+func (a *App) buildExecutionPrompt(root string, specPkg specPackage, qualityCfg qualityConfig, mode executionMode) (string, []string, delegationPlan, error) {
 	specBytes, err := os.ReadFile(filepath.Join(specPkg.Path, "spec.md"))
 	if err != nil {
-		return "", nil, err
+		return "", nil, delegationPlan{}, err
 	}
 	planBytes, err := os.ReadFile(filepath.Join(specPkg.Path, "plan.md"))
 	if err != nil {
-		return "", nil, err
+		return "", nil, delegationPlan{}, err
 	}
 	acceptanceBytes, err := os.ReadFile(filepath.Join(specPkg.Path, "acceptance.md"))
 	if err != nil {
-		return "", nil, err
+		return "", nil, delegationPlan{}, err
 	}
 
 	tasks := extractAcceptanceTasks(string(acceptanceBytes))
-	prompt := strings.Join([]string{
+	mode = normalizeExecutionMode(mode)
+	modeGuidance := executionModePromptGuidance(mode)
+	delegation := suggestDelegationPlan(mode, string(specBytes), string(planBytes), string(acceptanceBytes))
+	promptLines := []string{
 		"# NambaAI Execution Request",
 		"",
 		"Execute this SPEC package using the repository AGENTS.md and local Codex skills.",
+		"",
+		"## Run Mode",
+		fmt.Sprintf("- Mode: %s", mode),
+	}
+	promptLines = append(promptLines, modeGuidance...)
+	promptLines = append(promptLines, "")
+	promptLines = append(promptLines, formatDelegationPlanPrompt(delegation)...)
+	promptLines = append(promptLines,
 		"",
 		"## SPEC",
 		string(specBytes),
@@ -595,10 +650,207 @@ func (a *App) buildExecutionPrompt(root string, specPkg specPackage, qualityCfg 
 		fmt.Sprintf("- typecheck: %s", qualityCfg.TypecheckCommand),
 		"",
 		fmt.Sprintf("Project root: %s", root),
-	}, "\n")
+	)
+	prompt := strings.Join(promptLines, "\n")
 
-	return prompt, tasks, nil
+	return prompt, tasks, delegation, nil
 }
+
+func executionModePromptGuidance(mode executionMode) []string {
+	switch normalizeExecutionMode(mode) {
+	case executionModeSolo:
+		return []string{
+			"- Execution style: standalone Codex run in one workspace with an explicit single-subagent workflow.",
+			"- Use at most one delegated specialist, and only when one domain clearly dominates the request.",
+			"- Keep the standalone runner responsible for integration and final validation in this workspace.",
+			"- Do not reinterpret this mode as worktree parallelism.",
+		}
+	case executionModeTeam:
+		return []string{
+			"- Execution style: standalone Codex run in one workspace with explicit multi-subagent coordination.",
+			"- Built-in Codex subagents include `default`, `worker`, and `explorer`; project-scoped custom agents live under `.codex/agents/*.toml`.",
+			"- Prefer one specialist when one domain dominates, and expand to two or three only when acceptance spans multiple domains.",
+			"- Keep the standalone runner as the integrator and final validation owner, and use `namba-reviewer` last when multiple specialists contribute.",
+			"- Do not reinterpret this mode as worktree parallelism.",
+		}
+	case executionModeParallel:
+		return []string{
+			"- Execution style: Namba worktree parallel mode.",
+			"- This mode means git worktree fan-out/fan-in managed by Namba, not Codex subagent orchestration.",
+			"- Each worker request should stay within its assigned work package and merge only after all workers and validators pass.",
+		}
+	default:
+		return []string{
+			"- Execution style: standard standalone Codex run in one workspace.",
+			"- Keep work inside the standalone runner unless the prompt's delegation heuristics identify a strong reason to use a specialist.",
+			"- Do not reinterpret this mode as worktree parallelism.",
+		}
+	}
+}
+
+type delegationDomainConfig struct {
+	Name        string
+	PrimaryRole string
+	Keywords    []string
+	ScoreBias   int
+}
+
+type delegationDomainMatch struct {
+	Config        delegationDomainConfig
+	Hits          []string
+	Score         int
+	WeightedScore int
+}
+
+func suggestDelegationPlan(mode executionMode, specText, planText, acceptanceText string) delegationPlan {
+	combined := strings.ToLower(strings.Join([]string{specText, planText, acceptanceText}, "\n"))
+	matches := make([]delegationDomainMatch, 0)
+	for _, cfg := range delegationDomainConfigs() {
+		hits := findKeywordHits(combined, cfg.Keywords)
+		if len(hits) == 0 {
+			continue
+		}
+		matches = append(matches, delegationDomainMatch{
+			Config:        cfg,
+			Hits:          hits,
+			Score:         len(hits),
+			WeightedScore: len(hits) + cfg.ScoreBias,
+		})
+	}
+	sort.SliceStable(matches, func(i, j int) bool {
+		if matches[i].WeightedScore == matches[j].WeightedScore {
+			if matches[i].Score == matches[j].Score {
+				return matches[i].Config.Name < matches[j].Config.Name
+			}
+			return matches[i].Score > matches[j].Score
+		}
+		return matches[i].WeightedScore > matches[j].WeightedScore
+	})
+
+	plan := delegationPlan{IntegratorRole: "standalone-runner"}
+	for _, match := range matches {
+		plan.DominantDomains = append(plan.DominantDomains, match.Config.Name)
+	}
+	plan.SelectedRoles, plan.DelegationBudget, plan.ReviewerRole, plan.RoutingRationale = chooseDelegatedRoles(mode, matches)
+	plan.SelectedRoleProfiles = runtimeProfilesForRoles(plan.SelectedRoles)
+	return plan
+}
+
+func delegationDomainConfigs() []delegationDomainConfig {
+	return []delegationDomainConfig{
+		{Name: "frontend", PrimaryRole: "namba-frontend-implementer", Keywords: []string{"frontend", "ui", "component", "screen", "page", "responsive", "browser", "css", "accessibility", "a11y"}},
+		{Name: "mobile", PrimaryRole: "namba-mobile-engineer", Keywords: []string{"mobile", "ios", "android", "swift", "kotlin", "react native", "flutter", "tablet", "touch"}, ScoreBias: 2},
+		{Name: "backend", PrimaryRole: "namba-backend-implementer", Keywords: []string{"backend", "api", "endpoint", "server", "service", "controller", "handler", "webhook"}, ScoreBias: 1},
+		{Name: "data", PrimaryRole: "namba-data-engineer", Keywords: []string{"schema", "migration", "sql", "query", "etl", "warehouse", "analytics", "dataset", "batch", "pipeline"}, ScoreBias: 2},
+		{Name: "security", PrimaryRole: "namba-security-engineer", Keywords: []string{"security", "auth", "oauth", "permission", "secret", "token", "encryption", "vulnerability", "compliance", "privacy", "pii"}, ScoreBias: 2},
+		{Name: "design", PrimaryRole: "namba-designer", Keywords: []string{"design", "figma", "visual", "layout", "prototype", "typography", "spacing", "motion", "interaction"}, ScoreBias: 1},
+		{Name: "devops", PrimaryRole: "namba-devops-engineer", Keywords: []string{"deploy", "deployment", "docker", "kubernetes", "helm", "terraform", "ci", "cd", "infra", "observability", "runtime", "environment"}, ScoreBias: 2},
+		{Name: "quality", PrimaryRole: "namba-test-engineer", Keywords: []string{"test", "regression", "coverage", "qa", "e2e", "integration test", "acceptance test"}, ScoreBias: -1},
+	}
+}
+
+func chooseDelegatedRoles(mode executionMode, matches []delegationDomainMatch) ([]string, int, string, []string) {
+	switch normalizeExecutionMode(mode) {
+	case executionModeParallel:
+		return nil, 0, "", []string{
+			"`--parallel` is reserved for Namba worktree fan-out, so do not route to Codex subagents in this mode.",
+		}
+	case executionModeSolo:
+		if len(matches) == 0 || matches[0].Score < 2 {
+			return nil, 0, "", []string{
+				"No single specialist signal is strong enough, so stay inside one generalist runner.",
+			}
+		}
+		return []string{matches[0].Config.PrimaryRole}, 1, "", []string{
+			fmt.Sprintf("Highest-signal domain is %s via %s.", matches[0].Config.Name, quoteList(matches[0].Hits)),
+			"Delegate to one bounded specialist only if it materially reduces risk, and keep integration plus validation in the standalone runner.",
+		}
+	case executionModeTeam:
+		if len(matches) == 0 {
+			return []string{"namba-implementer", "namba-reviewer"}, 2, "namba-reviewer", []string{
+				"No domain clearly dominates, so keep team mode light with one general implementer plus a reviewer.",
+				"Add more specialists only when acceptance criteria span multiple clearly independent domains.",
+			}
+		}
+		maxDomains := 1
+		if len(matches) > 1 {
+			maxDomains = 2
+		}
+		roles := make([]string, 0, maxDomains+1)
+		rationale := make([]string, 0, maxDomains+2)
+		for i := 0; i < len(matches) && i < maxDomains; i++ {
+			roles = append(roles, matches[i].Config.PrimaryRole)
+			rationale = append(rationale, fmt.Sprintf("%s matched %s.", matches[i].Config.Name, quoteList(matches[i].Hits)))
+		}
+		if len(matches) > 2 {
+			rationale = append(rationale, "More than two domains matched, but team mode stays light by using only the top two specialists before review.")
+		} else if len(matches) == 1 {
+			rationale = append(rationale, "One domain dominates, so start with one specialist and a reviewer rather than a larger swarm.")
+		} else {
+			rationale = append(rationale, "Multiple domains matched, so use one specialist per dominant domain before the final review pass.")
+		}
+		rationale = append(rationale, "Keep the standalone runner as the integrator and final validation owner.")
+		roles = append(roles, "namba-reviewer")
+		roles = uniqueStrings(roles)
+		return roles, len(roles), "namba-reviewer", rationale
+	default:
+		return nil, 0, "", []string{
+			"Default mode keeps work inside the standalone runner unless the user explicitly asks for specialist delegation.",
+		}
+	}
+}
+
+func formatDelegationPlanPrompt(plan delegationPlan) []string {
+	lines := []string{"## Delegation Heuristics"}
+	if len(plan.DominantDomains) == 0 {
+		lines = append(lines, "- Dominant domains: none detected beyond general implementation.")
+	} else {
+		lines = append(lines, fmt.Sprintf("- Dominant domains: %s.", strings.Join(plan.DominantDomains, ", ")))
+	}
+	if len(plan.SelectedRoles) == 0 {
+		lines = append(lines, "- Suggested roles: keep work inside the standalone runner without spawning specialists.")
+	} else {
+		lines = append(lines, fmt.Sprintf("- Suggested roles: %s.", quoteList(plan.SelectedRoles)))
+	}
+	for _, profile := range plan.SelectedRoleProfiles {
+		if summary := formatAgentRuntimeProfile(profile); summary != "" {
+			lines = append(lines, "- Role runtime: "+summary+".")
+		}
+	}
+	lines = append(lines, fmt.Sprintf("- Delegation budget: %d.", plan.DelegationBudget))
+	if plan.IntegratorRole != "" {
+		lines = append(lines, fmt.Sprintf("- Integrator: `%s`.", plan.IntegratorRole))
+	}
+	if plan.ReviewerRole != "" {
+		lines = append(lines, fmt.Sprintf("- Reviewer: `%s`.", plan.ReviewerRole))
+	}
+	for _, reason := range plan.RoutingRationale {
+		lines = append(lines, "- "+reason)
+	}
+	return lines
+}
+
+func findKeywordHits(text string, keywords []string) []string {
+	hits := make([]string, 0, len(keywords))
+	for _, keyword := range keywords {
+		if strings.Contains(text, keyword) {
+			hits = append(hits, keyword)
+		}
+	}
+	return uniqueStrings(hits)
+}
+
+func quoteList(values []string) string {
+	if len(values) == 0 {
+		return "none"
+	}
+	quoted := make([]string, 0, len(values))
+	for _, value := range uniqueStrings(values) {
+		quoted = append(quoted, fmt.Sprintf("`%s`", value))
+	}
+	return strings.Join(quoted, ", ")
+}
+
 func (a *App) runWorktree(ctx context.Context, args []string) error {
 	root, err := a.requireProjectRoot()
 	if err != nil {
@@ -1211,14 +1463,14 @@ func shouldSkipStructureEntry(rel string) bool {
 }
 
 func buildTechDoc(cfg projectConfig) string {
-	return fmt.Sprintf("# Tech\n\n- Language: %s\n- Framework: %s\n- Runtime adapter: Codex\n- Repo-local skills and command-entry skills: .agents/skills\n- Repo-local custom agents: .codex/agents/*.toml\n- Readable agent mirrors: .codex/agents/*.md\n- State directory: .namba\n", cfg.Language, cfg.Framework)
+	return fmt.Sprintf("# Tech\n\n- Language: %s\n- Framework: %s\n- Runtime adapter: Codex\n- Repo-local skills and command-entry skills: .agents/skills\n- Built-in Codex subagents: default, worker, explorer\n- Project-scoped custom agents: .codex/agents/*.toml\n- Readable agent mirrors: .codex/agents/*.md\n- State directory: .namba\n", cfg.Language, cfg.Framework)
 }
 
 func buildCodemaps(root string, cfg projectConfig) (string, string, string, string) {
 	overview := fmt.Sprintf("# Overview\n\n%s is managed by NambaAI.\n\n- Language: %s\n- Framework: %s\n", cfg.Name, cfg.Language, cfg.Framework)
 	entries := "# Entry Points\n\n- `cmd/namba/main.go`: CLI entry point\n- `internal/namba/namba.go`: command orchestration\n"
 	deps := "# Dependencies\n\n- Go standard library\n- External runtime: Codex CLI\n- External runtime: Git\n"
-	flow := "# Data Flow\n\n1. `init` runs a Codex-adapted project wizard, writes `.namba/config/sections/*.yaml`, repo skills under `.agents/skills`, command-entry skills such as `$namba-run`, Codex custom agents under `.codex/agents/*.toml`, readable `.md` agent mirrors, and Codex repo config under `.codex/config.toml`\n2. `project` refreshes docs and codemaps\n3. `plan` creates a SPEC package\n4. `run` either builds a non-interactive Codex execution request or is interpreted as Codex-native in-session execution\n5. `sync` emits PR-ready artifacts\n"
+	flow := "# Data Flow\n\n1. `init` runs a Codex-adapted project wizard, writes `.namba/config/sections/*.yaml`, repo skills under `.agents/skills`, command-entry skills such as `$namba-run`, project-scoped custom agents under `.codex/agents/*.toml`, readable `.md` agent mirrors, and Codex repo config under `.codex/config.toml`\n2. `project` refreshes docs and codemaps\n3. `plan` creates a SPEC package\n4. `run` supports the default standalone flow, explicit `--solo` and `--team` subagent-oriented requests, and worktree-based `--parallel` execution\n5. `sync` emits PR-ready artifacts\n"
 	if exists(filepath.Join(root, "go.mod")) {
 		deps += "- Project module detected via `go.mod`\n"
 	}
@@ -1255,7 +1507,7 @@ func buildChangeSummaryDoc(projectCfg projectConfig, latestSpec, generatedAt str
 		"",
 		"- README bundles and product docs describe when to use `namba update`, `namba regen`, `namba sync`, `namba pr`, and `namba land`.",
 		"- Release docs describe `namba release` guardrails on a clean `main` branch plus optional `--push` behavior.",
-		"- Parallel run docs describe the worktree fan-out and merge-blocking policy for `namba run SPEC-XXX --parallel`.",
+		"- Run docs separate the default standalone flow, `namba run SPEC-XXX --solo`, `namba run SPEC-XXX --team`, and the worktree fan-out policy for `namba run SPEC-XXX --parallel`.",
 		"- AGENTS and Codex docs define the Namba output contract plus the fallback validator script at `.namba/codex/validate-output-contract.py`.",
 		fmt.Sprintf("- Collaboration docs require one branch per SPEC/task from `%s`, PRs into `%s`, %s PR content, and Codex review requests via `%s`.", branchBase(profile), prBaseBranch(profile), strings.ToLower(humanLanguageName(profile.PRLanguage)), codexReviewComment(profile)),
 		"",
@@ -1311,7 +1563,7 @@ func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt stri
 		"- `namba sync` refreshes README bundles, product docs, codemaps, change summary, PR checklist, and release docs.",
 		"- `namba pr` prepares the current branch for GitHub review by syncing, validating, committing, pushing, opening or reusing the PR, and ensuring the Codex review marker exists.",
 		"- `namba land` optionally waits for checks, merges only when the PR is clean, and updates local `main` safely.",
-		"- `namba run SPEC-XXX --parallel` fans out into up to three git worktrees, merges only after every worker passes execution and validation, and preserves failing worktrees and branches for inspection.",
+		"- `namba run SPEC-XXX` keeps the standard standalone Codex flow; `--solo` and `--team` request single-subagent or multi-subagent workflows inside one workspace; `--parallel` still fans out into up to three git worktrees and merges only after every worker passes execution and validation.",
 		fmt.Sprintf("- Active collaboration defaults: one branch per SPEC/task from `%s`, PRs into `%s`, %s PR content, and Codex review requests via `%s`.", branchBase(profile), prBaseBranch(profile), strings.ToLower(humanLanguageName(profile.PRLanguage)), codexReviewComment(profile)),
 		"",
 		"## Release Guardrails",

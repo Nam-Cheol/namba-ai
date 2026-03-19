@@ -1,5 +1,8 @@
 name = "namba-planner"
 description = "Break down a SPEC package into an execution plan without editing files."
+sandbox_mode = "read-only"
+model = "gpt-5.4"
+model_reasoning_effort = "high"
 developer_instructions = """
 You are Namba Planner.
 

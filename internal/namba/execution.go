@@ -16,26 +16,51 @@ type systemConfig struct {
 	SandboxMode    string
 }
 
+type executionMode string
+
+const (
+	executionModeDefault  executionMode = "default"
+	executionModeSolo     executionMode = "solo"
+	executionModeTeam     executionMode = "team"
+	executionModeParallel executionMode = "parallel"
+)
+
+type delegationPlan struct {
+	DominantDomains      []string              `json:"dominant_domains,omitempty"`
+	SelectedRoles        []string              `json:"selected_roles,omitempty"`
+	SelectedRoleProfiles []agentRuntimeProfile `json:"selected_role_profiles,omitempty"`
+	DelegationBudget     int                   `json:"delegation_budget,omitempty"`
+	IntegratorRole       string                `json:"integrator_role,omitempty"`
+	ReviewerRole         string                `json:"reviewer_role,omitempty"`
+	RoutingRationale     []string              `json:"routing_rationale,omitempty"`
+}
+
 type executionRequest struct {
-	SpecID         string
-	WorkDir        string
-	Prompt         string
-	Runner         string
-	ApprovalPolicy string
-	SandboxMode    string
+	SpecID         string         `json:"spec_id"`
+	WorkDir        string         `json:"work_dir"`
+	Prompt         string         `json:"prompt"`
+	Mode           executionMode  `json:"mode"`
+	Runner         string         `json:"runner"`
+	ApprovalPolicy string         `json:"approval_policy"`
+	SandboxMode    string         `json:"sandbox_mode"`
+	DelegationPlan delegationPlan `json:"delegation_plan,omitempty"`
 }
 
 type executionResult struct {
-	Runner         string `json:"runner"`
-	SpecID         string `json:"spec_id"`
-	WorkDir        string `json:"work_dir"`
-	ApprovalPolicy string `json:"approval_policy"`
-	SandboxMode    string `json:"sandbox_mode"`
-	Output         string `json:"output"`
-	Succeeded      bool   `json:"succeeded"`
-	StartedAt      string `json:"started_at"`
-	FinishedAt     string `json:"finished_at"`
-	Error          string `json:"error,omitempty"`
+	Runner             string         `json:"runner"`
+	SpecID             string         `json:"spec_id"`
+	WorkDir            string         `json:"work_dir"`
+	ExecutionMode      string         `json:"execution_mode"`
+	ApprovalPolicy     string         `json:"approval_policy"`
+	SandboxMode        string         `json:"sandbox_mode"`
+	DelegationPlan     delegationPlan `json:"delegation_plan,omitempty"`
+	DelegationObserved bool           `json:"delegation_observed"`
+	DelegationSummary  string         `json:"delegation_summary,omitempty"`
+	Output             string         `json:"output"`
+	Succeeded          bool           `json:"succeeded"`
+	StartedAt          string         `json:"started_at"`
+	FinishedAt         string         `json:"finished_at"`
+	Error              string         `json:"error,omitempty"`
 }
 
 type validationReport struct {
@@ -67,12 +92,16 @@ type codexRunner struct {
 
 func (r codexRunner) Execute(ctx context.Context, req executionRequest) (executionResult, error) {
 	result := executionResult{
-		Runner:         normalizeRunner(req.Runner),
-		SpecID:         req.SpecID,
-		WorkDir:        req.WorkDir,
-		ApprovalPolicy: normalizeApprovalPolicy(req.ApprovalPolicy),
-		SandboxMode:    normalizeSandboxMode(req.SandboxMode),
-		StartedAt:      r.now().Format(time.RFC3339),
+		Runner:             normalizeRunner(req.Runner),
+		SpecID:             req.SpecID,
+		WorkDir:            req.WorkDir,
+		ExecutionMode:      string(normalizeExecutionMode(req.Mode)),
+		ApprovalPolicy:     normalizeApprovalPolicy(req.ApprovalPolicy),
+		SandboxMode:        normalizeSandboxMode(req.SandboxMode),
+		DelegationPlan:     req.DelegationPlan,
+		DelegationObserved: false,
+		DelegationSummary:  summarizeDelegationPlan(req.DelegationPlan),
+		StartedAt:          r.now().Format(time.RFC3339),
 	}
 
 	args, err := buildCodexExecArgs(req)
@@ -140,20 +169,25 @@ func (a *App) runnerFor(cfg systemConfig) (runner, error) {
 	}
 }
 
-func (a *App) newExecutionRequest(specID, workDir, prompt string, cfg systemConfig) executionRequest {
+func (a *App) newExecutionRequest(specID, workDir, prompt string, mode executionMode, plan delegationPlan, cfg systemConfig) executionRequest {
 	return executionRequest{
 		SpecID:         specID,
 		WorkDir:        workDir,
 		Prompt:         prompt,
+		Mode:           normalizeExecutionMode(mode),
 		Runner:         normalizeRunner(cfg.Runner),
 		ApprovalPolicy: normalizeApprovalPolicy(cfg.ApprovalPolicy),
 		SandboxMode:    normalizeSandboxMode(cfg.SandboxMode),
+		DelegationPlan: plan,
 	}
 }
 
 func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req executionRequest, validationRoot string, cfg qualityConfig) (executionResult, validationReport, error) {
 	selectedRunner, err := a.runnerFor(systemConfig{Runner: req.Runner})
 	if err != nil {
+		return executionResult{}, validationReport{}, err
+	}
+	if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-request.json"), req); err != nil {
 		return executionResult{}, validationReport{}, err
 	}
 
@@ -227,6 +261,35 @@ func writeRunText(path, content string) error {
 	return os.WriteFile(path, []byte(content), 0o644)
 }
 
+func summarizeDelegationPlan(plan delegationPlan) string {
+	if len(plan.SelectedRoles) == 0 {
+		return "No delegated specialists planned; keep work inside the standalone runner."
+	}
+
+	parts := []string{fmt.Sprintf("Planned roles: %s.", strings.Join(plan.SelectedRoles, ", "))}
+	if len(plan.SelectedRoleProfiles) > 0 {
+		runtimeSummaries := make([]string, 0, len(plan.SelectedRoleProfiles))
+		for _, profile := range plan.SelectedRoleProfiles {
+			if summary := formatAgentRuntimeProfile(profile); summary != "" {
+				runtimeSummaries = append(runtimeSummaries, summary)
+			}
+		}
+		if len(runtimeSummaries) > 0 {
+			parts = append(parts, fmt.Sprintf("Runtime profiles: %s.", strings.Join(runtimeSummaries, "; ")))
+		}
+	}
+	if plan.DelegationBudget > 0 {
+		parts = append(parts, fmt.Sprintf("Delegation budget: %d.", plan.DelegationBudget))
+	}
+	if plan.IntegratorRole != "" {
+		parts = append(parts, fmt.Sprintf("Integrator: %s.", plan.IntegratorRole))
+	}
+	if plan.ReviewerRole != "" {
+		parts = append(parts, fmt.Sprintf("Reviewer: %s.", plan.ReviewerRole))
+	}
+	return strings.Join(parts, " ")
+}
+
 func writeJSONFile(path string, value any) error {
 	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
@@ -260,6 +323,19 @@ func normalizeSandboxMode(value string) string {
 		return "workspace-write"
 	}
 	return normalized
+}
+
+func normalizeExecutionMode(mode executionMode) executionMode {
+	switch executionMode(strings.TrimSpace(strings.ToLower(string(mode)))) {
+	case executionModeSolo:
+		return executionModeSolo
+	case executionModeTeam:
+		return executionModeTeam
+	case executionModeParallel:
+		return executionModeParallel
+	default:
+		return executionModeDefault
+	}
 }
 
 func isAllowedApprovalPolicy(value string) bool {
