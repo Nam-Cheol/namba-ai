@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,17 +35,22 @@ func TestRunUpdateReplacesExecutableOnUnix(t *testing.T) {
 		t.Fatalf("write executable: %v", err)
 	}
 
+	archiveData := makeTarGzArchive(t, "namba", []byte("new-binary"))
 	stdout := &bytes.Buffer{}
 	app := NewApp(stdout, &bytes.Buffer{})
 	app.goos = "linux"
 	app.goarch = "amd64"
 	app.executablePath = func() (string, error) { return execPath, nil }
 	app.downloadURL = func(_ context.Context, url string) ([]byte, error) {
-		want := releaseDownloadURL("latest", "namba_Linux_x86_64.tar.gz")
-		if url != want {
-			t.Fatalf("download url = %q, want %q", url, want)
+		switch url {
+		case releaseDownloadURL("latest", "namba_Linux_x86_64.tar.gz"):
+			return archiveData, nil
+		case releaseDownloadURL("latest", "checksums.txt"):
+			return checksumManifest("namba_Linux_x86_64.tar.gz", archiveData), nil
+		default:
+			t.Fatalf("unexpected download url %q", url)
+			return nil, nil
 		}
-		return makeTarGzArchive(t, "namba", []byte("new-binary")), nil
 	}
 
 	if err := app.Run(context.Background(), []string{"update"}); err != nil {
@@ -62,6 +69,49 @@ func TestRunUpdateReplacesExecutableOnUnix(t *testing.T) {
 	}
 }
 
+func TestRunUpdateFailsWhenChecksumDoesNotMatch(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	execPath := filepath.Join(tmp, "namba")
+	if err := os.WriteFile(execPath, []byte("old-binary"), 0o755); err != nil {
+		t.Fatalf("write executable: %v", err)
+	}
+
+	archiveData := makeTarGzArchive(t, "namba", []byte("new-binary"))
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.goos = "linux"
+	app.goarch = "amd64"
+	app.executablePath = func() (string, error) { return execPath, nil }
+	app.downloadURL = func(_ context.Context, url string) ([]byte, error) {
+		switch url {
+		case releaseDownloadURL("latest", "namba_Linux_x86_64.tar.gz"):
+			return archiveData, nil
+		case releaseDownloadURL("latest", "checksums.txt"):
+			return []byte("0000000000000000000000000000000000000000000000000000000000000000  namba_Linux_x86_64.tar.gz\n"), nil
+		default:
+			t.Fatalf("unexpected download url %q", url)
+			return nil, nil
+		}
+	}
+
+	err := app.Run(context.Background(), []string{"update"})
+	if err == nil {
+		t.Fatal("expected checksum mismatch error")
+	}
+	if !strings.Contains(err.Error(), "checksum mismatch") {
+		t.Fatalf("error = %v, want checksum mismatch", err)
+	}
+
+	updated, readErr := os.ReadFile(execPath)
+	if readErr != nil {
+		t.Fatalf("read executable: %v", readErr)
+	}
+	if string(updated) != "old-binary" {
+		t.Fatalf("updated executable = %q, want existing binary to remain", string(updated))
+	}
+}
+
 func TestRunUpdateSchedulesReplacementOnWindows(t *testing.T) {
 	t.Parallel()
 
@@ -71,17 +121,22 @@ func TestRunUpdateSchedulesReplacementOnWindows(t *testing.T) {
 		t.Fatalf("write executable: %v", err)
 	}
 
+	archiveData := makeZipArchive(t, "namba.exe", []byte("new-binary"))
 	stdout := &bytes.Buffer{}
 	app := NewApp(stdout, &bytes.Buffer{})
 	app.goos = "windows"
 	app.goarch = "amd64"
 	app.executablePath = func() (string, error) { return execPath, nil }
 	app.downloadURL = func(_ context.Context, url string) ([]byte, error) {
-		want := releaseDownloadURL("v1.2.3", "namba_Windows_x86_64.zip")
-		if url != want {
-			t.Fatalf("download url = %q, want %q", url, want)
+		switch url {
+		case releaseDownloadURL("v1.2.3", "namba_Windows_x86_64.zip"):
+			return archiveData, nil
+		case releaseDownloadURL("v1.2.3", "checksums.txt"):
+			return checksumManifest("namba_Windows_x86_64.zip", archiveData), nil
+		default:
+			t.Fatalf("unexpected download url %q", url)
+			return nil, nil
 		}
-		return makeZipArchive(t, "namba.exe", []byte("new-binary")), nil
 	}
 
 	var startedName string
@@ -115,6 +170,11 @@ func TestRunUpdateSchedulesReplacementOnWindows(t *testing.T) {
 	if !strings.Contains(stdout.String(), "Scheduled NambaAI update to v1.2.3") {
 		t.Fatalf("unexpected stdout: %q", stdout.String())
 	}
+}
+
+func checksumManifest(assetName string, archiveData []byte) []byte {
+	sum := sha256.Sum256(archiveData)
+	return []byte(hex.EncodeToString(sum[:]) + "  " + assetName + "\n")
 }
 
 func makeTarGzArchive(t *testing.T, name string, body []byte) []byte {
