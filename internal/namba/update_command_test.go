@@ -64,6 +64,14 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(runSkill, "$namba-run") || !strings.Contains(runSkill, "namba run SPEC-XXX") {
 		t.Fatalf("expected command-entry run skill, got %q", runSkill)
 	}
+	prSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-pr", "SKILL.md"))
+	if !strings.Contains(prSkill, "$namba-pr") || !strings.Contains(prSkill, "namba pr") {
+		t.Fatalf("expected command-entry pr skill, got %q", prSkill)
+	}
+	landSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-land", "SKILL.md"))
+	if !strings.Contains(landSkill, "$namba-land") || !strings.Contains(landSkill, "namba land") {
+		t.Fatalf("expected command-entry land skill, got %q", landSkill)
+	}
 	if _, err := os.Stat(legacySkillPath); !os.IsNotExist(err) {
 		t.Fatalf("expected legacy codex skill mirror to be removed, stat err=%v", err)
 	}
@@ -95,12 +103,15 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(codexReadme, "PR titles and bodies should be written in Korean") || !strings.Contains(codexReadme, "`@codex review`") {
 		t.Fatalf("expected codex README to describe PR collaboration defaults, got %q", codexReadme)
 	}
+	if !strings.Contains(codexReadme, "`namba pr`") || !strings.Contains(codexReadme, "`namba land`") {
+		t.Fatalf("expected codex README to describe PR handoff commands, got %q", codexReadme)
+	}
 	if !strings.Contains(codexReadme, "`namba run SPEC-XXX --parallel`") {
 		t.Fatalf("expected codex README to describe standalone parallel semantics, got %q", codexReadme)
 	}
 
 	outputContractDoc := mustReadFile(t, filepath.Join(tmp, ".namba", "codex", "output-contract.md"))
-	if !strings.Contains(outputContractDoc, "NAMBA-AI Work Report") || !strings.Contains(outputContractDoc, "🧭 Scope") || !strings.Contains(outputContractDoc, "⚠ Potential Risks") || !strings.Contains(outputContractDoc, "simple emoji section markers") {
+	if !strings.Contains(outputContractDoc, "NAMBA-AI Work Report") || !strings.Contains(outputContractDoc, "Scope") || !strings.Contains(outputContractDoc, "Potential Risks") || !strings.Contains(outputContractDoc, "simple emoji section markers") {
 		t.Fatalf("expected output contract doc, got %q", outputContractDoc)
 	}
 

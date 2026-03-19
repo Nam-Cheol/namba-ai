@@ -11,7 +11,7 @@ Core mapping:
 - `.claude/commands/*` -> command-entry repo skills such as `.agents/skills/namba-run/SKILL.md`
 - `.claude/agents/*` -> `.codex/agents/*.toml` custom agents with `.md` role-card mirrors
 - `.claude/hooks/*` -> explicit validation pipeline and `namba` orchestration
-- Claude custom slash-command workflows -> built-in Codex slash commands plus repo skills such as `$namba-run`, `$namba-plan`, `$namba-sync`, and the `namba` CLI
+- Claude custom slash-command workflows -> built-in Codex slash commands plus repo skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-sync`, and the `namba` CLI
 
 When implementing init changes:
 1. Keep `.namba/config/sections/*.yaml` as the durable source of truth.

@@ -16,7 +16,7 @@ NambaAI is a Codex-native workflow for bootstrapping repositories, planning work
 
 - Bootstrap a Codex-ready repository from an empty directory with `namba init .`.
 - Turn change requests into SPEC packages with `namba plan` and `namba fix`.
-- Execute work with `namba run SPEC-XXX` and finish with validation plus `namba sync`.
+- Execute work with `namba run SPEC-XXX`, refresh local artifacts with `namba sync`, then hand off and merge with `namba pr` plus `namba land`.
 - Keep CLI versions aligned across the team with `namba update` and release assets.
 
 ## Quick Start
@@ -44,12 +44,14 @@ namba project
 namba plan "add login audit logs"
 namba run SPEC-001
 namba sync
+namba pr "add login audit logs"
+namba land
 ```
 
 ## Need More Detail?
 
 - [Getting Started](docs/getting-started.md): installation, init, updates, and first-run flow
-- [Workflow Guide](docs/workflow-guide.md): update vs regen vs sync, generated assets, and collaboration defaults
+- [Workflow Guide](docs/workflow-guide.md): update vs regen vs sync vs pr vs land, generated assets, and collaboration defaults
 - [Codex Upstream Reference](docs/codex-upstream-reference.md): upstream baseline this repository follows
 - [SECURITY.md](SECURITY.md): security policy
 
@@ -58,4 +60,4 @@ namba sync
 - `.namba/` is the source of truth for config, SPEC packages, and project docs.
 - `.agents/skills/` is the repo-local skill surface used by Codex.
 - `.codex/agents/*.toml` defines custom planner, implementer, and reviewer agents.
-- `namba update`, `namba regen`, and `namba sync` solve different problems and should not be mixed.
+- `namba update`, `namba regen`, `namba sync`, `namba pr`, and `namba land` solve different problems and should not be mixed.

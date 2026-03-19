@@ -158,6 +158,10 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return a.runExecute(ctx, args[1:])
 	case "sync":
 		return a.runSync(ctx, args[1:])
+	case "pr":
+		return a.runPR(ctx, args[1:])
+	case "land":
+		return a.runLand(ctx, args[1:])
 	case "release":
 		return a.runRelease(ctx, args[1:])
 	case "worktree":
@@ -188,6 +192,8 @@ Usage:
   namba fix "<description>"
   namba run SPEC-XXX [--parallel] [--dry-run]
   namba sync
+  namba pr "<title>" [--remote origin] [--no-sync] [--no-validate]
+  namba land [PR_NUMBER] [--wait] [--remote origin]
   namba release [--bump patch|minor|major] [--version vX.Y.Z] [--push] [--remote origin]
   namba worktree <new|list|remove|clean>
 `
@@ -1247,7 +1253,7 @@ func buildChangeSummaryDoc(projectCfg projectConfig, latestSpec, generatedAt str
 		"",
 		"## Workflow Docs Synced",
 		"",
-		"- README bundles and product docs describe when to use `namba update`, `namba regen`, and `namba sync`.",
+		"- README bundles and product docs describe when to use `namba update`, `namba regen`, `namba sync`, `namba pr`, and `namba land`.",
 		"- Release docs describe `namba release` guardrails on a clean `main` branch plus optional `--push` behavior.",
 		"- Parallel run docs describe the worktree fan-out and merge-blocking policy for `namba run SPEC-XXX --parallel`.",
 		"- AGENTS and Codex docs define the Namba output contract plus the fallback validator script at `.namba/codex/validate-output-contract.py`.",
@@ -1258,6 +1264,8 @@ func buildChangeSummaryDoc(projectCfg projectConfig, latestSpec, generatedAt str
 		"- `namba update` self-updates the installed `namba` binary from GitHub Release assets.",
 		"- `namba regen` regenerates `AGENTS.md`, repo-local skills and command-entry skills under `.agents/skills`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
 		"- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, codemaps, and any README bundles enabled in `.namba/config/sections/docs.yaml`.",
+		"- `namba pr` prepares the current branch for GitHub review by running sync and validation by default, then committing, pushing, opening or reusing the PR, and ensuring the Codex review marker exists.",
+		"- `namba land` optionally waits for checks, merges only when the PR is clean, and updates local `main` safely.",
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
@@ -1273,6 +1281,7 @@ func buildPRChecklistDoc(profile initProfile) string {
 		"- [ ] README / user-facing docs refreshed",
 		"- [ ] `namba regen` rerun if template-generated Codex assets changed",
 		"- [ ] `namba sync` artifacts refreshed",
+		"- [ ] `namba pr` used for the GitHub review handoff when the branch is ready",
 		"- [ ] SPEC artifacts reviewed",
 		"- [ ] Validation commands passed",
 		"- [ ] Diff reviewed",
@@ -1300,6 +1309,8 @@ func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt stri
 		"- `namba update` self-updates the installed `namba` binary from GitHub Release assets.",
 		"- `namba regen` regenerates `AGENTS.md`, repo-local skills and command-entry skills under `.agents/skills`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
 		"- `namba sync` refreshes README bundles, product docs, codemaps, change summary, PR checklist, and release docs.",
+		"- `namba pr` prepares the current branch for GitHub review by syncing, validating, committing, pushing, opening or reusing the PR, and ensuring the Codex review marker exists.",
+		"- `namba land` optionally waits for checks, merges only when the PR is clean, and updates local `main` safely.",
 		"- `namba run SPEC-XXX --parallel` fans out into up to three git worktrees, merges only after every worker passes execution and validation, and preserves failing worktrees and branches for inspection.",
 		fmt.Sprintf("- Active collaboration defaults: one branch per SPEC/task from `%s`, PRs into `%s`, %s PR content, and Codex review requests via `%s`.", branchBase(profile), prBaseBranch(profile), strings.ToLower(humanLanguageName(profile.PRLanguage)), codexReviewComment(profile)),
 		"",
@@ -1314,6 +1325,8 @@ func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt stri
 		"",
 		"```text",
 		"namba sync",
+		"namba pr \"release review\"",
+		"namba land",
 		"namba release --bump patch",
 		"# or",
 		"namba release --version vX.Y.Z --push",
@@ -1338,6 +1351,7 @@ func buildReleaseChecklistDoc() string {
 		"",
 		"- [ ] `namba regen` rerun if template-generated Codex assets changed",
 		"- [ ] `namba sync` artifacts refreshed",
+		"- [ ] `namba pr` used for the GitHub review handoff when the branch is ready",
 		"- [ ] README and `.namba/codex/README.md` reflect update, release, and parallel workflow behavior",
 		"- [ ] Working tree is clean and the current branch is `main`",
 		"- [ ] Validation commands passed",

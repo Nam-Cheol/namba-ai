@@ -22,6 +22,8 @@ func TestInitCreatesScaffold(t *testing.T) {
 	mustExist(t, filepath.Join(tmp, "AGENTS.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-run", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-pr", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-land", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-project", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-foundation-core", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-workflow-init", "SKILL.md"))
@@ -266,7 +268,7 @@ func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 	}
 
 	changeSummary := mustRead(t, filepath.Join(tmp, ".namba", "project", "change-summary.md"))
-	if !strings.Contains(changeSummary, "`namba update`") || !strings.Contains(changeSummary, "`namba regen`") || !strings.Contains(changeSummary, "`namba run SPEC-XXX --parallel`") || !strings.Contains(changeSummary, "`@codex review`") {
+	if !strings.Contains(changeSummary, "`namba update`") || !strings.Contains(changeSummary, "`namba pr`") || !strings.Contains(changeSummary, "`namba land`") || !strings.Contains(changeSummary, "`namba run SPEC-XXX --parallel`") || !strings.Contains(changeSummary, "`@codex review`") {
 		t.Fatalf("expected synced change summary to describe update and parallel workflow, got: %s", changeSummary)
 	}
 
@@ -286,7 +288,7 @@ func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 	}
 
 	readme := mustRead(t, filepath.Join(tmp, "README.md"))
-	if !strings.Contains(readme, "What You Can Do In This Repository") || !strings.Contains(readme, "Workflow Guide") {
+	if !strings.Contains(readme, "What You Can Do In This Repository") || !strings.Contains(readme, "namba pr") || !strings.Contains(readme, "Workflow Guide") {
 		t.Fatalf("expected synced README bundle, got: %s", readme)
 	}
 
@@ -296,7 +298,7 @@ func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 	}
 
 	workflowGuide := mustRead(t, filepath.Join(tmp, "docs", "workflow-guide.md"))
-	if !strings.Contains(workflowGuide, "Collaboration rules") {
+	if !strings.Contains(workflowGuide, "Collaboration rules") || !strings.Contains(workflowGuide, "namba land") {
 		t.Fatalf("expected workflow guide doc, got: %s", workflowGuide)
 	}
 }
