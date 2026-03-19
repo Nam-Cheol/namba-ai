@@ -10,7 +10,10 @@ import (
 	"strings"
 )
 
-const defaultGitRemote = "origin"
+const (
+	defaultGitRemote         = "origin"
+	codexReviewRequestMarker = "<!-- namba-codex-review-request -->"
+)
 
 type prOptions struct {
 	Title          string
@@ -49,6 +52,11 @@ type githubStatusCheck struct {
 	Status       string `json:"status"`
 	State        string `json:"state"`
 	Conclusion   string `json:"conclusion"`
+}
+
+type gitWorktree struct {
+	Path   string
+	Branch string
 }
 
 func (a *App) runPR(ctx context.Context, args []string) error {
@@ -320,20 +328,30 @@ func (a *App) findOrCreatePullRequest(ctx context.Context, root, headBranch, bas
 	return pr, true, nil
 }
 
-func (a *App) ensureReviewComment(ctx context.Context, root string, prNumber int, marker string) error {
+func (a *App) ensureReviewComment(ctx context.Context, root string, prNumber int, reviewCommand string) error {
 	pr, err := a.loadPullRequest(ctx, root, strconv.Itoa(prNumber), "comments")
 	if err != nil {
 		return err
 	}
 	for _, comment := range pr.Comments {
-		if strings.Contains(comment.Body, marker) {
+		if isReviewRequestComment(comment.Body, reviewCommand) {
 			return nil
 		}
 	}
-	if _, err := a.runBinary(ctx, "gh", []string{"pr", "comment", strconv.Itoa(prNumber), "--body", marker}, root); err != nil {
+	commentBody := buildReviewRequestCommentBody(reviewCommand)
+	if _, err := a.runBinary(ctx, "gh", []string{"pr", "comment", strconv.Itoa(prNumber), "--body", commentBody}, root); err != nil {
 		return fmt.Errorf("request Codex review on pull request #%d: %w", prNumber, err)
 	}
 	return nil
+}
+
+func isReviewRequestComment(body, reviewCommand string) bool {
+	trimmedBody := strings.TrimSpace(body)
+	return trimmedBody == strings.TrimSpace(reviewCommand) || strings.Contains(body, codexReviewRequestMarker)
+}
+
+func buildReviewRequestCommentBody(reviewCommand string) string {
+	return codexReviewRequestMarker + "\n" + strings.TrimSpace(reviewCommand)
 }
 
 func (a *App) resolvePullRequestForLand(ctx context.Context, root string, opts landOptions, currentBranch, baseBranch string) (githubPullRequest, error) {
@@ -470,6 +488,53 @@ func landPullRequestFields() []string {
 	return []string{"number", "url", "title", "headRefName", "baseRefName", "reviewDecision", "mergeStateStatus", "isDraft", "statusCheckRollup"}
 }
 
+func worktreeListArgs() []string {
+	return []string{"worktree", "list", "--porcelain"}
+}
+
+func (a *App) worktreeForBranch(ctx context.Context, root, branch string) (gitWorktree, bool, error) {
+	out, err := a.runBinary(ctx, "git", worktreeListArgs(), root)
+	if err != nil {
+		return gitWorktree{}, false, fmt.Errorf("list git worktrees: %w", err)
+	}
+	for _, worktree := range parseGitWorktrees(out) {
+		if worktree.Branch == branch {
+			return worktree, true, nil
+		}
+	}
+	return gitWorktree{}, false, nil
+}
+
+func parseGitWorktrees(out string) []gitWorktree {
+	lines := strings.Split(strings.ReplaceAll(out, "\r\n", "\n"), "\n")
+	worktrees := make([]gitWorktree, 0)
+	current := gitWorktree{}
+	flush := func() {
+		if current.Path == "" {
+			current = gitWorktree{}
+			return
+		}
+		current.Path = filepath.Clean(current.Path)
+		worktrees = append(worktrees, current)
+		current = gitWorktree{}
+	}
+
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			flush()
+			continue
+		}
+		switch {
+		case strings.HasPrefix(line, "worktree "):
+			current.Path = strings.TrimSpace(strings.TrimPrefix(line, "worktree "))
+		case strings.HasPrefix(line, "branch "):
+			current.Branch = strings.TrimPrefix(strings.TrimSpace(strings.TrimPrefix(line, "branch ")), "refs/heads/")
+		}
+	}
+	flush()
+	return worktrees
+}
+
 func (a *App) updateLocalBaseBranch(ctx context.Context, root, currentBranch, baseBranch, remote string) error {
 	if _, err := a.runBinary(ctx, "git", []string{"fetch", remote, baseBranch}, root); err != nil {
 		return fmt.Errorf("fetch %s/%s: %w", remote, baseBranch, err)
@@ -487,6 +552,25 @@ func (a *App) updateLocalBaseBranch(ctx context.Context, root, currentBranch, ba
 		}
 		return nil
 	}
+
+	worktree, found, err := a.worktreeForBranch(ctx, root, baseBranch)
+	if err != nil {
+		return err
+	}
+	if found {
+		dirty, err := a.hasWorkingTreeChanges(ctx, worktree.Path)
+		if err != nil {
+			return err
+		}
+		if dirty {
+			return fmt.Errorf("cannot update local %s in worktree %s with uncommitted changes", baseBranch, worktree.Path)
+		}
+		if _, err := a.runBinary(ctx, "git", []string{"pull", "--ff-only", remote, baseBranch}, worktree.Path); err != nil {
+			return fmt.Errorf("fast-forward local %s in worktree %s: %w", baseBranch, worktree.Path, err)
+		}
+		return nil
+	}
+
 	remoteRef := fmt.Sprintf("%s/%s", remote, baseBranch)
 	if _, err := a.runBinary(ctx, "git", []string{"branch", "-f", baseBranch, remoteRef}, root); err != nil {
 		return fmt.Errorf("update local %s from %s/%s: %w", baseBranch, remote, baseBranch, err)

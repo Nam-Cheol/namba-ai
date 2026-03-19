@@ -77,7 +77,7 @@ func TestRunPRCreatesPullRequestAndAddsReviewComment(t *testing.T) {
 		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "view" && args[2] == "17":
 			return mustMarshalJSON(t, githubPullRequest{Comments: []githubPRComment{}}), nil
 		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "comment":
-			mustContainArgs(t, args, []string{"--body", "@codex review"})
+			mustContainArgs(t, args, []string{"--body", buildReviewRequestCommentBody("@codex review")})
 			return "", nil
 		default:
 			t.Fatalf("unexpected command: %s %v", name, args)
@@ -95,7 +95,7 @@ func TestRunPRCreatesPullRequestAndAddsReviewComment(t *testing.T) {
 	if !hasCommandContaining(commands, "gh pr create") {
 		t.Fatalf("expected PR creation command, got %v", commands)
 	}
-	if !hasCommandContaining(commands, "gh pr comment 17 --body @codex review") {
+	if !hasCommandContaining(commands, "gh pr comment 17 --body") {
 		t.Fatalf("expected review comment command, got %v", commands)
 	}
 }
@@ -144,6 +144,54 @@ func TestRunPRReusesExistingPullRequestWithoutDuplicateReviewComment(t *testing.
 	}
 	if hasCommandContaining(commands, "gh pr comment") {
 		t.Fatalf("expected no duplicate review comment, got %v", commands)
+	}
+}
+
+func TestRunPRSkipsReviewCommentWhenMarkerCommentAlreadyExists(t *testing.T) {
+	tmp, stdout, app, restore := preparePRLandProject(t)
+	defer restore()
+
+	var commands []string
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		commands = append(commands, name+" "+strings.Join(args, " "))
+		if dir != tmp {
+			t.Fatalf("expected workdir %s, got %s", tmp, dir)
+		}
+
+		switch {
+		case name == "gh" && len(args) == 2 && args[0] == "auth" && args[1] == "status":
+			return "", nil
+		case name == "git" && len(args) >= 2 && args[0] == "branch" && args[1] == "--show-current":
+			return "feature/login-audit", nil
+		case isShellCommand(name):
+			return "ok", nil
+		case name == "git" && len(args) >= 2 && args[0] == "status" && args[1] == "--porcelain":
+			return "", nil
+		case name == "git" && len(args) == 4 && args[0] == "push" && args[1] == "--set-upstream":
+			return "", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list":
+			return "[]", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "create":
+			return "https://github.com/example/repo/pull/17", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "view" && args[2] == "feature/login-audit":
+			return mustMarshalJSON(t, githubPullRequest{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "Existing PR", HeadRefName: "feature/login-audit", BaseRefName: "main"}), nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "view" && args[2] == "17":
+			return mustMarshalJSON(t, githubPullRequest{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "Existing PR", HeadRefName: "feature/login-audit", BaseRefName: "main", Comments: []githubPRComment{{Body: buildReviewRequestCommentBody("@codex review")}}}), nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"pr", "Reuse", "existing", "pr"}); err != nil {
+		t.Fatalf("pr failed: %v", err)
+	}
+
+	if !strings.Contains(stdout.String(), "Prepared PR #17") {
+		t.Fatalf("expected prepared output, got %q", stdout.String())
+	}
+	if hasCommandContaining(commands, "gh pr comment") {
+		t.Fatalf("expected no duplicate marker review comment, got %v", commands)
 	}
 }
 
@@ -314,6 +362,8 @@ func TestRunLandMergesAndUpdatesLocalMain(t *testing.T) {
 			return "", nil
 		case name == "git" && len(args) == 3 && args[0] == "fetch" && args[1] == "origin" && args[2] == "main":
 			return "", nil
+		case name == "git" && len(args) == 3 && args[0] == "worktree" && args[1] == "list" && args[2] == "--porcelain":
+			return "", nil
 		case name == "git" && len(args) == 4 && args[0] == "branch" && args[1] == "-f" && args[2] == "main" && args[3] == "origin/main":
 			return "", nil
 		default:
@@ -332,8 +382,74 @@ func TestRunLandMergesAndUpdatesLocalMain(t *testing.T) {
 	if !hasCommandContaining(commands, "gh pr merge 17 --merge") {
 		t.Fatalf("expected merge command, got %v", commands)
 	}
+	if !hasCommandContaining(commands, "git worktree list --porcelain") {
+		t.Fatalf("expected worktree inspection, got %v", commands)
+	}
 	if !hasCommandContaining(commands, "git branch -f main origin/main") {
-		t.Fatalf("expected local main update, got %v", commands)
+		t.Fatalf("expected local main ref update, got %v", commands)
+	}
+}
+
+func TestRunLandUpdatesCheckedOutBaseBranchThroughWorktree(t *testing.T) {
+	tmp, stdout, app, restore := preparePRLandProject(t)
+	defer restore()
+
+	baseWorktree := filepath.Join(tmp, "..", "main-worktree")
+	worktreeList := strings.Join([]string{
+		"worktree " + filepath.Clean(tmp),
+		"HEAD 1111111111111111111111111111111111111111",
+		"branch refs/heads/feature/login-audit",
+		"",
+		"worktree " + filepath.Clean(baseWorktree),
+		"HEAD 2222222222222222222222222222222222222222",
+		"branch refs/heads/main",
+		"",
+	}, "\n")
+
+	var commands []string
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		commands = append(commands, name+" "+strings.Join(args, " "))
+
+		switch {
+		case dir == tmp && name == "gh" && len(args) == 2 && args[0] == "auth" && args[1] == "status":
+			return "", nil
+		case dir == tmp && name == "git" && len(args) >= 2 && args[0] == "branch" && args[1] == "--show-current":
+			return "feature/login-audit", nil
+		case dir == tmp && name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list":
+			return mustMarshalJSON(t, []githubPullRequest{{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "Existing PR", HeadRefName: "feature/login-audit", BaseRefName: "main"}}), nil
+		case dir == tmp && name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "view":
+			return mustMarshalJSON(t, githubPullRequest{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "Existing PR", HeadRefName: "feature/login-audit", BaseRefName: "main", ReviewDecision: "APPROVED", MergeStateStatus: "CLEAN"}), nil
+		case dir == tmp && name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "merge":
+			return "", nil
+		case dir == tmp && name == "git" && len(args) == 3 && args[0] == "fetch" && args[1] == "origin" && args[2] == "main":
+			return "", nil
+		case dir == tmp && name == "git" && len(args) == 3 && args[0] == "worktree" && args[1] == "list" && args[2] == "--porcelain":
+			return worktreeList, nil
+		case dir == filepath.Clean(baseWorktree) && name == "git" && len(args) >= 2 && args[0] == "status" && args[1] == "--porcelain":
+			return "", nil
+		case dir == filepath.Clean(baseWorktree) && name == "git" && len(args) == 4 && args[0] == "pull" && args[1] == "--ff-only" && args[2] == "origin" && args[3] == "main":
+			return "", nil
+		default:
+			t.Fatalf("unexpected command in %s: %s %v", dir, name, args)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"land"}); err != nil {
+		t.Fatalf("land failed: %v", err)
+	}
+
+	if !strings.Contains(stdout.String(), "Merged PR #17 and updated local main") {
+		t.Fatalf("expected land output, got %q", stdout.String())
+	}
+	if !hasCommandContaining(commands, "git worktree list --porcelain") {
+		t.Fatalf("expected worktree inspection, got %v", commands)
+	}
+	if !hasCommandContaining(commands, "git pull --ff-only origin main") {
+		t.Fatalf("expected base worktree fast-forward, got %v", commands)
+	}
+	if hasCommandContaining(commands, "git branch -f main origin/main") {
+		t.Fatalf("expected no force-update of checked out base branch, got %v", commands)
 	}
 }
 
