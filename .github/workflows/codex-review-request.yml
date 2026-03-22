@@ -16,7 +16,7 @@ jobs:
     if: ${{ !github.event.pull_request.draft && github.event.pull_request.base.ref == 'main' && github.event.pull_request.user.login != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v8
         with:
           script: |
             const marker = "<!-- namba-codex-review-request -->";
