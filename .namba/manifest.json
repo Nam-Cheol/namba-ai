@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-24T23:50:40+09:00",
+  "generated_at": "2026-03-25T00:18:47+09:00",
   "entries": [
     {
       "path": ".agents/skills/namba-fix/SKILL.md",
@@ -358,68 +358,68 @@
     {
       "path": ".namba/project/change-summary.md",
       "kind": "project-doc",
-      "checksum": "f10c460a354f60bfa9626f1f7e12f22b1d2b7fb2b423260534ede5f5ae525288",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "checksum": "8cd2a6add38f70e79cb13826a10517336bd0d54dd9e90dac117092a196874241",
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": ".namba/project/codemaps/data-flow.md",
       "kind": "project-doc",
-      "checksum": "d88c3fddb5c6b133e1a37e0d981f8df60d11e2780fd0164b57d730ca012ffdb4",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "checksum": "ca8010766d5fba2d5d598ff12cb21c552f6081c1188961e445aac5ab178658db",
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": ".namba/project/codemaps/dependencies.md",
       "kind": "project-doc",
       "checksum": "7a21fc9ec66c2bae9c062f39175bec0b9ff308ec7c645a1c705e064d8ea17bdf",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": ".namba/project/codemaps/entry-points.md",
       "kind": "project-doc",
       "checksum": "704ddf5366a70225ae55e49d8ee2f8b9fc266b0c2dbf5f1aa802154cc3915d0d",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": ".namba/project/codemaps/overview.md",
       "kind": "project-doc",
       "checksum": "8e78657ecf38baa34b08551a3a239b0782ca311ffb19580f1c5773c51213321c",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": ".namba/project/pr-checklist.md",
       "kind": "project-doc",
-      "checksum": "fa45d4f3fcc95fe85f2232e6253d1db3c42d1ecc865b74d8f365a73ced7a5891",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "checksum": "5fb5af0e75b12f7aea4af0171dec836438c629a23b2e2baed30ac3cc1416165e",
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": ".namba/project/product.md",
       "kind": "project-doc",
-      "checksum": "d3a79bb464374c5f6b9c00d89308c7f76bf43dc50087b0033f1cbc7d362affe1",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "checksum": "1b6159e744b5f2431b9e0ece8f64202223eca2a6cc38d1440e5121a5a52542ea",
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": ".namba/project/release-checklist.md",
       "kind": "project-doc",
-      "checksum": "6d420f606549dc9bd98e6e19445748c80e81f91e257994d8cd2d12bc680a3340",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "checksum": "0cb2c477935100b51d799fb6ef4c5eca85190a78c9ccd5dd83e92cfd12cd48b1",
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": ".namba/project/release-notes.md",
       "kind": "project-doc",
-      "checksum": "1b45595e05b29d414d5b66eb874a99ee656658452010727cb4a360c7bd8f77af",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "checksum": "3a08ce693dc38131b2bce45334341560f42e56c3034aa1cb0a8c0bbaa44aa60e",
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": ".namba/project/structure.md",
       "kind": "project-doc",
-      "checksum": "20a358892eedbe0776bba7770250507ad729dee8f693772202145b099f78d010",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "checksum": "dd64f63c6d534be251f584808a00d546c19127d878c569fd240b92c82f1c21c5",
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": ".namba/project/tech.md",
       "kind": "project-doc",
-      "checksum": "eeced60c8ff9826313666f5f841c08862c3115ffa9539498fad350ecf617e297",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "checksum": "5254fa13bfbc9cc430f345cd7896b4e3d4ff358551abbf9f44aa6e7723b9a0a3",
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": ".namba/specs/.gitkeep",
@@ -479,73 +479,73 @@
       "path": "README.ja.md",
       "kind": "asset",
       "checksum": "f1943ef418a1168b18d05a6ac9049a9f46f79f6889983dedbc1199aed904a5e7",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": "README.ko.md",
       "kind": "asset",
       "checksum": "c42e5411e3c0283dafd81ad51e0c27dc64e83d3a553b8a1eb712a9e614fc5383",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": "README.md",
       "kind": "asset",
-      "checksum": "4a9cae00857b3ec17b34080ee6858c0043719a5f33e0cf832999b77fe08feb26",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "checksum": "751a436a7ec8ffc78525dd63e2fcdcfed4cdb9aa0ce5c2cdd5ae773f9dcbfec4",
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": "README.zh.md",
       "kind": "asset",
       "checksum": "4574091cfce36bd76ce94922a60a255147a9707563478c525c172e71a4d1267e",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": "docs/getting-started.ja.md",
       "kind": "asset",
       "checksum": "ac355909c3143c81d7977c0053e94c48c0f6e16f4986fd660c85e6321f9004aa",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": "docs/getting-started.ko.md",
       "kind": "asset",
       "checksum": "bd427588c729d5e88bf278f037f63b16d828f75a7d62ac1ca0bd21a9b81e3f78",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": "docs/getting-started.md",
       "kind": "asset",
       "checksum": "e13c272ff4e3f9c67a6b33ddcc63c965ff417327b7050141f7eee7c80fe5ae6c",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": "docs/getting-started.zh.md",
       "kind": "asset",
       "checksum": "f9403aa9aaee18d6ba3daabd97e039e76a9b8733ed46ebc0b16356b6ef312b50",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": "docs/workflow-guide.ja.md",
       "kind": "asset",
       "checksum": "ed0e9c67499d75a3e51833ca5d6c26ea03520b7c8140d7e7bd765d312b803e54",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": "docs/workflow-guide.ko.md",
       "kind": "asset",
       "checksum": "3acc3ca612429286c92397c9b22645704ff1714ba64bbf45e874ce3cc0d01561",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": "docs/workflow-guide.md",
       "kind": "asset",
-      "checksum": "06252572130687fc86f2fb0e07e05dc5187f33642f74a0554e8e43cf394cdad5",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "checksum": "ac586585183fee758c0efc23b27afdfc8f2a569206324fe87790ca39d811b1fa",
+      "updated_at": "2026-03-25T00:18:47+09:00"
     },
     {
       "path": "docs/workflow-guide.zh.md",
       "kind": "asset",
       "checksum": "a4211cb1a0e1dcde2e5edc512eeaffbfaefce74d04210132e7583ea38a016bfe",
-      "updated_at": "2026-03-24T23:50:40+09:00"
+      "updated_at": "2026-03-25T00:18:47+09:00"
     }
   ]
 }

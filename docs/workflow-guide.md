@@ -6,11 +6,27 @@
 
 [Getting Started](./getting-started.md) | [Workflow Guide](./workflow-guide.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
-## `update`, `regen`, and `sync` are different commands
+## `update`, `regen`, `sync`, `pr`, and `land` are different commands
 
 - `namba update`: self-update the installed CLI from GitHub Release assets
 - `namba regen`: regenerate AGENTS, skills, custom agents, and repo Codex config
 - `namba sync`: refresh README, project docs, codemaps, PR checklists, and release notes
+- `namba pr`: run sync plus validation by default, commit and push the current branch, open or reuse the PR, and ensure the Codex review marker exists
+- `namba land`: optionally wait for checks, merge only when the PR is clean, and update local `main` safely
+
+## `namba run` modes
+
+- `namba run SPEC-XXX`: standard standalone Codex flow in one workspace.
+- `namba run SPEC-XXX --solo`: standalone single-subagent workflow inside one workspace.
+- `namba run SPEC-XXX --team`: standalone multi-subagent workflow inside one workspace.
+- `namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.
+
+## Role routing
+
+- Default `namba run` stays in the standalone runner unless the prompt shows a strong specialist signal.
+- `--solo` uses at most one specialist when one domain clearly dominates; `--team` expands to two specialists plus reviewer only when acceptance spans multiple domains.
+- Route UI, responsive, mobile, and design work to `namba-frontend-implementer`, `namba-mobile-engineer`, or `namba-designer`; API, schema, and pipeline work to `namba-backend-implementer` or `namba-data-engineer`; auth, secrets, and compliance work to `namba-security-engineer`; deployment and runtime work to `namba-devops-engineer`.
+- Keep the standalone runner as integrator and validation owner; use `namba-reviewer` for the final acceptance pass rather than growing an uncontrolled swarm.
 
 ## Key generated assets
 
@@ -22,8 +38,8 @@
 ## Collaboration defaults
 
 - Work happens on dedicated branches.
-- PRs target `main`.
-- PR title and body follow the selected PR language.
+- `namba pr` targets `main` and keeps the configured PR language plus review marker aligned.
+- `namba land` merges only clean PRs and updates local `main` without clobbering unrelated work.
 - GitHub review requests use `@codex review`.
 
 ## Release flow

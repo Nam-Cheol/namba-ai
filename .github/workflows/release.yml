@@ -18,6 +18,11 @@ jobs:
         include:
           - runner: windows-latest
             goos: windows
+            goarch: 386
+            asset_name: namba_Windows_x86.zip
+            binary_name: namba.exe
+          - runner: windows-latest
+            goos: windows
             goarch: amd64
             asset_name: namba_Windows_x86_64.zip
             binary_name: namba.exe
