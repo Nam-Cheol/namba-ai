@@ -1,4 +1,3 @@
 # Entry Points
 
-- `cmd/namba/main.go`: CLI entry point
-- `internal/namba/namba.go`: command orchestration
+- `cmd/namba/main.go`: Go command entry point

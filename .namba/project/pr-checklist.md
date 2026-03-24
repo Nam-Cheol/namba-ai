@@ -7,7 +7,6 @@
 - [ ] README / user-facing docs refreshed
 - [ ] `namba regen` rerun if template-generated Codex assets changed
 - [ ] `namba sync` artifacts refreshed
-- [ ] `namba pr` used for the GitHub review handoff when the branch is ready
 - [ ] SPEC artifacts reviewed
 - [ ] Validation commands passed
 - [ ] Diff reviewed
