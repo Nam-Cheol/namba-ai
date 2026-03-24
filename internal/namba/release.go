@@ -11,6 +11,7 @@ type releaseTarget struct {
 
 func releaseTargets() []releaseTarget {
 	return []releaseTarget{
+		{GOOS: "windows", GOARCH: "386", Archive: "zip", AssetName: "namba_Windows_x86.zip"},
 		{GOOS: "windows", GOARCH: "amd64", Archive: "zip", AssetName: "namba_Windows_x86_64.zip"},
 		{GOOS: "windows", GOARCH: "arm64", Archive: "zip", AssetName: "namba_Windows_arm64.zip"},
 		{GOOS: "linux", GOARCH: "amd64", Archive: "tar.gz", AssetName: "namba_Linux_x86_64.tar.gz"},

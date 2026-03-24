@@ -3,6 +3,7 @@ dist/
 *.exe
 .namba/logs/
 .namba/worktrees/
+.tmp_pr*_review/
 external/
 .env
 .env.*

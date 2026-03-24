@@ -92,7 +92,6 @@
 .namba\specs\SPEC-010
 .namba\specs\SPEC-011
 .namba\specs\SPEC-012
-.tmp_pr17_review
 AGENTS.md
 README.ja.md
 README.ko.md

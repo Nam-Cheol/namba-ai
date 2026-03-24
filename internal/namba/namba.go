@@ -1474,7 +1474,14 @@ func buildTechDoc(cfg projectConfig) string {
 	return fmt.Sprintf("# Tech\n\n- Language: %s\n- Framework: %s\n- Runtime adapter: Codex\n- Repo-local skills and command-entry skills: .agents/skills\n- Built-in Codex subagents: default, worker, explorer\n- Project-scoped custom agents: .codex/agents/*.toml\n- Readable agent mirrors: .codex/agents/*.md\n- State directory: .namba\n", cfg.Language, cfg.Framework)
 }
 
-var localJSImportPattern = regexp.MustCompile(`(?m)^\s*import(?:[\s\w{},*]+from\s+)?["']([^"']+)["']`)
+type jsImportInfo struct {
+	Resolved string
+	Bindings []string
+}
+
+var localJSImportPattern = regexp.MustCompile(`(?m)^\s*import\s+(?:(.+?)\s+from\s+)?["']([^"']+)["']`)
+var renderJSXComponentPattern = regexp.MustCompile(`(?s)\.render\(\s*<([A-Z][A-Za-z0-9_]*)\b`)
+var renderIdentifierPattern = regexp.MustCompile(`(?s)\.render\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)`)
 
 func buildCodemaps(root string, cfg projectConfig) (string, string, string, string) {
 	overview := fmt.Sprintf("# Overview\n\n%s is managed by NambaAI.\n\n- Language: %s\n- Framework: %s\n", cfg.Name, cfg.Language, cfg.Framework)
@@ -1629,9 +1636,9 @@ func buildNodeEntryPoints(root string) []string {
 	}
 	if bootstrap != "" {
 		appendEntryPoint(&bullets, seen, bootstrap, summarizeEntryPoint(root, bootstrap))
-		if appShell := firstResolvedLocalJSImport(root, bootstrap); appShell != "" {
+		if appShell := resolveNodeAppShell(root, bootstrap); appShell != "" {
 			appendEntryPoint(&bullets, seen, appShell, summarizeEntryPoint(root, appShell))
-			if routerModule := firstResolvedLocalJSImport(root, appShell); looksLikeRouterModule(root, routerModule) {
+			if routerModule := firstRouterLikeJSImport(root, appShell); routerModule != "" {
 				appendEntryPoint(&bullets, seen, routerModule, summarizeEntryPoint(root, routerModule))
 			}
 		}
@@ -1721,21 +1728,185 @@ func summarizeEntryPoint(root, rel string) string {
 }
 
 func firstResolvedLocalJSImport(root, rel string) string {
-	data, err := os.ReadFile(filepath.Join(root, rel))
+	imports := orderedResolvedLocalJSImports(root, rel)
+	for _, info := range imports {
+		if len(info.Bindings) > 0 {
+			return info.Resolved
+		}
+	}
+	if len(imports) > 0 {
+		return imports[0].Resolved
+	}
+	return ""
+}
+
+func resolveNodeAppShell(root, bootstrap string) string {
+	data, err := os.ReadFile(filepath.Join(root, bootstrap))
 	if err != nil {
 		return ""
 	}
 
-	for _, match := range localJSImportPattern.FindAllStringSubmatch(string(data), -1) {
-		specifier := strings.TrimSpace(match[1])
-		if !strings.HasPrefix(specifier, ".") {
-			continue
+	imports := orderedResolvedLocalJSImports(root, bootstrap)
+	if len(imports) == 0 {
+		return ""
+	}
+
+	bindings := map[string]string{}
+	for _, info := range imports {
+		for _, binding := range info.Bindings {
+			if binding == "" {
+				continue
+			}
+			if _, exists := bindings[binding]; !exists {
+				bindings[binding] = info.Resolved
+			}
 		}
-		if resolved := resolveJSImport(root, filepath.Dir(rel), specifier); resolved != "" {
+	}
+
+	for _, target := range renderTargetIdentifiers(string(data)) {
+		if resolved := bindings[target]; resolved != "" {
 			return resolved
 		}
 	}
 
+	for _, info := range imports {
+		for _, binding := range info.Bindings {
+			lower := strings.ToLower(binding)
+			if lower == "app" || strings.HasSuffix(lower, "app") || strings.Contains(lower, "shell") || strings.Contains(lower, "root") {
+				return info.Resolved
+			}
+		}
+	}
+
+	return firstResolvedLocalJSImport(root, bootstrap)
+}
+
+func firstRouterLikeJSImport(root, rel string) string {
+	for _, info := range orderedResolvedLocalJSImports(root, rel) {
+		if looksLikeRouterModule(root, info.Resolved) {
+			return info.Resolved
+		}
+	}
+	return ""
+}
+
+func orderedResolvedLocalJSImports(root, rel string) []jsImportInfo {
+	data, err := os.ReadFile(filepath.Join(root, rel))
+	if err != nil {
+		return nil
+	}
+
+	var infos []jsImportInfo
+	for _, match := range localJSImportPattern.FindAllStringSubmatch(string(data), -1) {
+		specifier := strings.TrimSpace(match[2])
+		if !strings.HasPrefix(specifier, ".") {
+			continue
+		}
+		resolved := resolveJSImport(root, filepath.Dir(rel), specifier)
+		if resolved == "" {
+			continue
+		}
+		infos = append(infos, jsImportInfo{
+			Resolved: resolved,
+			Bindings: parseJSImportBindings(match[1]),
+		})
+	}
+	return infos
+}
+
+func parseJSImportBindings(clause string) []string {
+	clause = strings.TrimSpace(clause)
+	if clause == "" || strings.HasPrefix(clause, "type ") {
+		return nil
+	}
+
+	var bindings []string
+	if brace := strings.Index(clause, "{"); brace >= 0 {
+		prefix := strings.TrimSpace(strings.TrimSuffix(clause[:brace], ","))
+		if prefix != "" {
+			if namespace := parseJSImportNamespace(prefix); namespace != "" {
+				bindings = append(bindings, namespace)
+			} else {
+				bindings = append(bindings, prefix)
+			}
+		}
+		if end := strings.LastIndex(clause, "}"); end > brace {
+			for _, part := range strings.Split(clause[brace+1:end], ",") {
+				part = strings.TrimSpace(part)
+				if part == "" {
+					continue
+				}
+				if strings.Contains(part, " as ") {
+					parts := strings.Split(part, " as ")
+					part = strings.TrimSpace(parts[len(parts)-1])
+				}
+				if part != "" && !strings.HasPrefix(part, "type ") {
+					bindings = append(bindings, part)
+				}
+			}
+		}
+		return bindings
+	}
+
+	if comma := strings.Index(clause, ","); comma >= 0 {
+		defaultBinding := strings.TrimSpace(clause[:comma])
+		if defaultBinding != "" {
+			bindings = append(bindings, defaultBinding)
+		}
+		if namespace := parseJSImportNamespace(strings.TrimSpace(clause[comma+1:])); namespace != "" {
+			bindings = append(bindings, namespace)
+		}
+		return bindings
+	}
+
+	if namespace := parseJSImportNamespace(clause); namespace != "" {
+		return []string{namespace}
+	}
+
+	return []string{clause}
+}
+
+func parseJSImportNamespace(clause string) string {
+	if !strings.HasPrefix(clause, "* as ") {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(clause, "* as "))
+}
+
+func renderTargetIdentifiers(source string) []string {
+	seen := map[string]bool{}
+	var ids []string
+	appendID := func(identifier string) {
+		if identifier == "" || seen[identifier] {
+			return
+		}
+		seen[identifier] = true
+		ids = append(ids, identifier)
+	}
+
+	for _, match := range renderJSXComponentPattern.FindAllStringSubmatch(source, -1) {
+		appendID(match[1])
+	}
+	for _, match := range renderIdentifierPattern.FindAllStringSubmatch(source, -1) {
+		identifier := match[1]
+		if target := resolveJSXAliasTarget(source, identifier); target != "" {
+			appendID(target)
+			continue
+		}
+		appendID(identifier)
+	}
+	return ids
+}
+
+func resolveJSXAliasTarget(source, identifier string) string {
+	if identifier == "" {
+		return ""
+	}
+	pattern := regexp.MustCompile(fmt.Sprintf(`(?m)^\s*(?:const|let|var)\s+%s\s*=\s*<([A-Z][A-Za-z0-9_]*)\b`, regexp.QuoteMeta(identifier)))
+	match := pattern.FindStringSubmatch(source)
+	if len(match) == 2 {
+		return match[1]
+	}
 	return ""
 }
 
@@ -1813,9 +1984,11 @@ func shouldSkipDiscoveryDir(root, path string) bool {
 	if rel == "." {
 		return false
 	}
-	switch rel {
-	case ".git", ".namba", ".codex", ".agents", "dist", "external", "node_modules":
-		return true
+	for _, segment := range strings.Split(rel, "/") {
+		switch segment {
+		case ".git", ".namba", ".codex", ".agents", "dist", "external", "node_modules":
+			return true
+		}
 	}
 	return false
 }
@@ -2010,6 +2183,7 @@ func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt stri
 		"",
 		"## Expected Assets",
 		"",
+		"- `namba_Windows_x86.zip`",
 		"- `namba_Windows_x86_64.zip`",
 		"- `namba_Windows_arm64.zip`",
 		"- `namba_Linux_x86_64.tar.gz`",

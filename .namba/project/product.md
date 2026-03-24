@@ -20,7 +20,7 @@ NambaAI is a Codex-native workflow for bootstrapping repositories, planning work
 
 - Bootstrap a Codex-ready repository from an empty directory with `namba init .`.
 - Turn change requests into SPEC packages with `namba plan` and `namba fix`.
-- Execute work with `namba run SPEC-XXX` and finish with validation plus `namba sync`.
+- Execute work with `namba run SPEC-XXX` for the default flow, use `--solo` or `--team` for standalone subagent-oriented runs, or `--parallel` for worktree fan-out before handing off with `namba sync`, `namba pr`, and `namba land`.
 - Keep CLI versions aligned across the team with `namba update` and release assets.
 
 ## Quick Start
@@ -48,12 +48,44 @@ namba project
 namba plan "add login audit logs"
 namba run SPEC-001
 namba sync
+namba pr "add login audit logs"
+namba land
 ```
+
+## Command Skills In Codex
+
+- `$namba`: general router when you want Codex to choose the right Namba workflow entry point.
+- `$namba-project`: refresh project docs and codemaps before starting or after larger changes.
+- `$namba-plan` / `$namba-fix`: create the next feature or bugfix SPEC package.
+- `$namba-run`: execute a SPEC package through the Namba workflow in the current Codex session.
+- `$namba-sync`: refresh README bundles, project docs, codemaps, and PR-ready artifacts.
+- `$namba-pr` / `$namba-land`: hand off the current branch for GitHub review, then merge it safely after checks pass.
+- `$namba-regen` / `$namba-update`: regenerate repo-local Codex assets or self-update the installed `namba` CLI.
+
+## Skill To Command Mapping
+
+- `$namba-project` -> `namba project`
+- `$namba-plan` -> `namba plan "description"`
+- `$namba-fix` -> `namba fix "description"`
+- `$namba-run` -> `namba run SPEC-XXX`
+- `$namba-sync` -> `namba sync`
+- `$namba-pr` -> `namba pr "title"`
+- `$namba-land` -> `namba land`
+- `$namba-regen` -> `namba regen`
+- `$namba-update` -> `namba update [--version vX.Y.Z]`
+
+## Custom Agents In Codex
+
+- Strategy: `namba-product-manager` shapes scope and acceptance, and `namba-planner` turns a SPEC into an execution plan.
+- UI and experience: `namba-frontend-architect`, `namba-frontend-implementer`, `namba-mobile-engineer`, and `namba-designer` cover web UI, mobile execution, and visual direction.
+- Backend and data: `namba-backend-architect`, `namba-backend-implementer`, and `namba-data-engineer` cover APIs, persistence, migrations, and pipelines.
+- Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, and `namba-reviewer` cover hardening, regression confidence, CI/CD, and final acceptance.
+- General delivery: `namba-implementer` remains the generalist execution agent when a task spans multiple domains but does not justify a larger specialist team.
 
 ## Need More Detail?
 
 - [Getting Started](docs/getting-started.md): installation, init, updates, and first-run flow
-- [Workflow Guide](docs/workflow-guide.md): update vs regen vs sync, generated assets, and collaboration defaults
+- [Workflow Guide](docs/workflow-guide.md): update vs regen vs sync vs pr vs land, run modes, generated assets, and collaboration defaults
 - [Codex Upstream Reference](docs/codex-upstream-reference.md): upstream baseline this repository follows
 - [SECURITY.md](SECURITY.md): security policy
 
@@ -61,5 +93,5 @@ namba sync
 
 - `.namba/` is the source of truth for config, SPEC packages, and project docs.
 - `.agents/skills/` is the repo-local skill surface used by Codex.
-- `.codex/agents/*.toml` defines custom planner, implementer, and reviewer agents.
-- `namba update`, `namba regen`, and `namba sync` solve different problems and should not be mixed.
+- `.codex/agents/*.toml` defines task-oriented custom agents across product, planning, design, frontend, mobile, backend, data, security, testing, ops, implementation, and review.
+- `namba update`, `namba regen`, `namba sync`, `namba pr`, and `namba land` solve different problems and should not be mixed.

@@ -13,6 +13,12 @@ func TestReleaseAssetName(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			name:   "windows 386",
+			goos:   "windows",
+			goarch: "386",
+			want:   "namba_Windows_x86.zip",
+		},
+		{
 			name:   "windows amd64",
 			goos:   "windows",
 			goarch: "amd64",

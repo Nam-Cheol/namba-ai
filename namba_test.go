@@ -326,6 +326,126 @@ export const router = createBrowserRouter([]);
 	}
 }
 
+func TestProjectIgnoresNestedNodeModulesDuringCodemapDiscovery(t *testing.T) {
+	tmp := t.TempDir()
+	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	if err := os.MkdirAll(filepath.Join(tmp, "nested", "node_modules", "vendor"), 0o755); err != nil {
+		t.Fatalf("mkdir nested node_modules: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, "src", "router"), 0o755); err != nil {
+		t.Fatalf("mkdir src/router: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "package.json"), []byte(`{"name":"aura","dependencies":{"react":"18.3.1","react-dom":"18.3.1","react-router":"7.13.0"}}`), 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "src", "main.tsx"), []byte(`import { createRoot } from "react-dom/client";
+import App from "./App";
+
+createRoot(document.getElementById("root")!).render(<App />);
+`), 0o644); err != nil {
+		t.Fatalf("write src/main.tsx: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "src", "App.tsx"), []byte(`import { RouterProvider } from "react-router";
+import { router } from "./router/app-router";
+
+export default function App() {
+  return <RouterProvider router={router} />;
+}
+`), 0o644); err != nil {
+		t.Fatalf("write src/App.tsx: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "src", "router", "app-router.ts"), []byte(`import { createBrowserRouter } from "react-router";
+
+export const router = createBrowserRouter([]);
+`), 0o644); err != nil {
+		t.Fatalf("write real router: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "nested", "node_modules", "vendor", "router.ts"), []byte(`import { createBrowserRouter } from "react-router";
+
+export const vendorRouter = createBrowserRouter([]);
+`), 0o644); err != nil {
+		t.Fatalf("write vendor router: %v", err)
+	}
+
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdir(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"project"}); err != nil {
+		t.Fatalf("project failed: %v", err)
+	}
+
+	entryPoints := mustRead(t, filepath.Join(tmp, ".namba", "project", "codemaps", "entry-points.md"))
+	if !strings.Contains(entryPoints, "`src/router/app-router.ts`") {
+		t.Fatalf("expected project router entry point, got: %s", entryPoints)
+	}
+	if strings.Contains(entryPoints, "`nested/node_modules/vendor/router.ts`") {
+		t.Fatalf("expected nested node_modules to be skipped, got: %s", entryPoints)
+	}
+}
+
+func TestProjectUsesRenderTargetForReactAppShell(t *testing.T) {
+	tmp := t.TempDir()
+	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	if err := os.MkdirAll(filepath.Join(tmp, "src", "app"), 0o755); err != nil {
+		t.Fatalf("mkdir src/app: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "package.json"), []byte(`{"name":"aura","dependencies":{"react":"18.3.1","react-dom":"18.3.1","react-router":"7.13.0"}}`), 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "src", "main.tsx"), []byte(`import "./telemetry";
+import { createRoot } from "react-dom/client";
+import App from "./app/App";
+
+createRoot(document.getElementById("root")!).render(<App />);
+`), 0o644); err != nil {
+		t.Fatalf("write src/main.tsx: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "src", "telemetry.ts"), []byte(`console.log("boot telemetry");
+`), 0o644); err != nil {
+		t.Fatalf("write telemetry: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "src", "app", "App.tsx"), []byte(`import { RouterProvider } from "react-router";
+import { router } from "./routes";
+
+export default function App() {
+  return <RouterProvider router={router} />;
+}
+`), 0o644); err != nil {
+		t.Fatalf("write src/app/App.tsx: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "src", "app", "routes.ts"), []byte(`import { createBrowserRouter } from "react-router";
+
+export const router = createBrowserRouter([]);
+`), 0o644); err != nil {
+		t.Fatalf("write src/app/routes.ts: %v", err)
+	}
+
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdir(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"project"}); err != nil {
+		t.Fatalf("project failed: %v", err)
+	}
+
+	entryPoints := mustRead(t, filepath.Join(tmp, ".namba", "project", "codemaps", "entry-points.md"))
+	if !strings.Contains(entryPoints, "`src/app/App.tsx`") || !strings.Contains(entryPoints, "`src/app/routes.ts`") {
+		t.Fatalf("expected render target app shell and router module, got: %s", entryPoints)
+	}
+	if strings.Contains(entryPoints, "`src/telemetry.ts`") {
+		t.Fatalf("expected side-effect bootstrap imports to be ignored, got: %s", entryPoints)
+	}
+}
+
 func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 	t.Parallel()
 
@@ -358,7 +478,7 @@ func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 	}
 
 	releaseNotes := mustRead(t, filepath.Join(tmp, ".namba", "project", "release-notes.md"))
-	if !strings.Contains(releaseNotes, "`namba release --push`") || !strings.Contains(releaseNotes, "`checksums.txt`") || !strings.Contains(releaseNotes, "`@codex review`") {
+	if !strings.Contains(releaseNotes, "`namba release --push`") || !strings.Contains(releaseNotes, "`checksums.txt`") || !strings.Contains(releaseNotes, "`@codex review`") || !strings.Contains(releaseNotes, "`namba_Windows_x86.zip`") {
 		t.Fatalf("expected synced release notes to describe release flow, got: %s", releaseNotes)
 	}
 

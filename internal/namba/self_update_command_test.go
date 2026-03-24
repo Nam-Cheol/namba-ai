@@ -115,6 +115,18 @@ func TestRunUpdateFailsWhenChecksumDoesNotMatch(t *testing.T) {
 func TestRunUpdateSchedulesReplacementOnWindows(t *testing.T) {
 	t.Parallel()
 
+	testRunUpdateSchedulesReplacementOnWindows(t, "amd64", "namba_Windows_x86_64.zip")
+}
+
+func TestRunUpdateSchedulesReplacementOnWindows386(t *testing.T) {
+	t.Parallel()
+
+	testRunUpdateSchedulesReplacementOnWindows(t, "386", "namba_Windows_x86.zip")
+}
+
+func testRunUpdateSchedulesReplacementOnWindows(t *testing.T, goarch, assetName string) {
+	t.Helper()
+
 	tmp := t.TempDir()
 	execPath := filepath.Join(tmp, "namba.exe")
 	if err := os.WriteFile(execPath, []byte("old-binary"), 0o755); err != nil {
@@ -125,14 +137,14 @@ func TestRunUpdateSchedulesReplacementOnWindows(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	app := NewApp(stdout, &bytes.Buffer{})
 	app.goos = "windows"
-	app.goarch = "amd64"
+	app.goarch = goarch
 	app.executablePath = func() (string, error) { return execPath, nil }
 	app.downloadURL = func(_ context.Context, url string) ([]byte, error) {
 		switch url {
-		case releaseDownloadURL("v1.2.3", "namba_Windows_x86_64.zip"):
+		case releaseDownloadURL("v1.2.3", assetName):
 			return archiveData, nil
 		case releaseDownloadURL("v1.2.3", "checksums.txt"):
-			return checksumManifest("namba_Windows_x86_64.zip", archiveData), nil
+			return checksumManifest(assetName, archiveData), nil
 		default:
 			t.Fatalf("unexpected download url %q", url)
 			return nil, nil
