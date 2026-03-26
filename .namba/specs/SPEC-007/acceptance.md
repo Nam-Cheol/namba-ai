@@ -7,6 +7,7 @@
 - [x] Secrets are not written into generated files.
 - [x] README explains the Codex usage flow in Korean.
 - [x] Tests covering the new init scaffold behavior are present.
-- [ ] Validation commands pass.
+- [x] Validation commands pass.
 
-Note: checklist synced against the current implementation. The remaining validation item was not re-run in this shell.
+Note: checklist synced after rerunning validation in this shell (`go test ./...`, `gofmt -l "cmd" "internal" "namba_test.go"`, and `go vet ./...`).
+

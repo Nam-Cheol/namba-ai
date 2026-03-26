@@ -6,6 +6,7 @@
 - [x] `namba doctor` reports Codex-native repository readiness.
 - [x] README explains that `namba init .` makes the project usable from Codex.
 - [x] README explains the supported status line customization path.
-- [ ] Validation commands pass.
+- [x] Validation commands pass.
 
-Note: checklist synced against the current implementation. The remaining validation item was not re-run in this shell.
+Note: checklist synced after rerunning validation in this shell (`go test ./...`, `gofmt -l "cmd" "internal" "namba_test.go"`, and `go vet ./...`).
+
