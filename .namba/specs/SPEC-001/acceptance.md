@@ -6,6 +6,7 @@
 - [x] Validation failures still write a validation report with the failing step recorded.
 - [x] `run --parallel` reuses the same runner and validation helper path.
 - [x] `--dry-run` still avoids runner and validator execution.
-- [ ] `go test ./...` passes.
+- [x] `go test ./...` passes.
 
-Note: checklist synced against the current implementation. The remaining validation item was not re-run in this shell.
+Note: checklist synced after rerunning validation in this shell (`go test ./...`, `gofmt -l "cmd" "internal" "namba_test.go"`, and `go vet ./...`).
+

@@ -453,6 +453,63 @@ func TestRunLandUpdatesCheckedOutBaseBranchThroughWorktree(t *testing.T) {
 	}
 }
 
+func TestRunLandRejectsDirtyBaseWorktreeUpdate(t *testing.T) {
+	tmp, _, app, restore := preparePRLandProject(t)
+	defer restore()
+
+	baseWorktree := filepath.Join(tmp, "..", "main-worktree")
+	worktreeList := strings.Join([]string{
+		"worktree " + filepath.Clean(tmp),
+		"HEAD 1111111111111111111111111111111111111111",
+		"branch refs/heads/feature/login-audit",
+		"",
+		"worktree " + filepath.Clean(baseWorktree),
+		"HEAD 2222222222222222222222222222222222222222",
+		"branch refs/heads/main",
+		"",
+	}, "\n")
+
+	var commands []string
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		commands = append(commands, name+" "+strings.Join(args, " "))
+
+		switch {
+		case dir == tmp && name == "gh" && len(args) == 2 && args[0] == "auth" && args[1] == "status":
+			return "", nil
+		case dir == tmp && name == "git" && len(args) >= 2 && args[0] == "branch" && args[1] == "--show-current":
+			return "feature/login-audit", nil
+		case dir == tmp && name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list":
+			return mustMarshalJSON(t, []githubPullRequest{{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "Existing PR", HeadRefName: "feature/login-audit", BaseRefName: "main"}}), nil
+		case dir == tmp && name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "view":
+			return mustMarshalJSON(t, githubPullRequest{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "Existing PR", HeadRefName: "feature/login-audit", BaseRefName: "main", ReviewDecision: "APPROVED", MergeStateStatus: "CLEAN"}), nil
+		case dir == tmp && name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "merge":
+			return "", nil
+		case dir == tmp && name == "git" && len(args) == 3 && args[0] == "fetch" && args[1] == "origin" && args[2] == "main":
+			return "", nil
+		case dir == tmp && name == "git" && len(args) == 3 && args[0] == "worktree" && args[1] == "list" && args[2] == "--porcelain":
+			return worktreeList, nil
+		case dir == filepath.Clean(baseWorktree) && name == "git" && len(args) >= 2 && args[0] == "status" && args[1] == "--porcelain":
+			return " M README.md", nil
+		default:
+			t.Fatalf("unexpected command in %s: %s %v", dir, name, args)
+			return "", nil
+		}
+	}
+
+	err := app.Run(context.Background(), []string{"land"})
+	if err == nil {
+		t.Fatal("expected dirty worktree error")
+	}
+	if !strings.Contains(err.Error(), "uncommitted changes") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if hasCommandContaining(commands, "git pull --ff-only origin main") {
+		t.Fatalf("expected no base worktree fast-forward, got %v", commands)
+	}
+	if hasCommandContaining(commands, "git branch -f main origin/main") {
+		t.Fatalf("expected no branch force update, got %v", commands)
+	}
+}
 func preparePRLandProject(t *testing.T) (string, *bytes.Buffer, *App, func()) {
 	t.Helper()
 	tmp := t.TempDir()

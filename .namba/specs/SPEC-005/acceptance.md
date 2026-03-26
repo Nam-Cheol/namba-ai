@@ -7,6 +7,7 @@
 - [x] macOS/Linux installer downloads a release archive and registers the install directory on PATH.
 - [x] A GitHub Actions release workflow packages supported platform binaries.
 - [x] Release asset naming is covered by tests.
-- [ ] Validation commands pass.
+- [x] Validation commands pass.
 
-Note: checklist synced against the current implementation. The remaining validation item was not re-run in this shell.
+Note: checklist synced after rerunning validation in this shell (`go test ./...`, `gofmt -l "cmd" "internal" "namba_test.go"`, and `go vet ./...`).
+

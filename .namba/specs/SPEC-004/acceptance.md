@@ -5,6 +5,7 @@
 - [x] The Go module path matches the GitHub repository path used in README installation examples.
 - [x] Windows CLI startup forces UTF-8 console output before running the app.
 - [x] The UTF-8 setup path is covered by tests.
-- [ ] Validation commands pass.
+- [x] Validation commands pass.
 
-Note: checklist synced against the current implementation. The remaining validation item was not re-run in this shell.
+Note: checklist synced after rerunning validation in this shell (`go test ./...`, `gofmt -l "cmd" "internal" "namba_test.go"`, and `go vet ./...`).
+

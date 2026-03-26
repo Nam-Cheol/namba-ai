@@ -5,6 +5,7 @@
 - [x] Custom system config values are forwarded to the Codex command line.
 - [x] Invalid approval or sandbox values fail before Codex is launched.
 - [x] Execution logs record the effective approval and sandbox values.
-- [ ] `go test ./...` passes.
+- [x] `go test ./...` passes.
 
-Note: checklist synced against the current implementation. The remaining validation item was not re-run in this shell.
+Note: checklist synced after rerunning validation in this shell (`go test ./...`, `gofmt -l "cmd" "internal" "namba_test.go"`, and `go vet ./...`).
+
