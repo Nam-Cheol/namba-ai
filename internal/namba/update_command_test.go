@@ -218,6 +218,37 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	}
 }
 
+func TestRunRegenSignalsSessionRefreshWhenInstructionSurfaceChanges(t *testing.T) {
+	t.Parallel()
+
+	stdout := &bytes.Buffer{}
+	tmp := t.TempDir()
+	app := NewApp(stdout, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(tmp, "AGENTS.md"), []byte("stale agents\n"), 0o644); err != nil {
+		t.Fatalf("write stale AGENTS: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"regen"}); err != nil {
+		t.Fatalf("regen failed: %v", err)
+	}
+
+	if !strings.Contains(stdout.String(), "Session refresh required:") {
+		t.Fatalf("expected regen output to signal session refresh, got %q", stdout.String())
+	}
+
+	notice := mustReadFile(t, filepath.Join(tmp, ".namba", "logs", "session-refresh-required.json"))
+	if !strings.Contains(notice, "\"required\": true") || !strings.Contains(notice, "AGENTS.md") {
+		t.Fatalf("expected session refresh notice log, got %q", notice)
+	}
+}
+
 func TestRunRegenRejectsUnsupportedManagedMCPServer(t *testing.T) {
 	t.Parallel()
 

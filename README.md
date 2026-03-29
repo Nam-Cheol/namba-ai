@@ -16,7 +16,7 @@ NambaAI is a Codex-native workflow for bootstrapping repositories, planning work
 
 - Bootstrap a Codex-ready repository from an empty directory with `namba init .`.
 - Turn change requests into SPEC packages with `namba plan` and `namba fix`.
-- Execute work with `namba run SPEC-XXX` for the default flow, use `--solo` or `--team` for standalone subagent-oriented runs, or `--parallel` for worktree fan-out before handing off with `namba sync`, `namba pr`, and `namba land`.
+- Execute work with `namba run SPEC-XXX` for the default flow, use `--solo` for a single runner in one workspace, `--team` for same-workspace multi-agent execution, or `--parallel` for worktree fan-out/fan-in before handing off with `namba sync`, `namba pr`, and `namba land`.
 - Run explicit plan reviews with `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when a SPEC needs product, engineering, or design critique before implementation.
 - Keep CLI versions aligned across the team with `namba update` and release assets.
 

@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -19,6 +19,9 @@ type parallelHarness struct {
 	stdout        *bytes.Buffer
 	app           *App
 	commands      []string
+	codexCount    int
+	lastCodexIdx  int
+	mu            sync.Mutex
 	execFailures  map[string]error
 	validationErr map[string]error
 	mergeErr      map[string]error
@@ -45,6 +48,7 @@ func newParallelHarness(t *testing.T) (*parallelHarness, func()) {
 		tmp:           tmp,
 		stdout:        stdout,
 		app:           app,
+		lastCodexIdx:  -1,
 		execFailures:  map[string]error{},
 		validationErr: map[string]error{},
 		mergeErr:      map[string]error{},
@@ -66,7 +70,13 @@ func newParallelHarness(t *testing.T) (*parallelHarness, func()) {
 }
 
 func (h *parallelHarness) runCmd(_ context.Context, name string, args []string, dir string) (string, error) {
+	h.mu.Lock()
 	h.commands = append(h.commands, name+" "+strings.Join(args, " "))
+	if isCodexExec(name, args) {
+		h.codexCount++
+		h.lastCodexIdx = len(h.commands) - 1
+	}
+	h.mu.Unlock()
 
 	switch {
 	case name == "git" && len(args) >= 2 && args[0] == "branch" && args[1] == "--show-current":
@@ -120,13 +130,13 @@ func TestRunParallelAllSuccessCleansUpAndWritesReport(t *testing.T) {
 	h, restore := newParallelHarness(t)
 	defer restore()
 
-	err := h.app.runParallel(context.Background(), h.tmp, specPackage{ID: "SPEC-003"}, []string{"one", "two", "three", "four"}, "prompt", qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex"}, false)
+	err := h.app.runParallel(context.Background(), h.tmp, specPackage{ID: "SPEC-003"}, []string{"one", "two", "three", "four"}, "prompt", qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex"}, codexConfig{}, workflowConfig{MaxParallelWorkers: 3}, false)
 	if err != nil {
 		t.Fatalf("runParallel failed: %v", err)
 	}
 
 	firstMerge := indexCommandContaining(h.commands, "git merge --no-ff")
-	lastExec := lastCommandContaining(h.commands, codexExecPrefix())
+	lastExec := h.lastCodexIdx
 	if firstMerge == -1 || lastExec == -1 || firstMerge <= lastExec {
 		t.Fatalf("expected merges after all worker executions, got %v", h.commands)
 	}
@@ -155,7 +165,7 @@ func TestRunParallelExecutionFailureBlocksMergeAndPreservesWorktrees(t *testing.
 	failedDir := filepath.Join(h.tmp, worktreesDir, "spec-003-p2")
 	h.execFailures[failedDir] = errors.New("runner boom")
 
-	err := h.app.runParallel(context.Background(), h.tmp, specPackage{ID: "SPEC-003"}, []string{"one", "two", "three"}, "prompt", qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex"}, false)
+	err := h.app.runParallel(context.Background(), h.tmp, specPackage{ID: "SPEC-003"}, []string{"one", "two", "three"}, "prompt", qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex"}, codexConfig{}, workflowConfig{MaxParallelWorkers: 3}, false)
 	if err == nil {
 		t.Fatal("expected execution failure")
 	}
@@ -186,7 +196,7 @@ func TestRunParallelValidationFailureBlocksMergeAndPreservesWorktrees(t *testing
 	failedDir := filepath.Join(h.tmp, worktreesDir, "spec-003-p3")
 	h.validationErr[failedDir] = errors.New("lint failed")
 
-	err := h.app.runParallel(context.Background(), h.tmp, specPackage{ID: "SPEC-003"}, []string{"one", "two", "three"}, "prompt", qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex"}, false)
+	err := h.app.runParallel(context.Background(), h.tmp, specPackage{ID: "SPEC-003"}, []string{"one", "two", "three"}, "prompt", qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex"}, codexConfig{}, workflowConfig{MaxParallelWorkers: 3}, false)
 	if err == nil {
 		t.Fatal("expected validation failure")
 	}
@@ -210,7 +220,7 @@ func TestRunParallelMergeFailureIsReportedExplicitly(t *testing.T) {
 
 	h.mergeErr["namba/spec-003-p2"] = errors.New("merge conflict")
 
-	err := h.app.runParallel(context.Background(), h.tmp, specPackage{ID: "SPEC-003"}, []string{"one", "two", "three"}, "prompt", qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex"}, false)
+	err := h.app.runParallel(context.Background(), h.tmp, specPackage{ID: "SPEC-003"}, []string{"one", "two", "three"}, "prompt", qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex"}, codexConfig{}, workflowConfig{MaxParallelWorkers: 3}, false)
 	if err == nil {
 		t.Fatal("expected merge failure")
 	}
@@ -235,7 +245,7 @@ func TestRunParallelCleanupFailureIsReportedExplicitly(t *testing.T) {
 	failedPath := filepath.Join(h.tmp, worktreesDir, "spec-003-p1")
 	h.removeErr[failedPath] = errors.New("locked worktree")
 
-	err := h.app.runParallel(context.Background(), h.tmp, specPackage{ID: "SPEC-003"}, []string{"one", "two", "three"}, "prompt", qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex"}, false)
+	err := h.app.runParallel(context.Background(), h.tmp, specPackage{ID: "SPEC-003"}, []string{"one", "two", "three"}, "prompt", qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex"}, codexConfig{}, workflowConfig{MaxParallelWorkers: 3}, false)
 	if err == nil {
 		t.Fatal("expected cleanup failure")
 	}
@@ -254,11 +264,11 @@ func TestRunParallelDryRunSkipsExecutionMergeAndCleanup(t *testing.T) {
 	h, restore := newParallelHarness(t)
 	defer restore()
 
-	err := h.app.runParallel(context.Background(), h.tmp, specPackage{ID: "SPEC-003"}, []string{"one", "two", "three"}, "prompt", qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex"}, true)
+	err := h.app.runParallel(context.Background(), h.tmp, specPackage{ID: "SPEC-003"}, []string{"one", "two", "three"}, "prompt", qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex"}, codexConfig{}, workflowConfig{MaxParallelWorkers: 3}, true)
 	if err != nil {
 		t.Fatalf("runParallel failed: %v", err)
 	}
-	if countCommandsContaining(h.commands, codexExecPrefix()) != 0 {
+	if h.codexCount != 0 {
 		t.Fatalf("expected no codex execution in dry-run, got %v", h.commands)
 	}
 	if countCommandsContaining(h.commands, "git merge --no-ff") != 0 {
@@ -308,20 +318,4 @@ func indexCommandContaining(commands []string, needle string) int {
 		}
 	}
 	return -1
-}
-
-func lastCommandContaining(commands []string, needle string) int {
-	for i := len(commands) - 1; i >= 0; i-- {
-		if strings.Contains(commands[i], needle) {
-			return i
-		}
-	}
-	return -1
-}
-
-func codexExecPrefix() string {
-	if runtime.GOOS == "windows" {
-		return "cmd /c codex exec"
-	}
-	return "codex exec"
 }

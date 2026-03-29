@@ -64,10 +64,16 @@ func TestRunWritesStructuredLogs(t *testing.T) {
 	if result.DelegationSummary == "" || result.DelegationPlan.IntegratorRole != "standalone-runner" {
 		t.Fatalf("expected delegation summary and integrator role in execution result: %+v", result)
 	}
+	if result.SessionMode != "stateful" || result.SessionID == "" {
+		t.Fatalf("expected session metadata in execution result: %+v", result)
+	}
 
 	requestJSON := mustReadExecutionRequest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-request.json"))
 	if requestJSON.DelegationPlan.IntegratorRole != "standalone-runner" {
 		t.Fatalf("expected request json to persist delegation plan: %+v", requestJSON)
+	}
+	if requestJSON.SessionMode != "stateful" {
+		t.Fatalf("expected request json to persist session mode: %+v", requestJSON)
 	}
 
 	request := mustReadFile(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-request.md"))
@@ -79,8 +85,54 @@ func TestRunWritesStructuredLogs(t *testing.T) {
 	if !report.Passed {
 		t.Fatalf("expected successful validation report: %+v", report)
 	}
-	if len(report.Steps) != 3 {
-		t.Fatalf("expected 3 validation steps, got %d", len(report.Steps))
+	if len(report.Steps) != 7 {
+		t.Fatalf("expected 7 validation pipeline steps, got %d", len(report.Steps))
+	}
+}
+
+func TestBuildCodexExecArgsPlacesGlobalFlagsAfterExec(t *testing.T) {
+	tests := []struct {
+		name string
+		req  executionRequest
+		want []string
+	}{
+		{
+			name: "default exec",
+			req: executionRequest{
+				ApprovalPolicy: "on-request",
+				SandboxMode:    "workspace-write",
+				Model:          "gpt-5.4",
+				Profile:        "namba",
+				WebSearch:      true,
+				AddDirs:        []string{"extra"},
+				SessionMode:    "stateful",
+				Prompt:         "ship it",
+			},
+			want: []string{"exec", "-a", "on-request", "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "--search", "--add-dir", "extra", "ship it"},
+		},
+		{
+			name: "resume stays under exec",
+			req: executionRequest{
+				ApprovalPolicy: "never",
+				SandboxMode:    "read-only",
+				SessionMode:    "stateful",
+				ResumeSession:  true,
+				Prompt:         "continue",
+			},
+			want: []string{"exec", "-a", "never", "-s", "read-only", "resume", "--last", "continue"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args, err := buildCodexExecArgs(tt.req)
+			if err != nil {
+				t.Fatalf("buildCodexExecArgs failed: %v", err)
+			}
+			if strings.Join(args, "\x00") != strings.Join(tt.want, "\x00") {
+				t.Fatalf("unexpected args: got %v want %v", args, tt.want)
+			}
+		})
 	}
 }
 
@@ -110,17 +162,17 @@ func TestBuildExecutionPromptIncludesModeGuidance(t *testing.T) {
 		{
 			name: "solo",
 			mode: executionModeSolo,
-			want: []string{"- Mode: solo", "explicit single-subagent workflow", "Use at most one delegated specialist"},
+			want: []string{"- Mode: solo", "one runner in one workspace", "same-workspace team orchestration"},
 		},
 		{
 			name: "team",
 			mode: executionModeTeam,
-			want: []string{"- Mode: team", "explicit multi-subagent coordination", "Prefer one specialist when one domain dominates"},
+			want: []string{"- Mode: team", "same-workspace multi-agent execution", "Role runtime profiles should materially affect the actual Codex turns"},
 		},
 		{
 			name: "parallel",
 			mode: executionModeParallel,
-			want: []string{"- Mode: parallel", "Namba worktree parallel mode", "not Codex subagent orchestration"},
+			want: []string{"- Mode: parallel", "Namba worktree parallel mode", "not same-workspace team orchestration"},
 		},
 	}
 
@@ -135,7 +187,7 @@ func TestBuildExecutionPromptIncludesModeGuidance(t *testing.T) {
 					t.Fatalf("expected prompt to contain %q, got %q", want, prompt)
 				}
 			}
-			if !strings.Contains(prompt, "## Delegation Heuristics") || plan.IntegratorRole != "standalone-runner" {
+			if !strings.Contains(prompt, "## Delegation Heuristics") || plan.IntegratorRole == "" {
 				t.Fatalf("expected delegation heuristics and integrator role, got prompt=%q plan=%+v", prompt, plan)
 			}
 		})
@@ -217,7 +269,7 @@ func TestRunExecutesExplicitSubagentModes(t *testing.T) {
 
 			var promptArg string
 			app.lookPath = func(name string) (string, error) {
-				if name == "codex" {
+				if name == "codex" || name == "git" {
 					return name, nil
 				}
 				return "", errors.New("missing dependency")
@@ -225,7 +277,9 @@ func TestRunExecutesExplicitSubagentModes(t *testing.T) {
 			app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 				switch {
 				case isCodexExec(name, args):
-					promptArg = args[len(args)-1]
+					if promptArg == "" && strings.Contains(args[len(args)-1], "- Mode: ") {
+						promptArg = args[len(args)-1]
+					}
 					return "runner output", nil
 				case isShellCommand(name):
 					return "validation ok", nil
@@ -284,7 +338,7 @@ func TestRunUsesConfiguredApprovalAndSandbox(t *testing.T) {
 	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), "runner: codex\napproval_policy: never\nsandbox_mode: read-only\n")
 
 	app.lookPath = func(name string) (string, error) {
-		if name == "codex" {
+		if name == "codex" || name == "git" {
 			return name, nil
 		}
 		return "", errors.New("missing dependency")
@@ -333,7 +387,7 @@ func TestRunRejectsInvalidApprovalPolicy(t *testing.T) {
 	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), "runner: codex\napproval_policy: maybe\nsandbox_mode: workspace-write\n")
 
 	app.lookPath = func(name string) (string, error) {
-		if name == "codex" {
+		if name == "codex" || name == "git" {
 			return name, nil
 		}
 		return "", errors.New("missing dependency")
@@ -369,7 +423,7 @@ func TestRunRejectsInvalidSandboxMode(t *testing.T) {
 	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), "runner: codex\napproval_policy: on-request\nsandbox_mode: moon-write\n")
 
 	app.lookPath = func(name string) (string, error) {
-		if name == "codex" {
+		if name == "codex" || name == "git" {
 			return name, nil
 		}
 		return "", errors.New("missing dependency")
@@ -403,7 +457,7 @@ func TestRunWritesExecutionLogOnRunnerFailure(t *testing.T) {
 	defer restore()
 
 	app.lookPath = func(name string) (string, error) {
-		if name == "codex" {
+		if name == "codex" || name == "git" {
 			return name, nil
 		}
 		return "", errors.New("missing dependency")
@@ -446,7 +500,7 @@ func TestRunWritesValidationReportOnValidationFailure(t *testing.T) {
 	defer restore()
 
 	app.lookPath = func(name string) (string, error) {
-		if name == "codex" {
+		if name == "codex" || name == "git" {
 			return name, nil
 		}
 		return "", errors.New("missing dependency")
@@ -481,6 +535,33 @@ func TestRunWritesValidationReportOnValidationFailure(t *testing.T) {
 	}
 	if report.Steps[1].Name != "lint" || !strings.Contains(report.Steps[1].Error, "lint failed") {
 		t.Fatalf("expected lint failure step, got %+v", report.Steps[1])
+	}
+}
+
+func TestRunFailsPreflightForMissingAddDir(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"), "agent_mode: multi\nstatus_line_preset: namba\nrepo_skills_path: .agents/skills\nrepo_agents_path: .codex/agents\nweb_search: false\nadd_dirs: missing-dir\nsession_mode: stateful\nrepair_attempts: 1\n")
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+
+	err := app.Run(context.Background(), []string{"run", "SPEC-001"})
+	if err == nil {
+		t.Fatal("expected preflight failure")
+	}
+	if !strings.Contains(err.Error(), "add_dir") {
+		t.Fatalf("expected add_dir preflight error, got %v", err)
+	}
+
+	report := mustReadPreflightReport(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-preflight.json"))
+	if report.Passed {
+		t.Fatalf("expected failed preflight report: %+v", report)
 	}
 }
 
@@ -526,9 +607,9 @@ func chdirExecution(t *testing.T, dir string) func() {
 }
 func isCodexExec(name string, args []string) bool {
 	if runtime.GOOS == "windows" {
-		return name == "cmd" && len(args) >= 7 && args[0] == "/c" && args[1] == "codex" && args[2] == "exec"
+		return name == "cmd" && len(args) >= 3 && args[0] == "/c" && args[1] == "codex" && indexOfArg(args, "exec") != -1
 	}
-	return name == "codex" && len(args) >= 6 && args[0] == "exec"
+	return name == "codex" && indexOfArg(args, "exec") != -1
 }
 
 func isShellCommand(name string) bool {
@@ -589,6 +670,19 @@ func mustReadValidationReport(t *testing.T, path string) validationReport {
 	var report validationReport
 	if err := json.Unmarshal(data, &report); err != nil {
 		t.Fatalf("unmarshal validation report: %v", err)
+	}
+	return report
+}
+
+func mustReadPreflightReport(t *testing.T, path string) preflightReport {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read preflight report: %v", err)
+	}
+	var report preflightReport
+	if err := json.Unmarshal(data, &report); err != nil {
+		t.Fatalf("unmarshal preflight report: %v", err)
 	}
 	return report
 }

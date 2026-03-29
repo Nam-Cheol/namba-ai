@@ -252,7 +252,7 @@ func (a *App) refreshSpecReviewReadiness(root, specID string) (string, error) {
 	outputs := map[string]string{
 		specReviewReadinessPath(specID): buildSpecReviewReadinessDoc(specID, states),
 	}
-	if err := a.writeOutputs(root, outputs); err != nil {
+	if _, err := a.writeOutputs(root, outputs); err != nil {
 		return "", err
 	}
 	return specReviewAdvisorySummary(root, specID), nil
