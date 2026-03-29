@@ -34,19 +34,20 @@ const (
 )
 
 type App struct {
-	stdin          io.Reader
-	stdout         io.Writer
-	stderr         io.Writer
-	now            func() time.Time
-	getenv         func(string) string
-	getwd          func() (string, error)
-	lookPath       func(string) (string, error)
-	runCmd         func(context.Context, string, []string, string) (string, error)
-	startCmd       func(string, []string, string) error
-	downloadURL    func(context.Context, string) ([]byte, error)
-	executablePath func() (string, error)
-	goos           string
-	goarch         string
+	stdin                   io.Reader
+	stdout                  io.Writer
+	stderr                  io.Writer
+	now                     func() time.Time
+	getenv                  func(string) string
+	getwd                   func() (string, error)
+	lookPath                func(string) (string, error)
+	detectCodexCapabilities func(context.Context, string) (codexCapabilityMatrix, error)
+	runCmd                  func(context.Context, string, []string, string) (string, error)
+	startCmd                func(string, []string, string) error
+	downloadURL             func(context.Context, string) ([]byte, error)
+	executablePath          func() (string, error)
+	goos                    string
+	goarch                  string
 }
 
 type Manifest struct {
@@ -970,7 +971,11 @@ func (a *App) runCodexExec(ctx context.Context, dir, prompt string) (string, err
 		SandboxMode:    "workspace-write",
 		SessionMode:    "stateful",
 	}
-	args, err := buildCodexExecArgs(req)
+	capabilities, err := a.codexCapabilities(ctx, dir)
+	if err != nil {
+		return "", err
+	}
+	args, err := buildCodexExecArgs(req, capabilities)
 	if err != nil {
 		return "", err
 	}

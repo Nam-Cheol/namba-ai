@@ -70,6 +70,17 @@ func (a *App) executeParallelRun(ctx context.Context, root string, specPkg specP
 		return err
 	}
 
+	if !dryRun {
+		previewReq := a.newExecutionRequest(specPkg.ID, root, prompt, executionModeParallel, suggestDelegationPlan(executionModeParallel, prompt, "", ""), systemCfg, codexCfg)
+		preflight, _, err := a.runPreflight(ctx, previewReq)
+		if writeErr := writeJSONFile(filepath.Join(logDir, strings.ToLower(specPkg.ID)+"-parallel-preflight.json"), preflight); writeErr != nil {
+			return writeErr
+		}
+		if err != nil {
+			return fmt.Errorf("parallel preflight: %w", err)
+		}
+	}
+
 	report := parallelRunReport{
 		SpecID:        specPkg.ID,
 		BaseBranch:    baseBranch,

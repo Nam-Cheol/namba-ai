@@ -95,6 +95,7 @@
 .namba\specs\SPEC-014
 .namba\specs\SPEC-015
 .namba\specs\SPEC-016
+.namba\specs\SPEC-017
 AGENTS.md
 README.ja.md
 README.ko.md
@@ -130,6 +131,7 @@ internal
 internal\namba
 internal\namba\agent_runtime.go
 internal\namba\codex.go
+internal\namba\codex_capability.go
 internal\namba\codex_mcp.go
 internal\namba\console_other.go
 internal\namba\console_windows.go
