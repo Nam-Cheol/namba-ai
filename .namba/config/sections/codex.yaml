@@ -2,3 +2,4 @@ agent_mode: multi
 status_line_preset: namba
 repo_skills_path: .agents/skills
 repo_agents_path: .codex/agents
+default_mcp_servers: context7,sequential-thinking,playwright

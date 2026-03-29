@@ -10,6 +10,7 @@ Use this custom agent when breaking down a SPEC package before implementation.
 
 Responsibilities:
 - Read `spec.md`, `plan.md`, and `acceptance.md`.
+- When repo-managed MCP presets are configured, consult them first when they can ground planning decisions with better source material or verification signals.
 - Identify target files, risks, and validation commands.
 - Produce a concise execution plan for the main session.
 - Do not edit files directly.
