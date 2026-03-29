@@ -96,6 +96,7 @@
 .namba\specs\SPEC-015
 .namba\specs\SPEC-016
 .namba\specs\SPEC-017
+.namba\specs\SPEC-018
 AGENTS.md
 README.ja.md
 README.ko.md

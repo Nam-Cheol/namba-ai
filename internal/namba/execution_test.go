@@ -115,6 +115,25 @@ func TestBuildCodexExecArgsSupportsFallbacksAndResumeSurface(t *testing.T) {
 			want: []string{"exec", "-c", `approval_policy="on-request"`, "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "-c", `web_search="live"`, "--add-dir", "extra", "ship it"},
 		},
 		{
+			name: "resume allows exec-level flags before resume",
+			req: executionRequest{
+				ApprovalPolicy: "never",
+				SandboxMode:    "workspace-write",
+				Model:          "gpt-5.4",
+				Profile:        "namba",
+				WebSearch:      true,
+				AddDirs:        []string{`C:\extra`},
+				SessionMode:    "stateful",
+				ResumeSession:  true,
+				Prompt:         "continue",
+			},
+			caps: codexCapabilityMatrix{
+				Exec:   codexCommandCapabilities{Config: true, SandboxFlag: true, ModelFlag: true, ProfileFlag: true, AddDirFlag: true},
+				Resume: codexCommandCapabilities{Config: true, ModelFlag: true},
+			},
+			want: []string{"exec", "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "--add-dir", `C:\extra`, "resume", "--last", "-c", `approval_policy="never"`, "-c", `web_search="live"`, "continue"},
+		},
+		{
 			name: "resume uses resume-specific config fallbacks",
 			req: executionRequest{
 				ApprovalPolicy: "never",
@@ -131,31 +150,11 @@ func TestBuildCodexExecArgsSupportsFallbacksAndResumeSurface(t *testing.T) {
 			},
 			want: []string{"exec", "resume", "--last", "-c", `approval_policy="never"`, "-c", `sandbox_mode="workspace-write"`, "-m", "gpt-5.4", "-c", `web_search="live"`, "-c", `sandbox_workspace_write.writable_roots=["C:\\extra"]`, "continue"},
 		},
-		{
-			name: "resume rejects unsupported profile",
-			req: executionRequest{
-				ApprovalPolicy: "never",
-				SandboxMode:    "workspace-write",
-				Profile:        "namba",
-				SessionMode:    "stateful",
-				ResumeSession:  true,
-				Prompt:         "continue",
-			},
-			caps: codexCapabilityMatrix{
-				Resume: codexCommandCapabilities{Config: true, ModelFlag: true},
-			},
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			args, err := buildCodexExecArgs(tt.req, tt.caps)
-			if strings.Contains(tt.name, "rejects") {
-				if err == nil || !strings.Contains(err.Error(), "profile overrides require direct --profile support") {
-					t.Fatalf("expected profile support error, got %v", err)
-				}
-				return
-			}
 			if err != nil {
 				t.Fatalf("buildCodexExecArgs failed: %v", err)
 			}
@@ -163,6 +162,105 @@ func TestBuildCodexExecArgsSupportsFallbacksAndResumeSurface(t *testing.T) {
 				t.Fatalf("unexpected args: got %v want %v", args, tt.want)
 			}
 		})
+	}
+}
+
+func TestProbeCodexCapabilitiesSkipsResumeHelpWhenResumeIsNotPlanned(t *testing.T) {
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+
+	resumeHelpCalls := 0
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if dir != tmp {
+			t.Fatalf("expected capability probe workdir %s, got %s", tmp, dir)
+		}
+		switch {
+		case isCodexVersionCommand(name, args):
+			return "codex-cli test", nil
+		case isCodexHelpCommand(name, args, false):
+			return "-c, --config\n-s, --sandbox\n-m, --model\n-p, --profile\n--add-dir", nil
+		case isCodexHelpCommand(name, args, true):
+			resumeHelpCalls++
+			return "-c, --config\n-m, --model", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	caps, err := app.probeCodexCapabilities(context.Background(), tmp, executionRequest{
+		WorkDir:        tmp,
+		Prompt:         "ship it",
+		ApprovalPolicy: "on-request",
+		SandboxMode:    "workspace-write",
+		SessionMode:    "stateful",
+		RepairAttempts: 0,
+		ResumeSession:  false,
+		Mode:           executionModeDefault,
+	})
+	if err != nil {
+		t.Fatalf("probeCodexCapabilities failed: %v", err)
+	}
+	if resumeHelpCalls != 0 {
+		t.Fatalf("expected no resume help probe, got %d", resumeHelpCalls)
+	}
+	if caps.Resume != (codexCommandCapabilities{}) {
+		t.Fatalf("expected empty resume capabilities when no resume is planned, got %+v", caps.Resume)
+	}
+}
+
+func TestProbeCodexCapabilitiesIncludesResumeHelpWhenResumeIsPlanned(t *testing.T) {
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+
+	resumeHelpCalls := 0
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if dir != tmp {
+			t.Fatalf("expected capability probe workdir %s, got %s", tmp, dir)
+		}
+		switch {
+		case isCodexVersionCommand(name, args):
+			return "codex-cli test", nil
+		case isCodexHelpCommand(name, args, false):
+			return "-c, --config\n-s, --sandbox\n-m, --model\n-p, --profile\n--add-dir", nil
+		case isCodexHelpCommand(name, args, true):
+			resumeHelpCalls++
+			return "-c, --config\n-m, --model", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	caps, err := app.probeCodexCapabilities(context.Background(), tmp, executionRequest{
+		WorkDir:        tmp,
+		Prompt:         "ship it",
+		ApprovalPolicy: "on-request",
+		SandboxMode:    "workspace-write",
+		SessionMode:    "stateful",
+		RepairAttempts: 1,
+		Mode:           executionModeDefault,
+	})
+	if err != nil {
+		t.Fatalf("probeCodexCapabilities failed: %v", err)
+	}
+	if resumeHelpCalls != 1 {
+		t.Fatalf("expected one resume help probe, got %d", resumeHelpCalls)
+	}
+	if !caps.Resume.Config || !caps.Resume.ModelFlag {
+		t.Fatalf("expected populated resume capabilities, got %+v", caps.Resume)
 	}
 }
 
@@ -540,7 +638,7 @@ func TestRunWritesValidationReportOnValidationFailure(t *testing.T) {
 		case isCodexExec(name, args):
 			mustContainArgs(t, args, []string{"-c", `approval_policy="on-request"`})
 			if indexOfArg(args, "resume") != -1 {
-				mustContainArgs(t, args, []string{"-c", `sandbox_mode="workspace-write"`})
+				mustContainArgs(t, args, []string{"-s", "workspace-write"})
 			} else {
 				mustContainArgs(t, args, []string{"-s", "workspace-write"})
 			}
@@ -600,12 +698,13 @@ func TestRunFailsPreflightForMissingAddDir(t *testing.T) {
 	}
 }
 
-func TestRunFailsPreflightForUnsupportedResumeProfile(t *testing.T) {
+func TestRunAllowsResumeProfileViaExecLevelFlags(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
 
 	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"), "agent_mode: multi\nstatus_line_preset: namba\nrepo_skills_path: .agents/skills\nrepo_agents_path: .codex/agents\nprofile: namba\nsession_mode: stateful\nrepair_attempts: 1\n")
 
+	var sawResumeWithExecProfile bool
 	app.lookPath = func(name string) (string, error) {
 		if name == "codex" || name == "git" {
 			return name, nil
@@ -614,20 +713,24 @@ func TestRunFailsPreflightForUnsupportedResumeProfile(t *testing.T) {
 	}
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 		if isCodexExec(name, args) {
-			t.Fatal("codex should not execute when resume profile is unsupported")
+			resumeIndex := indexOfArg(args, "resume")
+			profileIndex := indexOfArg(args, "-p")
+			if resumeIndex != -1 && profileIndex != -1 && profileIndex < resumeIndex && profileIndex+1 < len(args) && args[profileIndex+1] == "namba" {
+				sawResumeWithExecProfile = true
+			}
+			return "runner output", nil
 		}
 		if isShellCommand(name) {
-			t.Fatal("validators should not run when preflight fails")
+			return "validation ok", nil
 		}
 		return "", nil
 	}
 
-	err := app.Run(context.Background(), []string{"run", "SPEC-001", "--team"})
-	if err == nil {
-		t.Fatal("expected unsupported profile preflight failure")
+	if err := app.Run(context.Background(), []string{"run", "SPEC-001", "--team"}); err != nil {
+		t.Fatalf("expected team run to succeed, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "profile overrides require direct --profile support") {
-		t.Fatalf("unexpected error: %v", err)
+	if !sawResumeWithExecProfile {
+		t.Fatal("expected resume turns to carry profile via exec-level flags before resume")
 	}
 }
 
@@ -635,7 +738,7 @@ func prepareExecutionProject(t *testing.T) (string, *App, func()) {
 	t.Helper()
 	tmp := t.TempDir()
 	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
-	app.detectCodexCapabilities = func(context.Context, string) (codexCapabilityMatrix, error) {
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
 		return testCodexCapabilities(), nil
 	}
 	if err := app.Run(context.Background(), []string{"init", tmp}); err != nil {
@@ -683,6 +786,32 @@ func isCodexExec(name string, args []string) bool {
 
 func isShellCommand(name string) bool {
 	return name == "powershell" || name == "sh"
+}
+
+func isCodexVersionCommand(name string, args []string) bool {
+	if runtime.GOOS == "windows" {
+		return name == "cmd" && len(args) >= 3 && args[0] == "/c" && args[1] == "codex" && len(args) == 3 && args[2] == "--version"
+	}
+	return name == "codex" && len(args) == 1 && args[0] == "--version"
+}
+
+func isCodexHelpCommand(name string, args []string, resume bool) bool {
+	if runtime.GOOS == "windows" {
+		if name != "cmd" || len(args) < 4 || args[0] != "/c" || args[1] != "codex" || args[2] != "exec" {
+			return false
+		}
+		if resume {
+			return len(args) == 5 && args[3] == "resume" && args[4] == "--help"
+		}
+		return len(args) == 4 && args[3] == "--help"
+	}
+	if name != "codex" || len(args) < 2 || args[0] != "exec" {
+		return false
+	}
+	if resume {
+		return len(args) == 3 && args[1] == "resume" && args[2] == "--help"
+	}
+	return len(args) == 2 && args[1] == "--help"
 }
 
 func testCodexCapabilities() codexCapabilityMatrix {

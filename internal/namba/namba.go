@@ -41,7 +41,7 @@ type App struct {
 	getenv                  func(string) string
 	getwd                   func() (string, error)
 	lookPath                func(string) (string, error)
-	detectCodexCapabilities func(context.Context, string) (codexCapabilityMatrix, error)
+	detectCodexCapabilities func(context.Context, string, executionRequest) (codexCapabilityMatrix, error)
 	runCmd                  func(context.Context, string, []string, string) (string, error)
 	startCmd                func(string, []string, string) error
 	downloadURL             func(context.Context, string) ([]byte, error)
@@ -971,7 +971,7 @@ func (a *App) runCodexExec(ctx context.Context, dir, prompt string) (string, err
 		SandboxMode:    "workspace-write",
 		SessionMode:    "stateful",
 	}
-	capabilities, err := a.codexCapabilities(ctx, dir)
+	capabilities, err := a.codexCapabilities(ctx, dir, req)
 	if err != nil {
 		return "", err
 	}

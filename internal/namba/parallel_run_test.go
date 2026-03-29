@@ -64,7 +64,7 @@ func newParallelHarness(t *testing.T) (*parallelHarness, func()) {
 		}
 	}
 	app.runCmd = h.runCmd
-	app.detectCodexCapabilities = func(context.Context, string) (codexCapabilityMatrix, error) {
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
 		return testCodexCapabilities(), nil
 	}
 
@@ -282,21 +282,18 @@ func TestRunParallelDryRunSkipsExecutionMergeAndCleanup(t *testing.T) {
 	}
 }
 
-func TestRunParallelFailsPreflightBeforeCreatingWorktrees(t *testing.T) {
+func TestRunParallelPreflightAllowsResumeProfileViaExecLevelFlags(t *testing.T) {
 	h, restore := newParallelHarness(t)
 	defer restore()
 
 	writeTestFile(t, filepath.Join(h.tmp, ".namba", "config", "sections", "codex.yaml"), "agent_mode: multi\nstatus_line_preset: namba\nrepo_skills_path: .agents/skills\nrepo_agents_path: .codex/agents\nprofile: namba\nsession_mode: stateful\nrepair_attempts: 1\n")
 
 	err := h.app.runParallel(context.Background(), h.tmp, specPackage{ID: "SPEC-003"}, []string{"one", "two", "three"}, "prompt", qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex"}, codexConfig{Profile: "namba", SessionMode: "stateful", RepairAttempts: 1}, workflowConfig{MaxParallelWorkers: 3}, false)
-	if err == nil {
-		t.Fatal("expected parallel preflight failure")
+	if err != nil {
+		t.Fatalf("expected parallel preflight to allow exec-level resume profile flags, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "parallel preflight") || !strings.Contains(err.Error(), "profile overrides require direct --profile support") {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if countCommandsContaining(h.commands, "git worktree add -b") != 0 {
-		t.Fatalf("expected no worktree creation after preflight failure, got %v", h.commands)
+	if countCommandsContaining(h.commands, "git worktree add -b") != 3 {
+		t.Fatalf("expected worktree creation after successful preflight, got %v", h.commands)
 	}
 }
 
