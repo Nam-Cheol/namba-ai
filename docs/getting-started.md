@@ -11,9 +11,22 @@
 - Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
 - For the best Codex CLI experience on Windows, use a WSL workspace when you work inside a repository.
 - macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
-- Use `namba update --version vX.Y.Z` when you need a specific CLI version.
+- Use `NAMBA_INSTALL_DIR` when you want a non-default install location.
 
-## 2. Bootstrap a new repository
+## 2. Update
+
+- Latest release: `namba update`
+- Specific release: `namba update --version vX.Y.Z`
+- Re-open the terminal if the updated binary is not picked up immediately.
+
+## 3. Uninstall
+
+- Windows default path: `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe`
+- macOS / Linux default path: `~/.local/bin/namba`
+- If you installed with `NAMBA_INSTALL_DIR`, remove the binary from that custom location instead.
+- Remove the matching `PATH` entry when you no longer need it.
+
+## 4. Bootstrap a new repository
 
 ```text
 mkdir my-project
@@ -23,16 +36,18 @@ namba init .
 
 The wizard aligns working language, approval_policy, sandbox_mode, PR language, and Codex agent mode.
 
-## 3. Run the basic Codex flow
+## 5. Run the basic Codex flow
 
 ```text
 namba project
 namba plan "add dashboard filters"
 namba run SPEC-001
 namba sync
+namba pr "add dashboard filters"
+namba land
 ```
 
-## 4. Read next
+## 6. Read next
 
 - [Workflow Guide](./workflow-guide.md)
 - [Codex Upstream Reference](./codex-upstream-reference.md)

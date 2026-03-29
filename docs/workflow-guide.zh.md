@@ -6,27 +6,51 @@
 
 [上手指南](./getting-started.zh.md) | [工作流指南](./workflow-guide.zh.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
-## `update`、`regen`、`sync` 是不同命令
+## `update`、`regen`、`sync`、`pr`、`land` 是不同命令
 
 - `namba update`: 按 GitHub Release 更新已安装的 CLI
-- `namba regen`: 重新生成 AGENTS、skills、custom agents、Codex config 等模板产物
-- `namba sync`: 刷新 README、项目文档、codemap、PR checklist、release notes
+- `namba regen`: 重新生成 AGENTS、skills、custom agents、repo Codex config 等模板产物
+- `namba sync`: 刷新 README、项目文档、codemap、advisory review readiness、PR checklist、release notes
+- `namba pr`: 默认先执行 sync 与 validation，再把当前分支 commit/push，打开或复用 PR，并确保 Codex review marker 已存在。
+- `namba land`: 必要时等待检查完成，只在 PR 干净时合并，并安全更新本地 `main`。
 
-## 关键产物
+## `namba run` 模式
+
+- `namba run SPEC-XXX`: 在一个工作区里执行的标准 standalone Codex 流程。
+- `namba run SPEC-XXX --solo`: 在一个工作区内运行单 specialist subagent 流程。
+- `namba run SPEC-XXX --team`: 在一个工作区内运行小规模 multi-subagent 流程。
+- `namba run SPEC-XXX --parallel`: 这不是 Codex subagent orchestration，而是 Namba 管理的 git worktree fan-out/fan-in。
+
+## 角色路由
+
+- 默认 `namba run` 会留在 standalone runner，除非提示里出现很强的 specialist 信号。
+- `--solo` 只在单一领域非常明确时使用 1 个 specialist；`--team` 只在 acceptance 跨多个领域时扩展到 2 个 specialist 加 reviewer。
+- UI、responsive、mobile、design 工作交给 `namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer`；API、schema、pipeline 交给 `namba-backend-implementer`、`namba-data-engineer`；auth、secrets、compliance 交给 `namba-security-engineer`；deployment 与 runtime 交给 `namba-devops-engineer`。
+- Standalone runner 仍是 integrator 和 validation owner；最终 acceptance 由 `namba-reviewer` 把关，而不是放任失控的 swarm。
+
+## 评审就绪度
+
+- `namba plan` 和 `namba fix` 会生成 `.namba/specs/<SPEC>/reviews/product.md`、`engineering.md`、`design.md`、`readiness.md`。
+- 在实现前或 PR handoff 前，使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` 保持这些 review 产物是最新的。
+- 缺失的 review pass 默认仍是 advisory 状态。`namba run`、`namba sync`、`namba pr` 会展示当前 readiness 摘要，但不会悄悄硬阻塞交付。
+
+## 关键生成资产
 
 - `.namba/`: config, specs, project docs, logs
+- `.namba/specs/<SPEC>/reviews/`: 每个 SPEC 的 advisory product / engineering / design / readiness artifacts
 - `.agents/skills/`: Codex 直接读取的 repo-local skills
+- `.codex/config.toml`: repo-local Codex defaults 与 Namba 管理的 MCP preset
 - `.codex/agents/*.toml`: project-scoped custom agents
 - `.namba/project/*`: change summary、release notes、checklist、codemap
 
 ## 协作默认值
 
-- 所有工作都在专用分支上进行。
-- PR 目标分支是 `main`。
-- PR 标题和正文遵循所选 PR 语言。
-- 在 GitHub 上请求 `@codex review`。
+- 工作在专用分支中进行。
+- `namba pr` 以 `main` 为目标，并保持已配置的 PR 语言与 review marker 一致。
+- `namba land` 只合并干净的 PR，并在不覆盖其他工作的前提下更新本地 `main`。
+- GitHub review 请求使用 `@codex review`。
 
 ## 发布流程
 
-- `namba release` 要求 clean working tree 和 `main` 分支。
-- 使用 `--push` 时会同时推送 tag 和 `main`，并触发 GitHub Release workflow。
+- `namba release` 要求 `main` 上有 clean working tree。
+- `--push` 会同时推送新 tag 与 `main`，然后触发 GitHub Release workflow。

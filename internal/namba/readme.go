@@ -9,6 +9,11 @@ const (
 	readmeProfileManagedProject = "managed-project"
 	readmeProfileNambaCLI       = "namba-cli"
 	nambaRepositoryURL          = "https://github.com/Nam-Cheol/namba-ai"
+	nambaInstallPowerShell      = "irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex"
+	nambaInstallShell           = "curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh"
+	nambaWindowsInstallDir      = "%LOCALAPPDATA%\\Programs\\NambaAI\\bin"
+	nambaWindowsBinaryPath      = "%LOCALAPPDATA%\\Programs\\NambaAI\\bin\\namba.exe"
+	nambaUnixBinaryPath         = "~/.local/bin/namba"
 )
 
 func defaultDocsConfig(projectType string) docsConfig {
@@ -231,10 +236,149 @@ func renderDocLinkBar(lang string) string {
 	}, " | ")
 }
 
+func renderNambaCLIRootLifecycleSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 설치, 업데이트, 제거",
+			"",
+			fmt.Sprintf("- 설치 (Windows): `%s`", nambaInstallPowerShell),
+			fmt.Sprintf("- 설치 (macOS / Linux): `%s`", nambaInstallShell),
+			"- 최신 릴리스로 업데이트: `namba update`",
+			"- 특정 릴리스로 고정: `namba update --version vX.Y.Z`",
+			fmt.Sprintf("- 제거 (Windows): 기본 경로 `%s`를 삭제하고, 더 이상 쓰지 않으면 `%s`를 사용자 `PATH`에서 제거합니다.", nambaWindowsBinaryPath, nambaWindowsInstallDir),
+			fmt.Sprintf("- 제거 (macOS / Linux): 기본 경로 `%s`를 삭제하고, 더 이상 쓰지 않으면 설치기가 추가한 `PATH` 줄을 `~/.profile` 또는 `~/.zshrc`에서 제거합니다.", nambaUnixBinaryPath),
+			"",
+		}
+	case "ja":
+		return []string{
+			"## インストール、更新、アンインストール",
+			"",
+			fmt.Sprintf("- Windows へのインストール: `%s`", nambaInstallPowerShell),
+			fmt.Sprintf("- macOS / Linux へのインストール: `%s`", nambaInstallShell),
+			"- 最新リリースに更新: `namba update`",
+			"- 特定リリースに固定: `namba update --version vX.Y.Z`",
+			fmt.Sprintf("- Windows でアンインストール: 既定の `%s` を削除し、不要なら `%s` をユーザー `PATH` から外します。", nambaWindowsBinaryPath, nambaWindowsInstallDir),
+			fmt.Sprintf("- macOS / Linux でアンインストール: 既定の `%s` を削除し、不要ならインストーラが追加した `PATH` 行を `~/.profile` または `~/.zshrc` から削除します。", nambaUnixBinaryPath),
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 安装、更新与卸载",
+			"",
+			fmt.Sprintf("- 在 Windows 上安装: `%s`", nambaInstallPowerShell),
+			fmt.Sprintf("- 在 macOS / Linux 上安装: `%s`", nambaInstallShell),
+			"- 更新到最新发布版: `namba update`",
+			"- 固定到指定发布版: `namba update --version vX.Y.Z`",
+			fmt.Sprintf("- 在 Windows 上卸载: 删除默认路径 `%s`，如果不再需要，再把 `%s` 从用户 `PATH` 中移除。", nambaWindowsBinaryPath, nambaWindowsInstallDir),
+			fmt.Sprintf("- 在 macOS / Linux 上卸载: 删除默认路径 `%s`，如果不再需要，再从 `~/.profile` 或 `~/.zshrc` 中删除安装器追加的 `PATH` 行。", nambaUnixBinaryPath),
+			"",
+		}
+	default:
+		return []string{
+			"## Install, Update, and Uninstall",
+			"",
+			fmt.Sprintf("- Install on Windows: `%s`", nambaInstallPowerShell),
+			fmt.Sprintf("- Install on macOS / Linux: `%s`", nambaInstallShell),
+			"- Update to the latest release: `namba update`",
+			"- Pin a specific release: `namba update --version vX.Y.Z`",
+			fmt.Sprintf("- Uninstall on Windows: remove `%s`, then remove `%s` from your user `PATH` if you no longer need it.", nambaWindowsBinaryPath, nambaWindowsInstallDir),
+			fmt.Sprintf("- Uninstall on macOS / Linux: remove `%s`, then delete the `PATH` line that the installer added to `~/.profile` or `~/.zshrc` if you no longer need it.", nambaUnixBinaryPath),
+			"",
+		}
+	}
+}
+
+func renderNambaCLIUpdateGuideSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 2. 업데이트",
+			"",
+			"- 최신 릴리스: `namba update`",
+			"- 특정 릴리스: `namba update --version vX.Y.Z`",
+			"- 업데이트한 바이너리가 바로 잡히지 않으면 새 터미널을 열어 경로를 다시 로드합니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 2. 更新",
+			"",
+			"- 最新リリース: `namba update`",
+			"- 特定リリース: `namba update --version vX.Y.Z`",
+			"- 更新したバイナリがすぐ反映されない場合は、新しいターミナルを開いて `PATH` を再読み込みします。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 2. 更新",
+			"",
+			"- 最新发布版: `namba update`",
+			"- 指定发布版: `namba update --version vX.Y.Z`",
+			"- 如果更新后的二进制没有立刻生效，请重新打开终端以重新加载 `PATH`。",
+			"",
+		}
+	default:
+		return []string{
+			"## 2. Update",
+			"",
+			"- Latest release: `namba update`",
+			"- Specific release: `namba update --version vX.Y.Z`",
+			"- Re-open the terminal if the updated binary is not picked up immediately.",
+			"",
+		}
+	}
+}
+
+func renderNambaCLIUninstallGuideSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 3. 제거",
+			"",
+			fmt.Sprintf("- Windows 기본 경로: `%s`", nambaWindowsBinaryPath),
+			fmt.Sprintf("- macOS / Linux 기본 경로: `%s`", nambaUnixBinaryPath),
+			"- `NAMBA_INSTALL_DIR`로 사용자 지정 경로에 설치했다면 그 위치의 바이너리를 제거합니다.",
+			"- 더 이상 쓰지 않으면 해당 경로를 `PATH`에서도 제거합니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 3. アンインストール",
+			"",
+			fmt.Sprintf("- Windows の既定パス: `%s`", nambaWindowsBinaryPath),
+			fmt.Sprintf("- macOS / Linux の既定パス: `%s`", nambaUnixBinaryPath),
+			"- `NAMBA_INSTALL_DIR` で別の場所に入れた場合は、そのパスのバイナリを削除します。",
+			"- 不要になったら同じパスを `PATH` からも外します。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 3. 卸载",
+			"",
+			fmt.Sprintf("- Windows 默认路径: `%s`", nambaWindowsBinaryPath),
+			fmt.Sprintf("- macOS / Linux 默认路径: `%s`", nambaUnixBinaryPath),
+			"- 如果通过 `NAMBA_INSTALL_DIR` 安装到了自定义目录，请删除那个位置的二进制。",
+			"- 不再需要时，也要把相同路径从 `PATH` 中移除。",
+			"",
+		}
+	default:
+		return []string{
+			"## 3. Uninstall",
+			"",
+			fmt.Sprintf("- Windows default path: `%s`", nambaWindowsBinaryPath),
+			fmt.Sprintf("- macOS / Linux default path: `%s`", nambaUnixBinaryPath),
+			"- If you installed with `NAMBA_INSTALL_DIR`, remove the binary from that custom location instead.",
+			"- Remove the matching `PATH` entry when you no longer need it.",
+			"",
+		}
+	}
+}
+
 func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
-		return strings.Join([]string{
+		lines := []string{
 			renderGeneratedDocHeader(),
 			renderHeroBlock(cfg.HeroImage, "NambaAI"),
 			"# NambaAI",
@@ -277,11 +421,47 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"namba plan \"로그인 감사 로그 추가\"",
 			"namba run SPEC-001",
 			"namba sync",
+			"namba pr \"로그인 감사 로그 추가\"",
+			"namba land",
 			"```",
+			"",
+		}
+		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
+		lines = append(lines,
+			"## Codex 안의 Command Skill",
+			"",
+			"- `$namba`: Codex가 적절한 Namba 진입점을 고르도록 맡기는 일반 라우터입니다.",
+			"- `$namba-project`: 작업 전후에 프로젝트 문서와 codemap을 새로 고칩니다.",
+			"- `$namba-plan` / `$namba-fix`: 다음 feature 또는 bugfix SPEC 패키지를 만듭니다.",
+			"- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: SPEC용 product, engineering, design review 산출물과 readiness 요약을 갱신합니다.",
+			"- `$namba-run`: 현재 Codex 세션에서 SPEC 패키지를 Namba 워크플로로 실행합니다.",
+			"- `$namba-sync`: README 번들, 프로젝트 문서, codemap, PR 준비 산출물을 갱신합니다.",
+			"- `$namba-pr` / `$namba-land`: 현재 브랜치를 GitHub 리뷰로 넘기고, 체크가 끝나면 안전하게 머지합니다.",
+			"- `$namba-regen` / `$namba-update`: repo-local Codex 자산을 다시 생성하거나 설치된 `namba` CLI를 self-update 합니다.",
+			"",
+			"## Skill 에서 Command 로 매핑",
+			"",
+			"- `$namba-project` -> `namba project`",
+			"- `$namba-plan` -> `namba plan \"description\"`",
+			"- `$namba-fix` -> `namba fix \"description\"`",
+			"- `$namba-run` -> `namba run SPEC-XXX`",
+			"- `$namba-sync` -> `namba sync`",
+			"- `$namba-pr` -> `namba pr \"title\"`",
+			"- `$namba-land` -> `namba land`",
+			"- `$namba-regen` -> `namba regen`",
+			"- `$namba-update` -> `namba update [--version vX.Y.Z]`",
+			"",
+			"## Codex Custom Agents",
+			"",
+			"- Strategy: `namba-product-manager`는 범위와 acceptance를 다듬고, `namba-planner`는 SPEC를 실행 계획으로 바꿉니다.",
+			"- UI and experience: `namba-frontend-architect`, `namba-frontend-implementer`, `namba-mobile-engineer`, `namba-designer`가 웹 UI, 모바일 실행, 시각 방향을 맡습니다.",
+			"- Backend and data: `namba-backend-architect`, `namba-backend-implementer`, `namba-data-engineer`가 API, 저장소, 마이그레이션, 파이프라인을 맡습니다.",
+			"- Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, `namba-reviewer`가 보안, 회귀 신뢰도, CI/CD, 최종 검수를 맡습니다.",
+			"- General delivery: `namba-implementer`는 여러 도메인이 섞였지만 큰 specialist 팀까지는 필요 없는 작업을 맡는 일반 실행 에이전트입니다.",
 			"",
 			"## 더 자세히 보기",
 			"",
-			fmt.Sprintf("- [%s](%s): 설치, 초기화, 업데이트, 첫 실행 흐름", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
+			fmt.Sprintf("- [%s](%s): 설치, 업데이트, 제거, 초기화, 첫 실행 흐름", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
 			fmt.Sprintf("- [%s](%s): update / regen / sync 차이, 산출물, 협업 규칙", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
 			"- [Codex Upstream Reference](docs/codex-upstream-reference.md): 이 저장소가 맞추는 Codex 기준",
 			"- [SECURITY.md](SECURITY.md): 보안 정책",
@@ -290,12 +470,13 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 			"- `.namba/`는 설정, SPEC, 프로젝트 문서의 source of truth입니다.",
 			"- `.agents/skills/`는 Codex가 읽는 repo-local skill surface입니다.",
-			"- `.codex/agents/*.toml`은 planner, implementer, reviewer용 custom agent 정의입니다.",
-			"- `namba update`, `namba regen`, `namba sync`는 역할이 다르며 서로 대체하지 않습니다.",
+			"- `.codex/agents/*.toml`은 product, planning, design, frontend, mobile, backend, data, security, testing, ops, implementation, review용 task-oriented custom agent를 정의합니다.",
+			"- `namba update`, `namba regen`, `namba sync`, `namba pr`, `namba land`는 서로 다른 문제를 해결하며 섞어 쓰면 안 됩니다.",
 			"",
-		}, "\n")
+		)
+		return strings.Join(lines, "\n")
 	case "ja":
-		return strings.Join([]string{
+		lines := []string{
 			renderGeneratedDocHeader(),
 			renderHeroBlock(cfg.HeroImage, "NambaAI"),
 			"# NambaAI",
@@ -338,11 +519,47 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"namba plan \"ログイン監査ログを追加\"",
 			"namba run SPEC-001",
 			"namba sync",
+			"namba pr \"ログイン監査ログを追加\"",
+			"namba land",
 			"```",
+			"",
+		}
+		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
+		lines = append(lines,
+			"## Codex の Command Skill",
+			"",
+			"- `$namba`: Codex に適切な Namba の入口を選ばせるための汎用ルータです。",
+			"- `$namba-project`: 作業の前後でプロジェクト文書と codemap を更新します。",
+			"- `$namba-plan` / `$namba-fix`: 次の feature または bugfix SPEC パッケージを作ります。",
+			"- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: SPEC 用の product / engineering / design review 成果物と readiness 要約を更新します。",
+			"- `$namba-run`: 現在の Codex セッションで SPEC パッケージを Namba ワークフローとして実行します。",
+			"- `$namba-sync`: README バンドル、プロジェクト文書、codemap、PR 準備物を更新します。",
+			"- `$namba-pr` / `$namba-land`: 現在のブランチを GitHub レビューに渡し、チェック完了後に安全にマージします。",
+			"- `$namba-regen` / `$namba-update`: repo-local Codex 資産を再生成するか、インストール済み `namba` CLI を self-update します。",
+			"",
+			"## Skill から Command への対応",
+			"",
+			"- `$namba-project` -> `namba project`",
+			"- `$namba-plan` -> `namba plan \"description\"`",
+			"- `$namba-fix` -> `namba fix \"description\"`",
+			"- `$namba-run` -> `namba run SPEC-XXX`",
+			"- `$namba-sync` -> `namba sync`",
+			"- `$namba-pr` -> `namba pr \"title\"`",
+			"- `$namba-land` -> `namba land`",
+			"- `$namba-regen` -> `namba regen`",
+			"- `$namba-update` -> `namba update [--version vX.Y.Z]`",
+			"",
+			"## Codex Custom Agents",
+			"",
+			"- Strategy: `namba-product-manager` がスコープと acceptance を整え、`namba-planner` が SPEC を実行計画に変えます。",
+			"- UI and experience: `namba-frontend-architect`、`namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer` が Web UI、モバイル実装、ビジュアル方向を担当します。",
+			"- Backend and data: `namba-backend-architect`、`namba-backend-implementer`、`namba-data-engineer` が API、永続化、マイグレーション、パイプラインを担当します。",
+			"- Security and delivery: `namba-security-engineer`、`namba-test-engineer`、`namba-devops-engineer`、`namba-reviewer` が hardening、回帰信頼性、CI/CD、最終受け入れを担当します。",
+			"- General delivery: `namba-implementer` は複数ドメインにまたがるが大きな specialist チームまでは不要な作業を担う汎用実装エージェントです。",
 			"",
 			"## さらに詳しく",
 			"",
-			fmt.Sprintf("- [%s](%s): インストール、初期化、更新、最初の実行", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
+			fmt.Sprintf("- [%s](%s): インストール、更新、アンインストール、初期化、最初の実行", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
 			fmt.Sprintf("- [%s](%s): update / regen / sync の違い、成果物、協業ルール", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
 			"- [Codex Upstream Reference](docs/codex-upstream-reference.md): このリポジトリが合わせている Codex の基準",
 			"- [SECURITY.md](SECURITY.md): セキュリティポリシー",
@@ -351,12 +568,13 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 			"- `.namba/` は設定、SPEC、プロジェクト文書の source of truth です。",
 			"- `.agents/skills/` は Codex が読む repo-local skill surface です。",
-			"- `.codex/agents/*.toml` は planner、implementer、reviewer 向け custom agent 定義です。",
-			"- `namba update`、`namba regen`、`namba sync` はそれぞれ役割が異なります。",
+			"- `.codex/agents/*.toml` は product、planning、design、frontend、mobile、backend、data、security、testing、ops、implementation、review をまたぐ task-oriented custom agent を定義します。",
+			"- `namba update`、`namba regen`、`namba sync`、`namba pr`、`namba land` は別の問題を解くので混同しません。",
 			"",
-		}, "\n")
+		)
+		return strings.Join(lines, "\n")
 	case "zh":
-		return strings.Join([]string{
+		lines := []string{
 			renderGeneratedDocHeader(),
 			renderHeroBlock(cfg.HeroImage, "NambaAI"),
 			"# NambaAI",
@@ -399,11 +617,47 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"namba plan \"添加登录审计日志\"",
 			"namba run SPEC-001",
 			"namba sync",
+			"namba pr \"添加登录审计日志\"",
+			"namba land",
 			"```",
+			"",
+		}
+		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
+		lines = append(lines,
+			"## Codex 中的 Command Skill",
+			"",
+			"- `$namba`: 通用路由入口，让 Codex 选择合适的 Namba 工作流命令。",
+			"- `$namba-project`: 在开始前或较大改动后刷新项目文档与 codemap。",
+			"- `$namba-plan` / `$namba-fix`: 创建下一个 feature 或 bugfix SPEC 包。",
+			"- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: 更新 SPEC 的 product / engineering / design review 产物与 readiness 摘要。",
+			"- `$namba-run`: 在当前 Codex 会话中按 Namba 工作流执行 SPEC 包。",
+			"- `$namba-sync`: 刷新 README bundle、项目文档、codemap 与 PR 准备产物。",
+			"- `$namba-pr` / `$namba-land`: 把当前分支交给 GitHub review，并在检查通过后安全合并。",
+			"- `$namba-regen` / `$namba-update`: 重新生成 repo-local Codex 资产，或 self-update 已安装的 `namba` CLI。",
+			"",
+			"## Skill 到 Command 的映射",
+			"",
+			"- `$namba-project` -> `namba project`",
+			"- `$namba-plan` -> `namba plan \"description\"`",
+			"- `$namba-fix` -> `namba fix \"description\"`",
+			"- `$namba-run` -> `namba run SPEC-XXX`",
+			"- `$namba-sync` -> `namba sync`",
+			"- `$namba-pr` -> `namba pr \"title\"`",
+			"- `$namba-land` -> `namba land`",
+			"- `$namba-regen` -> `namba regen`",
+			"- `$namba-update` -> `namba update [--version vX.Y.Z]`",
+			"",
+			"## Codex Custom Agents",
+			"",
+			"- Strategy: `namba-product-manager` 负责收敛范围与 acceptance，`namba-planner` 把 SPEC 转成执行计划。",
+			"- UI and experience: `namba-frontend-architect`、`namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer` 负责 Web UI、移动端实现与视觉方向。",
+			"- Backend and data: `namba-backend-architect`、`namba-backend-implementer`、`namba-data-engineer` 负责 API、持久化、迁移与数据管道。",
+			"- Security and delivery: `namba-security-engineer`、`namba-test-engineer`、`namba-devops-engineer`、`namba-reviewer` 负责加固、回归信心、CI/CD 与最终验收。",
+			"- General delivery: `namba-implementer` 负责跨多个领域但还不需要大规模 specialist 团队的通用执行工作。",
 			"",
 			"## 进一步了解",
 			"",
-			fmt.Sprintf("- [%s](%s): 安装、初始化、更新与首次运行", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
+			fmt.Sprintf("- [%s](%s): 安装、更新、卸载、初始化与首次运行", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
 			fmt.Sprintf("- [%s](%s): update / regen / sync 的区别、产物与协作规则", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
 			"- [Codex Upstream Reference](docs/codex-upstream-reference.md): 本仓库遵循的 Codex 参考",
 			"- [SECURITY.md](SECURITY.md): 安全策略",
@@ -412,12 +666,13 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 			"- `.namba/` 是配置、SPEC 和项目文档的 source of truth。",
 			"- `.agents/skills/` 是 Codex 实际读取的 repo-local skill surface。",
-			"- `.codex/agents/*.toml` 定义了 planner、implementer、reviewer 的 custom agent。",
-			"- `namba update`、`namba regen`、`namba sync` 负责不同职责，不能互相替代。",
+			"- `.codex/agents/*.toml` 定义了覆盖 product、planning、design、frontend、mobile、backend、data、security、testing、ops、implementation、review 的 task-oriented custom agent。",
+			"- `namba update`、`namba regen`、`namba sync`、`namba pr`、`namba land` 各自解决不同问题，不能混用。",
 			"",
-		}, "\n")
+		)
+		return strings.Join(lines, "\n")
 	default:
-		return strings.Join([]string{
+		lines := []string{
 			renderGeneratedDocHeader(),
 			renderHeroBlock(cfg.HeroImage, "NambaAI"),
 			"# NambaAI",
@@ -465,6 +720,9 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"namba land",
 			"```",
 			"",
+		}
+		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
+		lines = append(lines,
 			"## Command Skills In Codex",
 			"",
 			"- `$namba`: general router when you want Codex to choose the right Namba workflow entry point.",
@@ -498,7 +756,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 			"## Need More Detail?",
 			"",
-			fmt.Sprintf("- [%s](%s): installation, init, updates, and first-run flow", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
+			fmt.Sprintf("- [%s](%s): installation, updates, uninstall, init, and first-run flow", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
 			fmt.Sprintf("- [%s](%s): update vs regen vs sync vs pr vs land, run modes, generated assets, and collaboration defaults", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
 			"- [Codex Upstream Reference](docs/codex-upstream-reference.md): upstream baseline this repository follows",
 			"- [SECURITY.md](SECURITY.md): security policy",
@@ -510,7 +768,8 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- `.codex/agents/*.toml` defines task-oriented custom agents across product, planning, design, frontend, mobile, backend, data, security, testing, ops, implementation, and review.",
 			"- `namba update`, `namba regen`, `namba sync`, `namba pr`, and `namba land` solve different problems and should not be mixed.",
 			"",
-		}, "\n")
+		)
+		return strings.Join(lines, "\n")
 	}
 }
 
@@ -738,7 +997,7 @@ func renderManagedProjectGuide(lang, guide string, projectCfg projectConfig, pro
 func renderNambaCLIGettingStarted(lang string) string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
-		return strings.Join([]string{
+		lines := []string{
 			renderGeneratedDocHeader(),
 			fmt.Sprintf("# %s", localizeGuideLabel(lang, "getting-started")),
 			"",
@@ -748,12 +1007,16 @@ func renderNambaCLIGettingStarted(lang string) string {
 			"",
 			"## 1. 설치",
 			"",
-			"- Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`",
-			"- For the best Codex CLI experience on Windows, use a WSL workspace when you work inside a repository.",
-			"- macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`",
-			"- 특정 버전 설치나 업데이트는 `namba update --version vX.Y.Z`를 사용합니다.",
+			fmt.Sprintf("- Windows: `%s`", nambaInstallPowerShell),
+			"- 저장소 안에서 작업할 때 Windows의 Codex CLI 경험을 가장 안정적으로 쓰려면 WSL 워크스페이스를 권장합니다.",
+			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
+			"- 기본 경로 대신 다른 곳에 설치하려면 `NAMBA_INSTALL_DIR`를 사용합니다.",
 			"",
-			"## 2. 새 저장소 초기화",
+		}
+		lines = append(lines, renderNambaCLIUpdateGuideSection(lang)...)
+		lines = append(lines, renderNambaCLIUninstallGuideSection(lang)...)
+		lines = append(lines,
+			"## 4. 새 저장소 초기화",
 			"",
 			"```text",
 			"mkdir my-project",
@@ -763,23 +1026,26 @@ func renderNambaCLIGettingStarted(lang string) string {
 			"",
 			"wizard에서는 작업 언어, approval_policy, sandbox_mode, PR 언어, Codex agent mode를 함께 고를 수 있습니다.",
 			"",
-			"## 3. Codex에서 기본 흐름 실행",
+			"## 5. Codex에서 기본 흐름 실행",
 			"",
 			"```text",
 			"namba project",
 			"namba plan \"대시보드 필터 추가\"",
 			"namba run SPEC-001",
 			"namba sync",
+			"namba pr \"대시보드 필터 추가\"",
+			"namba land",
 			"```",
 			"",
-			"## 4. 다음에 보면 좋은 문서",
+			"## 6. 다음에 보면 좋은 문서",
 			"",
 			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
 			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
 			"",
-		}, "\n")
+		)
+		return strings.Join(lines, "\n")
 	case "ja":
-		return strings.Join([]string{
+		lines := []string{
 			renderGeneratedDocHeader(),
 			fmt.Sprintf("# %s", localizeGuideLabel(lang, "getting-started")),
 			"",
@@ -789,11 +1055,16 @@ func renderNambaCLIGettingStarted(lang string) string {
 			"",
 			"## 1. インストール",
 			"",
-			"- Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`",
-			"- macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`",
-			"- 特定バージョンへの更新は `namba update --version vX.Y.Z` を使います。",
+			fmt.Sprintf("- Windows: `%s`", nambaInstallPowerShell),
+			"- リポジトリ内で作業する Windows の Codex CLI 体験は、WSL ワークスペースの方が安定します。",
+			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
+			"- 既定の場所ではなく別の場所に入れたい場合は `NAMBA_INSTALL_DIR` を使います。",
 			"",
-			"## 2. 新しいリポジトリを初期化",
+		}
+		lines = append(lines, renderNambaCLIUpdateGuideSection(lang)...)
+		lines = append(lines, renderNambaCLIUninstallGuideSection(lang)...)
+		lines = append(lines,
+			"## 4. 新しいリポジトリを初期化",
 			"",
 			"```text",
 			"mkdir my-project",
@@ -803,23 +1074,26 @@ func renderNambaCLIGettingStarted(lang string) string {
 			"",
 			"wizard では作業言語、approval_policy、sandbox_mode、PR 言語、Codex agent mode をまとめて選べます。",
 			"",
-			"## 3. Codex で基本フローを実行",
+			"## 5. Codex で基本フローを実行",
 			"",
 			"```text",
 			"namba project",
 			"namba plan \"ダッシュボードフィルタを追加\"",
 			"namba run SPEC-001",
 			"namba sync",
+			"namba pr \"ダッシュボードフィルタを追加\"",
+			"namba land",
 			"```",
 			"",
-			"## 4. 次に読む文書",
+			"## 6. 次に読む文書",
 			"",
 			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
 			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
 			"",
-		}, "\n")
+		)
+		return strings.Join(lines, "\n")
 	case "zh":
-		return strings.Join([]string{
+		lines := []string{
 			renderGeneratedDocHeader(),
 			fmt.Sprintf("# %s", localizeGuideLabel(lang, "getting-started")),
 			"",
@@ -829,11 +1103,16 @@ func renderNambaCLIGettingStarted(lang string) string {
 			"",
 			"## 1. 安装",
 			"",
-			"- Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`",
-			"- macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`",
-			"- 指定版本更新可使用 `namba update --version vX.Y.Z`。",
+			fmt.Sprintf("- Windows: `%s`", nambaInstallPowerShell),
+			"- 如果你在仓库里使用 Windows 版 Codex CLI，WSL 工作区通常会更稳定。",
+			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
+			"- 如果要安装到默认路径之外的位置，请使用 `NAMBA_INSTALL_DIR`。",
 			"",
-			"## 2. 初始化新仓库",
+		}
+		lines = append(lines, renderNambaCLIUpdateGuideSection(lang)...)
+		lines = append(lines, renderNambaCLIUninstallGuideSection(lang)...)
+		lines = append(lines,
+			"## 4. 初始化新仓库",
 			"",
 			"```text",
 			"mkdir my-project",
@@ -843,23 +1122,26 @@ func renderNambaCLIGettingStarted(lang string) string {
 			"",
 			"wizard 中可以一起选择工作语言、approval_policy、sandbox_mode、PR 语言和 Codex agent mode。",
 			"",
-			"## 3. 在 Codex 中执行基本流程",
+			"## 5. 在 Codex 中执行基本流程",
 			"",
 			"```text",
 			"namba project",
 			"namba plan \"添加仪表盘筛选\"",
 			"namba run SPEC-001",
 			"namba sync",
+			"namba pr \"添加仪表盘筛选\"",
+			"namba land",
 			"```",
 			"",
-			"## 4. 下一步建议阅读",
+			"## 6. 下一步建议阅读",
 			"",
 			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
 			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
 			"",
-		}, "\n")
+		)
+		return strings.Join(lines, "\n")
 	default:
-		return strings.Join([]string{
+		lines := []string{
 			renderGeneratedDocHeader(),
 			fmt.Sprintf("# %s", localizeGuideLabel(lang, "getting-started")),
 			"",
@@ -869,12 +1151,16 @@ func renderNambaCLIGettingStarted(lang string) string {
 			"",
 			"## 1. Install",
 			"",
-			"- Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`",
+			fmt.Sprintf("- Windows: `%s`", nambaInstallPowerShell),
 			"- For the best Codex CLI experience on Windows, use a WSL workspace when you work inside a repository.",
-			"- macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`",
-			"- Use `namba update --version vX.Y.Z` when you need a specific CLI version.",
+			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
+			"- Use `NAMBA_INSTALL_DIR` when you want a non-default install location.",
 			"",
-			"## 2. Bootstrap a new repository",
+		}
+		lines = append(lines, renderNambaCLIUpdateGuideSection(lang)...)
+		lines = append(lines, renderNambaCLIUninstallGuideSection(lang)...)
+		lines = append(lines,
+			"## 4. Bootstrap a new repository",
 			"",
 			"```text",
 			"mkdir my-project",
@@ -884,28 +1170,31 @@ func renderNambaCLIGettingStarted(lang string) string {
 			"",
 			"The wizard aligns working language, approval_policy, sandbox_mode, PR language, and Codex agent mode.",
 			"",
-			"## 3. Run the basic Codex flow",
+			"## 5. Run the basic Codex flow",
 			"",
 			"```text",
 			"namba project",
 			"namba plan \"add dashboard filters\"",
 			"namba run SPEC-001",
 			"namba sync",
+			"namba pr \"add dashboard filters\"",
+			"namba land",
 			"```",
 			"",
-			"## 4. Read next",
+			"## 6. Read next",
 			"",
 			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
 			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
 			"",
-		}, "\n")
+		)
+		return strings.Join(lines, "\n")
 	}
 }
 
 func renderNambaCLIWorkflowGuide(lang string) string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
-		return strings.Join([]string{
+		lines := []string{
 			renderGeneratedDocHeader(),
 			fmt.Sprintf("# %s", localizeGuideLabel(lang, "workflow-guide")),
 			"",
@@ -913,34 +1202,59 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"",
 			renderDocLinkBar(lang),
 			"",
-			"## `update`, `regen`, `sync`는 다릅니다",
+			"## `update`, `regen`, `sync`, `pr`, `land`는 다른 명령입니다",
 			"",
 			"- `namba update`: 설치된 `namba` CLI를 GitHub Release 기준으로 self-update",
-			"- `namba regen`: AGENTS, skills, custom agents, Codex config 같은 template-generated 자산 재생성",
-			"- `namba sync`: README, 프로젝트 문서, codemap, PR 체크리스트, 릴리스 메모 같은 사용자/협업 문서 갱신",
+			"- `namba regen`: AGENTS, skills, custom agents, repo Codex config 같은 template-generated 자산 재생성",
+			"- `namba sync`: README, 프로젝트 문서, codemap, advisory review readiness, PR 체크리스트, 릴리스 메모 갱신",
+			"- `namba pr`: 기본으로 sync와 validation을 실행하고, 현재 브랜치를 commit/push 한 뒤 PR을 열거나 재사용하며 Codex review marker까지 맞춥니다.",
+			"- `namba land`: 필요하면 체크를 기다리고, PR이 깨끗할 때만 머지한 뒤 로컬 `main`을 안전하게 갱신합니다.",
 			"",
-			"## 생성되는 핵심 자산",
+			"## `namba run` 모드",
+			"",
+			"- `namba run SPEC-XXX`: 한 작업공간에서 실행하는 기본 standalone Codex 흐름입니다.",
+			"- `namba run SPEC-XXX --solo`: 한 작업공간 안에서 단일 specialist subagent 흐름으로 실행합니다.",
+			"- `namba run SPEC-XXX --team`: 한 작업공간 안에서 소규모 multi-subagent 흐름으로 실행합니다.",
+			"- `namba run SPEC-XXX --parallel`: Codex subagent orchestration이 아니라 Namba가 관리하는 git worktree fan-out/fan-in입니다.",
+			"",
+			"## 역할 라우팅",
+			"",
+			"- 기본 `namba run`은 프롬프트에 강한 specialist 신호가 없으면 standalone runner에 머뭅니다.",
+			"- `--solo`는 한 도메인이 분명할 때 specialist 1명만 쓰고, `--team`은 acceptance가 여러 도메인에 걸칠 때만 specialist 둘과 reviewer까지 확장합니다.",
+			"- UI, responsive, mobile, design 작업은 `namba-frontend-implementer`, `namba-mobile-engineer`, `namba-designer`로 보내고, API, schema, pipeline 작업은 `namba-backend-implementer`, `namba-data-engineer`로 보냅니다. auth, secrets, compliance는 `namba-security-engineer`, deployment와 runtime은 `namba-devops-engineer`가 맡습니다.",
+			"- Standalone runner는 integrator이자 validation owner로 유지하고, 통제되지 않은 swarm 대신 최종 acceptance는 `namba-reviewer`로 점검합니다.",
+			"",
+			"## 리뷰 준비도",
+			"",
+			"- `namba plan`과 `namba fix`는 `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, `readiness.md`를 seed 합니다.",
+			"- 구현 전이나 PR handoff 전에 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`로 review 산출물을 최신 상태로 유지합니다.",
+			"- 누락된 review pass는 기본으로 advisory 상태입니다. `namba run`, `namba sync`, `namba pr`는 현재 readiness 요약을 보여주지만 조용히 하드블록하지 않습니다.",
+			"",
+			"## 주요 생성 산출물",
 			"",
 			"- `.namba/`: 설정, SPEC, project docs, logs",
+			"- `.namba/specs/<SPEC>/reviews/`: SPEC별 advisory product, engineering, design, readiness artifact",
 			"- `.agents/skills/`: Codex가 직접 읽는 repo-local skills",
+			"- `.codex/config.toml`: repo-local Codex 기본값과 Namba가 관리하는 MCP preset",
 			"- `.codex/agents/*.toml`: project-scoped custom agents",
 			"- `.namba/project/*`: change summary, release notes, checklist, codemap",
 			"",
 			"## 협업 기본값",
 			"",
 			"- 작업은 전용 브랜치에서 진행합니다.",
-			"- PR은 `main` 대상으로 엽니다.",
-			"- PR 제목/본문은 선택된 PR 언어를 따릅니다.",
-			"- GitHub에서 `@codex review`를 요청합니다.",
+			"- `namba pr`는 `main`을 대상으로 하고, 설정된 PR 언어와 review marker를 함께 맞춥니다.",
+			"- `namba land`는 깨끗한 PR만 머지하고 로컬 `main`을 다른 작업을 덮지 않게 갱신합니다.",
+			"- GitHub review 요청은 `@codex review`를 사용합니다.",
 			"",
 			"## 릴리스 흐름",
 			"",
-			"- `namba release`는 clean working tree와 `main` 브랜치를 요구합니다.",
-			"- `--push`를 쓰면 tag와 `main`을 함께 푸시하고 GitHub Release 워크플로를 트리거합니다.",
+			"- `namba release`는 `main`의 clean working tree를 요구합니다.",
+			"- `--push`는 새 tag와 `main`을 함께 push 한 뒤 GitHub Release workflow를 트리거합니다.",
 			"",
-		}, "\n")
+		}
+		return strings.Join(lines, "\n")
 	case "ja":
-		return strings.Join([]string{
+		lines := []string{
 			renderGeneratedDocHeader(),
 			fmt.Sprintf("# %s", localizeGuideLabel(lang, "workflow-guide")),
 			"",
@@ -948,34 +1262,59 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"",
 			renderDocLinkBar(lang),
 			"",
-			"## `update`、`regen`、`sync` は別物です",
+			"## `update`、`regen`、`sync`、`pr`、`land` は別のコマンドです",
 			"",
 			"- `namba update`: インストール済み CLI を GitHub Release ベースで self-update",
-			"- `namba regen`: AGENTS、skills、custom agents、Codex config などの template-generated assets を再生成",
-			"- `namba sync`: README、プロジェクト文書、codemap、PR checklist、release notes を更新",
+			"- `namba regen`: AGENTS、skills、custom agents、repo Codex config などの template-generated assets を再生成",
+			"- `namba sync`: README、プロジェクト文書、codemap、advisory review readiness、PR checklist、release notes を更新",
+			"- `namba pr`: 既定で sync と validation を実行し、現在のブランチを commit/push して PR を開くか再利用し、Codex review marker まで整えます。",
+			"- `namba land`: 必要ならチェック完了を待ち、PR が clean なときだけマージし、ローカル `main` を安全に更新します。",
 			"",
-			"## 生成される主要アセット",
+			"## `namba run` モード",
+			"",
+			"- `namba run SPEC-XXX`: 1 つのワークスペースで進める標準の standalone Codex フローです。",
+			"- `namba run SPEC-XXX --solo`: 1 つのワークスペース内で単一 specialist subagent フローを実行します。",
+			"- `namba run SPEC-XXX --team`: 1 つのワークスペース内で小規模な multi-subagent フローを実行します。",
+			"- `namba run SPEC-XXX --parallel`: Codex subagent orchestration ではなく、Namba 管理の git worktree fan-out/fan-in です。",
+			"",
+			"## 役割ルーティング",
+			"",
+			"- 既定の `namba run` は、プロンプトに強い specialist シグナルがない限り standalone runner のままです。",
+			"- `--solo` は 1 つのドメインが明確なときだけ specialist を 1 人使い、`--team` は acceptance が複数ドメインにまたがるときだけ specialist 2 人と reviewer まで広げます。",
+			"- UI、responsive、mobile、design の作業は `namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer` に、API、schema、pipeline は `namba-backend-implementer`、`namba-data-engineer` に回します。auth、secrets、compliance は `namba-security-engineer`、deployment と runtime は `namba-devops-engineer` が担当します。",
+			"- Standalone runner は integrator 兼 validation owner として維持し、制御できない swarm ではなく最終 acceptance は `namba-reviewer` で確認します。",
+			"",
+			"## レビュー準備度",
+			"",
+			"- `namba plan` と `namba fix` は `.namba/specs/<SPEC>/reviews/product.md`、`engineering.md`、`design.md`、`readiness.md` を seed します。",
+			"- 実装前や PR handoff 前に `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` を使って review 成果物を最新に保ちます。",
+			"- 足りない review pass は既定で advisory のままです。`namba run`、`namba sync`、`namba pr` は現在の readiness 要約を見せますが、黙って delivery を hard-block しません。",
+			"",
+			"## 主要な生成アセット",
 			"",
 			"- `.namba/`: config, specs, project docs, logs",
+			"- `.namba/specs/<SPEC>/reviews/`: SPEC ごとの advisory product / engineering / design / readiness artifacts",
 			"- `.agents/skills/`: Codex が直接読む repo-local skills",
+			"- `.codex/config.toml`: repo-local Codex defaults と Namba 管理 MCP preset",
 			"- `.codex/agents/*.toml`: project-scoped custom agents",
 			"- `.namba/project/*`: change summary、release notes、checklist、codemap",
 			"",
 			"## 協業の既定値",
 			"",
 			"- 作業は専用ブランチで進めます。",
-			"- PR は `main` を対象にします。",
-			"- PR の題名と本文は選択した PR 言語に従います。",
-			"- GitHub で `@codex review` を依頼します。",
+			"- `namba pr` は `main` を対象にし、設定済み PR 言語と review marker を揃えます。",
+			"- `namba land` は clean な PR だけをマージし、ローカル `main` を他の作業を壊さず更新します。",
+			"- GitHub review 依頼には `@codex review` を使います。",
 			"",
 			"## リリースフロー",
 			"",
-			"- `namba release` は clean working tree と `main` ブランチを要求します。",
-			"- `--push` を使うと tag と `main` を一緒に push し、GitHub Release workflow を起動します。",
+			"- `namba release` は `main` 上の clean working tree を要求します。",
+			"- `--push` は新しい tag と `main` を一緒に push し、その後 GitHub Release workflow を起動します。",
 			"",
-		}, "\n")
+		}
+		return strings.Join(lines, "\n")
 	case "zh":
-		return strings.Join([]string{
+		lines := []string{
 			renderGeneratedDocHeader(),
 			fmt.Sprintf("# %s", localizeGuideLabel(lang, "workflow-guide")),
 			"",
@@ -983,32 +1322,57 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"",
 			renderDocLinkBar(lang),
 			"",
-			"## `update`、`regen`、`sync` 是不同命令",
+			"## `update`、`regen`、`sync`、`pr`、`land` 是不同命令",
 			"",
 			"- `namba update`: 按 GitHub Release 更新已安装的 CLI",
-			"- `namba regen`: 重新生成 AGENTS、skills、custom agents、Codex config 等模板产物",
-			"- `namba sync`: 刷新 README、项目文档、codemap、PR checklist、release notes",
+			"- `namba regen`: 重新生成 AGENTS、skills、custom agents、repo Codex config 等模板产物",
+			"- `namba sync`: 刷新 README、项目文档、codemap、advisory review readiness、PR checklist、release notes",
+			"- `namba pr`: 默认先执行 sync 与 validation，再把当前分支 commit/push，打开或复用 PR，并确保 Codex review marker 已存在。",
+			"- `namba land`: 必要时等待检查完成，只在 PR 干净时合并，并安全更新本地 `main`。",
 			"",
-			"## 关键产物",
+			"## `namba run` 模式",
+			"",
+			"- `namba run SPEC-XXX`: 在一个工作区里执行的标准 standalone Codex 流程。",
+			"- `namba run SPEC-XXX --solo`: 在一个工作区内运行单 specialist subagent 流程。",
+			"- `namba run SPEC-XXX --team`: 在一个工作区内运行小规模 multi-subagent 流程。",
+			"- `namba run SPEC-XXX --parallel`: 这不是 Codex subagent orchestration，而是 Namba 管理的 git worktree fan-out/fan-in。",
+			"",
+			"## 角色路由",
+			"",
+			"- 默认 `namba run` 会留在 standalone runner，除非提示里出现很强的 specialist 信号。",
+			"- `--solo` 只在单一领域非常明确时使用 1 个 specialist；`--team` 只在 acceptance 跨多个领域时扩展到 2 个 specialist 加 reviewer。",
+			"- UI、responsive、mobile、design 工作交给 `namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer`；API、schema、pipeline 交给 `namba-backend-implementer`、`namba-data-engineer`；auth、secrets、compliance 交给 `namba-security-engineer`；deployment 与 runtime 交给 `namba-devops-engineer`。",
+			"- Standalone runner 仍是 integrator 和 validation owner；最终 acceptance 由 `namba-reviewer` 把关，而不是放任失控的 swarm。",
+			"",
+			"## 评审就绪度",
+			"",
+			"- `namba plan` 和 `namba fix` 会生成 `.namba/specs/<SPEC>/reviews/product.md`、`engineering.md`、`design.md`、`readiness.md`。",
+			"- 在实现前或 PR handoff 前，使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` 保持这些 review 产物是最新的。",
+			"- 缺失的 review pass 默认仍是 advisory 状态。`namba run`、`namba sync`、`namba pr` 会展示当前 readiness 摘要，但不会悄悄硬阻塞交付。",
+			"",
+			"## 关键生成资产",
 			"",
 			"- `.namba/`: config, specs, project docs, logs",
+			"- `.namba/specs/<SPEC>/reviews/`: 每个 SPEC 的 advisory product / engineering / design / readiness artifacts",
 			"- `.agents/skills/`: Codex 直接读取的 repo-local skills",
+			"- `.codex/config.toml`: repo-local Codex defaults 与 Namba 管理的 MCP preset",
 			"- `.codex/agents/*.toml`: project-scoped custom agents",
 			"- `.namba/project/*`: change summary、release notes、checklist、codemap",
 			"",
 			"## 协作默认值",
 			"",
-			"- 所有工作都在专用分支上进行。",
-			"- PR 目标分支是 `main`。",
-			"- PR 标题和正文遵循所选 PR 语言。",
-			"- 在 GitHub 上请求 `@codex review`。",
+			"- 工作在专用分支中进行。",
+			"- `namba pr` 以 `main` 为目标，并保持已配置的 PR 语言与 review marker 一致。",
+			"- `namba land` 只合并干净的 PR，并在不覆盖其他工作的前提下更新本地 `main`。",
+			"- GitHub review 请求使用 `@codex review`。",
 			"",
 			"## 发布流程",
 			"",
-			"- `namba release` 要求 clean working tree 和 `main` 分支。",
-			"- 使用 `--push` 时会同时推送 tag 和 `main`，并触发 GitHub Release workflow。",
+			"- `namba release` 要求 `main` 上有 clean working tree。",
+			"- `--push` 会同时推送新 tag 与 `main`，然后触发 GitHub Release workflow。",
 			"",
-		}, "\n")
+		}
+		return strings.Join(lines, "\n")
 	default:
 		return strings.Join([]string{
 			renderGeneratedDocHeader(),

@@ -49,6 +49,15 @@ namba pr "add login audit logs"
 namba land
 ```
 
+## Install, Update, and Uninstall
+
+- Install on Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
+- Install on macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
+- Update to the latest release: `namba update`
+- Pin a specific release: `namba update --version vX.Y.Z`
+- Uninstall on Windows: remove `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe`, then remove `%LOCALAPPDATA%\Programs\NambaAI\bin` from your user `PATH` if you no longer need it.
+- Uninstall on macOS / Linux: remove `~/.local/bin/namba`, then delete the `PATH` line that the installer added to `~/.profile` or `~/.zshrc` if you no longer need it.
+
 ## Command Skills In Codex
 
 - `$namba`: general router when you want Codex to choose the right Namba workflow entry point.
@@ -82,7 +91,7 @@ namba land
 
 ## Need More Detail?
 
-- [Getting Started](docs/getting-started.md): installation, init, updates, and first-run flow
+- [Getting Started](docs/getting-started.md): installation, updates, uninstall, init, and first-run flow
 - [Workflow Guide](docs/workflow-guide.md): update vs regen vs sync vs pr vs land, run modes, generated assets, and collaboration defaults
 - [Codex Upstream Reference](docs/codex-upstream-reference.md): upstream baseline this repository follows
 - [SECURITY.md](SECURITY.md): security policy

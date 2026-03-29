@@ -45,3 +45,110 @@ func TestRenderNambaCLIWorkflowGuideIncludesRoleRouting(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.T) {
+	outputs := buildReadmeOutputs(projectConfig{}, initProfile{}, docsConfig{
+		ManageReadme:        true,
+		ReadmeProfile:       readmeProfileNambaCLI,
+		DefaultLanguage:     "en",
+		AdditionalLanguages: []string{"ko", "ja", "zh"},
+	})
+
+	if got, want := len(outputs), 12; got != want {
+		t.Fatalf("buildReadmeOutputs() produced %d outputs, want %d", got, want)
+	}
+
+	cases := []struct {
+		lang                    string
+		rootLifecycleHeading    string
+		gettingStartedUpdate    string
+		gettingStartedUninstall string
+		workflowModesHeading    string
+		workflowReviewHeading   string
+	}{
+		{
+			lang:                    "en",
+			rootLifecycleHeading:    "## Install, Update, and Uninstall",
+			gettingStartedUpdate:    "## 2. Update",
+			gettingStartedUninstall: "## 3. Uninstall",
+			workflowModesHeading:    "## `namba run` modes",
+			workflowReviewHeading:   "## Review readiness",
+		},
+		{
+			lang:                    "ko",
+			rootLifecycleHeading:    "## 설치, 업데이트, 제거",
+			gettingStartedUpdate:    "## 2. 업데이트",
+			gettingStartedUninstall: "## 3. 제거",
+			workflowModesHeading:    "## `namba run` 모드",
+			workflowReviewHeading:   "## 리뷰 준비도",
+		},
+		{
+			lang:                    "ja",
+			rootLifecycleHeading:    "## インストール、更新、アンインストール",
+			gettingStartedUpdate:    "## 2. 更新",
+			gettingStartedUninstall: "## 3. アンインストール",
+			workflowModesHeading:    "## `namba run` モード",
+			workflowReviewHeading:   "## レビュー準備度",
+		},
+		{
+			lang:                    "zh",
+			rootLifecycleHeading:    "## 安装、更新与卸载",
+			gettingStartedUpdate:    "## 2. 更新",
+			gettingStartedUninstall: "## 3. 卸载",
+			workflowModesHeading:    "## `namba run` 模式",
+			workflowReviewHeading:   "## 评审就绪度",
+		},
+	}
+
+	for _, tc := range cases {
+		root := outputs[readmePath(tc.lang)]
+		for _, want := range []string{
+			tc.rootLifecycleHeading,
+			"`$namba-run`",
+			"`$namba-update`",
+			"`namba-mobile-engineer`",
+			"`namba-security-engineer`",
+			"`namba update --version vX.Y.Z`",
+			"namba pr",
+			"namba land",
+			nambaWindowsBinaryPath,
+			nambaUnixBinaryPath,
+		} {
+			if !strings.Contains(root, want) {
+				t.Fatalf("%s README missing %q: %q", tc.lang, want, root)
+			}
+		}
+
+		gettingStarted := outputs[guidePath("getting-started", tc.lang)]
+		for _, want := range []string{
+			tc.gettingStartedUpdate,
+			tc.gettingStartedUninstall,
+			"`namba update`",
+			"`namba update --version vX.Y.Z`",
+			"`NAMBA_INSTALL_DIR`",
+			"namba pr",
+			"namba land",
+			nambaWindowsBinaryPath,
+			nambaUnixBinaryPath,
+		} {
+			if !strings.Contains(gettingStarted, want) {
+				t.Fatalf("%s getting-started guide missing %q: %q", tc.lang, want, gettingStarted)
+			}
+		}
+
+		workflowGuide := outputs[guidePath("workflow-guide", tc.lang)]
+		for _, want := range []string{
+			tc.workflowModesHeading,
+			tc.workflowReviewHeading,
+			"`namba run SPEC-XXX --team`",
+			"`namba-reviewer`",
+			"`$namba-plan-eng-review`",
+			"`namba pr`",
+			"`namba land`",
+		} {
+			if !strings.Contains(workflowGuide, want) {
+				t.Fatalf("%s workflow guide missing %q: %q", tc.lang, want, workflowGuide)
+			}
+		}
+	}
+}

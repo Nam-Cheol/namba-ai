@@ -606,11 +606,9 @@ func (a *App) runSync(ctx context.Context, _ []string) error {
 		return err
 	}
 
-	generatedAt := a.now().Format(time.RFC3339)
-
-	summary := buildChangeSummaryDoc(root, projectCfg, latestSpec, generatedAt, profile)
+	summary := buildChangeSummaryDoc(root, projectCfg, latestSpec, profile)
 	checklist := buildPRChecklistDoc(root, latestSpec, profile)
-	releaseNotes := buildReleaseNotesDoc(projectCfg, latestSpec, generatedAt, profile)
+	releaseNotes := buildReleaseNotesDoc(projectCfg, latestSpec, profile)
 	releaseChecklist := buildReleaseChecklistDoc()
 	outputs := map[string]string{
 		filepath.ToSlash(filepath.Join(projectDir, "change-summary.md")):    summary,
@@ -989,23 +987,30 @@ func (a *App) requireProjectRoot() (string, error) {
 
 func (a *App) writeOutputs(root string, outputs map[string]string) error {
 	manifest, _ := a.readManifest(root)
-	if manifest.GeneratedAt == "" {
-		manifest.GeneratedAt = a.now().Format(time.RFC3339)
-	}
+	now := a.now().Format(time.RFC3339)
+	changed := false
 	for rel, content := range outputs {
 		abs := filepath.Join(root, filepath.FromSlash(rel))
-		if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+		wrote, err := writeFileIfChanged(abs, content)
+		if err != nil {
 			return err
 		}
-		if err := os.WriteFile(abs, []byte(content), 0o644); err != nil {
-			return err
+		entry := ManifestEntry{
+			Path:     rel,
+			Kind:     manifestKind(rel),
+			Checksum: checksum(content),
 		}
-		manifest = upsertManifest(manifest, ManifestEntry{
-			Path:      rel,
-			Kind:      manifestKind(rel),
-			Checksum:  checksum(content),
-			UpdatedAt: a.now().Format(time.RFC3339),
-		})
+		if existing, ok := findManifestEntry(manifest, rel); ok && !wrote &&
+			existing.Kind == entry.Kind &&
+			existing.Checksum == entry.Checksum {
+			continue
+		}
+		entry.UpdatedAt = now
+		manifest = upsertManifest(manifest, entry)
+		changed = true
+	}
+	if !changed {
+		return nil
 	}
 	return a.writeManifest(root, manifest)
 }
@@ -1017,6 +1022,13 @@ func (a *App) writeManifest(root string, manifest Manifest) error {
 	}
 	path := filepath.Join(root, manifestPath)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	existing, err := os.ReadFile(path)
+	if err == nil && string(existing) == string(data) {
+		return nil
+	}
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return os.WriteFile(path, data, 0o644)
@@ -1480,13 +1492,25 @@ func shouldSkipStructureEntry(rel string) bool {
 		return true
 	case rel == ".cache", strings.HasPrefix(rel, ".cache/"):
 		return true
+	case rel == ".gocache", strings.HasPrefix(rel, ".gocache/"):
+		return true
 	case rel == ".codex/skills", strings.HasPrefix(rel, ".codex/skills/"):
+		return true
+	case rel == ".tmp", strings.HasPrefix(rel, ".tmp/"):
 		return true
 	case rel == "dist", strings.HasPrefix(rel, "dist/"):
 		return true
 	case rel == "external", strings.HasPrefix(rel, "external/"):
 		return true
 	case rel == ".namba/logs", strings.HasPrefix(rel, ".namba/logs/"):
+		return true
+	case rel == ".namba/project/change-summary.md":
+		return true
+	case rel == ".namba/project/pr-checklist.md":
+		return true
+	case rel == ".namba/project/release-checklist.md":
+		return true
+	case rel == ".namba/project/release-notes.md":
 		return true
 	case rel == ".namba/worktrees", strings.HasPrefix(rel, ".namba/worktrees/"):
 		return true
@@ -2113,7 +2137,7 @@ func buildAcceptanceDoc(description, mode string) string {
 	return strings.Join(bullets, "\n")
 }
 
-func buildChangeSummaryDoc(root string, projectCfg projectConfig, latestSpec, generatedAt string, profile initProfile) string {
+func buildChangeSummaryDoc(root string, projectCfg projectConfig, latestSpec string, profile initProfile) string {
 	projectType := projectCfg.ProjectType
 	if strings.TrimSpace(projectType) == "" {
 		projectType = "existing"
@@ -2127,7 +2151,6 @@ func buildChangeSummaryDoc(root string, projectCfg projectConfig, latestSpec, ge
 		fmt.Sprintf("Project: %s", projectCfg.Name),
 		fmt.Sprintf("Project type: %s", projectType),
 		fmt.Sprintf("Latest SPEC: %s", latestSpec),
-		fmt.Sprintf("Generated: %s", generatedAt),
 		"",
 		"## Workflow Docs Synced",
 		"",
@@ -2180,7 +2203,7 @@ func buildPRChecklistDoc(root, latestSpec string, profile initProfile) string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt string, profile initProfile) string {
+func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec string, profile initProfile) string {
 	projectType := projectCfg.ProjectType
 	if strings.TrimSpace(projectType) == "" {
 		projectType = "existing"
@@ -2194,7 +2217,6 @@ func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt stri
 		fmt.Sprintf("Project: %s", projectCfg.Name),
 		fmt.Sprintf("Project type: %s", projectType),
 		fmt.Sprintf("Reference SPEC: %s", latestSpec),
-		fmt.Sprintf("Generated: %s", generatedAt),
 		"",
 		"## Workflow Changes",
 		"",
@@ -2434,6 +2456,15 @@ func manifestKind(rel string) string {
 	default:
 		return "asset"
 	}
+}
+
+func findManifestEntry(manifest Manifest, path string) (ManifestEntry, bool) {
+	for _, entry := range manifest.Entries {
+		if entry.Path == path {
+			return entry, true
+		}
+	}
+	return ManifestEntry{}, false
 }
 
 func upsertManifest(manifest Manifest, entry ManifestEntry) Manifest {
