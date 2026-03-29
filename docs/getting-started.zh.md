@@ -9,10 +9,24 @@
 ## 1. 安装
 
 - Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
+- 如果你在仓库里使用 Windows 版 Codex CLI，WSL 工作区通常会更稳定。
 - macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
-- 指定版本更新可使用 `namba update --version vX.Y.Z`。
+- 如果要安装到默认路径之外的位置，请使用 `NAMBA_INSTALL_DIR`。
 
-## 2. 初始化新仓库
+## 2. 更新
+
+- 最新发布版: `namba update`
+- 指定发布版: `namba update --version vX.Y.Z`
+- 如果更新后的二进制没有立刻生效，请重新打开终端以重新加载 `PATH`。
+
+## 3. 卸载
+
+- Windows 默认路径: `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe`
+- macOS / Linux 默认路径: `~/.local/bin/namba`
+- 如果通过 `NAMBA_INSTALL_DIR` 安装到了自定义目录，请删除那个位置的二进制。
+- 不再需要时，也要把相同路径从 `PATH` 中移除。
+
+## 4. 初始化新仓库
 
 ```text
 mkdir my-project
@@ -22,16 +36,18 @@ namba init .
 
 wizard 中可以一起选择工作语言、approval_policy、sandbox_mode、PR 语言和 Codex agent mode。
 
-## 3. 在 Codex 中执行基本流程
+## 5. 在 Codex 中执行基本流程
 
 ```text
 namba project
 namba plan "添加仪表盘筛选"
 namba run SPEC-001
 namba sync
+namba pr "添加仪表盘筛选"
+namba land
 ```
 
-## 4. 下一步建议阅读
+## 6. 下一步建议阅读
 
 - [工作流指南](./workflow-guide.zh.md)
 - [Codex Upstream Reference](./codex-upstream-reference.md)

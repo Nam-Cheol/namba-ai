@@ -63,8 +63,12 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
+          version="dev"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME}"
+          fi
           GOOS="${{ matrix.goos }}" GOARCH="${{ matrix.goarch }}" CGO_ENABLED=0 \
-            go build -trimpath -ldflags="-s -w" -o "dist/${{ matrix.binary_name }}" ./cmd/namba
+            go build -trimpath -ldflags="-s -w -X github.com/Nam-Cheol/namba-ai/internal/namba.cliVersion=${version}" -o "dist/${{ matrix.binary_name }}" ./cmd/namba
 
       - name: Package archive on Windows
         if: matrix.goos == 'windows'

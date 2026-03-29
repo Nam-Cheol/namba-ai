@@ -2,8 +2,7 @@
 
 Project: namba-ai
 Project type: existing
-Latest SPEC: SPEC-014
-Generated: 2026-03-29T19:08:53+09:00
+Latest SPEC: SPEC-015
 
 ## Workflow Docs Synced
 
@@ -21,3 +20,8 @@ Generated: 2026-03-29T19:08:53+09:00
 - `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, codemaps, and any README bundles enabled in `.namba/config/sections/docs.yaml`.
 - `namba pr` prepares the current branch for GitHub review by running sync and validation by default, then committing, pushing, opening or reusing the PR, and ensuring the Codex review marker exists.
 - `namba land` optionally waits for checks, merges only when the PR is clean, and updates local `main` safely.
+
+## Latest Review Readiness
+
+- Latest readiness artifact: `.namba/specs/SPEC-015/reviews/readiness.md`
+- Advisory summary: all review tracks clear

@@ -44,11 +44,53 @@ namba project
 namba plan "ログイン監査ログを追加"
 namba run SPEC-001
 namba sync
+namba pr "ログイン監査ログを追加"
+namba land
 ```
+
+## インストール、更新、アンインストール
+
+- Windows へのインストール: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
+- macOS / Linux へのインストール: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
+- 最新リリースに更新: `namba update`
+- 特定リリースに固定: `namba update --version vX.Y.Z`
+- Windows でアンインストール: 既定の `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe` を削除し、不要なら `%LOCALAPPDATA%\Programs\NambaAI\bin` をユーザー `PATH` から外します。
+- macOS / Linux でアンインストール: 既定の `~/.local/bin/namba` を削除し、不要ならインストーラが追加した `PATH` 行を `~/.profile` または `~/.zshrc` から削除します。
+
+## Codex の Command Skill
+
+- `$namba`: Codex に適切な Namba の入口を選ばせるための汎用ルータです。
+- `$namba-project`: 作業の前後でプロジェクト文書と codemap を更新します。
+- `$namba-plan` / `$namba-fix`: 次の feature または bugfix SPEC パッケージを作ります。
+- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: SPEC 用の product / engineering / design review 成果物と readiness 要約を更新します。
+- `$namba-run`: 現在の Codex セッションで SPEC パッケージを Namba ワークフローとして実行します。
+- `$namba-sync`: README バンドル、プロジェクト文書、codemap、PR 準備物を更新します。
+- `$namba-pr` / `$namba-land`: 現在のブランチを GitHub レビューに渡し、チェック完了後に安全にマージします。
+- `$namba-regen` / `$namba-update`: repo-local Codex 資産を再生成するか、インストール済み `namba` CLI を self-update します。
+
+## Skill から Command への対応
+
+- `$namba-project` -> `namba project`
+- `$namba-plan` -> `namba plan "description"`
+- `$namba-fix` -> `namba fix "description"`
+- `$namba-run` -> `namba run SPEC-XXX`
+- `$namba-sync` -> `namba sync`
+- `$namba-pr` -> `namba pr "title"`
+- `$namba-land` -> `namba land`
+- `$namba-regen` -> `namba regen`
+- `$namba-update` -> `namba update [--version vX.Y.Z]`
+
+## Codex Custom Agents
+
+- Strategy: `namba-product-manager` がスコープと acceptance を整え、`namba-planner` が SPEC を実行計画に変えます。
+- UI and experience: `namba-frontend-architect`、`namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer` が Web UI、モバイル実装、ビジュアル方向を担当します。
+- Backend and data: `namba-backend-architect`、`namba-backend-implementer`、`namba-data-engineer` が API、永続化、マイグレーション、パイプラインを担当します。
+- Security and delivery: `namba-security-engineer`、`namba-test-engineer`、`namba-devops-engineer`、`namba-reviewer` が hardening、回帰信頼性、CI/CD、最終受け入れを担当します。
+- General delivery: `namba-implementer` は複数ドメインにまたがるが大きな specialist チームまでは不要な作業を担う汎用実装エージェントです。
 
 ## さらに詳しく
 
-- [スタートガイド](docs/getting-started.ja.md): インストール、初期化、更新、最初の実行
+- [スタートガイド](docs/getting-started.ja.md): インストール、更新、アンインストール、初期化、最初の実行
 - [ワークフローガイド](docs/workflow-guide.ja.md): update / regen / sync の違い、成果物、協業ルール
 - [Codex Upstream Reference](docs/codex-upstream-reference.md): このリポジトリが合わせている Codex の基準
 - [SECURITY.md](SECURITY.md): セキュリティポリシー
@@ -57,5 +99,5 @@ namba sync
 
 - `.namba/` は設定、SPEC、プロジェクト文書の source of truth です。
 - `.agents/skills/` は Codex が読む repo-local skill surface です。
-- `.codex/agents/*.toml` は planner、implementer、reviewer 向け custom agent 定義です。
-- `namba update`、`namba regen`、`namba sync` はそれぞれ役割が異なります。
+- `.codex/agents/*.toml` は product、planning、design、frontend、mobile、backend、data、security、testing、ops、implementation、review をまたぐ task-oriented custom agent を定義します。
+- `namba update`、`namba regen`、`namba sync`、`namba pr`、`namba land` は別の問題を解くので混同しません。

@@ -44,11 +44,53 @@ namba project
 namba plan "添加登录审计日志"
 namba run SPEC-001
 namba sync
+namba pr "添加登录审计日志"
+namba land
 ```
+
+## 安装、更新与卸载
+
+- 在 Windows 上安装: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
+- 在 macOS / Linux 上安装: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
+- 更新到最新发布版: `namba update`
+- 固定到指定发布版: `namba update --version vX.Y.Z`
+- 在 Windows 上卸载: 删除默认路径 `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe`，如果不再需要，再把 `%LOCALAPPDATA%\Programs\NambaAI\bin` 从用户 `PATH` 中移除。
+- 在 macOS / Linux 上卸载: 删除默认路径 `~/.local/bin/namba`，如果不再需要，再从 `~/.profile` 或 `~/.zshrc` 中删除安装器追加的 `PATH` 行。
+
+## Codex 中的 Command Skill
+
+- `$namba`: 通用路由入口，让 Codex 选择合适的 Namba 工作流命令。
+- `$namba-project`: 在开始前或较大改动后刷新项目文档与 codemap。
+- `$namba-plan` / `$namba-fix`: 创建下一个 feature 或 bugfix SPEC 包。
+- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: 更新 SPEC 的 product / engineering / design review 产物与 readiness 摘要。
+- `$namba-run`: 在当前 Codex 会话中按 Namba 工作流执行 SPEC 包。
+- `$namba-sync`: 刷新 README bundle、项目文档、codemap 与 PR 准备产物。
+- `$namba-pr` / `$namba-land`: 把当前分支交给 GitHub review，并在检查通过后安全合并。
+- `$namba-regen` / `$namba-update`: 重新生成 repo-local Codex 资产，或 self-update 已安装的 `namba` CLI。
+
+## Skill 到 Command 的映射
+
+- `$namba-project` -> `namba project`
+- `$namba-plan` -> `namba plan "description"`
+- `$namba-fix` -> `namba fix "description"`
+- `$namba-run` -> `namba run SPEC-XXX`
+- `$namba-sync` -> `namba sync`
+- `$namba-pr` -> `namba pr "title"`
+- `$namba-land` -> `namba land`
+- `$namba-regen` -> `namba regen`
+- `$namba-update` -> `namba update [--version vX.Y.Z]`
+
+## Codex Custom Agents
+
+- Strategy: `namba-product-manager` 负责收敛范围与 acceptance，`namba-planner` 把 SPEC 转成执行计划。
+- UI and experience: `namba-frontend-architect`、`namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer` 负责 Web UI、移动端实现与视觉方向。
+- Backend and data: `namba-backend-architect`、`namba-backend-implementer`、`namba-data-engineer` 负责 API、持久化、迁移与数据管道。
+- Security and delivery: `namba-security-engineer`、`namba-test-engineer`、`namba-devops-engineer`、`namba-reviewer` 负责加固、回归信心、CI/CD 与最终验收。
+- General delivery: `namba-implementer` 负责跨多个领域但还不需要大规模 specialist 团队的通用执行工作。
 
 ## 进一步了解
 
-- [上手指南](docs/getting-started.zh.md): 安装、初始化、更新与首次运行
+- [上手指南](docs/getting-started.zh.md): 安装、更新、卸载、初始化与首次运行
 - [工作流指南](docs/workflow-guide.zh.md): update / regen / sync 的区别、产物与协作规则
 - [Codex Upstream Reference](docs/codex-upstream-reference.md): 本仓库遵循的 Codex 参考
 - [SECURITY.md](SECURITY.md): 安全策略
@@ -57,5 +99,5 @@ namba sync
 
 - `.namba/` 是配置、SPEC 和项目文档的 source of truth。
 - `.agents/skills/` 是 Codex 实际读取的 repo-local skill surface。
-- `.codex/agents/*.toml` 定义了 planner、implementer、reviewer 的 custom agent。
-- `namba update`、`namba regen`、`namba sync` 负责不同职责，不能互相替代。
+- `.codex/agents/*.toml` 定义了覆盖 product、planning、design、frontend、mobile、backend、data、security、testing、ops、implementation、review 的 task-oriented custom agent。
+- `namba update`、`namba regen`、`namba sync`、`namba pr`、`namba land` 各自解决不同问题，不能混用。

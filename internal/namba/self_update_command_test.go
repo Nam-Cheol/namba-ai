@@ -8,11 +8,24 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestParseUpdateArgsDefaultsToLatestRelease(t *testing.T) {
+	t.Parallel()
+
+	opts, err := parseUpdateArgs(nil)
+	if err != nil {
+		t.Fatalf("parseUpdateArgs returned error: %v", err)
+	}
+	if opts.Version != "latest" {
+		t.Fatalf("opts.Version = %q, want %q", opts.Version, "latest")
+	}
+}
 
 func TestParseUpdateArgs(t *testing.T) {
 	t.Parallel()
@@ -64,7 +77,13 @@ func TestRunUpdateReplacesExecutableOnUnix(t *testing.T) {
 	if string(updated) != "new-binary" {
 		t.Fatalf("updated executable = %q, want %q", string(updated), "new-binary")
 	}
-	if !strings.Contains(stdout.String(), "Updated NambaAI to latest") {
+	if !strings.Contains(stdout.String(), "Downloading latest release using namba_Linux_x86_64.tar.gz for linux/amd64") {
+		t.Fatalf("unexpected stdout: %q", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "Updated NambaAI from dev to latest release using namba_Linux_x86_64.tar.gz for linux/amd64") {
+		t.Fatalf("unexpected stdout: %q", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "run 'namba --version' to confirm") {
 		t.Fatalf("unexpected stdout: %q", stdout.String())
 	}
 }
@@ -99,8 +118,14 @@ func TestRunUpdateFailsWhenChecksumDoesNotMatch(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected checksum mismatch error")
 	}
+	if !strings.Contains(err.Error(), "cannot verify namba_Linux_x86_64.tar.gz for linux/amd64 while updating to latest release") {
+		t.Fatalf("error = %v, want verification context", err)
+	}
 	if !strings.Contains(err.Error(), "checksum mismatch") {
 		t.Fatalf("error = %v, want checksum mismatch", err)
+	}
+	if !strings.Contains(err.Error(), "Check the release assets and try again") {
+		t.Fatalf("error = %v, want actionable guidance", err)
 	}
 
 	updated, readErr := os.ReadFile(execPath)
@@ -179,8 +204,40 @@ func testRunUpdateSchedulesReplacementOnWindows(t *testing.T, goarch, assetName 
 	if string(existing) != "old-binary" {
 		t.Fatalf("windows update should schedule replacement, got %q", string(existing))
 	}
-	if !strings.Contains(stdout.String(), "Scheduled NambaAI update to v1.2.3") {
+	if !strings.Contains(stdout.String(), "Scheduled NambaAI update from dev to v1.2.3 using "+assetName+" for windows/"+goarch) {
 		t.Fatalf("unexpected stdout: %q", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "run 'namba --version'") {
+		t.Fatalf("unexpected stdout: %q", stdout.String())
+	}
+}
+
+func TestRunUpdateIncludesLatestReleaseFailureContext(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	execPath := filepath.Join(tmp, "namba")
+	if err := os.WriteFile(execPath, []byte("old-binary"), 0o755); err != nil {
+		t.Fatalf("write executable: %v", err)
+	}
+
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.goos = "linux"
+	app.goarch = "amd64"
+	app.executablePath = func() (string, error) { return execPath, nil }
+	app.downloadURL = func(_ context.Context, url string) ([]byte, error) {
+		return nil, errors.New("download " + url + " failed with status 404: Not Found")
+	}
+
+	err := app.Run(context.Background(), []string{"update"})
+	if err == nil {
+		t.Fatal("expected latest release download error")
+	}
+	if !strings.Contains(err.Error(), "failed to download namba_Linux_x86_64.tar.gz for linux/amd64 from latest release (404)") {
+		t.Fatalf("error = %v, want latest release context", err)
+	}
+	if !strings.Contains(err.Error(), "namba update --version vX.Y.Z") {
+		t.Fatalf("error = %v, want actionable retry guidance", err)
 	}
 }
 

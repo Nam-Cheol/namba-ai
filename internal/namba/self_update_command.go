@@ -23,6 +23,14 @@ type updateOptions struct {
 	Version string
 }
 
+type updateTarget struct {
+	RequestedVersion string
+	CurrentVersion   string
+	TargetVersion    string
+	AssetName        string
+	Platform         string
+}
+
 func (a *App) runUpdate(ctx context.Context, args []string) error {
 	opts, err := parseUpdateArgs(args)
 	if err != nil {
@@ -34,44 +42,47 @@ func (a *App) runUpdate(ctx context.Context, args []string) error {
 		return err
 	}
 
+	target := newUpdateTarget(opts.Version, assetName, a.goos, a.goarch)
 	execPath, err := a.executablePath()
 	if err != nil {
 		return fmt.Errorf("resolve current executable: %w", err)
 	}
 
+	fmt.Fprintf(a.stdout, "Downloading %s using %s for %s...\n", target.TargetVersion, target.AssetName, target.Platform)
+
 	url := releaseDownloadURL(opts.Version, assetName)
 	archiveData, err := a.downloadURL(ctx, url)
 	if err != nil {
-		return formatUpdateDownloadError(err, url, opts.Version, assetName)
+		return formatUpdateDownloadError(err, target, assetName)
 	}
 
 	checksumsURL := releaseDownloadURL(opts.Version, "checksums.txt")
 	checksumsData, err := a.downloadURL(ctx, checksumsURL)
 	if err != nil {
-		return formatUpdateDownloadError(err, checksumsURL, opts.Version, "checksums.txt")
+		return formatUpdateDownloadError(err, target, "checksums.txt")
 	}
 	if err := verifyUpdateChecksum(assetName, archiveData, checksumsData); err != nil {
-		return err
+		return formatUpdateVerificationError(err, target)
 	}
 
 	binary, err := extractUpdatedBinary(assetName, archiveData)
 	if err != nil {
-		return err
+		return fmt.Errorf("extract %s for %s while updating to %s: %w", target.AssetName, target.Platform, target.TargetVersion, err)
 	}
 
 	if a.goos == "windows" {
 		if err := a.scheduleWindowsUpdate(execPath, binary); err != nil {
-			return err
+			return fmt.Errorf("schedule %s using %s for %s: %w", target.TargetVersion, target.AssetName, target.Platform, err)
 		}
-		fmt.Fprintf(a.stdout, "Scheduled NambaAI update to %s. Restart the terminal after this command exits.\n", updateVersionLabel(opts.Version))
+		fmt.Fprintf(a.stdout, "Scheduled NambaAI update from %s to %s using %s for %s. After this command exits, close this terminal, open a new terminal, and run 'namba --version'.\n", target.CurrentVersion, target.TargetVersion, target.AssetName, target.Platform)
 		return nil
 	}
 
 	if err := writeUpdatedExecutable(execPath, binary); err != nil {
-		return err
+		return fmt.Errorf("replace current executable with %s using %s for %s: %w", target.TargetVersion, target.AssetName, target.Platform, err)
 	}
 
-	fmt.Fprintf(a.stdout, "Updated NambaAI to %s at %s\n", updateVersionLabel(opts.Version), execPath)
+	fmt.Fprintf(a.stdout, "Updated NambaAI from %s to %s using %s for %s at %s. Open a new terminal and run 'namba --version' to confirm.\n", target.CurrentVersion, target.TargetVersion, target.AssetName, target.Platform, execPath)
 	return nil
 }
 
@@ -93,28 +104,50 @@ func parseUpdateArgs(args []string) (updateOptions, error) {
 }
 
 func releaseDownloadURL(version, assetName string) string {
-	if strings.TrimSpace(version) == "" || version == "latest" {
+	if normalizeUpdateVersion(version) == "latest" {
 		return fmt.Sprintf("https://github.com/%s/releases/latest/download/%s", updateRepo, assetName)
 	}
 	return fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", updateRepo, version, assetName)
 }
 
-func updateVersionLabel(version string) string {
-	if strings.TrimSpace(version) == "" {
-		return "latest"
+func newUpdateTarget(version, assetName, goos, goarch string) updateTarget {
+	return updateTarget{
+		RequestedVersion: normalizeUpdateVersion(version),
+		CurrentVersion:   Version(),
+		TargetVersion:    updateVersionLabel(version),
+		AssetName:        assetName,
+		Platform:         fmt.Sprintf("%s/%s", goos, goarch),
 	}
-	return version
 }
 
-func formatUpdateDownloadError(err error, url, version, assetName string) error {
+func normalizeUpdateVersion(version string) string {
+	trimmed := strings.TrimSpace(version)
+	if trimmed == "" || strings.EqualFold(trimmed, "latest") {
+		return "latest"
+	}
+	return trimmed
+}
+
+func updateVersionLabel(version string) string {
+	if normalizeUpdateVersion(version) == "latest" {
+		return "latest release"
+	}
+	return strings.TrimSpace(version)
+}
+
+func formatUpdateDownloadError(err error, target updateTarget, downloadName string) error {
 	message := err.Error()
 	if strings.Contains(message, "status 404") {
-		if version == "latest" {
-			return fmt.Errorf("failed to download %s (404). No GitHub Release has been published yet, or the latest release does not contain %s", url, assetName)
+		if target.RequestedVersion == "latest" {
+			return fmt.Errorf("failed to download %s for %s from %s (404). No published latest release or matching asset was found. Check https://github.com/%s/releases or retry with 'namba update --version vX.Y.Z'", downloadName, target.Platform, target.TargetVersion, updateRepo)
 		}
-		return fmt.Errorf("failed to download %s (404). Release %q was not found, or it does not contain %s", url, version, assetName)
+		return fmt.Errorf("failed to download %s for %s from release %q (404). The release or asset was not found. Check https://github.com/%s/releases/tag/%s", downloadName, target.Platform, target.RequestedVersion, updateRepo, target.RequestedVersion)
 	}
-	return fmt.Errorf("download update archive: %w", err)
+	return fmt.Errorf("failed to download %s for %s from %s: %w. Check your network connection and try again", downloadName, target.Platform, target.TargetVersion, err)
+}
+
+func formatUpdateVerificationError(err error, target updateTarget) error {
+	return fmt.Errorf("cannot verify %s for %s while updating to %s: %w. Check the release assets and try again", target.AssetName, target.Platform, target.TargetVersion, err)
 }
 
 func verifyUpdateChecksum(assetName string, archiveData, checksumsData []byte) error {
