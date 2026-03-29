@@ -83,7 +83,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	}
 
 	config := mustReadFile(t, filepath.Join(tmp, ".codex", "config.toml"))
-	if !strings.Contains(config, "max_threads = 3") || !strings.Contains(config, `approval_policy = "never"`) || !strings.Contains(config, `sandbox_mode = "read-only"`) {
+	if !strings.Contains(config, "#:schema https://developers.openai.com/codex/config-schema.json") || !strings.Contains(config, "repo-safe Codex defaults under version control") || !strings.Contains(config, "max_threads = 3") || !strings.Contains(config, `approval_policy = "never"`) || !strings.Contains(config, `sandbox_mode = "read-only"`) {
 		t.Fatalf("expected multi-agent Codex config, got %q", config)
 	}
 	if strings.Contains(config, "status_line =") {
@@ -108,6 +108,9 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(codexReadme, "NAMBA-AI Work Report") || !strings.Contains(codexReadme, "validate-output-contract.py") || !strings.Contains(codexReadme, "selected language palette") {
 		t.Fatalf("expected codex README to describe output contract fallback validation, got %q", codexReadme)
 	}
+	if !strings.Contains(codexReadme, "WSL workspace") || !strings.Contains(codexReadme, "documented config and hook surface evolves") || strings.Contains(codexReadme, "do not document a repository-configurable stop-hook surface") {
+		t.Fatalf("expected codex README to describe current Windows guidance and explicit validator positioning, got %q", codexReadme)
+	}
 	if !strings.Contains(codexReadme, "PR titles and bodies should be written in Korean") || !strings.Contains(codexReadme, "`@codex review`") {
 		t.Fatalf("expected codex README to describe PR collaboration defaults, got %q", codexReadme)
 	}
@@ -121,6 +124,14 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	outputContractDoc := mustReadFile(t, filepath.Join(tmp, ".namba", "codex", "output-contract.md"))
 	if !strings.Contains(outputContractDoc, "NAMBA-AI Work Report") || !strings.Contains(outputContractDoc, "Scope") || !strings.Contains(outputContractDoc, "Potential Risks") || !strings.Contains(outputContractDoc, "simple emoji section markers") {
 		t.Fatalf("expected output contract doc, got %q", outputContractDoc)
+	}
+	if !strings.Contains(outputContractDoc, "documented Codex config and hook surface evolves") || !strings.Contains(outputContractDoc, "hook-based enforcement") {
+		t.Fatalf("expected output contract doc to describe validator fallback against the current Codex hook surface, got %q", outputContractDoc)
+	}
+
+	claudeCodexMapping := mustReadFile(t, filepath.Join(tmp, ".namba", "codex", "claude-codex-mapping.md"))
+	if !strings.Contains(claudeCodexMapping, "built-in subagent workflows") || strings.Contains(claudeCodexMapping, "experimental multi-agent delegation") {
+		t.Fatalf("expected claude-codex mapping to describe current Codex subagent wording, got %q", claudeCodexMapping)
 	}
 
 	validator := mustReadFile(t, filepath.Join(tmp, ".namba", "codex", "validate-output-contract.py"))

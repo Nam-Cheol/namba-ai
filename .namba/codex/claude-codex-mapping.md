@@ -11,5 +11,5 @@ This repository uses a Codex-adapted variant of the MoAI bootstrap model.
 
 Why this is different:
 - Claude Code has first-class hooks, subagents, and project slash-command workflows.
-- Codex has AGENTS, repo-local skills, command-entry skills, repo-local config, built-in slash commands, and experimental multi-agent delegation.
+- Codex has AGENTS, repo-local skills, command-entry skills, repo-local config, built-in slash commands, and built-in subagent workflows.
 - NambaAI keeps the workflow semantics but ports the control surface into Codex-compatible assets.

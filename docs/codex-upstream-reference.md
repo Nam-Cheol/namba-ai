@@ -5,19 +5,35 @@ It is not a rule that should automatically propagate into downstream repositorie
 
 ## Primary upstream reference
 
-When this repository needs authoritative guidance about Codex core behavior, CLI workflow, AGENTS conventions, installation, or upstream product direction, use the official upstream repository first:
+When this repository needs authoritative guidance about Codex core behavior, CLI workflow, configuration, AGENTS conventions, subagents, skills, installation, or upstream product direction, use the live official Codex developer docs first:
+
+- https://developers.openai.com/codex/
+- https://developers.openai.com/codex/cli/
+- https://developers.openai.com/codex/config-reference/
+- https://developers.openai.com/codex/subagents
+- https://developers.openai.com/codex/concepts/customization/
+- https://developers.openai.com/codex/concepts/sandboxing/
+
+Treat the open-source repository as a supplemental implementation reference, not the primary product baseline:
 
 - https://github.com/openai/codex
 
 ## How to use it in this repo
 
-Use `openai/codex` as a primary reference when working on:
+Use the official Codex docs as the primary reference when working on:
 
 - Codex-related workflow design in NambaAI
 - `AGENTS.md` behavior or expectations
-- repo skill usage patterns tied to Codex
-- Codex CLI install, invocation, or documented capabilities
+- repo skills under `.agents/skills/`
+- project-scoped `.codex/config.toml` defaults and the documented config surface
+- Codex CLI install, Windows/WSL guidance, invocation, or documented capabilities
 - deciding whether NambaAI behavior matches current Codex primitives
+
+Use `openai/codex` as a secondary reference when working on:
+
+- implementation details that are only visible in the open-source CLI
+- examples that clarify how the documented behavior is currently realized
+- upstream file layout or code-level debugging
 
 ## Repository-specific rule
 

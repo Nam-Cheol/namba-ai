@@ -32,7 +32,8 @@
 
 - `.namba/`: config, SPEC packages, project docs, logs
 - `.agents/skills/`: repo-local skills used directly by Codex
-- `.codex/agents/*.toml`: custom subagents
+- `.codex/config.toml`: repo-local Codex defaults that Namba keeps intentionally minimal
+- `.codex/agents/*.toml`: project-scoped custom agents
 - `.namba/project/*`: change summary, release notes, checklist, codemap
 
 ## Collaboration defaults

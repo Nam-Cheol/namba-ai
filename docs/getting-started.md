@@ -9,6 +9,7 @@
 ## 1. Install
 
 - Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
+- For the best Codex CLI experience on Windows, use a WSL workspace when you work inside a repository.
 - macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
 - Use `namba update --version vX.Y.Z` when you need a specific CLI version.
 

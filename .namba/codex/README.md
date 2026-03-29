@@ -7,13 +7,14 @@
 - Creates `AGENTS.md` with Namba orchestration rules.
 - Creates repo-local skills under `.agents/skills/`, including command-entry skills such as `namba-run`, `namba-pr`, `namba-land`, `namba-plan`, and `namba-sync`.
 - Creates task-oriented Codex custom agents under `.codex/agents/*.toml` and readable `.md` role-card mirrors.
-- Creates repo-local Codex config under `.codex/config.toml`, including the selected `approval_policy` and `sandbox_mode`.
+- Creates repo-local Codex config under `.codex/config.toml`, keeping a narrow repo-safe baseline such as `approval_policy`, `sandbox_mode`, and agent thread limits.
 - Creates `.namba/codex/output-contract.md` plus `.namba/codex/validate-output-contract.py` for NambaAI response-shape guidance and fallback validation.
 - Creates `.namba/` project state, configs, docs, and SPEC storage.
 
 ## How Codex Uses Namba After Init
 
 1. Open Codex in the initialized project directory.
+   On Windows, the current official Codex docs recommend using a WSL workspace for the best CLI experience.
 2. Codex loads `AGENTS.md` and repo skills.
 3. Invoke `$namba` for routing or command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, and `$namba-sync` for direct command-style execution.
 4. Use built-in Codex subagents such as `default`, `worker`, and `explorer`, plus project-scoped custom agents under `.codex/agents/*.toml`, when multi-agent work is appropriate. The matching `.md` files remain readable mirrors.
@@ -56,7 +57,7 @@
 - The report sections follow this semantic order: `🧭 작업 정의` -> `🧠 판단` -> `🛠 수행한 작업` -> `🚧 현재 이슈` -> `⚠ 잠재 문제` -> `➡ 다음 스텝`.
 - The semantic order stays fixed, but the exact labels can vary within the selected language palette so the writing does not become robotic.
 - `.namba/codex/validate-output-contract.py` checks this contract from a saved response file or stdin.
-- OpenAI Codex docs currently describe AGENTS, repo skills, and built-in slash commands, but they do not document a repository-configurable stop-hook surface. Treat the validator script as the fallback until upstream hook support is documented.
+- Namba keeps the validator script as the explicit repository enforcement path even as Codex's documented config and hook surface evolves.
 
 ## Git Collaboration Defaults
 

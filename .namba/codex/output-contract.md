@@ -39,5 +39,5 @@ This repository uses a NambaAI-specific output contract for substantial task res
 
 ## Hook Status
 
-- OpenAI Codex docs currently document AGENTS, repo skills, built-in slash commands, and config, but they do not document a repository-configurable stop-hook surface.
-- Treat the validator script as the fallback enforcement path until upstream hook support is documented.
+- Namba keeps the validator script as the explicit repository enforcement path even as the documented Codex config and hook surface evolves.
+- Treat the validator script as the fallback until Namba deliberately adopts any upstream hook-based enforcement.

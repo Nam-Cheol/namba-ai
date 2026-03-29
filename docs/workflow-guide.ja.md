@@ -16,7 +16,7 @@
 
 - `.namba/`: config, specs, project docs, logs
 - `.agents/skills/`: Codex が直接読む repo-local skills
-- `.codex/agents/*.toml`: custom subagents
+- `.codex/agents/*.toml`: project-scoped custom agents
 - `.namba/project/*`: change summary、release notes、checklist、codemap
 
 ## 協業の既定値

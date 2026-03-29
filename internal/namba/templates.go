@@ -38,7 +38,7 @@ func renderAgents(profile initProfile) string {
 		"- Use `$namba` for general routing, or command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-project`, and `$namba-sync` when the user invokes one command directly.\n"+
 		"%s"+
 		"- Keep the Namba report frame concise and high-signal. The response should feel like an engineering field report, not a rigid template dump.\n"+
-		"- Until Codex exposes a documented stop-hook surface, treat `.namba/codex/validate-output-contract.py` as the fallback validator for this contract.\n"+
+		"- Keep `.namba/codex/validate-output-contract.py` as the fallback validator for this contract unless Namba explicitly adopts a documented upstream hook surface.\n"+
 		"- Do not bypass validation. Run the configured quality commands after changes.\n"+
 		"- Use worktrees for parallel execution; do not modify multiple branches in one workspace.\n\n"+
 		"Project: %s\n"+
@@ -359,13 +359,14 @@ func renderCodexUsage(profile initProfile) string {
 		"- Creates `AGENTS.md` with Namba orchestration rules.",
 		"- Creates repo-local skills under `.agents/skills/`, including command-entry skills such as `namba-run`, `namba-pr`, `namba-land`, `namba-plan`, and `namba-sync`.",
 		"- Creates task-oriented Codex custom agents under `.codex/agents/*.toml` and readable `.md` role-card mirrors.",
-		"- Creates repo-local Codex config under `.codex/config.toml`, including the selected `approval_policy` and `sandbox_mode`.",
+		"- Creates repo-local Codex config under `.codex/config.toml`, keeping a narrow repo-safe baseline such as `approval_policy`, `sandbox_mode`, and agent thread limits.",
 		"- Creates `.namba/codex/output-contract.md` plus `.namba/codex/validate-output-contract.py` for NambaAI response-shape guidance and fallback validation.",
 		"- Creates `.namba/` project state, configs, docs, and SPEC storage.",
 		"",
 		"## How Codex Uses Namba After Init",
 		"",
 		"1. Open Codex in the initialized project directory.",
+		"   On Windows, the current official Codex docs recommend using a WSL workspace for the best CLI experience.",
 		"2. Codex loads `AGENTS.md` and repo skills.",
 		"3. Invoke `$namba` for routing or command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, and `$namba-sync` for direct command-style execution.",
 		"4. Use built-in Codex subagents such as `default`, `worker`, and `explorer`, plus project-scoped custom agents under `.codex/agents/*.toml`, when multi-agent work is appropriate. The matching `.md` files remain readable mirrors.",
@@ -408,7 +409,7 @@ func renderCodexUsage(profile initProfile) string {
 		fmt.Sprintf("- The report sections follow this semantic order: %s.", outputContractSequence(profile)),
 		"- The semantic order stays fixed, but the exact labels can vary within the selected language palette so the writing does not become robotic.",
 		"- `.namba/codex/validate-output-contract.py` checks this contract from a saved response file or stdin.",
-		"- OpenAI Codex docs currently describe AGENTS, repo skills, and built-in slash commands, but they do not document a repository-configurable stop-hook surface. Treat the validator script as the fallback until upstream hook support is documented.",
+		"- Namba keeps the validator script as the explicit repository enforcement path even as Codex's documented config and hook surface evolves.",
 		"",
 		"## Git Collaboration Defaults",
 		"",
@@ -455,7 +456,7 @@ func renderClaudeCodexMapping() string {
 		"",
 		"Why this is different:",
 		"- Claude Code has first-class hooks, subagents, and project slash-command workflows.",
-		"- Codex has AGENTS, repo-local skills, command-entry skills, repo-local config, built-in slash commands, and experimental multi-agent delegation.",
+		"- Codex has AGENTS, repo-local skills, command-entry skills, repo-local config, built-in slash commands, and built-in subagent workflows.",
 		"- NambaAI keeps the workflow semantics but ports the control surface into Codex-compatible assets.",
 	}
 	return strings.Join(lines, "\n") + "\n"
@@ -593,8 +594,8 @@ func renderOutputContractDocLocalized(profile initProfile) string {
 		"",
 		"## Hook Status",
 		"",
-		"- OpenAI Codex docs currently document AGENTS, repo skills, built-in slash commands, and config, but they do not document a repository-configurable stop-hook surface.",
-		"- Treat the validator script as the fallback enforcement path until upstream hook support is documented.",
+		"- Namba keeps the validator script as the explicit repository enforcement path even as the documented Codex config and hook surface evolves.",
+		"- Treat the validator script as the fallback until Namba deliberately adopts any upstream hook-based enforcement.",
 	)
 	return strings.Join(lines, "\n") + "\n"
 }
@@ -677,6 +678,13 @@ func renderRepoCodexConfig(profile initProfile) string {
 	}
 
 	lines := []string{
+		"#:schema https://developers.openai.com/codex/config-schema.json",
+		"# Generated by NambaAI from `.namba/config/sections/*.yaml`.",
+		"# This file intentionally keeps only repo-safe Codex defaults under version control.",
+		"# Keep user-specific settings such as models, auth, apps, web search, permissions profiles,",
+		"# and platform-specific sandbox choices in your user-level Codex config.",
+		"# Reference: https://developers.openai.com/codex/config-reference/",
+		"",
 		fmt.Sprintf("approval_policy = %q", approvalPolicy(profile)),
 		fmt.Sprintf("sandbox_mode = %q", sandboxMode(profile)),
 		"",
