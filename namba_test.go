@@ -548,7 +548,7 @@ func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 	}
 
 	workflowGuide := mustRead(t, filepath.Join(tmp, "docs", "workflow-guide.md"))
-	if !strings.Contains(workflowGuide, "Collaboration rules") || !strings.Contains(workflowGuide, "namba land") || !strings.Contains(workflowGuide, "multi-subagent workflow") || !strings.Contains(workflowGuide, "## Review readiness") {
+	if !strings.Contains(workflowGuide, "Collaboration rules") || !strings.Contains(workflowGuide, "namba land") || !strings.Contains(workflowGuide, "same-workspace multi-agent execution") || !strings.Contains(workflowGuide, "fresh Codex session") || !strings.Contains(workflowGuide, "## Review readiness") {
 		t.Fatalf("expected workflow guide doc, got: %s", workflowGuide)
 	}
 

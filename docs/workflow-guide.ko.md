@@ -6,51 +6,52 @@
 
 [시작 가이드](./getting-started.ko.md) | [워크플로 가이드](./workflow-guide.ko.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
-## `update`, `regen`, `sync`, `pr`, `land`는 다른 명령입니다
+## `update`, `regen`, `sync`, `pr`, `land`는 서로 다른 명령입니다
 
-- `namba update`: 설치된 `namba` CLI를 GitHub Release 기준으로 self-update
-- `namba regen`: AGENTS, skills, custom agents, repo Codex config 같은 template-generated 자산 재생성
-- `namba sync`: README, 프로젝트 문서, codemap, advisory review readiness, PR 체크리스트, 릴리스 메모 갱신
-- `namba pr`: 기본으로 sync와 validation을 실행하고, 현재 브랜치를 commit/push 한 뒤 PR을 열거나 재사용하며 Codex review marker까지 맞춥니다.
+- `namba update`: 설치된 CLI를 GitHub Release 자산 기준으로 self-update 합니다.
+- `namba regen`: AGENTS, skills, custom agents, repo Codex config 같은 template-generated asset을 다시 생성합니다.
+- `namba sync`: README, 프로젝트 문서, codemap, advisory review readiness, PR checklist, release notes를 갱신합니다.
+- `namba pr`: 기본적으로 sync와 validation을 돌리고, 현재 브랜치를 commit/push 한 뒤 PR을 만들거나 재사용하고 Codex review marker를 보장합니다.
 - `namba land`: 필요하면 체크를 기다리고, PR이 깨끗할 때만 머지한 뒤 로컬 `main`을 안전하게 갱신합니다.
 
 ## `namba run` 모드
 
-- `namba run SPEC-XXX`: 한 작업공간에서 실행하는 기본 standalone Codex 흐름입니다.
-- `namba run SPEC-XXX --solo`: 한 작업공간 안에서 단일 specialist subagent 흐름으로 실행합니다.
-- `namba run SPEC-XXX --team`: 한 작업공간 안에서 소규모 multi-subagent 흐름으로 실행합니다.
-- `namba run SPEC-XXX --parallel`: Codex subagent orchestration이 아니라 Namba가 관리하는 git worktree fan-out/fan-in입니다.
+- `namba run SPEC-XXX`: 하나의 workspace에서 실행하는 표준 standalone Codex 흐름입니다.
+- `namba run SPEC-XXX --solo`: 하나의 workspace에서 단일 runner를 사용합니다.
+- `namba run SPEC-XXX --team`: 같은 workspace 안에서 멀티에이전트 실행을 조율합니다.
+- `namba run SPEC-XXX --parallel`: Codex subagent orchestration이 아니라 Namba가 관리하는 git worktree fan-out/fan-in 입니다.
 
 ## 역할 라우팅
 
-- 기본 `namba run`은 프롬프트에 강한 specialist 신호가 없으면 standalone runner에 머뭅니다.
-- `--solo`는 한 도메인이 분명할 때 specialist 1명만 쓰고, `--team`은 acceptance가 여러 도메인에 걸칠 때만 specialist 둘과 reviewer까지 확장합니다.
-- UI, responsive, mobile, design 작업은 `namba-frontend-implementer`, `namba-mobile-engineer`, `namba-designer`로 보내고, API, schema, pipeline 작업은 `namba-backend-implementer`, `namba-data-engineer`로 보냅니다. auth, secrets, compliance는 `namba-security-engineer`, deployment와 runtime은 `namba-devops-engineer`가 맡습니다.
-- Standalone runner는 integrator이자 validation owner로 유지하고, 통제되지 않은 swarm 대신 최종 acceptance는 `namba-reviewer`로 점검합니다.
+- 기본 `namba run`은 prompt에 강한 specialist 신호가 없으면 standalone runner에 머뭅니다.
+- `--solo`는 위험을 실질적으로 줄일 specialist 한 명이 있을 때만 분기하고, `--team`은 acceptance가 여러 도메인에 걸칠 때 여러 specialist와 마지막 reviewer를 같은 workspace 안에서 조율합니다.
+- UI, responsive, mobile, design 작업은 `namba-frontend-implementer`, `namba-mobile-engineer`, `namba-designer`로, API, schema, pipeline 작업은 `namba-backend-implementer`, `namba-data-engineer`로, auth, secrets, compliance는 `namba-security-engineer`로, deployment와 runtime은 `namba-devops-engineer`로 보냅니다.
+- standalone runner는 integrator이자 validation owner로 두고, uncontrolled swarm 대신 마지막 acceptance는 `namba-reviewer`에게 맡깁니다.
 
 ## 리뷰 준비도
 
 - `namba plan`과 `namba fix`는 `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, `readiness.md`를 seed 합니다.
-- 구현 전이나 PR handoff 전에 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`로 review 산출물을 최신 상태로 유지합니다.
-- 누락된 review pass는 기본으로 advisory 상태입니다. `namba run`, `namba sync`, `namba pr`는 현재 readiness 요약을 보여주지만 조용히 하드블록하지 않습니다.
+- 구현이나 GitHub handoff 전에 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`로 review 산출물을 최신 상태로 유지하세요.
+- `namba regen` 또는 `namba sync`가 생성된 instruction surface를 바꾸면, 긴 repair loop를 이어 가기 전에 fresh Codex session을 시작해 갱신된 지침을 다시 불러오세요.
+- 리뷰 통과가 없어도 기본적으로 advisory 상태를 유지합니다. `namba run`, `namba sync`, `namba pr`는 readiness 요약을 보여주지만 조용히 hard gate로 바꾸지는 않습니다.
 
 ## 주요 생성 산출물
 
-- `.namba/`: 설정, SPEC, project docs, logs
-- `.namba/specs/<SPEC>/reviews/`: SPEC별 advisory product, engineering, design, readiness artifact
-- `.agents/skills/`: Codex가 직접 읽는 repo-local skills
-- `.codex/config.toml`: repo-local Codex 기본값과 Namba가 관리하는 MCP preset
+- `.namba/`: config, SPEC packages, project docs, logs
+- `.namba/specs/<SPEC>/reviews/`: 각 SPEC의 advisory product, engineering, design, readiness artifact
+- `.agents/skills/`: Codex가 직접 사용하는 repo-local skills
+- `.codex/config.toml`: repo-local Codex defaults 와 Namba-managed MCP preset
 - `.codex/agents/*.toml`: project-scoped custom agents
 - `.namba/project/*`: change summary, release notes, checklist, codemap
 
 ## 협업 기본값
 
 - 작업은 전용 브랜치에서 진행합니다.
-- `namba pr`는 `main`을 대상으로 하고, 설정된 PR 언어와 review marker를 함께 맞춥니다.
-- `namba land`는 깨끗한 PR만 머지하고 로컬 `main`을 다른 작업을 덮지 않게 갱신합니다.
+- `namba pr`은 `main`을 대상으로 하고, 설정된 PR 언어와 review marker를 그대로 유지합니다.
+- `namba land`는 깨끗한 PR만 머지하고, 관련 없는 로컬 작업을 덮어쓰지 않은 채 `main`을 갱신합니다.
 - GitHub review 요청은 `@codex review`를 사용합니다.
 
 ## 릴리스 흐름
 
-- `namba release`는 `main`의 clean working tree를 요구합니다.
-- `--push`는 새 tag와 `main`을 함께 push 한 뒤 GitHub Release workflow를 트리거합니다.
+- `namba release`는 `main`에서 clean working tree를 요구합니다.
+- `--push`는 새 태그와 `main`을 함께 push한 뒤 GitHub Release workflow를 트리거합니다.

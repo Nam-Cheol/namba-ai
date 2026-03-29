@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -15,6 +16,10 @@ type parallelWorkerResult struct {
 	Name             string `json:"name"`
 	Branch           string `json:"branch"`
 	Worktree         string `json:"worktree"`
+	SessionID        string `json:"session_id,omitempty"`
+	RetryCount       int    `json:"retry_count,omitempty"`
+	StartedAt        string `json:"started_at,omitempty"`
+	FinishedAt       string `json:"finished_at,omitempty"`
 	ExecutionPassed  bool   `json:"execution_passed"`
 	ValidationPassed bool   `json:"validation_passed"`
 	ExecutionError   string `json:"execution_error,omitempty"`
@@ -42,7 +47,7 @@ type parallelRunReport struct {
 	FinishedAt     string                 `json:"finished_at"`
 }
 
-func (a *App) executeParallelRun(ctx context.Context, root string, specPkg specPackage, tasks []string, prompt string, qualityCfg qualityConfig, systemCfg systemConfig, dryRun bool) error {
+func (a *App) executeParallelRun(ctx context.Context, root string, specPkg specPackage, tasks []string, prompt string, qualityCfg qualityConfig, systemCfg systemConfig, codexCfg codexConfig, workflowCfg workflowConfig, dryRun bool) error {
 	if _, err := a.lookPath("git"); err != nil {
 		return errors.New("parallel execution requires git")
 	}
@@ -54,7 +59,8 @@ func (a *App) executeParallelRun(ctx context.Context, root string, specPkg specP
 	if err != nil {
 		return err
 	}
-	workers := minInt(len(tasks), 3)
+
+	workers := minInt(len(tasks), maxInt(workflowCfg.MaxParallelWorkers, 1))
 	if workers == 0 {
 		workers = 1
 	}
@@ -71,13 +77,16 @@ func (a *App) executeParallelRun(ctx context.Context, root string, specPkg specP
 		CleanupPolicy: "Success removes temporary worktrees and deletes worker branches after every merge succeeds. Any execution, validation, or merge failure preserves all worker worktrees and branches for inspection.",
 		StartedAt:     a.now().Format(time.RFC3339),
 	}
-	results := make([]parallelWorkerResult, 0, len(chunks))
+	results := make([]parallelWorkerResult, len(chunks))
 
 	for i, chunk := range chunks {
 		name := strings.ToLower(specPkg.ID) + "-p" + strconv.Itoa(i+1)
 		path := filepath.Join(root, worktreesDir, name)
 		branch := "namba/" + name
 		if _, err := a.runBinary(ctx, "git", []string{"worktree", "add", "-b", branch, path, baseBranch}, root); err != nil {
+			return err
+		}
+		if err := os.MkdirAll(path, 0o755); err != nil {
 			return err
 		}
 
@@ -87,26 +96,10 @@ func (a *App) executeParallelRun(ctx context.Context, root string, specPkg specP
 			return err
 		}
 
-		result := parallelWorkerResult{Name: name, Branch: branch, Worktree: path}
+		results[i] = parallelWorkerResult{Name: name, Branch: branch, Worktree: path}
 		if dryRun {
-			results = append(results, result)
 			continue
 		}
-
-		request := a.newExecutionRequest(specPkg.ID, path, workerPrompt, executionModeParallel, suggestDelegationPlan(executionModeParallel, workerPrompt, "", ""), systemCfg)
-		execResult, validationReport, runErr := a.executeRun(ctx, root, name, request, path, qualityCfg)
-		result.ExecutionPassed = execResult.Succeeded
-		result.ValidationPassed = validationReport.Passed
-		switch {
-		case runErr == nil:
-		case !execResult.Succeeded:
-			result.ExecutionError = firstNonEmptyString(execResult.Error, runErr.Error())
-		case !validationReport.Passed:
-			result.ValidationError = validationFailureMessage(validationReport, runErr)
-		default:
-			result.ExecutionError = runErr.Error()
-		}
-		results = append(results, result)
 	}
 
 	report.Workers = results
@@ -120,6 +113,41 @@ func (a *App) executeParallelRun(ctx context.Context, root string, specPkg specP
 		return nil
 	}
 
+	var wg sync.WaitGroup
+	for i, chunk := range chunks {
+		wg.Add(1)
+		go func(index int, chunk []string) {
+			defer wg.Done()
+
+			name := results[index].Name
+			path := results[index].Worktree
+			workerPrompt := prompt + "\n\n## Assigned work package\n\n" + strings.Join(chunk, "\n")
+			delegation := suggestDelegationPlan(executionModeParallel, workerPrompt, "", "")
+			request := a.newExecutionRequest(specPkg.ID, path, workerPrompt, executionModeParallel, delegation, systemCfg, codexCfg)
+
+			execResult, validationReport, runErr := a.executeRun(ctx, root, name, request, path, qualityCfg)
+			results[index].SessionID = execResult.SessionID
+			results[index].RetryCount = execResult.RetryCount
+			results[index].StartedAt = execResult.StartedAt
+			results[index].FinishedAt = execResult.FinishedAt
+			results[index].ExecutionPassed = executionTurnsPassed(execResult)
+			results[index].ValidationPassed = validationReport.Passed
+			switch {
+			case runErr == nil:
+			case !execResult.Succeeded && len(validationReport.Steps) == 0:
+				results[index].ExecutionError = firstNonEmptyString(execResult.Error, runErr.Error())
+			case !validationReport.Passed && len(validationReport.Steps) > 0:
+				results[index].ValidationError = validationFailureMessage(validationReport, runErr)
+			case !execResult.Succeeded:
+				results[index].ExecutionError = firstNonEmptyString(execResult.Error, runErr.Error())
+			default:
+				results[index].ExecutionError = runErr.Error()
+			}
+		}(i, chunk)
+	}
+	wg.Wait()
+
+	report.Workers = results
 	if hasParallelRunFailures(results) {
 		report.MergeBlocked = true
 		for i := range results {

@@ -9,24 +9,24 @@
 ## 1. 설치
 
 - Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
-- 저장소 안에서 작업할 때 Windows의 Codex CLI 경험을 가장 안정적으로 쓰려면 WSL 워크스페이스를 권장합니다.
+- Windows에서 저장소 안쪽 작업을 많이 한다면 Codex CLI 경험을 위해 WSL workspace를 권장합니다.
 - macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
-- 기본 경로 대신 다른 곳에 설치하려면 `NAMBA_INSTALL_DIR`를 사용합니다.
+- 기본 경로가 아닌 곳에 설치하려면 `NAMBA_INSTALL_DIR`를 사용하세요.
 
 ## 2. 업데이트
 
 - 최신 릴리스: `namba update`
 - 특정 릴리스: `namba update --version vX.Y.Z`
-- 업데이트한 바이너리가 바로 잡히지 않으면 새 터미널을 열어 경로를 다시 로드합니다.
+- 업데이트한 바이너리가 바로 잡히지 않으면 터미널을 다시 여세요.
 
 ## 3. 제거
 
 - Windows 기본 경로: `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe`
 - macOS / Linux 기본 경로: `~/.local/bin/namba`
-- `NAMBA_INSTALL_DIR`로 사용자 지정 경로에 설치했다면 그 위치의 바이너리를 제거합니다.
-- 더 이상 쓰지 않으면 해당 경로를 `PATH`에서도 제거합니다.
+- `NAMBA_INSTALL_DIR`로 다른 위치에 설치했다면 그 경로의 바이너리를 삭제하세요.
+- 더 이상 필요 없으면 해당 경로를 `PATH`에서 제거하세요.
 
-## 4. 새 저장소 초기화
+## 4. 새 저장소 부트스트랩
 
 ```text
 mkdir my-project
@@ -34,20 +34,20 @@ cd my-project
 namba init .
 ```
 
-wizard에서는 작업 언어, approval_policy, sandbox_mode, PR 언어, Codex agent mode를 함께 고를 수 있습니다.
+wizard는 작업 언어, approval_policy, sandbox_mode, PR 언어, Codex agent mode를 함께 정렬합니다.
 
-## 5. Codex에서 기본 흐름 실행
+## 5. 기본 Codex 흐름 실행
 
 ```text
 namba project
-namba plan "대시보드 필터 추가"
+namba plan "add dashboard filters"
 namba run SPEC-001
 namba sync
-namba pr "대시보드 필터 추가"
+namba pr "add dashboard filters"
 namba land
 ```
 
-## 6. 다음에 보면 좋은 문서
+## 6. 다음 문서
 
 - [워크플로 가이드](./workflow-guide.ko.md)
 - [Codex Upstream Reference](./codex-upstream-reference.md)

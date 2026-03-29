@@ -69,10 +69,14 @@ type projectConfig struct {
 }
 
 type qualityConfig struct {
-	DevelopmentMode  string
-	TestCommand      string
-	LintCommand      string
-	TypecheckCommand string
+	DevelopmentMode        string
+	TestCommand            string
+	LintCommand            string
+	TypecheckCommand       string
+	BuildCommand           string
+	MigrationDryRunCommand string
+	SmokeStartCommand      string
+	OutputContractCommand  string
 }
 
 type docsConfig struct {
@@ -381,7 +385,7 @@ func (a *App) runProject(_ context.Context, _ []string) error {
 		filepath.ToSlash(filepath.Join(codemapsDir, "data-flow.md")):    flow,
 	}
 
-	if err := a.writeOutputs(root, outputs); err != nil {
+	if _, err := a.writeOutputs(root, outputs); err != nil {
 		return err
 	}
 	fmt.Fprintln(a.stdout, "Refreshed NambaAI project docs and codemaps.")
@@ -430,7 +434,7 @@ func (a *App) createSpecPackage(kind string, args []string) error {
 	for rel, body := range specReviewOutputs(specID) {
 		outputs[rel] = body
 	}
-	if err := a.writeOutputs(root, outputs); err != nil {
+	if _, err := a.writeOutputs(root, outputs); err != nil {
 		return err
 	}
 
@@ -546,6 +550,14 @@ func (a *App) runExecute(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	codexCfg, err := a.loadCodexConfig(root)
+	if err != nil {
+		return err
+	}
+	workflowCfg, err := a.loadWorkflowConfig(root)
+	if err != nil {
+		return err
+	}
 	prompt, tasks, delegation, err := a.buildExecutionPrompt(root, specPkg, qualityCfg, options.mode)
 	if err != nil {
 		return err
@@ -564,7 +576,7 @@ func (a *App) runExecute(ctx context.Context, args []string) error {
 	}
 
 	if options.mode == executionModeParallel {
-		return a.runParallel(ctx, root, specPkg, tasks, prompt, qualityCfg, systemCfg, options.dryRun)
+		return a.runParallel(ctx, root, specPkg, tasks, prompt, qualityCfg, systemCfg, codexCfg, workflowCfg, options.dryRun)
 	}
 
 	if options.dryRun {
@@ -572,7 +584,7 @@ func (a *App) runExecute(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	request := a.newExecutionRequest(specPkg.ID, root, prompt, options.mode, delegation, systemCfg)
+	request := a.newExecutionRequest(specPkg.ID, root, prompt, options.mode, delegation, systemCfg, codexCfg)
 	if _, _, err := a.executeRun(ctx, root, strings.ToLower(options.specID), request, root, qualityCfg); err != nil {
 		return err
 	}
@@ -596,7 +608,7 @@ func (a *App) runSync(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
-	if err := a.replaceManagedOutputs(root, buildReadmeOutputs(projectCfg, profile, docsCfg), isReadmeManagedPath); err != nil {
+	if _, err := a.replaceManagedOutputs(root, buildReadmeOutputs(projectCfg, profile, docsCfg), isReadmeManagedPath); err != nil {
 		return err
 	}
 	if err := a.runProject(ctx, nil); err != nil {
@@ -616,7 +628,7 @@ func (a *App) runSync(ctx context.Context, _ []string) error {
 		filepath.ToSlash(filepath.Join(projectDir, "release-notes.md")):     releaseNotes,
 		filepath.ToSlash(filepath.Join(projectDir, "release-checklist.md")): releaseChecklist,
 	}
-	if err := a.writeOutputs(root, outputs); err != nil {
+	if _, err := a.writeOutputs(root, outputs); err != nil {
 		return err
 	}
 	fmt.Fprintln(a.stdout, "Synced NambaAI artifacts.")
@@ -674,15 +686,11 @@ func (a *App) buildExecutionPrompt(root string, specPkg specPackage, qualityCfg 
 			string(readinessBytes),
 		)
 	}
-	promptLines = append(promptLines,
-		"",
-		"## Validation",
-		fmt.Sprintf("- test: %s", qualityCfg.TestCommand),
-		fmt.Sprintf("- lint: %s", qualityCfg.LintCommand),
-		fmt.Sprintf("- typecheck: %s", qualityCfg.TypecheckCommand),
-		"",
-		fmt.Sprintf("Project root: %s", root),
-	)
+	promptLines = append(promptLines, "", "## Validation")
+	for _, step := range validationPipelineSteps(qualityCfg) {
+		promptLines = append(promptLines, fmt.Sprintf("- %s: %s", step.Name, step.Command))
+	}
+	promptLines = append(promptLines, "", fmt.Sprintf("Project root: %s", root))
 	prompt := strings.Join(promptLines, "\n")
 
 	return prompt, tasks, delegation, nil
@@ -692,29 +700,27 @@ func executionModePromptGuidance(mode executionMode) []string {
 	switch normalizeExecutionMode(mode) {
 	case executionModeSolo:
 		return []string{
-			"- Execution style: standalone Codex run in one workspace with an explicit single-subagent workflow.",
-			"- Use at most one delegated specialist, and only when one domain clearly dominates the request.",
-			"- Keep the standalone runner responsible for integration and final validation in this workspace.",
+			"- Execution style: one runner in one workspace.",
+			"- Keep implementation, integration, and validation inside one runner rather than same-workspace team orchestration.",
 			"- Do not reinterpret this mode as worktree parallelism.",
 		}
 	case executionModeTeam:
 		return []string{
-			"- Execution style: standalone Codex run in one workspace with explicit multi-subagent coordination.",
-			"- Built-in Codex subagents include `default`, `worker`, and `explorer`; project-scoped custom agents live under `.codex/agents/*.toml`.",
-			"- Prefer one specialist when one domain dominates, and expand to two or three only when acceptance spans multiple domains.",
-			"- Keep the standalone runner as the integrator and final validation owner, and use `namba-reviewer` last when multiple specialists contribute.",
+			"- Execution style: same-workspace multi-agent execution.",
+			"- Keep work in one workspace while orchestrating specialist turns and a final reviewer inside one bounded runtime.",
+			"- Role runtime profiles should materially affect the actual Codex turns, not only prompt wording.",
 			"- Do not reinterpret this mode as worktree parallelism.",
 		}
 	case executionModeParallel:
 		return []string{
 			"- Execution style: Namba worktree parallel mode.",
-			"- This mode means git worktree fan-out/fan-in managed by Namba, not Codex subagent orchestration.",
+			"- This mode means git worktree fan-out/fan-in managed by Namba, not same-workspace team orchestration.",
 			"- Each worker request should stay within its assigned work package and merge only after all workers and validators pass.",
 		}
 	default:
 		return []string{
 			"- Execution style: standard standalone Codex run in one workspace.",
-			"- Keep work inside the standalone runner unless the prompt's delegation heuristics identify a strong reason to use a specialist.",
+			"- Keep work inside the standalone runner unless the user explicitly picks `--team` or `--parallel`.",
 			"- Do not reinterpret this mode as worktree parallelism.",
 		}
 	}
@@ -759,7 +765,14 @@ func suggestDelegationPlan(mode executionMode, specText, planText, acceptanceTex
 		return matches[i].WeightedScore > matches[j].WeightedScore
 	})
 
-	plan := delegationPlan{IntegratorRole: "standalone-runner"}
+	integratorRole := "standalone-runner"
+	switch normalizeExecutionMode(mode) {
+	case executionModeTeam:
+		integratorRole = "same-workspace-integrator"
+	case executionModeParallel:
+		integratorRole = "parallel-orchestrator"
+	}
+	plan := delegationPlan{IntegratorRole: integratorRole}
 	for _, match := range matches {
 		plan.DominantDomains = append(plan.DominantDomains, match.Config.Name)
 	}
@@ -941,22 +954,32 @@ type parallelWorkerState struct {
 	err    error
 }
 
-func (a *App) runParallel(ctx context.Context, root string, specPkg specPackage, tasks []string, prompt string, qualityCfg qualityConfig, systemCfg systemConfig, dryRun bool) error {
-	return a.executeParallelRun(ctx, root, specPkg, tasks, prompt, qualityCfg, systemCfg, dryRun)
+func (a *App) runParallel(ctx context.Context, root string, specPkg specPackage, tasks []string, prompt string, qualityCfg qualityConfig, systemCfg systemConfig, codexCfg codexConfig, workflowCfg workflowConfig, dryRun bool) error {
+	return a.executeParallelRun(ctx, root, specPkg, tasks, prompt, qualityCfg, systemCfg, codexCfg, workflowCfg, dryRun)
 }
 
 func (a *App) runCodexExec(ctx context.Context, dir, prompt string) (string, error) {
 	if _, err := a.lookPath("codex"); err != nil {
 		return "", errors.New("codex is not installed")
 	}
-	args := []string{"exec", "--full-auto", prompt}
+	req := executionRequest{
+		WorkDir:        dir,
+		Prompt:         prompt,
+		Runner:         "codex",
+		ApprovalPolicy: "on-request",
+		SandboxMode:    "workspace-write",
+		SessionMode:    "stateful",
+	}
+	args, err := buildCodexExecArgs(req)
+	if err != nil {
+		return "", err
+	}
 	return a.runBinary(ctx, "codex", args, dir)
 }
 
 func (a *App) runValidators(ctx context.Context, root string, cfg qualityConfig) error {
-	commands := []string{cfg.TestCommand, cfg.LintCommand, cfg.TypecheckCommand}
-	for _, command := range commands {
-		command = strings.TrimSpace(command)
+	for _, step := range validationPipelineSteps(cfg) {
+		command := strings.TrimSpace(step.Command)
 		if command == "" || command == "none" {
 			continue
 		}
@@ -985,15 +1008,16 @@ func (a *App) requireProjectRoot() (string, error) {
 	}
 }
 
-func (a *App) writeOutputs(root string, outputs map[string]string) error {
+func (a *App) writeOutputs(root string, outputs map[string]string) (outputWriteReport, error) {
 	manifest, _ := a.readManifest(root)
 	now := a.now().Format(time.RFC3339)
 	changed := false
+	report := outputWriteReport{}
 	for rel, content := range outputs {
 		abs := filepath.Join(root, filepath.FromSlash(rel))
 		wrote, err := writeFileIfChanged(abs, content)
 		if err != nil {
-			return err
+			return report, err
 		}
 		entry := ManifestEntry{
 			Path:     rel,
@@ -1007,12 +1031,22 @@ func (a *App) writeOutputs(root string, outputs map[string]string) error {
 		}
 		entry.UpdatedAt = now
 		manifest = upsertManifest(manifest, entry)
+		report.ChangedPaths = append(report.ChangedPaths, rel)
+		if isInstructionSurfacePath(rel) {
+			report.InstructionSurfacePaths = append(report.InstructionSurfacePaths, rel)
+		}
 		changed = true
 	}
 	if !changed {
-		return nil
+		return report, nil
 	}
-	return a.writeManifest(root, manifest)
+	if err := a.writeManifest(root, manifest); err != nil {
+		return report, err
+	}
+	if err := a.writeSessionRefreshNotice(root, report); err != nil {
+		return report, err
+	}
+	return report, nil
 }
 
 func (a *App) writeManifest(root string, manifest Manifest) error {
@@ -1068,10 +1102,14 @@ func (a *App) loadQualityConfig(root string) (qualityConfig, error) {
 		return qualityConfig{}, err
 	}
 	return qualityConfig{
-		DevelopmentMode:  values["development_mode"],
-		TestCommand:      values["test_command"],
-		LintCommand:      values["lint_command"],
-		TypecheckCommand: values["typecheck_command"],
+		DevelopmentMode:        values["development_mode"],
+		TestCommand:            values["test_command"],
+		LintCommand:            values["lint_command"],
+		TypecheckCommand:       values["typecheck_command"],
+		BuildCommand:           values["build_command"],
+		MigrationDryRunCommand: firstNonBlank(values["migration_dry_run_command"], values["migration_dry_run"]),
+		SmokeStartCommand:      values["smoke_start_command"],
+		OutputContractCommand:  firstNonBlank(values["output_contract_command"], values["contract_command"]),
 	}, nil
 }
 

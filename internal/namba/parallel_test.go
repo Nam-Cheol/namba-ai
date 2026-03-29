@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -31,7 +32,7 @@ func TestRunParallelSkipsMergeWhenAnyWorkerFails(t *testing.T) {
 		}
 	})
 
-	err := app.runParallel(context.Background(), root, specPackage{ID: "SPEC-001"}, []string{"task one", "task two"}, "prompt", qualityConfig{TestCommand: "echo ok", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"}, false)
+	err := app.runParallel(context.Background(), root, specPackage{ID: "SPEC-001"}, []string{"task one", "task two"}, "prompt", qualityConfig{TestCommand: "echo ok", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"}, codexConfig{}, workflowConfig{MaxParallelWorkers: 2}, false)
 	if err == nil {
 		t.Fatal("expected parallel failure")
 	}
@@ -71,7 +72,7 @@ func TestRunParallelMergesOnlyAfterAllWorkersPass(t *testing.T) {
 		}
 	})
 
-	err := app.runParallel(context.Background(), root, specPackage{ID: "SPEC-002"}, []string{"task one", "task two"}, "prompt", qualityConfig{TestCommand: "echo ok", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"}, false)
+	err := app.runParallel(context.Background(), root, specPackage{ID: "SPEC-002"}, []string{"task one", "task two"}, "prompt", qualityConfig{TestCommand: "echo ok", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"}, codexConfig{}, workflowConfig{MaxParallelWorkers: 2}, false)
 	if err != nil {
 		t.Fatalf("parallel run failed: %v", err)
 	}
@@ -111,7 +112,7 @@ func TestRunParallelReportsCleanupFailures(t *testing.T) {
 		}
 	})
 
-	err := app.runParallel(context.Background(), root, specPackage{ID: "SPEC-003"}, []string{"task one"}, "prompt", qualityConfig{TestCommand: "echo ok", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"}, false)
+	err := app.runParallel(context.Background(), root, specPackage{ID: "SPEC-003"}, []string{"task one"}, "prompt", qualityConfig{TestCommand: "echo ok", LintCommand: "none", TypecheckCommand: "none"}, systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"}, codexConfig{}, workflowConfig{MaxParallelWorkers: 1}, false)
 	if err == nil {
 		t.Fatal("expected cleanup failure")
 	}
@@ -141,8 +142,11 @@ func newParallelTestApp(t *testing.T, responder func(name string, args []string,
 	}
 
 	commands := make([]string, 0, 16)
+	var mu sync.Mutex
 	app.runCmd = func(ctx context.Context, name string, args []string, dir string) (string, error) {
+		mu.Lock()
 		commands = append(commands, name+" "+strings.Join(args, " "))
+		mu.Unlock()
 		return responder(name, args, dir)
 	}
 	return root, app, &commands

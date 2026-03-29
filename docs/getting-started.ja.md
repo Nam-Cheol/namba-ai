@@ -9,24 +9,24 @@
 ## 1. インストール
 
 - Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
-- リポジトリ内で作業する Windows の Codex CLI 体験は、WSL ワークスペースの方が安定します。
+- Windows でリポジトリ内の作業が多いなら、Codex CLI 体験のために WSL workspace を推奨します。
 - macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
-- 既定の場所ではなく別の場所に入れたい場合は `NAMBA_INSTALL_DIR` を使います。
+- 既定以外の場所へ入れたい場合は `NAMBA_INSTALL_DIR` を使ってください。
 
-## 2. 更新
+## 2. アップデート
 
 - 最新リリース: `namba update`
 - 特定リリース: `namba update --version vX.Y.Z`
-- 更新したバイナリがすぐ反映されない場合は、新しいターミナルを開いて `PATH` を再読み込みします。
+- 更新後のバイナリがすぐ反映されないときは、ターミナルを再起動してください。
 
 ## 3. アンインストール
 
 - Windows の既定パス: `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe`
 - macOS / Linux の既定パス: `~/.local/bin/namba`
-- `NAMBA_INSTALL_DIR` で別の場所に入れた場合は、そのパスのバイナリを削除します。
-- 不要になったら同じパスを `PATH` からも外します。
+- `NAMBA_INSTALL_DIR` で別の場所にインストールした場合は、その場所のバイナリを削除してください。
+- 不要になったら、対応する `PATH` の項目も削除してください。
 
-## 4. 新しいリポジトリを初期化
+## 4. 新しいリポジトリをブートストラップ
 
 ```text
 mkdir my-project
@@ -34,16 +34,16 @@ cd my-project
 namba init .
 ```
 
-wizard では作業言語、approval_policy、sandbox_mode、PR 言語、Codex agent mode をまとめて選べます。
+wizard は作業言語、approval_policy、sandbox_mode、PR 言語、Codex agent mode をまとめてそろえます。
 
-## 5. Codex で基本フローを実行
+## 5. 基本の Codex フローを実行
 
 ```text
 namba project
-namba plan "ダッシュボードフィルタを追加"
+namba plan "add dashboard filters"
 namba run SPEC-001
 namba sync
-namba pr "ダッシュボードフィルタを追加"
+namba pr "add dashboard filters"
 namba land
 ```
 

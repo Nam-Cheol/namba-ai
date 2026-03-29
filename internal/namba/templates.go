@@ -1270,7 +1270,7 @@ func renderProjectConfig(profile initProfile) string {
 
 func renderQualityConfig(mode, testCmd, lintCmd, typecheckCmd string) string {
 	return fmt.Sprintf(
-		"development_mode: %s\ntest_command: %s\nlint_command: %s\ntypecheck_command: %s\n",
+		"development_mode: %s\ntest_command: %s\nlint_command: %s\ntypecheck_command: %s\nbuild_command: none\nmigration_dry_run_command: none\nsmoke_start_command: none\noutput_contract_command: none\n",
 		mode,
 		testCmd,
 		lintCmd,
@@ -1391,6 +1391,15 @@ func renderCodexProfileConfig(profile initProfile) string {
 		fmt.Sprintf("status_line_preset: %s", profile.StatusLinePreset),
 		fmt.Sprintf("repo_skills_path: %s", repoSkillsDir),
 		fmt.Sprintf("repo_agents_path: %s", repoCodexAgentsDir),
+		"# Optional: per-run Codex overrides resolved by `namba run`.",
+		"# model:",
+		"# profile:",
+		"web_search: false",
+		"add_dirs:",
+		"session_mode: stateful",
+		"repair_attempts: 1",
+		"required_env:",
+		"requires_network: false",
 		"# Optional: comma-separated Namba-managed MCP presets to render into `.codex/config.toml`.",
 		fmt.Sprintf("# Supported values: %s", strings.Join(supportedManagedMCPServerIDs(), ", ")),
 	}

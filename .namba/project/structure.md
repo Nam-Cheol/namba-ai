@@ -94,6 +94,7 @@
 .namba\specs\SPEC-013
 .namba\specs\SPEC-014
 .namba\specs\SPEC-015
+.namba\specs\SPEC-016
 AGENTS.md
 README.ja.md
 README.ko.md
@@ -133,6 +134,7 @@ internal\namba\codex_mcp.go
 internal\namba\console_other.go
 internal\namba\console_windows.go
 internal\namba\execution.go
+internal\namba\execution_smoke_test.go
 internal\namba\execution_test.go
 internal\namba\init_wizard_test.go
 internal\namba\namba.go
@@ -147,6 +149,7 @@ internal\namba\release.go
 internal\namba\release_command.go
 internal\namba\release_command_test.go
 internal\namba\release_test.go
+internal\namba\runtime_harness.go
 internal\namba\self_update_command.go
 internal\namba\self_update_command_test.go
 internal\namba\spec_command_test.go

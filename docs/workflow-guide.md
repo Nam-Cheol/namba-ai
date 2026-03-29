@@ -17,14 +17,14 @@
 ## `namba run` modes
 
 - `namba run SPEC-XXX`: standard standalone Codex flow in one workspace.
-- `namba run SPEC-XXX --solo`: standalone single-subagent workflow inside one workspace.
-- `namba run SPEC-XXX --team`: standalone multi-subagent workflow inside one workspace.
+- `namba run SPEC-XXX --solo`: a single runner in one workspace.
+- `namba run SPEC-XXX --team`: same-workspace multi-agent execution.
 - `namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.
 
 ## Role routing
 
 - Default `namba run` stays in the standalone runner unless the prompt shows a strong specialist signal.
-- `--solo` uses at most one specialist when one domain clearly dominates; `--team` expands to two specialists plus reviewer only when acceptance spans multiple domains.
+- `--solo` keeps the run inside one runner unless a single specialist would materially reduce risk; `--team` keeps the work in one workspace while coordinating multiple specialists plus a final reviewer when acceptance spans multiple domains.
 - Route UI, responsive, mobile, and design work to `namba-frontend-implementer`, `namba-mobile-engineer`, or `namba-designer`; API, schema, and pipeline work to `namba-backend-implementer` or `namba-data-engineer`; auth, secrets, and compliance work to `namba-security-engineer`; deployment and runtime work to `namba-devops-engineer`.
 - Keep the standalone runner as integrator and validation owner; use `namba-reviewer` for the final acceptance pass rather than growing an uncontrolled swarm.
 
@@ -32,6 +32,7 @@
 
 - `namba plan` and `namba fix` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.
 - Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` to keep those artifacts current before implementation or PR handoff.
+- If `namba regen` or `namba sync` changes generated instruction surfaces, start a fresh Codex session so the updated guidance is loaded before continuing a long repair loop.
 - Missing review passes stay advisory by default: `namba run`, `namba sync`, and `namba pr` surface the current readiness summary without silently hard-blocking delivery.
 
 ## Key generated assets

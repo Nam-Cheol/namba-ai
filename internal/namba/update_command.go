@@ -33,18 +33,22 @@ func (a *App) runRegen(_ context.Context, args []string) error {
 	if err := removeLegacyCodexSkillMirror(root); err != nil {
 		return err
 	}
-	if err := a.replaceManagedOutputs(root, outputs, isRegenManagedPath); err != nil {
+	report, err := a.replaceManagedOutputs(root, outputs, isRegenManagedPath)
+	if err != nil {
 		return err
 	}
 
 	fmt.Fprintln(a.stdout, "Regenerated NambaAI AGENTS, repo skills, command-entry skills, Codex agents, and Codex config.")
+	if len(report.InstructionSurfacePaths) > 0 {
+		fmt.Fprintf(a.stdout, "Session refresh required: start a fresh Codex session before continuing long team or repair runs (%s)\n", strings.Join(report.InstructionSurfacePaths, ", "))
+	}
 	return nil
 }
 
-func (a *App) replaceManagedOutputs(root string, outputs map[string]string, managed func(string) bool) error {
+func (a *App) replaceManagedOutputs(root string, outputs map[string]string, managed func(string) bool) (outputWriteReport, error) {
 	manifest, err := a.readManifest(root)
 	if err != nil {
-		return err
+		return outputWriteReport{}, err
 	}
 
 	filtered := manifest.Entries[:0]
@@ -55,7 +59,7 @@ func (a *App) replaceManagedOutputs(root string, outputs map[string]string, mana
 				continue
 			}
 			if err := os.RemoveAll(filepath.Join(root, filepath.FromSlash(entry.Path))); err != nil && !errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("remove obsolete generated file %s: %w", entry.Path, err)
+				return outputWriteReport{}, fmt.Errorf("remove obsolete generated file %s: %w", entry.Path, err)
 			}
 			continue
 		}
@@ -63,7 +67,7 @@ func (a *App) replaceManagedOutputs(root string, outputs map[string]string, mana
 	}
 	manifest.Entries = filtered
 	if err := a.writeManifest(root, manifest); err != nil {
-		return err
+		return outputWriteReport{}, err
 	}
 	return a.writeOutputs(root, outputs)
 }

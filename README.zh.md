@@ -6,7 +6,7 @@
 
 # NambaAI
 
-NambaAI 是一套面向 Codex 的开发工作流，用来初始化仓库、以 SPEC 形式规划工作，并在实现后同步项目产物。
+NambaAI 是一套 Codex-native 工作流，用来完成仓库初始化、将工作整理成 SPEC 包，以及在实现之后同步项目产物。
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [中文](README.zh.md)
 
@@ -14,10 +14,11 @@ NambaAI 是一套面向 Codex 的开发工作流，用来初始化仓库、以 S
 
 ## 你可以用 NambaAI 做什么
 
-- 在空目录中执行 `namba init .`，快速得到可直接用于 Codex 的仓库。
-- 用 `namba plan` 和 `namba fix` 把需求整理成 SPEC 包，保持范围清晰。
-- 用 `namba run SPEC-XXX` 和 `namba sync` 完成实现、校验与 PR 准备。
-- 通过 `namba update` 和发布资产，让团队统一 CLI 版本。
+- 在空目录中通过 `namba init .` 直接启动一个 Codex-ready 仓库。
+- 用 `namba plan` 和 `namba fix` 把变更请求整理成 SPEC 包。
+- 用 `namba run SPEC-XXX` 运行默认流程，`--solo` 表示单一 workspace 中的单 runner，`--team` 表示同一 workspace 内的多智能体执行，`--parallel` 表示 worktree fan-out/fan-in 执行，然后再用 `namba sync`、`namba pr`、`namba land` 完成交付。
+- 如果实现前需要产品、工程或设计评审，可以使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review`。
+- 通过 `namba update` 和 release 资产让团队的 CLI 版本保持一致。
 
 ## 快速开始
 
@@ -31,20 +32,20 @@ irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex
 curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh
 ```
 
-### 2. 初始化一个新仓库
+### 2. 初始化新仓库
 
 ```text
 namba init .
 ```
 
-### 3. 在 Codex 中开始工作
+### 3. 从 Codex 开始工作
 
 ```text
 namba project
-namba plan "添加登录审计日志"
+namba plan "add login audit logs"
 namba run SPEC-001
 namba sync
-namba pr "添加登录审计日志"
+namba pr "add login audit logs"
 namba land
 ```
 
@@ -52,23 +53,23 @@ namba land
 
 - 在 Windows 上安装: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
 - 在 macOS / Linux 上安装: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
-- 更新到最新发布版: `namba update`
-- 固定到指定发布版: `namba update --version vX.Y.Z`
-- 在 Windows 上卸载: 删除默认路径 `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe`，如果不再需要，再把 `%LOCALAPPDATA%\Programs\NambaAI\bin` 从用户 `PATH` 中移除。
-- 在 macOS / Linux 上卸载: 删除默认路径 `~/.local/bin/namba`，如果不再需要，再从 `~/.profile` 或 `~/.zshrc` 中删除安装器追加的 `PATH` 行。
+- 更新到最新版本: `namba update`
+- 固定到指定版本: `namba update --version vX.Y.Z`
+- 在 Windows 上卸载: 删除 `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe`，如果不再需要，再从用户 `PATH` 中移除 `%LOCALAPPDATA%\Programs\NambaAI\bin`。
+- 在 macOS / Linux 上卸载: 删除 `~/.local/bin/namba`，如果不再需要，再从 `~/.profile` 或 `~/.zshrc` 中移除安装器添加的 `PATH` 配置。
 
 ## Codex 中的 Command Skill
 
-- `$namba`: 通用路由入口，让 Codex 选择合适的 Namba 工作流命令。
-- `$namba-project`: 在开始前或较大改动后刷新项目文档与 codemap。
-- `$namba-plan` / `$namba-fix`: 创建下一个 feature 或 bugfix SPEC 包。
-- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: 更新 SPEC 的 product / engineering / design review 产物与 readiness 摘要。
-- `$namba-run`: 在当前 Codex 会话中按 Namba 工作流执行 SPEC 包。
-- `$namba-sync`: 刷新 README bundle、项目文档、codemap 与 PR 准备产物。
-- `$namba-pr` / `$namba-land`: 把当前分支交给 GitHub review，并在检查通过后安全合并。
-- `$namba-regen` / `$namba-update`: 重新生成 repo-local Codex 资产，或 self-update 已安装的 `namba` CLI。
+- `$namba`: 当你希望 Codex 自动选择合适的 Namba 入口时使用的通用路由器。
+- `$namba-project`: 在开始前或较大改动后刷新项目文档和 codemap。
+- `$namba-plan` / `$namba-fix`: 创建下一个功能或 bug 修复用 SPEC 包。
+- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: 更新 SPEC 的 product / engineering / design review 产物以及 advisory readiness 摘要。
+- `$namba-run`: 在当前 Codex 会话中用 Namba workflow 执行 SPEC 包。
+- `$namba-sync`: 刷新 README 套件、项目文档、codemap 和 PR 交接产物。
+- `$namba-pr` / `$namba-land`: 将当前分支提交到 GitHub 评审，并在检查通过后安全合并。
+- `$namba-regen` / `$namba-update`: 重新生成 repo-local Codex 资产，或自更新已安装的 `namba` CLI。
 
-## Skill 到 Command 的映射
+## Skill To Command Mapping
 
 - `$namba-project` -> `namba project`
 - `$namba-plan` -> `namba plan "description"`
@@ -80,24 +81,24 @@ namba land
 - `$namba-regen` -> `namba regen`
 - `$namba-update` -> `namba update [--version vX.Y.Z]`
 
-## Codex Custom Agents
+## Codex 自定义 Agents
 
-- Strategy: `namba-product-manager` 负责收敛范围与 acceptance，`namba-planner` 把 SPEC 转成执行计划。
-- UI and experience: `namba-frontend-architect`、`namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer` 负责 Web UI、移动端实现与视觉方向。
-- Backend and data: `namba-backend-architect`、`namba-backend-implementer`、`namba-data-engineer` 负责 API、持久化、迁移与数据管道。
-- Security and delivery: `namba-security-engineer`、`namba-test-engineer`、`namba-devops-engineer`、`namba-reviewer` 负责加固、回归信心、CI/CD 与最终验收。
-- General delivery: `namba-implementer` 负责跨多个领域但还不需要大规模 specialist 团队的通用执行工作。
+- Strategy: `namba-product-manager` 负责收敛范围和 acceptance，`namba-planner` 把 SPEC 转成执行计划。
+- UI and experience: `namba-frontend-architect`、`namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer` 负责 web UI、mobile execution 和 visual direction。
+- Backend and data: `namba-backend-architect`、`namba-backend-implementer`、`namba-data-engineer` 负责 API、persistence、migration 和 pipeline。
+- Security and delivery: `namba-security-engineer`、`namba-test-engineer`、`namba-devops-engineer`、`namba-reviewer` 负责 hardening、regression confidence、CI/CD 和 final acceptance。
+- General delivery: `namba-implementer` 在任务跨多个领域但还不需要更大 specialist roster 时，继续作为通用执行 agent。
 
-## 进一步了解
+## 继续阅读
 
-- [上手指南](docs/getting-started.zh.md): 安装、更新、卸载、初始化与首次运行
-- [工作流指南](docs/workflow-guide.zh.md): update / regen / sync 的区别、产物与协作规则
-- [Codex Upstream Reference](docs/codex-upstream-reference.md): 本仓库遵循的 Codex 参考
+- [快速开始](docs/getting-started.zh.md): 安装、更新、卸载、init 和首次运行流程
+- [工作流指南](docs/workflow-guide.zh.md): update / regen / sync / pr / land 的区别、run 模式、生成产物和协作默认值
+- [Codex Upstream Reference](docs/codex-upstream-reference.md): 本仓库遵循的 upstream 基线
 - [SECURITY.md](SECURITY.md): 安全策略
 
 ## 技术概览
 
-- `.namba/` 是配置、SPEC 和项目文档的 source of truth。
-- `.agents/skills/` 是 Codex 实际读取的 repo-local skill surface。
+- `.namba/` 是配置、SPEC 包和项目文档的 source of truth。
+- `.agents/skills/` 是 Codex 直接使用的 repo-local skill surface。
 - `.codex/agents/*.toml` 定义了覆盖 product、planning、design、frontend、mobile、backend、data、security、testing、ops、implementation、review 的 task-oriented custom agent。
-- `namba update`、`namba regen`、`namba sync`、`namba pr`、`namba land` 各自解决不同问题，不能混用。
+- `namba update`、`namba regen`、`namba sync`、`namba pr`、`namba land` 各自解决不同的问题，不应混用理解。
