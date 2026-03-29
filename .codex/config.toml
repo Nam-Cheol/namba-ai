@@ -3,6 +3,7 @@
 # This file intentionally keeps only repo-safe Codex defaults under version control.
 # Keep user-specific settings such as models, auth, apps, web search, permissions profiles,
 # and platform-specific sandbox choices in your user-level Codex config.
+# Repo-managed MCP presets are the narrow exception when `.namba/config/sections/codex.yaml` opts in.
 # Reference: https://developers.openai.com/codex/config-reference/
 
 approval_policy = "on-request"
@@ -13,3 +14,15 @@ max_threads = 3
 
 [tui]
 status_line = ["project-root", "git-branch", "current-dir", "model-with-reasoning", "context-remaining", "context-used", "used-tokens", "session-id"]
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+
+[mcp_servers.sequential-thinking]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["@playwright/mcp@latest"]

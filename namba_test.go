@@ -133,6 +133,9 @@ func TestInitSupportsCodexProfileFlags(t *testing.T) {
 	if !strings.Contains(codexProfile, "agent_mode: multi") || !strings.Contains(codexProfile, "status_line_preset: off") {
 		t.Fatalf("unexpected codex config: %s", codexProfile)
 	}
+	if !strings.Contains(codexProfile, "default_mcp_servers") || !strings.Contains(codexProfile, "context7") || !strings.Contains(codexProfile, "sequential-thinking") || !strings.Contains(codexProfile, "playwright") {
+		t.Fatalf("expected codex config to advertise managed MCP presets, got: %s", codexProfile)
+	}
 	if strings.Contains(codexProfile, "compat_skills_path:") {
 		t.Fatalf("expected deprecated compat skill path to be removed: %s", codexProfile)
 	}

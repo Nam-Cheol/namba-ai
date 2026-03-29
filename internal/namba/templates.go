@@ -173,6 +173,7 @@ func renderPlanCommandSkill() string {
 			"",
 			"Behavior:",
 			"- Prefer the installed `namba plan` CLI when available.",
+			"- When repo-managed MCP presets are configured, prefer them for planning context before broader web search; for example, use `context7` for library and framework docs, `sequential-thinking` for deeper decomposition, and `playwright` for browser-verified flows.",
 			"- Create the next sequential `SPEC-XXX` package under `.namba/specs/`.",
 			"- Seed `.namba/specs/<SPEC>/reviews/` with product, engineering, design, and aggregate readiness artifacts.",
 			"- Point follow-up review work to `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when the SPEC needs pre-implementation critique.",
@@ -416,7 +417,7 @@ func renderCodexUsage(profile initProfile) string {
 		"- Creates `AGENTS.md` with Namba orchestration rules.",
 		"- Creates repo-local skills under `.agents/skills/`, including command-entry skills such as `namba-run`, `namba-pr`, `namba-land`, `namba-plan`, `namba-plan-pm-review`, `namba-plan-eng-review`, `namba-plan-design-review`, and `namba-sync`.",
 		"- Creates task-oriented Codex custom agents under `.codex/agents/*.toml` and readable `.md` role-card mirrors.",
-		"- Creates repo-local Codex config under `.codex/config.toml`, keeping a narrow repo-safe baseline such as `approval_policy`, `sandbox_mode`, and agent thread limits.",
+		"- Creates repo-local Codex config under `.codex/config.toml`, keeping a narrow repo-safe baseline such as `approval_policy`, `sandbox_mode`, and agent thread limits, plus an allow-listed set of repo-managed MCP presets when configured.",
 		"- Creates `.namba/codex/output-contract.md` plus `.namba/codex/validate-output-contract.py` for NambaAI response-shape guidance and fallback validation.",
 		"- Creates `.namba/` project state, configs, docs, and SPEC storage.",
 		"",
@@ -747,6 +748,7 @@ func renderRepoCodexConfig(profile initProfile) string {
 		"# This file intentionally keeps only repo-safe Codex defaults under version control.",
 		"# Keep user-specific settings such as models, auth, apps, web search, permissions profiles,",
 		"# and platform-specific sandbox choices in your user-level Codex config.",
+		"# Repo-managed MCP presets are the narrow exception when `.namba/config/sections/codex.yaml` opts in.",
 		"# Reference: https://developers.openai.com/codex/config-reference/",
 		"",
 		fmt.Sprintf("approval_policy = %q", approvalPolicy(profile)),
@@ -757,6 +759,14 @@ func renderRepoCodexConfig(profile initProfile) string {
 	}
 	if profile.StatusLinePreset == "namba" {
 		lines = append(lines, "", strings.TrimSpace(renderCodexStatusLineExample()))
+	}
+	for _, preset := range managedMCPServerPresetsForIDs(profile.DefaultMCPServers) {
+		lines = append(lines,
+			"",
+			fmt.Sprintf("[mcp_servers.%s]", preset.ID),
+			fmt.Sprintf("command = %q", preset.Command),
+			fmt.Sprintf("args = [%s]", formatTOMLStringArray(preset.Args)),
+		)
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
@@ -800,6 +810,7 @@ func renderPlannerCustomAgent() string {
 			"",
 			"Responsibilities:",
 			"- Read `spec.md`, `plan.md`, and `acceptance.md`.",
+			"- When repo-managed MCP presets are configured, consult them first when they can ground planning decisions with better source material or verification signals.",
 			"- Identify target files, risks, and validation commands.",
 			"- Produce a concise execution plan for the main session.",
 			"- Do not edit files directly.",
@@ -1375,11 +1386,18 @@ func renderCollaborationPolicy(profile initProfile) string {
 }
 
 func renderCodexProfileConfig(profile initProfile) string {
-	return fmt.Sprintf(
-		"agent_mode: %s\nstatus_line_preset: %s\nrepo_skills_path: %s\nrepo_agents_path: %s\n",
-		profile.AgentMode,
-		profile.StatusLinePreset,
-		repoSkillsDir,
-		repoCodexAgentsDir,
-	)
+	lines := []string{
+		fmt.Sprintf("agent_mode: %s", profile.AgentMode),
+		fmt.Sprintf("status_line_preset: %s", profile.StatusLinePreset),
+		fmt.Sprintf("repo_skills_path: %s", repoSkillsDir),
+		fmt.Sprintf("repo_agents_path: %s", repoCodexAgentsDir),
+		"# Optional: comma-separated Namba-managed MCP presets to render into `.codex/config.toml`.",
+		fmt.Sprintf("# Supported values: %s", strings.Join(supportedManagedMCPServerIDs(), ", ")),
+	}
+	if len(profile.DefaultMCPServers) == 0 {
+		lines = append(lines, "# default_mcp_servers:")
+	} else {
+		lines = append(lines, fmt.Sprintf("default_mcp_servers: %s", strings.Join(profile.DefaultMCPServers, ",")))
+	}
+	return strings.Join(lines, "\n") + "\n"
 }

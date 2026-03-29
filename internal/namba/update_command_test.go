@@ -18,7 +18,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 		t.Fatalf("init failed: %v", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"), []byte("agent_mode: multi\nstatus_line_preset: off\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"), []byte("agent_mode: multi\nstatus_line_preset: off\ndefault_mcp_servers: context7,sequential-thinking,playwright\n"), 0o644); err != nil {
 		t.Fatalf("write codex config: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(tmp, ".namba", "config", "sections", "git-strategy.yaml"), []byte("git_mode: team\ngit_provider: github\ngit_username: alice\ngitlab_instance_url: https://gitlab.com\nstore_tokens: false\nbranch_per_work: true\nbranch_base: develop\nspec_branch_prefix: spec/\ntask_branch_prefix: task/\npr_base_branch: develop\npr_language: ko\ncodex_review_comment: \"@codex review\"\nauto_codex_review: true\n"), 0o644); err != nil {
@@ -79,6 +79,10 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(designReviewSkill, "$namba-plan-design-review") || !strings.Contains(designReviewSkill, "`namba-designer`") || !strings.Contains(designReviewSkill, "readiness.md") {
 		t.Fatalf("expected design review skill, got %q", designReviewSkill)
 	}
+	planSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-plan", "SKILL.md"))
+	if !strings.Contains(planSkill, "context7") || !strings.Contains(planSkill, "sequential-thinking") || !strings.Contains(planSkill, "playwright") || !strings.Contains(planSkill, "repo-managed MCP presets") {
+		t.Fatalf("expected plan skill to describe managed MCP usage, got %q", planSkill)
+	}
 	prSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-pr", "SKILL.md"))
 	if !strings.Contains(prSkill, "$namba-pr") || !strings.Contains(prSkill, "namba pr") {
 		t.Fatalf("expected command-entry pr skill, got %q", prSkill)
@@ -98,6 +102,11 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(config, "#:schema https://developers.openai.com/codex/config-schema.json") || !strings.Contains(config, "repo-safe Codex defaults under version control") || !strings.Contains(config, "max_threads = 3") || !strings.Contains(config, `approval_policy = "never"`) || !strings.Contains(config, `sandbox_mode = "read-only"`) {
 		t.Fatalf("expected multi-agent Codex config, got %q", config)
 	}
+	for _, want := range []string{"[mcp_servers.context7]", "@upstash/context7-mcp", "[mcp_servers.sequential-thinking]", "@modelcontextprotocol/server-sequential-thinking", "[mcp_servers.playwright]", "@playwright/mcp@latest"} {
+		if !strings.Contains(config, want) {
+			t.Fatalf("expected Codex config to include %q, got %q", want, config)
+		}
+	}
 	if strings.Contains(config, "status_line =") {
 		t.Fatalf("expected status line preset off to omit status line, got %q", config)
 	}
@@ -108,6 +117,9 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	}
 	if !strings.Contains(codexReadme, ".codex/agents/*.toml") || !strings.Contains(codexReadme, "`default`, `worker`, and `explorer`") {
 		t.Fatalf("expected codex README to describe built-in and custom agents, got %q", codexReadme)
+	}
+	if !strings.Contains(codexReadme, "repo-managed MCP presets") {
+		t.Fatalf("expected codex README to describe managed MCP presets, got %q", codexReadme)
 	}
 	for _, want := range []string{"## Namba Custom Agent Roster", "## Delegation Heuristics", "## Plan Review Readiness", "`namba-product-manager`", "`namba-mobile-engineer`", "`namba-designer`", "`namba-data-engineer`", "`namba-security-engineer`", "`namba-test-engineer`", "`namba-devops-engineer`"} {
 		if !strings.Contains(codexReadme, want) {
@@ -155,7 +167,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 		path     string
 		snippets []string
 	}{
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-planner.toml"), snippets: []string{`name = "namba-planner"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "high"`, `developer_instructions = """`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-planner.toml"), snippets: []string{`name = "namba-planner"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "high"`, `developer_instructions = """`, `repo-managed MCP presets`}},
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-product-manager.toml"), snippets: []string{`name = "namba-product-manager"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-architect.toml"), snippets: []string{`name = "namba-frontend-architect"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-implementer.toml"), snippets: []string{`name = "namba-frontend-implementer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
@@ -203,5 +215,30 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 		if !strings.Contains(content, tc.heading) {
 			t.Fatalf("expected readable role-card mirror %s to contain %q, got %q", tc.path, tc.heading, content)
 		}
+	}
+}
+
+func TestRunRegenRejectsUnsupportedManagedMCPServer(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"), []byte("agent_mode: single\nstatus_line_preset: namba\ndefault_mcp_servers: does-not-exist\n"), 0o644); err != nil {
+		t.Fatalf("write codex config: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	err := app.Run(context.Background(), []string{"regen"})
+	if err == nil {
+		t.Fatal("expected regen to reject an unsupported managed MCP server preset")
+	}
+	if !strings.Contains(err.Error(), `default MCP server "does-not-exist" is not supported`) {
+		t.Fatalf("expected managed MCP validation error, got %v", err)
 	}
 }

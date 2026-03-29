@@ -1193,6 +1193,9 @@ func (a *App) loadInitProfileFromConfig(root string) (initProfile, error) {
 	if value := strings.TrimSpace(codexValues["status_line_preset"]); value != "" {
 		profile.StatusLinePreset = value
 	}
+	if value := strings.TrimSpace(codexValues["default_mcp_servers"]); value != "" {
+		profile.DefaultMCPServers = parseCommaSeparatedValues(value)
+	}
 	if value := firstNonBlank(systemValues["approval_policy"], systemValues["approval_mode"]); value != "" {
 		profile.ApprovalPolicy = value
 	}
@@ -3071,6 +3074,9 @@ func validateInitProfile(profile initProfile) error {
 	if !containsValue([]string{"namba", "off"}, profile.StatusLinePreset) {
 		return fmt.Errorf("status line preset %q is not supported", profile.StatusLinePreset)
 	}
+	if err := validateManagedMCPServerIDs(profile.DefaultMCPServers); err != nil {
+		return err
+	}
 	for _, value := range []string{profile.ConversationLanguage, profile.DocumentationLanguage, profile.CommentLanguage} {
 		if !containsValue([]string{"en", "ko", "ja", "zh"}, value) {
 			return fmt.Errorf("language preference %q is not supported", value)
@@ -3185,6 +3191,7 @@ type initProfile struct {
 	AutoCodexReview       bool
 	AgentMode             string
 	StatusLinePreset      string
+	DefaultMCPServers     []string
 	UserName              string
 	CreatedAt             string
 }

@@ -1,5 +1,8 @@
 .cache/
 .gocache/
+.tmp/
+gocache/
+gomodcache/
 dist/
 *.exe
 .namba/logs/
