@@ -90,6 +90,52 @@ func TestRunWritesStructuredLogs(t *testing.T) {
 	}
 }
 
+func TestBuildCodexExecArgsPlacesGlobalFlagsAfterExec(t *testing.T) {
+	tests := []struct {
+		name string
+		req  executionRequest
+		want []string
+	}{
+		{
+			name: "default exec",
+			req: executionRequest{
+				ApprovalPolicy: "on-request",
+				SandboxMode:    "workspace-write",
+				Model:          "gpt-5.4",
+				Profile:        "namba",
+				WebSearch:      true,
+				AddDirs:        []string{"extra"},
+				SessionMode:    "stateful",
+				Prompt:         "ship it",
+			},
+			want: []string{"exec", "-a", "on-request", "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "--search", "--add-dir", "extra", "ship it"},
+		},
+		{
+			name: "resume stays under exec",
+			req: executionRequest{
+				ApprovalPolicy: "never",
+				SandboxMode:    "read-only",
+				SessionMode:    "stateful",
+				ResumeSession:  true,
+				Prompt:         "continue",
+			},
+			want: []string{"exec", "-a", "never", "-s", "read-only", "resume", "--last", "continue"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args, err := buildCodexExecArgs(tt.req)
+			if err != nil {
+				t.Fatalf("buildCodexExecArgs failed: %v", err)
+			}
+			if strings.Join(args, "\x00") != strings.Join(tt.want, "\x00") {
+				t.Fatalf("unexpected args: got %v want %v", args, tt.want)
+			}
+		})
+	}
+}
+
 func TestBuildExecutionPromptIncludesModeGuidance(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

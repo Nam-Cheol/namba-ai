@@ -193,7 +193,7 @@ func buildCodexExecArgs(req executionRequest) ([]string, error) {
 		return nil, fmt.Errorf("session_mode %q does not support resume", sessionMode)
 	}
 
-	args := []string{"-a", approval, "-s", sandbox}
+	args := []string{"exec", "-a", approval, "-s", sandbox}
 	if model := strings.TrimSpace(req.Model); model != "" {
 		args = append(args, "-m", model)
 	}
@@ -209,7 +209,6 @@ func buildCodexExecArgs(req executionRequest) ([]string, error) {
 		}
 	}
 
-	args = append(args, "exec")
 	if req.ResumeSession {
 		args = append(args, "resume", "--last")
 	} else if !codexSessionStateful(sessionMode) {
