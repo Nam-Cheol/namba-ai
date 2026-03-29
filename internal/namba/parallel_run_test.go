@@ -19,6 +19,8 @@ type parallelHarness struct {
 	stdout        *bytes.Buffer
 	app           *App
 	commands      []string
+	codexCount    int
+	lastCodexIdx  int
 	mu            sync.Mutex
 	execFailures  map[string]error
 	validationErr map[string]error
@@ -46,6 +48,7 @@ func newParallelHarness(t *testing.T) (*parallelHarness, func()) {
 		tmp:           tmp,
 		stdout:        stdout,
 		app:           app,
+		lastCodexIdx:  -1,
 		execFailures:  map[string]error{},
 		validationErr: map[string]error{},
 		mergeErr:      map[string]error{},
@@ -69,6 +72,10 @@ func newParallelHarness(t *testing.T) (*parallelHarness, func()) {
 func (h *parallelHarness) runCmd(_ context.Context, name string, args []string, dir string) (string, error) {
 	h.mu.Lock()
 	h.commands = append(h.commands, name+" "+strings.Join(args, " "))
+	if isCodexExec(name, args) {
+		h.codexCount++
+		h.lastCodexIdx = len(h.commands) - 1
+	}
 	h.mu.Unlock()
 
 	switch {
@@ -129,7 +136,7 @@ func TestRunParallelAllSuccessCleansUpAndWritesReport(t *testing.T) {
 	}
 
 	firstMerge := indexCommandContaining(h.commands, "git merge --no-ff")
-	lastExec := lastCommandContaining(h.commands, " codex ")
+	lastExec := h.lastCodexIdx
 	if firstMerge == -1 || lastExec == -1 || firstMerge <= lastExec {
 		t.Fatalf("expected merges after all worker executions, got %v", h.commands)
 	}
@@ -261,7 +268,7 @@ func TestRunParallelDryRunSkipsExecutionMergeAndCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runParallel failed: %v", err)
 	}
-	if countCommandsContaining(h.commands, " codex ") != 0 {
+	if h.codexCount != 0 {
 		t.Fatalf("expected no codex execution in dry-run, got %v", h.commands)
 	}
 	if countCommandsContaining(h.commands, "git merge --no-ff") != 0 {
@@ -307,15 +314,6 @@ func countCommandsContaining(commands []string, needle string) int {
 func indexCommandContaining(commands []string, needle string) int {
 	for i, command := range commands {
 		if strings.Contains(command, needle) {
-			return i
-		}
-	}
-	return -1
-}
-
-func lastCommandContaining(commands []string, needle string) int {
-	for i := len(commands) - 1; i >= 0; i-- {
-		if strings.Contains(commands[i], needle) {
 			return i
 		}
 	}
