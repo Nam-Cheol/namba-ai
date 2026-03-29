@@ -427,6 +427,9 @@ func (a *App) createSpecPackage(kind string, args []string) error {
 		filepath.ToSlash(filepath.Join(specsDir, specID, "plan.md")):       plan,
 		filepath.ToSlash(filepath.Join(specsDir, specID, "acceptance.md")): acceptance,
 	}
+	for rel, body := range specReviewOutputs(specID) {
+		outputs[rel] = body
+	}
 	if err := a.writeOutputs(root, outputs); err != nil {
 		return err
 	}
@@ -447,9 +450,9 @@ func buildSpecDoc(kind, specID, description string, projectCfg projectConfig, qu
 func buildSpecPlanDoc(kind, specID string) string {
 	switch kind {
 	case "fix":
-		return fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Reproduce or inspect the reported issue\n3. Implement the smallest safe fix\n4. Run validation commands and targeted regression checks\n5. Sync artifacts with `namba sync`\n", specID)
+		return fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Reproduce or inspect the reported issue\n3. Run the relevant review passes under `.namba/specs/%s/reviews/` and refresh the readiness summary\n4. Implement the smallest safe fix\n5. Run validation commands and targeted regression checks\n6. Sync artifacts with `namba sync`\n", specID, specID)
 	default:
-		return fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Implement the requested change\n3. Run validation commands\n4. Sync artifacts with `namba sync`\n", specID)
+		return fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Run the relevant review passes under `.namba/specs/%s/reviews/` and refresh the readiness summary\n3. Implement the requested change\n4. Run validation commands\n5. Sync artifacts with `namba sync`\n", specID, specID)
 	}
 }
 
@@ -531,6 +534,10 @@ func (a *App) runExecute(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	readinessAdvisory, err := a.refreshSpecReviewReadiness(root, specPkg.ID)
+	if err != nil {
+		return err
+	}
 	qualityCfg, err := a.loadQualityConfig(root)
 	if err != nil {
 		return err
@@ -551,6 +558,9 @@ func (a *App) runExecute(ctx context.Context, args []string) error {
 	promptPath := filepath.Join(logDir, strings.ToLower(options.specID)+"-request.md")
 	if err := os.WriteFile(promptPath, []byte(prompt), 0o644); err != nil {
 		return err
+	}
+	if readinessAdvisory != "" {
+		fmt.Fprintf(a.stdout, "Review readiness for %s: %s (advisory only)\n", specPkg.ID, readinessAdvisory)
 	}
 
 	if options.mode == executionModeParallel {
@@ -592,11 +602,14 @@ func (a *App) runSync(ctx context.Context, _ []string) error {
 	if err := a.runProject(ctx, nil); err != nil {
 		return err
 	}
+	if err := a.refreshAllSpecReviewReadiness(root); err != nil {
+		return err
+	}
 
 	generatedAt := a.now().Format(time.RFC3339)
 
-	summary := buildChangeSummaryDoc(projectCfg, latestSpec, generatedAt, profile)
-	checklist := buildPRChecklistDoc(profile)
+	summary := buildChangeSummaryDoc(root, projectCfg, latestSpec, generatedAt, profile)
+	checklist := buildPRChecklistDoc(root, latestSpec, profile)
 	releaseNotes := buildReleaseNotesDoc(projectCfg, latestSpec, generatedAt, profile)
 	releaseChecklist := buildReleaseChecklistDoc()
 	outputs := map[string]string{
@@ -651,6 +664,19 @@ func (a *App) buildExecutionPrompt(root string, specPkg specPackage, qualityCfg 
 		"",
 		"## Acceptance",
 		string(acceptanceBytes),
+	)
+	if specReviewReadinessExists(root, specPkg.ID) {
+		readinessBytes, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(specReviewReadinessPath(specPkg.ID))))
+		if err != nil {
+			return "", nil, delegationPlan{}, err
+		}
+		promptLines = append(promptLines,
+			"",
+			"## Review Readiness",
+			string(readinessBytes),
+		)
+	}
+	promptLines = append(promptLines,
 		"",
 		"## Validation",
 		fmt.Sprintf("- test: %s", qualityCfg.TestCommand),
@@ -2084,7 +2110,7 @@ func buildAcceptanceDoc(description, mode string) string {
 	return strings.Join(bullets, "\n")
 }
 
-func buildChangeSummaryDoc(projectCfg projectConfig, latestSpec, generatedAt string, profile initProfile) string {
+func buildChangeSummaryDoc(root string, projectCfg projectConfig, latestSpec, generatedAt string, profile initProfile) string {
 	projectType := projectCfg.ProjectType
 	if strings.TrimSpace(projectType) == "" {
 		projectType = "existing"
@@ -2106,6 +2132,7 @@ func buildChangeSummaryDoc(projectCfg projectConfig, latestSpec, generatedAt str
 		"- Release docs describe `namba release` guardrails on a clean `main` branch plus optional `--push` behavior.",
 		"- Run docs separate the default standalone flow, `namba run SPEC-XXX --solo`, `namba run SPEC-XXX --team`, and the worktree fan-out policy for `namba run SPEC-XXX --parallel`.",
 		"- AGENTS and Codex docs define the Namba output contract plus the fallback validator script at `.namba/codex/validate-output-contract.py`.",
+		"- SPEC packages can keep advisory plan-review artifacts under `.namba/specs/<SPEC>/reviews/` so product, engineering, and design review state stays visible before execution and PR handoff.",
 		fmt.Sprintf("- Collaboration docs require one branch per SPEC/task from `%s`, PRs into `%s`, %s PR content, and Codex review requests via `%s`.", branchBase(profile), prBaseBranch(profile), strings.ToLower(humanLanguageName(profile.PRLanguage)), codexReviewComment(profile)),
 		"",
 		"## Refresh Commands",
@@ -2116,11 +2143,20 @@ func buildChangeSummaryDoc(projectCfg projectConfig, latestSpec, generatedAt str
 		"- `namba pr` prepares the current branch for GitHub review by running sync and validation by default, then committing, pushing, opening or reusing the PR, and ensuring the Codex review marker exists.",
 		"- `namba land` optionally waits for checks, merges only when the PR is clean, and updates local `main` safely.",
 	}
+	if specReviewReadinessExists(root, latestSpec) {
+		lines = append(lines,
+			"",
+			"## Latest Review Readiness",
+			"",
+			fmt.Sprintf("- Latest readiness artifact: `%s`", specReviewReadinessPath(latestSpec)),
+			fmt.Sprintf("- Advisory summary: %s", specReviewAdvisorySummary(root, latestSpec)),
+		)
+	}
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func buildPRChecklistDoc(profile initProfile) string {
-	return strings.Join([]string{
+func buildPRChecklistDoc(root, latestSpec string, profile initProfile) string {
+	lines := []string{
 		"# PR Checklist",
 		"",
 		fmt.Sprintf("- [ ] Dedicated work branch created from `%s` for this SPEC/task", branchBase(profile)),
@@ -2134,7 +2170,11 @@ func buildPRChecklistDoc(profile initProfile) string {
 		"- [ ] SPEC artifacts reviewed",
 		"- [ ] Validation commands passed",
 		"- [ ] Diff reviewed",
-	}, "\n") + "\n"
+	}
+	if specReviewReadinessExists(root, latestSpec) {
+		lines = append(lines, fmt.Sprintf("- [ ] Latest SPEC review readiness checked: `%s`", specReviewReadinessPath(latestSpec)))
+	}
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec, generatedAt string, profile initProfile) string {

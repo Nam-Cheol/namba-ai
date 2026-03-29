@@ -100,6 +100,58 @@ func TestRunPRCreatesPullRequestAndAddsReviewComment(t *testing.T) {
 	}
 }
 
+func TestRunPRIncludesLatestReviewReadinessInBody(t *testing.T) {
+	tmp, _, app, restore := preparePRLandProject(t)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"plan", "add", "review", "readiness"}); err != nil {
+		t.Fatalf("plan failed: %v", err)
+	}
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if dir != tmp {
+			t.Fatalf("expected workdir %s, got %s", tmp, dir)
+		}
+
+		switch {
+		case name == "gh" && len(args) == 2 && args[0] == "auth" && args[1] == "status":
+			return "", nil
+		case name == "git" && len(args) >= 2 && args[0] == "branch" && args[1] == "--show-current":
+			return "feature/login-audit", nil
+		case isShellCommand(name):
+			return "ok", nil
+		case name == "git" && len(args) >= 2 && args[0] == "status" && args[1] == "--porcelain":
+			return "", nil
+		case name == "git" && len(args) == 4 && args[0] == "push" && args[1] == "--set-upstream":
+			return "", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list":
+			return "[]", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "create":
+			bodyIndex := indexOfArg(args, "--body")
+			if bodyIndex == -1 || bodyIndex+1 >= len(args) {
+				t.Fatalf("expected --body argument, got %v", args)
+			}
+			if !strings.Contains(args[bodyIndex+1], ".namba/project/change-summary.md") || !strings.Contains(args[bodyIndex+1], ".namba/specs/SPEC-001/reviews/readiness.md") {
+				t.Fatalf("expected PR body to reference latest readiness artifact, got %q", args[bodyIndex+1])
+			}
+			return "https://github.com/example/repo/pull/17", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "view" && args[2] == "feature/login-audit":
+			return mustMarshalJSON(t, githubPullRequest{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "Review readiness", HeadRefName: "feature/login-audit", BaseRefName: "main"}), nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "view" && args[2] == "17":
+			return mustMarshalJSON(t, githubPullRequest{Comments: []githubPRComment{}}), nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "comment":
+			return "", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"pr", "Review", "readiness"}); err != nil {
+		t.Fatalf("pr failed: %v", err)
+	}
+}
+
 func TestRunPRReusesExistingPullRequestWithoutDuplicateReviewComment(t *testing.T) {
 	tmp, stdout, app, restore := preparePRLandProject(t)
 	defer restore()

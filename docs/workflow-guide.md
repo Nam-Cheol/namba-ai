@@ -10,7 +10,7 @@
 
 - `namba update`: self-update the installed CLI from GitHub Release assets
 - `namba regen`: regenerate AGENTS, skills, custom agents, and repo Codex config
-- `namba sync`: refresh README, project docs, codemaps, PR checklists, and release notes
+- `namba sync`: refresh README, project docs, codemaps, advisory review readiness, PR checklists, and release notes
 - `namba pr`: run sync plus validation by default, commit and push the current branch, open or reuse the PR, and ensure the Codex review marker exists
 - `namba land`: optionally wait for checks, merge only when the PR is clean, and update local `main` safely
 
@@ -28,9 +28,16 @@
 - Route UI, responsive, mobile, and design work to `namba-frontend-implementer`, `namba-mobile-engineer`, or `namba-designer`; API, schema, and pipeline work to `namba-backend-implementer` or `namba-data-engineer`; auth, secrets, and compliance work to `namba-security-engineer`; deployment and runtime work to `namba-devops-engineer`.
 - Keep the standalone runner as integrator and validation owner; use `namba-reviewer` for the final acceptance pass rather than growing an uncontrolled swarm.
 
+## Review readiness
+
+- `namba plan` and `namba fix` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.
+- Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` to keep those artifacts current before implementation or PR handoff.
+- Missing review passes stay advisory by default: `namba run`, `namba sync`, and `namba pr` surface the current readiness summary without silently hard-blocking delivery.
+
 ## Key generated assets
 
 - `.namba/`: config, SPEC packages, project docs, logs
+- `.namba/specs/<SPEC>/reviews/`: advisory product, engineering, design, and readiness artifacts for each SPEC
 - `.agents/skills/`: repo-local skills used directly by Codex
 - `.codex/config.toml`: repo-local Codex defaults that Namba keeps intentionally minimal
 - `.codex/agents/*.toml`: project-scoped custom agents

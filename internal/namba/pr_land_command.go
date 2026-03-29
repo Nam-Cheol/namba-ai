@@ -125,7 +125,7 @@ func (a *App) runPR(ctx context.Context, args []string) error {
 		return fmt.Errorf("push branch %s: %w", currentBranch, err)
 	}
 
-	pr, created, err := a.findOrCreatePullRequest(ctx, root, currentBranch, baseBranch, opts.Title, buildPullRequestBody(profile))
+	pr, created, err := a.findOrCreatePullRequest(ctx, root, currentBranch, baseBranch, opts.Title, buildPullRequestBody(root, profile))
 	if err != nil {
 		return err
 	}
@@ -578,46 +578,67 @@ func (a *App) updateLocalBaseBranch(ctx context.Context, root, currentBranch, ba
 	return nil
 }
 
-func buildPullRequestBody(profile initProfile) string {
+func buildPullRequestBody(root string, profile initProfile) string {
 	summaryPath := filepath.ToSlash(filepath.Join(projectDir, "change-summary.md"))
 	checklistPath := filepath.ToSlash(filepath.Join(projectDir, "pr-checklist.md"))
+	latestSpec, _ := latestSpecID(filepath.Join(root, specsDir))
+	readinessPath := ""
+	if specReviewReadinessExists(root, latestSpec) {
+		readinessPath = specReviewReadinessPath(latestSpec)
+	}
 
 	switch normalizeReadmeLanguage(profile.PRLanguage) {
 	case "ko":
-		return strings.Join([]string{
+		lines := []string{
 			"## \uC791\uC5C5 \uC694\uC57D",
 			fmt.Sprintf("- \uBCC0\uACBD \uC694\uC57D: `%s`", summaryPath),
 			fmt.Sprintf("- \uAC80\uD1A0 \uCCB4\uD06C\uB9AC\uC2A4\uD2B8: `%s`", checklistPath),
 			"",
 			"## \uAC80\uD1A0 \uBA54\uBAA8",
 			"- `namba pr`\uAC00 sync, validation, commit, push\uB97C \uB9C8\uCE5C \uC0C1\uD0DC\uC785\uB2C8\uB2E4.",
-		}, "\n")
+		}
+		if readinessPath != "" {
+			lines = append(lines, fmt.Sprintf("- \uCD5C\uC2E0 SPEC review readiness: `%s` (\uC790\uBB38\uC801 advisory)", readinessPath))
+		}
+		return strings.Join(lines, "\n")
 	case "ja":
-		return strings.Join([]string{
+		lines := []string{
 			"## \u4F5C\u696D\u6982\u8981",
 			fmt.Sprintf("- \u5909\u66F4\u30B5\u30DE\u30EA\u30FC: `%s`", summaryPath),
 			fmt.Sprintf("- \u30EC\u30D3\u30E5\u30FC\u30C1\u30A7\u30C3\u30AF\u30EA\u30B9\u30C8: `%s`", checklistPath),
 			"",
 			"## \u30EC\u30D3\u30E5\u30FC\u7528\u30E1\u30E2",
 			"- `namba pr` \u306F sync\u3001validation\u3001commit\u3001push \u307E\u3067\u5B8C\u4E86\u3057\u3066\u3044\u307E\u3059\u3002",
-		}, "\n")
+		}
+		if readinessPath != "" {
+			lines = append(lines, fmt.Sprintf("- \u6700\u65B0 SPEC \u306E review readiness: `%s` (\u52A9\u8A00\u7528)", readinessPath))
+		}
+		return strings.Join(lines, "\n")
 	case "zh":
-		return strings.Join([]string{
+		lines := []string{
 			"## \u53D8\u66F4\u6458\u8981",
 			fmt.Sprintf("- \u53D8\u66F4\u8BF4\u660E\uFF1A`%s`", summaryPath),
 			fmt.Sprintf("- \u8BC4\u5BA1\u6E05\u5355\uFF1A`%s`", checklistPath),
 			"",
 			"## \u8BC4\u5BA1\u5907\u6CE8",
 			"- `namba pr` \u5DF2\u5B8C\u6210 sync\u3001validation\u3001commit \u548C push\u3002",
-		}, "\n")
+		}
+		if readinessPath != "" {
+			lines = append(lines, fmt.Sprintf("- \u6700\u65B0 SPEC review readiness: `%s` (\u5EFA\u8BAE\u6027 advisory)", readinessPath))
+		}
+		return strings.Join(lines, "\n")
 	default:
-		return strings.Join([]string{
+		lines := []string{
 			"## Summary",
 			fmt.Sprintf("- Change summary: `%s`", summaryPath),
 			fmt.Sprintf("- Review checklist: `%s`", checklistPath),
 			"",
 			"## Review Notes",
 			"- `namba pr` has already completed sync, validation, commit, and push.",
-		}, "\n")
+		}
+		if readinessPath != "" {
+			lines = append(lines, fmt.Sprintf("- Latest SPEC review readiness: `%s` (advisory)", readinessPath))
+		}
+		return strings.Join(lines, "\n")
 	}
 }

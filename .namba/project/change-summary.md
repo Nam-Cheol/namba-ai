@@ -2,8 +2,8 @@
 
 Project: namba-ai
 Project type: existing
-Latest SPEC: SPEC-013
-Generated: 2026-03-29T18:08:56+09:00
+Latest SPEC: SPEC-014
+Generated: 2026-03-29T19:08:53+09:00
 
 ## Workflow Docs Synced
 
@@ -11,6 +11,7 @@ Generated: 2026-03-29T18:08:56+09:00
 - Release docs describe `namba release` guardrails on a clean `main` branch plus optional `--push` behavior.
 - Run docs separate the default standalone flow, `namba run SPEC-XXX --solo`, `namba run SPEC-XXX --team`, and the worktree fan-out policy for `namba run SPEC-XXX --parallel`.
 - AGENTS and Codex docs define the Namba output contract plus the fallback validator script at `.namba/codex/validate-output-contract.py`.
+- SPEC packages can keep advisory plan-review artifacts under `.namba/specs/<SPEC>/reviews/` so product, engineering, and design review state stays visible before execution and PR handoff.
 - Collaboration docs require one branch per SPEC/task from `main`, PRs into `main`, korean PR content, and Codex review requests via `@codex review`.
 
 ## Refresh Commands

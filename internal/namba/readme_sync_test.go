@@ -23,14 +23,14 @@ func TestRunSyncWritesRunModeDocs(t *testing.T) {
 	}
 
 	readme := mustReadFile(t, filepath.Join(tmp, "README.md"))
-	for _, want := range []string{"--solo", "--team", "--parallel", "## Command Skills In Codex", "## Skill To Command Mapping", "## Custom Agents In Codex", "`$namba-run`", "`$namba-sync`", "`$namba-pr`", "`$namba-regen`", "`namba-product-manager`", "`namba-mobile-engineer`", "`namba-designer`", "`namba-data-engineer`", "`namba-security-engineer`"} {
+	for _, want := range []string{"--solo", "--team", "--parallel", "## Command Skills In Codex", "## Skill To Command Mapping", "## Custom Agents In Codex", "`$namba-run`", "`$namba-sync`", "`$namba-pr`", "`$namba-regen`", "`$namba-plan-pm-review`", "`$namba-plan-eng-review`", "`$namba-plan-design-review`", "`namba-product-manager`", "`namba-mobile-engineer`", "`namba-designer`", "`namba-data-engineer`", "`namba-security-engineer`"} {
 		if !strings.Contains(readme, want) {
 			t.Fatalf("expected README to contain %q, got %q", want, readme)
 		}
 	}
 
 	workflowGuide := mustReadFile(t, filepath.Join(tmp, "docs", "workflow-guide.md"))
-	for _, want := range []string{"## Run modes", "## Role routing", "`namba run SPEC-XXX --solo`", "`namba run SPEC-XXX --team`", "`namba run SPEC-XXX --parallel`", "`namba-mobile-engineer`", "`namba-security-engineer`"} {
+	for _, want := range []string{"## Run modes", "## Role routing", "## Review readiness", "`namba run SPEC-XXX --solo`", "`namba run SPEC-XXX --team`", "`namba run SPEC-XXX --parallel`", "`namba-mobile-engineer`", "`namba-security-engineer`", "`$namba-plan-pm-review`"} {
 		if !strings.Contains(workflowGuide, want) {
 			t.Fatalf("expected workflow guide to contain %q, got %q", want, workflowGuide)
 		}
