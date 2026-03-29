@@ -1,0 +1,4 @@
+./defs_windows.go
+./defs_windows_386.go
+./syscall_windows.go
+./asm_windows_386.s

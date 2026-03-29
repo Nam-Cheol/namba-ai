@@ -1,0 +1,4 @@
+./cast.go
+./sha512.go
+./sha512block.go
+./sha512block_noasm.go

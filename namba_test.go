@@ -25,6 +25,9 @@ func TestInitCreatesScaffold(t *testing.T) {
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-run", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-pr", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-land", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-plan-pm-review", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-plan-eng-review", "SKILL.md"))
+	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-plan-design-review", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-project", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-foundation-core", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-workflow-init", "SKILL.md"))
@@ -228,6 +231,8 @@ func TestPlanCreatesSequentialSpecs(t *testing.T) {
 
 	mustExist(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "spec.md"))
 	mustExist(t, filepath.Join(tmp, ".namba", "specs", "SPEC-002", "spec.md"))
+	mustExist(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews", "readiness.md"))
+	mustExist(t, filepath.Join(tmp, ".namba", "specs", "SPEC-002", "reviews", "product.md"))
 }
 
 func TestProjectRunDryRunAndSync(t *testing.T) {
@@ -265,6 +270,11 @@ func TestProjectRunDryRunAndSync(t *testing.T) {
 
 	mustExist(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-request.md"))
 	mustExist(t, filepath.Join(tmp, ".namba", "project", "pr-checklist.md"))
+
+	request := mustRead(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-request.md"))
+	if !strings.Contains(request, "## Review Readiness") || !strings.Contains(request, ".namba/specs/SPEC-001/reviews/product.md") {
+		t.Fatalf("expected execution request to include review readiness, got: %s", request)
+	}
 }
 
 func TestProjectGeneratesReactCodemaps(t *testing.T) {
@@ -484,17 +494,33 @@ func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 	if err := app.Run(context.Background(), []string{"plan", "sync", "workflow", "docs"}); err != nil {
 		t.Fatalf("plan failed: %v", err)
 	}
+	if err := os.WriteFile(filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews", "product.md"), []byte(strings.Join([]string{
+		"# Product Review",
+		"",
+		"- Status: clear",
+		"- Last Reviewed: 2026-03-29",
+		"- Reviewer: codex",
+		"- Command Skill: `$namba-plan-pm-review`",
+		"- Recommended Role: `namba-product-manager`",
+		"",
+		"## Findings",
+		"",
+		"- Scope is ready.",
+		"",
+	}, "\n")), 0o644); err != nil {
+		t.Fatalf("write product review: %v", err)
+	}
 	if err := app.Run(context.Background(), []string{"sync"}); err != nil {
 		t.Fatalf("sync failed: %v", err)
 	}
 
 	changeSummary := mustRead(t, filepath.Join(tmp, ".namba", "project", "change-summary.md"))
-	if !strings.Contains(changeSummary, "`namba update`") || !strings.Contains(changeSummary, "`namba pr`") || !strings.Contains(changeSummary, "`namba land`") || !strings.Contains(changeSummary, "`namba run SPEC-XXX --parallel`") || !strings.Contains(changeSummary, "`@codex review`") {
+	if !strings.Contains(changeSummary, "`namba update`") || !strings.Contains(changeSummary, "`namba pr`") || !strings.Contains(changeSummary, "`namba land`") || !strings.Contains(changeSummary, "`namba run SPEC-XXX --parallel`") || !strings.Contains(changeSummary, "`@codex review`") || !strings.Contains(changeSummary, "Latest readiness artifact") || !strings.Contains(changeSummary, "engineering=pending") {
 		t.Fatalf("expected synced change summary to describe update and parallel workflow, got: %s", changeSummary)
 	}
 
 	prChecklist := mustRead(t, filepath.Join(tmp, ".namba", "project", "pr-checklist.md"))
-	if !strings.Contains(prChecklist, "PR targets `main`") || !strings.Contains(prChecklist, "`@codex review` review request is present on GitHub") {
+	if !strings.Contains(prChecklist, "PR targets `main`") || !strings.Contains(prChecklist, "`@codex review` review request is present on GitHub") || !strings.Contains(prChecklist, "Latest SPEC review readiness checked") {
 		t.Fatalf("expected synced PR checklist to describe branch and review policy, got: %s", prChecklist)
 	}
 
@@ -509,7 +535,7 @@ func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 	}
 
 	readme := mustRead(t, filepath.Join(tmp, "README.md"))
-	if !strings.Contains(readme, "What You Can Do In This Repository") || !strings.Contains(readme, "namba pr") || !strings.Contains(readme, "Workflow Guide") {
+	if !strings.Contains(readme, "What You Can Do In This Repository") || !strings.Contains(readme, "namba pr") || !strings.Contains(readme, "Workflow Guide") || !strings.Contains(readme, "$namba-plan-pm-review") {
 		t.Fatalf("expected synced README bundle, got: %s", readme)
 	}
 
@@ -519,12 +545,12 @@ func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 	}
 
 	workflowGuide := mustRead(t, filepath.Join(tmp, "docs", "workflow-guide.md"))
-	if !strings.Contains(workflowGuide, "Collaboration rules") || !strings.Contains(workflowGuide, "namba land") || !strings.Contains(workflowGuide, "multi-subagent workflow") {
+	if !strings.Contains(workflowGuide, "Collaboration rules") || !strings.Contains(workflowGuide, "namba land") || !strings.Contains(workflowGuide, "multi-subagent workflow") || !strings.Contains(workflowGuide, "## Review readiness") {
 		t.Fatalf("expected workflow guide doc, got: %s", workflowGuide)
 	}
 
 	gettingStarted := mustRead(t, filepath.Join(tmp, "docs", "getting-started.md"))
-	if !strings.Contains(gettingStarted, "WSL workspace") {
+	if !strings.Contains(gettingStarted, "WSL workspace") || !strings.Contains(gettingStarted, "$namba-plan-pm-review") {
 		t.Fatalf("expected synced getting started doc to describe current Windows WSL guidance, got: %s", gettingStarted)
 	}
 

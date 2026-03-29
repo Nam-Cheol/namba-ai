@@ -67,6 +67,18 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(runSkill, "`--solo`, `--team`, `--parallel`, `--dry-run`") {
 		t.Fatalf("expected run skill to describe standalone run modes, got %q", runSkill)
 	}
+	pmReviewSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-plan-pm-review", "SKILL.md"))
+	if !strings.Contains(pmReviewSkill, "$namba-plan-pm-review") || !strings.Contains(pmReviewSkill, "reviews/product.md") || !strings.Contains(pmReviewSkill, "readiness.md") {
+		t.Fatalf("expected product review skill, got %q", pmReviewSkill)
+	}
+	engReviewSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-plan-eng-review", "SKILL.md"))
+	if !strings.Contains(engReviewSkill, "$namba-plan-eng-review") || !strings.Contains(engReviewSkill, "`namba-planner`") || !strings.Contains(engReviewSkill, "advisory") {
+		t.Fatalf("expected engineering review skill, got %q", engReviewSkill)
+	}
+	designReviewSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-plan-design-review", "SKILL.md"))
+	if !strings.Contains(designReviewSkill, "$namba-plan-design-review") || !strings.Contains(designReviewSkill, "`namba-designer`") || !strings.Contains(designReviewSkill, "readiness.md") {
+		t.Fatalf("expected design review skill, got %q", designReviewSkill)
+	}
 	prSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-pr", "SKILL.md"))
 	if !strings.Contains(prSkill, "$namba-pr") || !strings.Contains(prSkill, "namba pr") {
 		t.Fatalf("expected command-entry pr skill, got %q", prSkill)
@@ -97,12 +109,12 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(codexReadme, ".codex/agents/*.toml") || !strings.Contains(codexReadme, "`default`, `worker`, and `explorer`") {
 		t.Fatalf("expected codex README to describe built-in and custom agents, got %q", codexReadme)
 	}
-	for _, want := range []string{"## Namba Custom Agent Roster", "## Delegation Heuristics", "`namba-product-manager`", "`namba-mobile-engineer`", "`namba-designer`", "`namba-data-engineer`", "`namba-security-engineer`", "`namba-test-engineer`", "`namba-devops-engineer`"} {
+	for _, want := range []string{"## Namba Custom Agent Roster", "## Delegation Heuristics", "## Plan Review Readiness", "`namba-product-manager`", "`namba-mobile-engineer`", "`namba-designer`", "`namba-data-engineer`", "`namba-security-engineer`", "`namba-test-engineer`", "`namba-devops-engineer`"} {
 		if !strings.Contains(codexReadme, want) {
 			t.Fatalf("expected codex README to contain %q, got %q", want, codexReadme)
 		}
 	}
-	if !strings.Contains(codexReadme, "$namba-run") || strings.Contains(codexReadme, ".codex/skills/") {
+	if !strings.Contains(codexReadme, "$namba-run") || !strings.Contains(codexReadme, "$namba-plan-pm-review") || !strings.Contains(codexReadme, "reviews/readiness.md") || strings.Contains(codexReadme, ".codex/skills/") {
 		t.Fatalf("expected codex README to describe command-entry skills without codex skill mirror, got %q", codexReadme)
 	}
 	if !strings.Contains(codexReadme, "NAMBA-AI Work Report") || !strings.Contains(codexReadme, "validate-output-contract.py") || !strings.Contains(codexReadme, "selected language palette") {

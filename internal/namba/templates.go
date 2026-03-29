@@ -20,22 +20,23 @@ func renderAgents(profile initProfile) string {
 		"- Prefer direct Codex-native execution for `namba run SPEC-XXX`: read the SPEC package, implement the work in-session, run validation, and sync artifacts.\n"+
 		"- Use the installed `namba` CLI for `init`, `doctor`, `project`, `regen`, `update`, `plan`, `fix`, `pr`, `land`, and `sync` when it is available and the command should mutate repo state or maintain the installed CLI directly.\n"+
 		"- If the `namba` CLI is unavailable, perform the equivalent workflow manually with `.namba/` as the source of truth.\n"+
-		"- Use repo skills under `.agents/skills/` as the single skill surface. Command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, and `$namba-plan` replace provider-specific custom command wrappers.\n"+
+		"- Use repo skills under `.agents/skills/` as the single skill surface. Command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, and the plan-review skills under `.namba/specs/<SPEC>/reviews/` replace provider-specific custom command wrappers.\n"+
 		"- When delegating work with Codex multi-agent features, use built-in subagents such as `default`, `worker`, and `explorer`, plus project-scoped custom agents under `.codex/agents/*.toml`; keep `.md` role cards as readable mirrors.\n\n"+
 		"## Workflow\n\n"+
 		"1. Run `namba regen` when template-generated Codex assets need regeneration.\n"+
 		"2. Run `namba project` to refresh project docs and codemaps.\n"+
 		"3. Run `namba plan \"<description>\"` for feature work or `namba fix \"<description>\"` for bug fixes.\n"+
-		"4. Run `namba run SPEC-XXX` to execute the SPEC with Codex-native workflow.\n"+
-		"5. Run `namba sync` to refresh artifacts and PR-ready documents.\n"+
-		"6. Run `namba pr \"<title>\"` to prepare the GitHub review handoff.\n"+
-		"7. Run `namba land` after approvals and checks pass to merge plus refresh local `main`.\n\n"+
+		"4. Run the relevant plan-review skills and keep `.namba/specs/<SPEC>/reviews/readiness.md` current when the SPEC needs product, engineering, or design sign-off.\n"+
+		"5. Run `namba run SPEC-XXX` to execute the SPEC with Codex-native workflow.\n"+
+		"6. Run `namba sync` to refresh artifacts and PR-ready documents.\n"+
+		"7. Run `namba pr \"<title>\"` to prepare the GitHub review handoff.\n"+
+		"8. Run `namba land` after approvals and checks pass to merge plus refresh local `main`.\n\n"+
 		"## Collaboration Policy\n\n"+
 		"%s\n"+
 		"## Rules\n\n"+
 		"- Prefer `.namba/` as the source of truth.\n"+
 		"- Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md` before implementation.\n"+
-		"- Use `$namba` for general routing, or command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-project`, and `$namba-sync` when the user invokes one command directly.\n"+
+		"- Use `$namba` for general routing, or command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, `$namba-project`, and `$namba-sync` when the user invokes one command directly.\n"+
 		"%s"+
 		"- Keep the Namba report frame concise and high-signal. The response should feel like an engineering field report, not a rigid template dump.\n"+
 		"- Keep `.namba/codex/validate-output-contract.py` as the fallback validator for this contract unless Namba explicitly adopts a documented upstream hook surface.\n"+
@@ -66,11 +67,12 @@ func renderNambaSkill(profile initProfile) string {
 		"- `namba regen`: regenerate AGENTS, repo-local skills, command-entry skills, Codex custom agents, readable role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
 		"- `namba update [--version vX.Y.Z]`: self-update the installed `namba` binary from GitHub Release assets.",
 		"- `namba plan \"<description>\"`: create the next feature SPEC package under `.namba/specs/`.",
+		"- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: update product, engineering, or design review artifacts under `.namba/specs/<SPEC>/reviews/` and refresh advisory readiness.",
 		"- `namba fix \"<description>\"`: create the next bugfix SPEC package under `.namba/specs/`.",
 
 		"- `namba run SPEC-XXX`: execute the SPEC in the current Codex session. Read `spec.md`, `plan.md`, and `acceptance.md`, implement directly, validate, and sync artifacts.",
 		"- `namba run SPEC-XXX --solo|--team|--parallel`: use the standalone CLI runner when you need explicit single-subagent, multi-subagent, or worktree-parallel execution semantics.",
-		"- `namba sync`: refresh change summary, PR checklist, codemaps, and PR-ready docs after implementation.",
+		"- `namba sync`: refresh change summary, PR checklist, codemaps, advisory review readiness, and PR-ready docs after implementation.",
 		"- `namba pr \"<title>\"`: run sync plus validation by default, commit and push the current branch, create or reuse a PR, and ensure the Codex review marker exists.",
 		"- `namba land`: resolve the current branch PR, optionally wait for checks, merge when the PR is clean, and update local `main` safely.",
 		"- `namba doctor`: verify that AGENTS, repo skills, `.namba` config, Codex CLI, and the global `namba` command are available.",
@@ -78,12 +80,13 @@ func renderNambaSkill(profile initProfile) string {
 		"Execution rules:",
 		"1. Treat `.namba/` as the source of truth.",
 		"2. Prefer repo-local skills in `.agents/skills/`.",
-		"3. Prefer command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-project`, and `$namba-sync` when the user is invoking one Namba command directly.",
+		"3. Prefer command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, `$namba-project`, and `$namba-sync` when the user is invoking one Namba command directly.",
 		"4. Use the installed `namba` CLI for `project`, `regen`, `update`, `plan`, `fix`, `pr`, `land`, and `sync` when it will update repo state more reliably or self-update the installed CLI directly.",
-		"5. For `namba run` in an interactive Codex session, prefer Codex-native in-session execution over recursively calling `namba run`, unless the user explicitly asks for standalone `--solo`, `--team`, `--parallel`, or `--dry-run` behavior.",
-		"6. Run validation commands from `.namba/config/sections/quality.yaml` before finishing.",
-		"7. Start each new SPEC or task on a dedicated work branch when `.namba/config/sections/git-strategy.yaml` enables branch-per-work collaboration.",
-		fmt.Sprintf("8. Prepare PRs against `%s`, write the title/body in %s, and request GitHub Codex review with `%s` when the review flow is enabled.", prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
+		"5. Keep `.namba/specs/<SPEC>/reviews/*.md` and `readiness.md` current when you use the plan-review workflow; the readiness summary is advisory unless the user explicitly asks for a gate.",
+		"6. For `namba run` in an interactive Codex session, prefer Codex-native in-session execution over recursively calling `namba run`, unless the user explicitly asks for standalone `--solo`, `--team`, `--parallel`, or `--dry-run` behavior.",
+		"7. Run validation commands from `.namba/config/sections/quality.yaml` before finishing.",
+		"8. Start each new SPEC or task on a dedicated work branch when `.namba/config/sections/git-strategy.yaml` enables branch-per-work collaboration.",
+		fmt.Sprintf("9. Prepare PRs against `%s`, write the title/body in %s, and request GitHub Codex review with `%s` when the review flow is enabled.", prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
@@ -171,8 +174,58 @@ func renderPlanCommandSkill() string {
 			"Behavior:",
 			"- Prefer the installed `namba plan` CLI when available.",
 			"- Create the next sequential `SPEC-XXX` package under `.namba/specs/`.",
+			"- Seed `.namba/specs/<SPEC>/reviews/` with product, engineering, design, and aggregate readiness artifacts.",
+			"- Point follow-up review work to `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when the SPEC needs pre-implementation critique.",
 			"- Keep the scope concrete and implementation-ready.",
 		},
+	)
+}
+
+func renderPlanReviewCommandSkill(name, description, role, slug, title string) string {
+	return renderCommandSkill(
+		name,
+		description,
+		[]string{
+			fmt.Sprintf("Use this skill when the user explicitly says `$%s` or asks for a %s review on a SPEC package.", name, strings.ToLower(title)),
+			"",
+			"Behavior:",
+			"- Resolve the target SPEC from an explicit `SPEC-XXX`; otherwise use the latest SPEC under `.namba/specs/`.",
+			"- Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md` before writing review notes.",
+			fmt.Sprintf("- Update `.namba/specs/<SPEC>/reviews/%s.md` with status, reviewer, findings, decisions, follow-ups, and recommendation.", slug),
+			fmt.Sprintf("- Prefer `%s` as the review role when subagent routing is appropriate.", role),
+			"- Refresh `.namba/specs/<SPEC>/reviews/readiness.md` so the advisory summary reflects the latest review state.",
+			"- Keep the review advisory by default; surface missing depth or blockers clearly without silently turning the workflow into a hard gate.",
+		},
+	)
+}
+
+func renderPlanPMReviewCommandSkill() string {
+	return renderPlanReviewCommandSkill(
+		"namba-plan-pm-review",
+		"Command-style entry point for product review of a SPEC before implementation starts.",
+		"namba-product-manager",
+		"product",
+		"product",
+	)
+}
+
+func renderPlanEngReviewCommandSkill() string {
+	return renderPlanReviewCommandSkill(
+		"namba-plan-eng-review",
+		"Command-style entry point for engineering review of a SPEC before implementation starts.",
+		"namba-planner",
+		"engineering",
+		"engineering",
+	)
+}
+
+func renderPlanDesignReviewCommandSkill() string {
+	return renderPlanReviewCommandSkill(
+		"namba-plan-design-review",
+		"Command-style entry point for design review of a SPEC before implementation starts.",
+		"namba-designer",
+		"design",
+		"design",
 	)
 }
 
@@ -200,12 +253,14 @@ func renderRunCommandSkill(profile initProfile) string {
 			"",
 			"Behavior:",
 			"- Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md` before implementation.",
+			"- Read `.namba/specs/<SPEC>/reviews/readiness.md` when it exists so advisory review depth is visible before coding starts.",
 			"- In an interactive Codex session, prefer Codex-native in-session execution over recursively calling `namba run`.",
 			"- Only use the standalone CLI runner for `--solo`, `--team`, `--parallel`, `--dry-run`, or when the user explicitly wants the non-interactive runner path.",
 			"- For `--solo`, stay inside one runner unless one domain clearly dominates and a single specialist would materially reduce risk.",
 			"- For `--team`, prefer one specialist when one domain dominates, expand to two or three only when acceptance spans multiple domains, and keep one integrator plus final validation owner in the workspace.",
 			"- For `--team`, honor each selected role's `model` and `model_reasoning_effort` metadata from `.codex/agents/*.toml` so planner/reviewer/security roles can think harder without making every delivery role heavy.",
 			"- Route UI, responsive, mobile, and design work to frontend/mobile/designer roles; API, schema, and pipeline work to backend/data; auth, secrets, and compliance work to security; deployment and runtime work to devops.",
+			"- Treat review readiness as advisory by default: missing plan-review artifacts should be surfaced clearly, not silently block execution.",
 			"- Run validation commands from `.namba/config/sections/quality.yaml` and finish with `namba sync`. Use `namba pr` and `namba land` for the GitHub handoff and merge cycle instead of overloading `sync`.",
 			fmt.Sprintf("- Collaboration defaults: branch from `%s`, open the PR into `%s`, write the PR in %s, and request `%s` on GitHub after the PR is open.", branchBase(profile), prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
 		},
@@ -222,6 +277,7 @@ func renderPRCommandSkill(profile initProfile) string {
 			"Behavior:",
 			"- Use the configured PR base branch, PR language, and Codex review marker from `.namba/config/sections/git-strategy.yaml`.",
 			"- Run `namba sync` and validation by default before creating review artifacts.",
+			"- Include the latest SPEC review-readiness artifact in the PR summary/checklist when `.namba/specs/<SPEC>/reviews/readiness.md` exists.",
 			"- Commit and push the current work branch, create or reuse the GitHub PR, and ensure the Codex review marker exists without duplication.",
 			fmt.Sprintf("- Collaboration defaults: PRs target `%s`, PR content is written in %s, and `%s` is the review marker.", prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
 		},
@@ -251,7 +307,7 @@ func renderSyncCommandSkill() string {
 			"Use this skill when the user explicitly says `$namba-sync`, `namba sync`, or asks to refresh PR-ready Namba artifacts after changes.",
 			"",
 			"Behavior:",
-			"- Refresh `.namba/project/*` docs, release notes/checklists, codemaps, and any README bundles enabled by `.namba/config/sections/docs.yaml` after implementation.",
+			"- Refresh `.namba/project/*` docs, release notes/checklists, codemaps, advisory review readiness under `.namba/specs/<SPEC>/reviews/`, and any README bundles enabled by `.namba/config/sections/docs.yaml` after implementation.",
 			"- Keep PR creation and merge automation in `namba pr` and `namba land` so `sync` stays a local artifact refresh command.",
 			"- Use `namba regen` separately when template-generated scaffold assets changed.",
 			"- Run validation first when code changed and the quality config requires it.",
@@ -337,9 +393,10 @@ func renderExecutionSkill(profile initProfile) string {
 		"1. Read `.namba/specs/<SPEC>/spec.md`",
 		"2. Read `.namba/specs/<SPEC>/plan.md`",
 		"3. Read `.namba/specs/<SPEC>/acceptance.md`",
-		"4. Implement the work directly in the current Codex session",
-		"5. Run configured validation commands",
-		"6. Summarize results in `.namba/logs` and sync artifacts",
+		"4. Read `.namba/specs/<SPEC>/reviews/readiness.md` when present so advisory review status informs execution",
+		"5. Implement the work directly in the current Codex session",
+		"6. Run configured validation commands",
+		"7. Summarize results in `.namba/logs` and sync artifacts",
 		"",
 		fmt.Sprintf("Collaboration defaults: use a dedicated branch from `%s` for the SPEC, open the PR into `%s`, write the PR in %s, and request `%s` on GitHub after the PR is open.", branchBase(profile), prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
 		"",
@@ -357,7 +414,7 @@ func renderCodexUsage(profile initProfile) string {
 		"## What `namba init .` Enables",
 		"",
 		"- Creates `AGENTS.md` with Namba orchestration rules.",
-		"- Creates repo-local skills under `.agents/skills/`, including command-entry skills such as `namba-run`, `namba-pr`, `namba-land`, `namba-plan`, and `namba-sync`.",
+		"- Creates repo-local skills under `.agents/skills/`, including command-entry skills such as `namba-run`, `namba-pr`, `namba-land`, `namba-plan`, `namba-plan-pm-review`, `namba-plan-eng-review`, `namba-plan-design-review`, and `namba-sync`.",
 		"- Creates task-oriented Codex custom agents under `.codex/agents/*.toml` and readable `.md` role-card mirrors.",
 		"- Creates repo-local Codex config under `.codex/config.toml`, keeping a narrow repo-safe baseline such as `approval_policy`, `sandbox_mode`, and agent thread limits.",
 		"- Creates `.namba/codex/output-contract.md` plus `.namba/codex/validate-output-contract.py` for NambaAI response-shape guidance and fallback validation.",
@@ -368,13 +425,14 @@ func renderCodexUsage(profile initProfile) string {
 		"1. Open Codex in the initialized project directory.",
 		"   On Windows, the current official Codex docs recommend using a WSL workspace for the best CLI experience.",
 		"2. Codex loads `AGENTS.md` and repo skills.",
-		"3. Invoke `$namba` for routing or command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, and `$namba-sync` for direct command-style execution.",
+		"3. Invoke `$namba` for routing or command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, and `$namba-sync` for direct command-style execution.",
 		"4. Use built-in Codex subagents such as `default`, `worker`, and `explorer`, plus project-scoped custom agents under `.codex/agents/*.toml`, when multi-agent work is appropriate. The matching `.md` files remain readable mirrors.",
-		"5. Use `namba project`, `namba regen`, `namba update`, `namba plan`, `namba fix`, `namba run SPEC-XXX`, `namba sync`, `namba pr`, and `namba land` as workflow commands.",
+		"5. Use the plan-review skills to update `.namba/specs/<SPEC>/reviews/*.md` and keep `.namba/specs/<SPEC>/reviews/readiness.md` current when a SPEC needs product, engineering, or design critique before implementation.",
+		"6. Use `namba project`, `namba regen`, `namba update`, `namba plan`, `namba fix`, `namba run SPEC-XXX`, `namba sync`, `namba pr`, and `namba land` as workflow commands.",
 		"",
 		"## Namba Custom Agent Roster",
 		"",
-		"- Strategy: `namba-product-manager` shapes scope and acceptance, and `namba-planner` turns a SPEC into an execution plan.",
+		"- Strategy: `namba-product-manager` shapes scope and acceptance, `namba-planner` turns a SPEC into an execution plan, and both are the default review roles for the product and engineering plan-review passes.",
 		"- UI: `namba-frontend-architect` plans component boundaries and UI risks, `namba-frontend-implementer` ships approved UI work, `namba-mobile-engineer` handles mobile-specific constraints, and `namba-designer` clarifies visual direction and interaction intent.",
 		"- Backend and data: `namba-backend-architect` plans service boundaries, `namba-backend-implementer` ships server-side changes, and `namba-data-engineer` owns data pipelines, transformations, migrations, and analytics-facing changes.",
 		"- Security and delivery: `namba-security-engineer` handles hardening work, `namba-test-engineer` adds targeted regression coverage, `namba-devops-engineer` handles CI/CD and runtime changes, and `namba-reviewer` checks acceptance before sync.",
@@ -390,11 +448,17 @@ func renderCodexUsage(profile initProfile) string {
 		"- Route UI, responsive, mobile, and Figma work to frontend/mobile/designer; API, schema, and pipeline work to backend/data; auth, secrets, and compliance work to security; deployment and runtime work to devops.",
 		"- Keep the standalone runner as the integrator and final validation owner, and use `namba-reviewer` last when multiple specialists contribute.",
 		"",
+		"## Plan Review Readiness",
+		"",
+		"- `namba plan` and `namba fix` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.",
+		"- `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` update those review artifacts directly in the repository.",
+		"- `namba run`, `namba sync`, and `namba pr` surface the latest readiness summary as advisory context so review depth is visible without silently hard-blocking delivery.",
+		"",
 		"## Workflow Command Semantics",
 		"",
 		"- `namba regen` regenerates `AGENTS.md`, repo skills under `.agents/skills/`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
 		"- `namba update` self-updates the installed `namba` binary from GitHub Release assets. Use `--version vX.Y.Z` for a specific release.",
-		"- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, and codemaps.",
+		"- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, codemaps, and advisory review readiness summaries.",
 		"- `namba pr` prepares the current branch for GitHub review by syncing, validating, committing, pushing, opening or reusing the PR, and ensuring the Codex review marker is present.",
 		"- `namba land` waits for checks when requested, merges a clean PR, and updates local `main` safely.",
 		"- `namba release` requires a clean `main` branch and passing validators before it creates a tag. `--push` pushes both `main` and the new tag.",

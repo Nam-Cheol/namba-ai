@@ -1,0 +1,3 @@
+./goarch.go
+./goarch_386.go
+./zgoarch_386.go

@@ -1,0 +1,9 @@
+./aes.go
+./aes_generic.go
+./aes_noasm.go
+./cast.go
+./cbc.go
+./cbc_noasm.go
+./const.go
+./ctr.go
+./ctr_noasm.go

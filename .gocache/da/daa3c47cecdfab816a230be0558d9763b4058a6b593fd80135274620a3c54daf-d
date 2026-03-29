@@ -1,0 +1,3 @@
+./encoding_windows.go
+./main.go
+./encoding_test.go

@@ -1,0 +1,5 @@
+./doc.go
+./doc_32.go
+./type.go
+./value.go
+./asm.s

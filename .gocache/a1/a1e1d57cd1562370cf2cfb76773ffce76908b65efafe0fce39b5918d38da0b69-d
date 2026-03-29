@@ -1,0 +1,11 @@
+./bytealg.go
+./compare_native.go
+./count_generic.go
+./equal_generic.go
+./equal_native.go
+./index_generic.go
+./indexbyte_native.go
+./lastindexbyte_generic.go
+./compare_386.s
+./equal_386.s
+./indexbyte_386.s
