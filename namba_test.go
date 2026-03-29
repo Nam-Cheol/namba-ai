@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -51,6 +52,14 @@ func TestInitCreatesScaffold(t *testing.T) {
 	agents := mustRead(t, filepath.Join(tmp, "AGENTS.md"))
 	if !strings.Contains(agents, "NAMBA-AI Work Report") || !strings.Contains(agents, "🧭 Scope") || !strings.Contains(agents, "validate-output-contract.py") {
 		t.Fatalf("expected AGENTS to describe the Namba output contract, got: %s", agents)
+	}
+	if strings.Contains(agents, "Until Codex exposes a documented stop-hook surface") {
+		t.Fatalf("expected AGENTS to avoid stale stop-hook wording, got: %s", agents)
+	}
+
+	gettingStarted := mustRead(t, filepath.Join(tmp, "docs", "getting-started.md"))
+	if !strings.Contains(gettingStarted, "WSL workspace") {
+		t.Fatalf("expected getting started guide to describe current Windows WSL guidance, got: %s", gettingStarted)
 	}
 
 	plannerAgent := mustRead(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.toml"))
@@ -131,7 +140,7 @@ func TestInitSupportsCodexProfileFlags(t *testing.T) {
 	}
 
 	codexConfig := mustRead(t, filepath.Join(tmp, ".codex", "config.toml"))
-	if !strings.Contains(codexConfig, "max_threads = 3") || !strings.Contains(codexConfig, `approval_policy = "never"`) || !strings.Contains(codexConfig, `sandbox_mode = "read-only"`) {
+	if !strings.Contains(codexConfig, "#:schema https://developers.openai.com/codex/config-schema.json") || !strings.Contains(codexConfig, "repo-safe Codex defaults under version control") || !strings.Contains(codexConfig, "max_threads = 3") || !strings.Contains(codexConfig, `approval_policy = "never"`) || !strings.Contains(codexConfig, `sandbox_mode = "read-only"`) {
 		t.Fatalf("unexpected codex repo config: %s", codexConfig)
 	}
 	if strings.Contains(codexConfig, "status_line") {
@@ -146,6 +155,18 @@ func TestInitSupportsCodexProfileFlags(t *testing.T) {
 	docsCfg := mustRead(t, filepath.Join(tmp, ".namba", "config", "sections", "docs.yaml"))
 	if !strings.Contains(docsCfg, "manage_readme: true") || !strings.Contains(docsCfg, "readme_profile: managed-project") {
 		t.Fatalf("unexpected docs config: %s", docsCfg)
+	}
+}
+
+func TestRepoCodexUpstreamReferenceUsesLiveDocs(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+
+	upstreamReference := mustRead(t, filepath.Join(filepath.Dir(file), "docs", "codex-upstream-reference.md"))
+	if !strings.Contains(upstreamReference, "https://developers.openai.com/codex/") || !strings.Contains(upstreamReference, "https://github.com/openai/codex") || !strings.Contains(upstreamReference, "supplemental implementation reference") {
+		t.Fatalf("expected codex upstream reference doc to use live docs as the primary baseline, got: %s", upstreamReference)
 	}
 }
 
@@ -498,9 +519,15 @@ func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 	}
 
 	workflowGuide := mustRead(t, filepath.Join(tmp, "docs", "workflow-guide.md"))
-	if !strings.Contains(workflowGuide, "Collaboration rules") || !strings.Contains(workflowGuide, "namba land") {
+	if !strings.Contains(workflowGuide, "Collaboration rules") || !strings.Contains(workflowGuide, "namba land") || !strings.Contains(workflowGuide, "multi-subagent workflow") {
 		t.Fatalf("expected workflow guide doc, got: %s", workflowGuide)
 	}
+
+	gettingStarted := mustRead(t, filepath.Join(tmp, "docs", "getting-started.md"))
+	if !strings.Contains(gettingStarted, "WSL workspace") {
+		t.Fatalf("expected synced getting started doc to describe current Windows WSL guidance, got: %s", gettingStarted)
+	}
+
 }
 
 func TestSyncRespectsExplicitEmptyReadmeLanguages(t *testing.T) {

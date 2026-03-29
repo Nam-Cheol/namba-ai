@@ -1471,7 +1471,7 @@ func shouldSkipStructureEntry(rel string) bool {
 }
 
 func buildTechDoc(cfg projectConfig) string {
-	return fmt.Sprintf("# Tech\n\n- Language: %s\n- Framework: %s\n- Runtime adapter: Codex\n- Repo-local skills and command-entry skills: .agents/skills\n- Built-in Codex subagents: default, worker, explorer\n- Project-scoped custom agents: .codex/agents/*.toml\n- Readable agent mirrors: .codex/agents/*.md\n- State directory: .namba\n", cfg.Language, cfg.Framework)
+	return fmt.Sprintf("# Tech\n\n- Language: %s\n- Framework: %s\n- Runtime adapter: Codex\n- Repo-local skills and command-entry skills: .agents/skills\n- Repo-local Codex config: .codex/config.toml\n- Built-in Codex subagents: default, worker, explorer\n- Project-scoped custom agents: .codex/agents/*.toml\n- Readable agent mirrors: .codex/agents/*.md\n- State directory: .namba\n", cfg.Language, cfg.Framework)
 }
 
 type jsImportInfo struct {
