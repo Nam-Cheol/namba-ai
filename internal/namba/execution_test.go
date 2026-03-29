@@ -31,7 +31,7 @@ func TestRunWritesStructuredLogs(t *testing.T) {
 			if dir != tmp {
 				t.Fatalf("expected codex workdir %s, got %s", tmp, dir)
 			}
-			mustContainArgs(t, args, []string{"-a", "on-request", "-s", "workspace-write"})
+			mustContainArgs(t, args, []string{"-c", `approval_policy="on-request"`, "-s", "workspace-write"})
 			return "runner output", nil
 		case isShellCommand(name):
 			return "validation ok", nil
@@ -90,14 +90,15 @@ func TestRunWritesStructuredLogs(t *testing.T) {
 	}
 }
 
-func TestBuildCodexExecArgsPlacesGlobalFlagsAfterExec(t *testing.T) {
+func TestBuildCodexExecArgsSupportsFallbacksAndResumeSurface(t *testing.T) {
 	tests := []struct {
 		name string
 		req  executionRequest
+		caps codexCapabilityMatrix
 		want []string
 	}{
 		{
-			name: "default exec",
+			name: "exec falls back to config overrides",
 			req: executionRequest{
 				ApprovalPolicy: "on-request",
 				SandboxMode:    "workspace-write",
@@ -108,24 +109,53 @@ func TestBuildCodexExecArgsPlacesGlobalFlagsAfterExec(t *testing.T) {
 				SessionMode:    "stateful",
 				Prompt:         "ship it",
 			},
-			want: []string{"exec", "-a", "on-request", "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "--search", "--add-dir", "extra", "ship it"},
+			caps: codexCapabilityMatrix{
+				Exec: codexCommandCapabilities{Config: true, SandboxFlag: true, ModelFlag: true, ProfileFlag: true, AddDirFlag: true},
+			},
+			want: []string{"exec", "-c", `approval_policy="on-request"`, "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "-c", `web_search="live"`, "--add-dir", "extra", "ship it"},
 		},
 		{
-			name: "resume stays under exec",
+			name: "resume uses resume-specific config fallbacks",
 			req: executionRequest{
 				ApprovalPolicy: "never",
-				SandboxMode:    "read-only",
+				SandboxMode:    "workspace-write",
+				Model:          "gpt-5.4",
+				WebSearch:      true,
+				AddDirs:        []string{`C:\extra`},
 				SessionMode:    "stateful",
 				ResumeSession:  true,
 				Prompt:         "continue",
 			},
-			want: []string{"exec", "-a", "never", "-s", "read-only", "resume", "--last", "continue"},
+			caps: codexCapabilityMatrix{
+				Resume: codexCommandCapabilities{Config: true, ModelFlag: true},
+			},
+			want: []string{"exec", "resume", "--last", "-c", `approval_policy="never"`, "-c", `sandbox_mode="workspace-write"`, "-m", "gpt-5.4", "-c", `web_search="live"`, "-c", `sandbox_workspace_write.writable_roots=["C:\\extra"]`, "continue"},
+		},
+		{
+			name: "resume rejects unsupported profile",
+			req: executionRequest{
+				ApprovalPolicy: "never",
+				SandboxMode:    "workspace-write",
+				Profile:        "namba",
+				SessionMode:    "stateful",
+				ResumeSession:  true,
+				Prompt:         "continue",
+			},
+			caps: codexCapabilityMatrix{
+				Resume: codexCommandCapabilities{Config: true, ModelFlag: true},
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			args, err := buildCodexExecArgs(tt.req)
+			args, err := buildCodexExecArgs(tt.req, tt.caps)
+			if strings.Contains(tt.name, "rejects") {
+				if err == nil || !strings.Contains(err.Error(), "profile overrides require direct --profile support") {
+					t.Fatalf("expected profile support error, got %v", err)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("buildCodexExecArgs failed: %v", err)
 			}
@@ -346,7 +376,7 @@ func TestRunUsesConfiguredApprovalAndSandbox(t *testing.T) {
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 		switch {
 		case isCodexExec(name, args):
-			mustContainArgs(t, args, []string{"-a", "never", "-s", "read-only"})
+			mustContainArgs(t, args, []string{"-c", `approval_policy="never"`, "-s", "read-only"})
 			return "runner output", nil
 		case isShellCommand(name):
 			return "validation ok", nil
@@ -464,7 +494,7 @@ func TestRunWritesExecutionLogOnRunnerFailure(t *testing.T) {
 	}
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 		if isCodexExec(name, args) {
-			mustContainArgs(t, args, []string{"-a", "on-request", "-s", "workspace-write"})
+			mustContainArgs(t, args, []string{"-c", `approval_policy="on-request"`, "-s", "workspace-write"})
 			return "partial output", errors.New("runner failed")
 		}
 		if isShellCommand(name) {
@@ -508,7 +538,12 @@ func TestRunWritesValidationReportOnValidationFailure(t *testing.T) {
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 		switch {
 		case isCodexExec(name, args):
-			mustContainArgs(t, args, []string{"-a", "on-request", "-s", "workspace-write"})
+			mustContainArgs(t, args, []string{"-c", `approval_policy="on-request"`})
+			if indexOfArg(args, "resume") != -1 {
+				mustContainArgs(t, args, []string{"-c", `sandbox_mode="workspace-write"`})
+			} else {
+				mustContainArgs(t, args, []string{"-s", "workspace-write"})
+			}
 			return "runner output", nil
 		case isShellCommand(name):
 			command := args[len(args)-1]
@@ -565,10 +600,44 @@ func TestRunFailsPreflightForMissingAddDir(t *testing.T) {
 	}
 }
 
+func TestRunFailsPreflightForUnsupportedResumeProfile(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"), "agent_mode: multi\nstatus_line_preset: namba\nrepo_skills_path: .agents/skills\nrepo_agents_path: .codex/agents\nprofile: namba\nsession_mode: stateful\nrepair_attempts: 1\n")
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if isCodexExec(name, args) {
+			t.Fatal("codex should not execute when resume profile is unsupported")
+		}
+		if isShellCommand(name) {
+			t.Fatal("validators should not run when preflight fails")
+		}
+		return "", nil
+	}
+
+	err := app.Run(context.Background(), []string{"run", "SPEC-001", "--team"})
+	if err == nil {
+		t.Fatal("expected unsupported profile preflight failure")
+	}
+	if !strings.Contains(err.Error(), "profile overrides require direct --profile support") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func prepareExecutionProject(t *testing.T) (string, *App, func()) {
 	t.Helper()
 	tmp := t.TempDir()
 	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.detectCodexCapabilities = func(context.Context, string) (codexCapabilityMatrix, error) {
+		return testCodexCapabilities(), nil
+	}
 	if err := app.Run(context.Background(), []string{"init", tmp}); err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -616,11 +685,27 @@ func isShellCommand(name string) bool {
 	return name == "powershell" || name == "sh"
 }
 
+func testCodexCapabilities() codexCapabilityMatrix {
+	return codexCapabilityMatrix{
+		Version: "codex-cli test",
+		Exec: codexCommandCapabilities{
+			Config:      true,
+			SandboxFlag: true,
+			ModelFlag:   true,
+			ProfileFlag: true,
+			AddDirFlag:  true,
+		},
+		Resume: codexCommandCapabilities{
+			Config:    true,
+			ModelFlag: true,
+		},
+	}
+}
+
 func mustContainArgs(t *testing.T, args []string, expected []string) {
 	t.Helper()
 	for i := 0; i < len(expected); i += 2 {
-		index := indexOfArg(args, expected[i])
-		if index == -1 || index+1 >= len(args) || args[index+1] != expected[i+1] {
+		if !containsArgPair(args, expected[i], expected[i+1]) {
 			t.Fatalf("expected args to contain %s %s, got %v", expected[i], expected[i+1], args)
 		}
 	}
@@ -633,6 +718,15 @@ func indexOfArg(args []string, needle string) int {
 		}
 	}
 	return -1
+}
+
+func containsArgPair(args []string, key, value string) bool {
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == key && args[i+1] == value {
+			return true
+		}
+	}
+	return false
 }
 
 func mustReadExecutionRequest(t *testing.T, path string) executionRequest {

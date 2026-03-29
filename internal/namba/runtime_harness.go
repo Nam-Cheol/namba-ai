@@ -188,12 +188,13 @@ func resolveRuntimeAddDirs(base string, dirs []string) ([]string, error) {
 	return resolved, nil
 }
 
-func (a *App) runPreflight(_ context.Context, req executionRequest) (preflightReport, error) {
+func (a *App) runPreflight(ctx context.Context, req executionRequest) (preflightReport, codexCapabilityMatrix, error) {
 	report := preflightReport{
 		SpecID:    req.SpecID,
 		Passed:    true,
 		StartedAt: a.now().Format(time.RFC3339),
 	}
+	var capabilities codexCapabilityMatrix
 
 	addStep := func(step preflightStep) {
 		if !step.Passed {
@@ -215,6 +216,19 @@ func (a *App) runPreflight(_ context.Context, req executionRequest) (preflightRe
 		addStep(preflightStep{Name: "codex", Error: err.Error()})
 	} else {
 		addStep(preflightStep{Name: "codex", Passed: true, Detail: "codex available"})
+		detected, err := a.codexCapabilities(ctx, workDir)
+		if err != nil {
+			addStep(preflightStep{Name: "codex_cli_capabilities", Error: err.Error()})
+		} else {
+			capabilities = detected
+			addStep(preflightStep{Name: "codex_cli_capabilities", Passed: true, Detail: firstNonBlank(capabilities.Version, "capabilities detected")})
+			detail, contractErr := validateCodexExecutionContract(req, capabilities)
+			if contractErr != nil {
+				addStep(preflightStep{Name: "codex_cli_contract", Error: contractErr.Error()})
+			} else {
+				addStep(preflightStep{Name: "codex_cli_contract", Passed: true, Detail: detail})
+			}
+		}
 	}
 
 	if normalizeExecutionMode(req.Mode) == executionModeParallel || isGitRepository(workDir) {
@@ -257,13 +271,13 @@ func (a *App) runPreflight(_ context.Context, req executionRequest) (preflightRe
 	if !report.Passed {
 		for _, step := range report.Steps {
 			if step.Error != "" {
-				return report, fmt.Errorf("preflight failed at %s: %s", step.Name, step.Error)
+				return report, capabilities, fmt.Errorf("preflight failed at %s: %s", step.Name, step.Error)
 			}
 		}
-		return report, fmt.Errorf("preflight failed")
+		return report, capabilities, fmt.Errorf("preflight failed")
 	}
 
-	return report, nil
+	return report, capabilities, nil
 }
 
 func isInstructionSurfacePath(rel string) bool {

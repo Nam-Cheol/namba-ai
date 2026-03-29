@@ -122,7 +122,7 @@ type validationStep struct {
 }
 
 type runner interface {
-	Execute(context.Context, executionRequest) (executionTurnResult, error)
+	Execute(context.Context, executionRequest, codexCapabilityMatrix) (executionTurnResult, error)
 }
 
 type codexRunner struct {
@@ -131,7 +131,7 @@ type codexRunner struct {
 	now       func() time.Time
 }
 
-func (r codexRunner) Execute(ctx context.Context, req executionRequest) (executionTurnResult, error) {
+func (r codexRunner) Execute(ctx context.Context, req executionRequest, capabilities codexCapabilityMatrix) (executionTurnResult, error) {
 	result := executionTurnResult{
 		Name:            firstNonBlank(req.TurnName, "implement"),
 		Role:            strings.TrimSpace(req.TurnRole),
@@ -149,7 +149,7 @@ func (r codexRunner) Execute(ctx context.Context, req executionRequest) (executi
 		result.SessionAction = "exec"
 	}
 
-	args, err := buildCodexExecArgs(req)
+	args, err := buildCodexExecArgs(req, capabilities)
 	if err != nil {
 		result.FinishedAt = r.now().Format(time.RFC3339)
 		result.Error = err.Error()
@@ -174,48 +174,12 @@ func (r codexRunner) Execute(ctx context.Context, req executionRequest) (executi
 	return result, nil
 }
 
-func buildCodexExecArgs(req executionRequest) ([]string, error) {
-	approval := normalizeApprovalPolicy(req.ApprovalPolicy)
-	if !isAllowedApprovalPolicy(approval) {
-		return nil, fmt.Errorf("approval_policy %q is not supported", req.ApprovalPolicy)
+func buildCodexExecArgs(req executionRequest, capabilities codexCapabilityMatrix) ([]string, error) {
+	invocation, err := resolveCodexInvocation(req, capabilities)
+	if err != nil {
+		return nil, err
 	}
-
-	sandbox := normalizeSandboxMode(req.SandboxMode)
-	if !isAllowedSandboxMode(sandbox) {
-		return nil, fmt.Errorf("sandbox_mode %q is not supported", req.SandboxMode)
-	}
-
-	sessionMode := normalizeSessionMode(req.SessionMode)
-	if sessionMode == "" {
-		sessionMode = "stateful"
-	}
-	if req.ResumeSession && !codexSessionStateful(sessionMode) {
-		return nil, fmt.Errorf("session_mode %q does not support resume", sessionMode)
-	}
-
-	args := []string{"exec", "-a", approval, "-s", sandbox}
-	if model := strings.TrimSpace(req.Model); model != "" {
-		args = append(args, "-m", model)
-	}
-	if profile := strings.TrimSpace(req.Profile); profile != "" {
-		args = append(args, "-p", profile)
-	}
-	if req.WebSearch {
-		args = append(args, "--search")
-	}
-	for _, dir := range req.AddDirs {
-		if trimmed := strings.TrimSpace(dir); trimmed != "" {
-			args = append(args, "--add-dir", trimmed)
-		}
-	}
-
-	if req.ResumeSession {
-		args = append(args, "resume", "--last")
-	} else if !codexSessionStateful(sessionMode) {
-		args = append(args, "--ephemeral")
-	}
-	args = append(args, req.Prompt)
-	return args, nil
+	return invocation.Args, nil
 }
 
 func (a *App) loadSystemConfig(root string) (systemConfig, error) {
@@ -299,7 +263,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		result.SessionMode = "stateful"
 	}
 
-	preflight, preflightErr := a.runPreflight(ctx, req)
+	preflight, capabilities, preflightErr := a.runPreflight(ctx, req)
 	if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-preflight.json"), preflight); err != nil {
 		return result, validationReport{}, err
 	}
@@ -322,7 +286,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	}
 
 	for _, turnReq := range turnRequests {
-		turnResult, err := selectedRunner.Execute(ctx, turnReq)
+		turnResult, err := selectedRunner.Execute(ctx, turnReq, capabilities)
 		result.Turns = append(result.Turns, turnResult)
 		if turnReq.ResumeSession {
 			result.SessionContinuity = teamContinuationMode
@@ -382,7 +346,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		repairReq.Prompt = buildRepairPrompt(req, finalReport, attempt, !repairReq.ResumeSession)
 		repairReq.RequestedReasoningEffort = ""
 
-		repairResult, repairErr := selectedRunner.Execute(ctx, repairReq)
+		repairResult, repairErr := selectedRunner.Execute(ctx, repairReq, capabilities)
 		result.Turns = append(result.Turns, repairResult)
 		result.RetryCount++
 		if repairReq.ResumeSession {
