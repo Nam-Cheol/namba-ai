@@ -140,7 +140,7 @@ func newParallelTestApp(t *testing.T, responder func(name string, args []string,
 			return "", errors.New("missing dependency")
 		}
 	}
-	app.detectCodexCapabilities = func(context.Context, string) (codexCapabilityMatrix, error) {
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
 		return testCodexCapabilities(), nil
 	}
 

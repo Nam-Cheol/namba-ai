@@ -216,7 +216,7 @@ func (a *App) runPreflight(ctx context.Context, req executionRequest) (preflight
 		addStep(preflightStep{Name: "codex", Error: err.Error()})
 	} else {
 		addStep(preflightStep{Name: "codex", Passed: true, Detail: "codex available"})
-		detected, err := a.codexCapabilities(ctx, workDir)
+		detected, err := a.codexCapabilities(ctx, workDir, req)
 		if err != nil {
 			addStep(preflightStep{Name: "codex_cli_capabilities", Error: err.Error()})
 		} else {

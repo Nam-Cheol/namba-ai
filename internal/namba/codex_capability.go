@@ -30,14 +30,14 @@ type resolvedCodexInvocation struct {
 	ConfigOverrides []string
 }
 
-func (a *App) codexCapabilities(ctx context.Context, dir string) (codexCapabilityMatrix, error) {
+func (a *App) codexCapabilities(ctx context.Context, dir string, req executionRequest) (codexCapabilityMatrix, error) {
 	if a.detectCodexCapabilities != nil {
-		return a.detectCodexCapabilities(ctx, dir)
+		return a.detectCodexCapabilities(ctx, dir, req)
 	}
-	return a.probeCodexCapabilities(ctx, dir)
+	return a.probeCodexCapabilities(ctx, dir, req)
 }
 
-func (a *App) probeCodexCapabilities(ctx context.Context, dir string) (codexCapabilityMatrix, error) {
+func (a *App) probeCodexCapabilities(ctx context.Context, dir string, req executionRequest) (codexCapabilityMatrix, error) {
 	if _, err := a.lookPath("codex"); err != nil {
 		return codexCapabilityMatrix{}, err
 	}
@@ -50,16 +50,20 @@ func (a *App) probeCodexCapabilities(ctx context.Context, dir string) (codexCapa
 	if err != nil {
 		return codexCapabilityMatrix{}, fmt.Errorf("codex exec --help: %w", err)
 	}
+	matrix := codexCapabilityMatrix{
+		Version: strings.TrimSpace(version),
+		Exec:    parseCodexCommandCapabilities(execHelp),
+	}
+	if !plannedInvocationsNeedResume(plannedCodexRequests(req)) {
+		return matrix, nil
+	}
+
 	resumeHelp, err := a.runBinary(ctx, "codex", []string{"exec", "resume", "--help"}, dir)
 	if err != nil {
 		return codexCapabilityMatrix{}, fmt.Errorf("codex exec resume --help: %w", err)
 	}
-
-	return codexCapabilityMatrix{
-		Version: strings.TrimSpace(version),
-		Exec:    parseCodexCommandCapabilities(execHelp),
-		Resume:  parseCodexCommandCapabilities(resumeHelp),
-	}, nil
+	matrix.Resume = parseCodexCommandCapabilities(resumeHelp)
+	return matrix, nil
 }
 
 func parseCodexCommandCapabilities(help string) codexCommandCapabilities {
@@ -76,6 +80,15 @@ func parseCodexCommandCapabilities(help string) codexCommandCapabilities {
 
 func commandHelpContains(help, needle string) bool {
 	return strings.Contains(help, needle)
+}
+
+func plannedInvocationsNeedResume(planned []executionRequest) bool {
+	for _, req := range planned {
+		if req.ResumeSession {
+			return true
+		}
+	}
+	return false
 }
 
 func validateCodexExecutionContract(req executionRequest, capabilities codexCapabilityMatrix) (string, error) {
@@ -152,15 +165,15 @@ func resolveCodexInvocation(req executionRequest, capabilities codexCapabilityMa
 		CommandShape: "codex exec",
 		Args:         []string{"exec"},
 	}
-	surface := capabilities.Exec
-	if req.ResumeSession {
-		invocation.CommandShape = "codex exec resume"
-		invocation.Args = []string{"exec", "resume", "--last"}
-		surface = capabilities.Resume
+	if !req.ResumeSession {
+		return resolveSingleExecInvocation(invocation, req, capabilities.Exec, sandbox, sessionMode)
 	}
+	return resolveResumeInvocation(invocation, req, capabilities, sandbox)
+}
 
+func resolveSingleExecInvocation(invocation resolvedCodexInvocation, req executionRequest, surface codexCommandCapabilities, sandbox, sessionMode string) (resolvedCodexInvocation, error) {
 	var err error
-	invocation.Args, err = appendDirectFlagOrConfigOverride(invocation.Args, surface, surface.ApprovalFlag, "approval_policy", "-a", approval)
+	invocation.Args, err = appendDirectFlagOrConfigOverride(invocation.Args, surface, surface.ApprovalFlag, "approval_policy", "-a", normalizeApprovalPolicy(req.ApprovalPolicy))
 	if err != nil {
 		return resolvedCodexInvocation{}, fmt.Errorf("%s: %w", invocation.CommandShape, err)
 	}
@@ -232,6 +245,145 @@ func resolveCodexInvocation(req executionRequest, capabilities codexCapabilityMa
 	}
 	invocation.Args = append(invocation.Args, req.Prompt)
 	return invocation, nil
+}
+
+func resolveResumeInvocation(invocation resolvedCodexInvocation, req executionRequest, capabilities codexCapabilityMatrix, sandbox string) (resolvedCodexInvocation, error) {
+	invocation.CommandShape = "codex exec resume"
+	prefix := append([]string{}, invocation.Args...)
+	suffix := []string{"resume", "--last"}
+	approval := normalizeApprovalPolicy(req.ApprovalPolicy)
+
+	var err error
+	prefix, suffix, err = appendResumeDirectOrConfig(prefix, suffix, capabilities, "approval_policy", "-a", approval)
+	if err != nil {
+		return resolvedCodexInvocation{}, fmt.Errorf("%s: %w", invocation.CommandShape, err)
+	}
+	if capabilities.Exec.ApprovalFlag || capabilities.Resume.ApprovalFlag {
+		invocation.DirectFlags = append(invocation.DirectFlags, "approval_policy")
+	} else {
+		invocation.ConfigOverrides = append(invocation.ConfigOverrides, "approval_policy")
+	}
+
+	prefix, suffix, err = appendResumeDirectOrConfig(prefix, suffix, capabilities, "sandbox_mode", "-s", sandbox)
+	if err != nil {
+		return resolvedCodexInvocation{}, fmt.Errorf("%s: %w", invocation.CommandShape, err)
+	}
+	if capabilities.Exec.SandboxFlag || capabilities.Resume.SandboxFlag {
+		invocation.DirectFlags = append(invocation.DirectFlags, "sandbox_mode")
+	} else {
+		invocation.ConfigOverrides = append(invocation.ConfigOverrides, "sandbox_mode")
+	}
+
+	if model := strings.TrimSpace(req.Model); model != "" {
+		prefix, suffix, err = appendResumeDirectOrConfig(prefix, suffix, capabilities, "model", "-m", model)
+		if err != nil {
+			return resolvedCodexInvocation{}, fmt.Errorf("%s: %w", invocation.CommandShape, err)
+		}
+		if capabilities.Exec.ModelFlag || capabilities.Resume.ModelFlag {
+			invocation.DirectFlags = append(invocation.DirectFlags, "model")
+		} else {
+			invocation.ConfigOverrides = append(invocation.ConfigOverrides, "model")
+		}
+	}
+
+	if profile := strings.TrimSpace(req.Profile); profile != "" {
+		if capabilities.Exec.ProfileFlag {
+			prefix = append(prefix, "-p", profile)
+		} else if capabilities.Resume.ProfileFlag {
+			suffix = append(suffix, "-p", profile)
+		} else {
+			return resolvedCodexInvocation{}, fmt.Errorf("%s: profile overrides require direct --profile support", invocation.CommandShape)
+		}
+		invocation.DirectFlags = append(invocation.DirectFlags, "profile")
+	}
+
+	if req.WebSearch {
+		switch {
+		case capabilities.Exec.WebSearch:
+			prefix = append(prefix, "--search")
+			invocation.DirectFlags = append(invocation.DirectFlags, "web_search")
+		case capabilities.Resume.WebSearch:
+			suffix = append(suffix, "--search")
+			invocation.DirectFlags = append(invocation.DirectFlags, "web_search")
+		case capabilities.Resume.Config:
+			suffix = appendConfigOverride(suffix, "web_search", tomlString("live"))
+			invocation.ConfigOverrides = append(invocation.ConfigOverrides, "web_search")
+		case capabilities.Exec.Config:
+			prefix = appendConfigOverride(prefix, "web_search", tomlString("live"))
+			invocation.ConfigOverrides = append(invocation.ConfigOverrides, "web_search")
+		default:
+			return resolvedCodexInvocation{}, fmt.Errorf("%s: web_search cannot be represented by the installed Codex CLI", invocation.CommandShape)
+		}
+	}
+
+	addDirs := nonEmptyArgs(req.AddDirs)
+	if len(addDirs) > 0 {
+		switch {
+		case capabilities.Exec.AddDirFlag:
+			for _, dir := range addDirs {
+				prefix = append(prefix, "--add-dir", dir)
+			}
+			invocation.DirectFlags = append(invocation.DirectFlags, "add_dirs")
+		case capabilities.Resume.AddDirFlag:
+			for _, dir := range addDirs {
+				suffix = append(suffix, "--add-dir", dir)
+			}
+			invocation.DirectFlags = append(invocation.DirectFlags, "add_dirs")
+		case capabilities.Resume.Config:
+			suffix = appendConfigOverride(suffix, "sandbox_workspace_write.writable_roots", tomlStringArray(addDirs))
+			invocation.ConfigOverrides = append(invocation.ConfigOverrides, "sandbox_workspace_write.writable_roots")
+		case capabilities.Exec.Config:
+			prefix = appendConfigOverride(prefix, "sandbox_workspace_write.writable_roots", tomlStringArray(addDirs))
+			invocation.ConfigOverrides = append(invocation.ConfigOverrides, "sandbox_workspace_write.writable_roots")
+		default:
+			return resolvedCodexInvocation{}, fmt.Errorf("%s: add_dirs cannot be represented by the installed Codex CLI", invocation.CommandShape)
+		}
+	}
+
+	invocation.Args = append(prefix, suffix...)
+	invocation.Args = append(invocation.Args, req.Prompt)
+	return invocation, nil
+}
+
+func appendResumeDirectOrConfig(prefix, suffix []string, capabilities codexCapabilityMatrix, key, flag, value string) ([]string, []string, error) {
+	switch {
+	case resumeControlExecSupport(capabilities.Exec, key):
+		return append(prefix, flag, value), suffix, nil
+	case resumeControlResumeSupport(capabilities.Resume, key):
+		return prefix, append(suffix, flag, value), nil
+	case capabilities.Resume.Config:
+		return prefix, appendConfigOverride(suffix, key, tomlString(value)), nil
+	case capabilities.Exec.Config:
+		return appendConfigOverride(prefix, key, tomlString(value)), suffix, nil
+	default:
+		return nil, nil, fmt.Errorf("%s cannot be represented by the installed Codex CLI", key)
+	}
+}
+
+func resumeControlExecSupport(surface codexCommandCapabilities, key string) bool {
+	switch key {
+	case "approval_policy":
+		return surface.ApprovalFlag
+	case "sandbox_mode":
+		return surface.SandboxFlag
+	case "model":
+		return surface.ModelFlag
+	default:
+		return false
+	}
+}
+
+func resumeControlResumeSupport(surface codexCommandCapabilities, key string) bool {
+	switch key {
+	case "approval_policy":
+		return surface.ApprovalFlag
+	case "sandbox_mode":
+		return surface.SandboxFlag
+	case "model":
+		return surface.ModelFlag
+	default:
+		return false
+	}
 }
 
 func appendDirectFlagOrConfigOverride(args []string, surface codexCommandCapabilities, directSupported bool, key, flag, value string) ([]string, error) {
