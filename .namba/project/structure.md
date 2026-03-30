@@ -158,6 +158,7 @@ internal/namba/self_update_command_test.go
 internal/namba/spec_command_test.go
 internal/namba/spec_review.go
 internal/namba/templates.go
+internal/namba/test_helpers_test.go
 internal/namba/update_command.go
 internal/namba/update_command_test.go
 internal/namba/version.go
