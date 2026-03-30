@@ -53,7 +53,7 @@ func TestInitCreatesScaffold(t *testing.T) {
 	mustExist(t, filepath.Join(tmp, "docs", "workflow-guide.md"))
 
 	agents := mustRead(t, filepath.Join(tmp, "AGENTS.md"))
-	if !strings.Contains(agents, "NAMBA-AI Work Report") || !strings.Contains(agents, "🧭 Scope") || !strings.Contains(agents, "validate-output-contract.py") {
+	if !strings.Contains(agents, "NAMBA-AI 작업 결과 보고") || !strings.Contains(agents, "🧭 작업 정의") || !strings.Contains(agents, "validate-output-contract.py") {
 		t.Fatalf("expected AGENTS to describe the Namba output contract, got: %s", agents)
 	}
 	if strings.Contains(agents, "Until Codex exposes a documented stop-hook surface") {
@@ -75,7 +75,7 @@ func TestInitCreatesScaffold(t *testing.T) {
 	mustNotExist(t, filepath.Join(tmp, ".codex", "skills"))
 
 	validator := mustRead(t, filepath.Join(tmp, ".namba", "codex", "validate-output-contract.py"))
-	if !strings.Contains(validator, "output-contract: ok") || !strings.Contains(validator, "Scope") || !strings.Contains(validator, "missing header") || !strings.Contains(validator, "start=previous + 1") {
+	if !strings.Contains(validator, "output-contract: ok") || !strings.Contains(validator, "작업 정의") || !strings.Contains(validator, "missing header") || !strings.Contains(validator, "start=previous + 1") {
 		t.Fatalf("expected output contract validator script, got: %s", validator)
 	}
 

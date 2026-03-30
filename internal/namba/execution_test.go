@@ -736,7 +736,7 @@ func TestRunAllowsResumeProfileViaExecLevelFlags(t *testing.T) {
 
 func prepareExecutionProject(t *testing.T) (string, *App, func()) {
 	t.Helper()
-	tmp := t.TempDir()
+	tmp := canonicalTempDir(t)
 	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
 	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
 		return testCodexCapabilities(), nil
