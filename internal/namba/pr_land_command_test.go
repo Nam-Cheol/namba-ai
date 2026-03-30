@@ -564,7 +564,7 @@ func TestRunLandRejectsDirtyBaseWorktreeUpdate(t *testing.T) {
 }
 func preparePRLandProject(t *testing.T) (string, *bytes.Buffer, *App, func()) {
 	t.Helper()
-	tmp := t.TempDir()
+	tmp := canonicalTempDir(t)
 	stdout := &bytes.Buffer{}
 	app := NewApp(stdout, &bytes.Buffer{})
 	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {

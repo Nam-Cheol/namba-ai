@@ -219,7 +219,7 @@ func TestRunReleaseRejectsNonMainBranch(t *testing.T) {
 
 func prepareReleaseProject(t *testing.T) (string, *bytes.Buffer, *App, func()) {
 	t.Helper()
-	tmp := t.TempDir()
+	tmp := canonicalTempDir(t)
 	stdout := &bytes.Buffer{}
 	app := NewApp(stdout, &bytes.Buffer{})
 	if err := app.Run(context.Background(), []string{"init", tmp}); err != nil {

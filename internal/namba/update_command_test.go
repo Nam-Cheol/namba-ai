@@ -14,7 +14,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 
 	tmp := t.TempDir()
 	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
-	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes", "--human-language", "ko"}); err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
 
@@ -129,7 +129,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(codexReadme, "$namba-run") || !strings.Contains(codexReadme, "$namba-plan-pm-review") || !strings.Contains(codexReadme, "reviews/readiness.md") || strings.Contains(codexReadme, ".codex/skills/") {
 		t.Fatalf("expected codex README to describe command-entry skills without codex skill mirror, got %q", codexReadme)
 	}
-	if !strings.Contains(codexReadme, "NAMBA-AI Work Report") || !strings.Contains(codexReadme, "validate-output-contract.py") || !strings.Contains(codexReadme, "selected language palette") {
+	if !strings.Contains(codexReadme, "NAMBA-AI 작업 결과 보고") || !strings.Contains(codexReadme, "validate-output-contract.py") || !strings.Contains(codexReadme, "selected language palette") {
 		t.Fatalf("expected codex README to describe output contract fallback validation, got %q", codexReadme)
 	}
 	if !strings.Contains(codexReadme, "WSL workspace") || !strings.Contains(codexReadme, "documented config and hook surface evolves") || strings.Contains(codexReadme, "do not document a repository-configurable stop-hook surface") {
@@ -146,7 +146,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	}
 
 	outputContractDoc := mustReadFile(t, filepath.Join(tmp, ".namba", "codex", "output-contract.md"))
-	if !strings.Contains(outputContractDoc, "NAMBA-AI Work Report") || !strings.Contains(outputContractDoc, "Scope") || !strings.Contains(outputContractDoc, "Potential Risks") || !strings.Contains(outputContractDoc, "simple emoji section markers") {
+	if !strings.Contains(outputContractDoc, "NAMBA-AI 작업 결과 보고") || !strings.Contains(outputContractDoc, "작업 정의") || !strings.Contains(outputContractDoc, "잠재 문제") || !strings.Contains(outputContractDoc, "simple emoji section markers") {
 		t.Fatalf("expected output contract doc, got %q", outputContractDoc)
 	}
 	if !strings.Contains(outputContractDoc, "documented Codex config and hook surface evolves") || !strings.Contains(outputContractDoc, "hook-based enforcement") {
@@ -159,7 +159,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	}
 
 	validator := mustReadFile(t, filepath.Join(tmp, ".namba", "codex", "validate-output-contract.py"))
-	if !strings.Contains(validator, "output-contract: ok") || !strings.Contains(validator, "Scope") || !strings.Contains(validator, "header_aliases") || !strings.Contains(validator, "start=previous + 1") {
+	if !strings.Contains(validator, "output-contract: ok") || !strings.Contains(validator, "작업 정의") || !strings.Contains(validator, "header_aliases") || !strings.Contains(validator, "start=previous + 1") {
 		t.Fatalf("expected output contract validator, got %q", validator)
 	}
 

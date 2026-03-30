@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-30T01:52:24+09:00",
+  "generated_at": "2026-03-30T20:58:15+09:00",
   "entries": [
     {
       "path": ".agents/skills/namba-fix/SKILL.md",
@@ -430,8 +430,8 @@
     {
       "path": ".namba/project/structure.md",
       "kind": "project-doc",
-      "checksum": "abb8b053335b87af4518c996cba194ef931caff7151c0cc4b4ffc7dcce6fc669",
-      "updated_at": "2026-03-30T01:52:24+09:00"
+      "checksum": "77ad50097dee9d958ad7ac70b6bb4e28054168bf5ed8145308fa3179ddae74de",
+      "updated_at": "2026-03-30T20:58:15+09:00"
     },
     {
       "path": ".namba/project/tech.md",
