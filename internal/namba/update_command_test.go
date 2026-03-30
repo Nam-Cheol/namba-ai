@@ -14,7 +14,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 
 	tmp := t.TempDir()
 	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
-	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes", "--human-language", "ko"}); err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
 

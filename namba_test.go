@@ -13,6 +13,8 @@ import (
 )
 
 func TestInitCreatesScaffold(t *testing.T) {
+	t.Setenv("NAMBA_LANG", "ko")
+
 	tmp := t.TempDir()
 	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
 
