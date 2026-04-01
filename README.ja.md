@@ -15,7 +15,7 @@ NambaAI は、リポジトリのブートストラップ、作業の SPEC パッ
 ## NambaAI でできること
 
 - 空のディレクトリから `namba init .` で Codex-ready なリポジトリをすぐ始められます。
-- `namba project` で現在の構造とドキュメントを更新し、`namba plan` で機能 SPEC を、`namba harness` で agent / skill / workflow 再利用向けの harness-oriented SPEC を計画し、`namba fix --command plan` でレビュー可能なバグ修正 SPEC を作成するか、`namba fix` で現在の workspace から直接修復を始められます。
+- `namba plan` と `namba fix` で変更要求を SPEC パッケージとして整理できます。
 - `namba run SPEC-XXX` で標準フローを実行し、`--solo` は 1 workspace の単一 runner、`--team` は同じ workspace のマルチエージェント実行、`--parallel` は worktree fan-out/fan-in 実行として使い、その後 `namba sync`、`namba pr`、`namba land` で引き渡します。
 - 実装前に product / engineering / design のレビューが必要な場合は `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` を使います。
 - `namba update` とリリース資産でチーム全体の CLI バージョンをそろえられます。
@@ -62,9 +62,7 @@ namba land
 
 - `$namba`: Codex に適切な Namba の入口選択を任せたいときの汎用ルーターです。
 - `$namba-project`: 開始前や大きな変更後にプロジェクト文書と codemap を更新します。
-- `$namba-plan`: 次の機能 SPEC パッケージを作成します。
-- `$namba-harness`: agent、skill、workflow、orchestration の再利用向け harness-oriented SPEC パッケージを作成します。
-- `$namba-fix`: `namba fix "issue description"` で現在の workspace から直接修復するか、`namba fix --command plan "issue description"` でレビュー可能なバグ修正 SPEC を作成します。
+- `$namba-plan` / `$namba-fix`: 次の機能またはバグ修正用 SPEC パッケージを作成します。
 - `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: SPEC の product / engineering / design review 成果物と advisory readiness を更新します。
 - `$namba-run`: 現在の Codex セッションで SPEC パッケージを Namba workflow として実行します。
 - `$namba-sync`: README 一式、プロジェクト文書、codemap、PR 用成果物を更新します。
@@ -75,8 +73,7 @@ namba land
 
 - `$namba-project` -> `namba project`
 - `$namba-plan` -> `namba plan "description"`
-- `$namba-harness` -> `namba harness "description"`
-- `$namba-fix` -> `namba fix "issue description"` または `namba fix --command plan "issue description"`
+- `$namba-fix` -> `namba fix "description"`
 - `$namba-run` -> `namba run SPEC-XXX`
 - `$namba-sync` -> `namba sync`
 - `$namba-pr` -> `namba pr "title"`
