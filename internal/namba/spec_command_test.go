@@ -299,6 +299,75 @@ func TestRunFixRejectsMalformedCommandFlag(t *testing.T) {
 	}
 }
 
+func TestRunFixCommandPlanAllowsFlagLikeTextInIssueDescription(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"fix", "--command", "plan", "--dry-run crashes startup"}); err != nil {
+		t.Fatalf("fix plan failed: %v", err)
+	}
+
+	spec := mustReadFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "spec.md"))
+	if !strings.Contains(spec, "--dry-run crashes startup") {
+		t.Fatalf("expected fix spec to preserve flag-like issue description, got %q", spec)
+	}
+}
+
+func TestRunFixDirectRepairAllowsFlagLikeTextInIssueDescription(t *testing.T) {
+	t.Parallel()
+
+	tmp := canonicalTempDir(t)
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
+		return testCodexCapabilities(), nil
+	}
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+	writeTestFile(t, filepath.Join(tmp, "README.md"), "# Demo\n\nThis repository exercises the direct fix flow.\n")
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		switch name {
+		case "codex", "git":
+			return name, nil
+		default:
+			return "", errors.New("missing dependency")
+		}
+	}
+
+	var promptArg string
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			promptArg = args[len(args)-1]
+			return "repair output", nil
+		case isShellCommand(name):
+			return "validation ok", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"fix", "--dry-run crashes startup"}); err != nil {
+		t.Fatalf("direct fix failed: %v", err)
+	}
+	if !strings.Contains(promptArg, "--dry-run crashes startup") {
+		t.Fatalf("expected direct-fix prompt to preserve flag-like issue description, got %q", promptArg)
+	}
+}
+
 func TestRunFixRequiresIssueDescription(t *testing.T) {
 	t.Parallel()
 

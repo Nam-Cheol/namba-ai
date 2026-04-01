@@ -522,7 +522,7 @@ func parseFixArgs(args []string) (fixInvocation, error) {
 		case "--command=run", "--command=plan":
 			invocation.command = strings.TrimPrefix(arg, "--command=")
 		default:
-			if strings.HasPrefix(arg, "-") {
+			if isStandaloneFlagToken(arg) {
 				return fixInvocation{}, fmt.Errorf("unknown flag %q", arg)
 			}
 			descriptionParts = append(descriptionParts, arg)
@@ -534,6 +534,14 @@ func parseFixArgs(args []string) (fixInvocation, error) {
 		return fixInvocation{}, errors.New("fix requires an issue description")
 	}
 	return invocation, nil
+}
+
+func isStandaloneFlagToken(arg string) bool {
+	trimmed := strings.TrimSpace(arg)
+	if !strings.HasPrefix(trimmed, "-") {
+		return false
+	}
+	return !strings.ContainsAny(trimmed, " \t\r\n")
 }
 
 func (a *App) printPlanUsage() error {
