@@ -83,6 +83,12 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(planSkill, "context7") || !strings.Contains(planSkill, "sequential-thinking") || !strings.Contains(planSkill, "playwright") || !strings.Contains(planSkill, "repo-managed MCP presets") {
 		t.Fatalf("expected plan skill to describe managed MCP usage, got %q", planSkill)
 	}
+	fixSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-fix", "SKILL.md"))
+	for _, want := range []string{"namba fix --command run", "namba fix --command plan", "read-only", "namba sync"} {
+		if !strings.Contains(fixSkill, want) {
+			t.Fatalf("expected fix skill to contain %q, got %q", want, fixSkill)
+		}
+	}
 	prSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-pr", "SKILL.md"))
 	if !strings.Contains(prSkill, "$namba-pr") || !strings.Contains(prSkill, "namba pr") {
 		t.Fatalf("expected command-entry pr skill, got %q", prSkill)
@@ -120,6 +126,11 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	}
 	if !strings.Contains(codexReadme, "repo-managed MCP presets") {
 		t.Fatalf("expected codex README to describe managed MCP presets, got %q", codexReadme)
+	}
+	for _, want := range []string{"`namba fix --command plan \"<issue description>\"`", "`namba fix --command run \"<issue description>\"`", "direct-repair paths in the current workspace"} {
+		if !strings.Contains(codexReadme, want) {
+			t.Fatalf("expected codex README to contain %q, got %q", want, codexReadme)
+		}
 	}
 	for _, want := range []string{"## Namba Custom Agent Roster", "## Delegation Heuristics", "## Plan Review Readiness", "`namba-product-manager`", "`namba-mobile-engineer`", "`namba-designer`", "`namba-data-engineer`", "`namba-security-engineer`", "`namba-test-engineer`", "`namba-devops-engineer`"} {
 		if !strings.Contains(codexReadme, want) {

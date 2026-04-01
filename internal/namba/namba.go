@@ -202,7 +202,7 @@ Usage:
   namba update [--version vX.Y.Z]
   namba regen
   namba plan "<description>"
-  namba fix "<description>"
+  namba fix [--command run|plan] "<issue description>"
   namba run SPEC-XXX [--solo|--team|--parallel] [--dry-run]
   namba sync
   namba pr "<title>" [--remote origin] [--no-sync] [--no-validate]
@@ -394,23 +394,45 @@ func (a *App) runProject(_ context.Context, _ []string) error {
 }
 
 func (a *App) runPlan(_ context.Context, args []string) error {
-	return a.createSpecPackage("plan", args)
+	options, err := parsePlanArgs(args)
+	if err != nil {
+		return err
+	}
+	if options.help {
+		return a.printPlanUsage()
+	}
+	return a.createSpecPackage("plan", options.description)
 }
 
-func (a *App) runFix(_ context.Context, args []string) error {
-	return a.createSpecPackage("fix", args)
-}
+func (a *App) runFix(ctx context.Context, args []string) error {
+	options, err := parseFixArgs(args)
+	if err != nil {
+		return err
+	}
+	if options.help {
+		return a.printFixUsage()
+	}
 
-func (a *App) createSpecPackage(kind string, args []string) error {
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
 	}
-	if len(args) == 0 {
-		return errors.New(kind + " requires a description")
-	}
 
-	desc := strings.TrimSpace(strings.Join(args, " "))
+	switch options.command {
+	case "plan":
+		return a.createSpecPackage("fix", options.description)
+	case "run":
+		return a.executeDirectFix(ctx, root, options.description)
+	default:
+		return fmt.Errorf("invalid fix command %q", options.command)
+	}
+}
+
+func (a *App) createSpecPackage(kind, description string) error {
+	root, err := a.requireProjectRoot()
+	if err != nil {
+		return err
+	}
 	projectCfg, _ := a.loadProjectConfig(root)
 	qualityCfg, _ := a.loadQualityConfig(root)
 
@@ -423,9 +445,9 @@ func (a *App) createSpecPackage(kind string, args []string) error {
 		return err
 	}
 
-	spec := buildSpecDoc(kind, specID, desc, projectCfg, qualityCfg)
+	spec := buildSpecDoc(kind, specID, description, projectCfg, qualityCfg)
 	plan := buildSpecPlanDoc(kind, specID)
-	acceptance := buildSpecAcceptanceDoc(kind, desc, qualityCfg.DevelopmentMode)
+	acceptance := buildSpecAcceptanceDoc(kind, description, qualityCfg.DevelopmentMode)
 
 	outputs := map[string]string{
 		filepath.ToSlash(filepath.Join(specsDir, specID, "spec.md")):       spec,
@@ -441,6 +463,192 @@ func (a *App) createSpecPackage(kind string, args []string) error {
 
 	fmt.Fprintf(a.stdout, "Created %s\n", specID)
 	return nil
+}
+
+type planInvocation struct {
+	help        bool
+	description string
+}
+
+type fixInvocation struct {
+	help        bool
+	command     string
+	description string
+}
+
+func parsePlanArgs(args []string) (planInvocation, error) {
+	if len(args) == 0 {
+		return planInvocation{}, errors.New("plan requires a description")
+	}
+	for _, arg := range args {
+		switch arg {
+		case "--help", "-h":
+			return planInvocation{help: true}, nil
+		default:
+			if strings.HasPrefix(arg, "-") {
+				return planInvocation{}, fmt.Errorf("unknown flag %q", arg)
+			}
+		}
+	}
+	description := strings.TrimSpace(strings.Join(args, " "))
+	if description == "" {
+		return planInvocation{}, errors.New("plan requires a description")
+	}
+	return planInvocation{description: description}, nil
+}
+
+func parseFixArgs(args []string) (fixInvocation, error) {
+	if len(args) == 0 {
+		return fixInvocation{}, errors.New("fix requires an issue description")
+	}
+
+	invocation := fixInvocation{command: "run"}
+	var descriptionParts []string
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch arg {
+		case "--help", "-h":
+			return fixInvocation{help: true}, nil
+		case "--command":
+			if i+1 >= len(args) {
+				return fixInvocation{}, errors.New("fix --command requires a value of run or plan")
+			}
+			value := strings.TrimSpace(args[i+1])
+			if value != "run" && value != "plan" {
+				return fixInvocation{}, fmt.Errorf("invalid fix --command %q: expected run or plan", value)
+			}
+			invocation.command = value
+			i++
+		case "--command=run", "--command=plan":
+			invocation.command = strings.TrimPrefix(arg, "--command=")
+		default:
+			if strings.HasPrefix(arg, "-") {
+				return fixInvocation{}, fmt.Errorf("unknown flag %q", arg)
+			}
+			descriptionParts = append(descriptionParts, arg)
+		}
+	}
+
+	invocation.description = strings.TrimSpace(strings.Join(descriptionParts, " "))
+	if invocation.description == "" {
+		return fixInvocation{}, errors.New("fix requires an issue description")
+	}
+	return invocation, nil
+}
+
+func (a *App) printPlanUsage() error {
+	_, err := fmt.Fprint(a.stdout, planUsageText())
+	return err
+}
+
+func (a *App) printFixUsage() error {
+	_, err := fmt.Fprint(a.stdout, fixUsageText())
+	return err
+}
+
+func planUsageText() string {
+	return `namba plan
+
+Usage:
+  namba plan "<description>"
+
+Behavior:
+  Create the next feature SPEC package under .namba/specs/ and seed review artifacts.
+`
+}
+
+func fixUsageText() string {
+	return `namba fix
+
+Usage:
+  namba fix [--command run|plan] "<issue description>"
+
+Behavior:
+  Use --command plan to scaffold the next bugfix SPEC package under .namba/specs/.
+  Use --command run, or omit --command, to repair the issue directly in the current workspace.
+`
+}
+
+func (a *App) executeDirectFix(ctx context.Context, root, description string) error {
+	projectCfg, err := a.loadProjectConfig(root)
+	if err != nil {
+		return err
+	}
+	qualityCfg, err := a.loadQualityConfig(root)
+	if err != nil {
+		return err
+	}
+	systemCfg, err := a.loadSystemConfig(root)
+	if err != nil {
+		return err
+	}
+	codexCfg, err := a.loadCodexConfig(root)
+	if err != nil {
+		return err
+	}
+
+	prompt, delegation := buildDirectFixPrompt(root, description, projectCfg, qualityCfg)
+	logID := "direct-fix"
+	logDir := filepath.Join(root, logsDir, "runs")
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(logDir, logID+"-request.md"), []byte(prompt), 0o644); err != nil {
+		return err
+	}
+
+	request := a.newExecutionRequest("DIRECT-FIX", root, prompt, executionModeDefault, delegation, systemCfg, codexCfg)
+	request.TurnName = "direct-fix"
+	request.TurnRole = delegation.IntegratorRole
+	if _, _, err := a.executeRun(ctx, root, logID, request, root, qualityCfg); err != nil {
+		return err
+	}
+	if err := a.runSync(ctx, nil); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(a.stdout, "Executed direct fix with %s\n", request.Runner)
+	return nil
+}
+
+func buildDirectFixPrompt(root, description string, projectCfg projectConfig, qualityCfg qualityConfig) (string, delegationPlan) {
+	delegation := suggestDelegationPlan(executionModeDefault, description, "", "- [ ] Add targeted regression coverage\n- [ ] Validation commands pass")
+	lines := []string{
+		"# NambaAI Direct Repair Request",
+		"",
+		"Repair the reported issue directly in the current workspace without creating a SPEC package.",
+		"",
+		"## Issue",
+		description,
+		"",
+		"## Repair Contract",
+		"- Inspect the relevant repository files plus `.namba/config/sections/*.yaml` and `.namba/project/*` context before editing.",
+		"- Implement the smallest safe fix that resolves the reported issue in the current workspace.",
+		"- Add targeted regression coverage for the affected area.",
+		"- Run the configured validation commands from `.namba/config/sections/quality.yaml`.",
+		"- Finish by running `namba sync` in the same workspace after validation passes.",
+		"- Do not create or mutate `.namba/specs/<SPEC>` as part of this direct repair flow.",
+		"- For bugfix SPEC scaffolding, use `namba fix --command plan \"<issue description>\"`.",
+		"",
+		"## Project Context",
+		fmt.Sprintf("- Project: %s", firstNonBlank(projectCfg.Name, "unknown")),
+		fmt.Sprintf("- Project type: %s", firstNonBlank(projectCfg.ProjectType, "unknown")),
+		fmt.Sprintf("- Language: %s", firstNonBlank(projectCfg.Language, "unknown")),
+		fmt.Sprintf("- Framework: %s", firstNonBlank(projectCfg.Framework, "unknown")),
+		fmt.Sprintf("- Development mode: %s", firstNonBlank(qualityCfg.DevelopmentMode, "unknown")),
+	}
+	lines = append(lines, "")
+	lines = append(lines, formatDelegationPlanPrompt(delegation)...)
+	lines = append(lines, "", "## Validation")
+	for _, step := range validationPipelineSteps(qualityCfg) {
+		command := strings.TrimSpace(step.Command)
+		if command == "" || command == "none" {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("- %s: %s", step.Name, command))
+	}
+	lines = append(lines, "", fmt.Sprintf("Project root: %s", root))
+	return strings.Join(lines, "\n"), delegation
 }
 
 func buildSpecDoc(kind, specID, description string, projectCfg projectConfig, qualityCfg qualityConfig) string {
