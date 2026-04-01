@@ -20,12 +20,12 @@ func renderAgents(profile initProfile) string {
 		"- Prefer direct Codex-native execution for `namba run SPEC-XXX`: read the SPEC package, implement the work in-session, run validation, and sync artifacts.\n"+
 		"- Use the installed `namba` CLI for `init`, `doctor`, `project`, `regen`, `update`, `plan`, `fix`, `pr`, `land`, and `sync` when it is available and the command should mutate repo state or maintain the installed CLI directly.\n"+
 		"- If the `namba` CLI is unavailable, perform the equivalent workflow manually with `.namba/` as the source of truth.\n"+
-		"- Use repo skills under `.agents/skills/` as the single skill surface. Command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, and the plan-review skills under `.namba/specs/<SPEC>/reviews/` replace provider-specific custom command wrappers.\n"+
+		"- Use repo skills under `.agents/skills/` as the single skill surface. Command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-fix`, and the plan-review skills under `.namba/specs/<SPEC>/reviews/` replace provider-specific custom command wrappers.\n"+
 		"- When delegating work with Codex multi-agent features, use built-in subagents such as `default`, `worker`, and `explorer`, plus project-scoped custom agents under `.codex/agents/*.toml`; keep `.md` role cards as readable mirrors.\n\n"+
 		"## Workflow\n\n"+
 		"1. Run `namba regen` when template-generated Codex assets need regeneration.\n"+
 		"2. Run `namba project` to refresh project docs and codemaps.\n"+
-		"3. Run `namba plan \"<description>\"` for feature work or `namba fix \"<description>\"` for bug fixes.\n"+
+		"3. Run `namba plan \"<description>\"` for feature planning, `namba fix --command plan \"<issue description>\"` for bugfix SPEC planning, or `namba fix \"<issue description>\"` for direct repair.\n"+
 		"4. Run the relevant plan-review skills and keep `.namba/specs/<SPEC>/reviews/readiness.md` current when the SPEC needs product, engineering, or design sign-off.\n"+
 		"5. Run `namba run SPEC-XXX` to execute the SPEC with Codex-native workflow.\n"+
 		"6. Run `namba sync` to refresh artifacts and PR-ready documents.\n"+
@@ -36,7 +36,7 @@ func renderAgents(profile initProfile) string {
 		"## Rules\n\n"+
 		"- Prefer `.namba/` as the source of truth.\n"+
 		"- Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md` before implementation.\n"+
-		"- Use `$namba` for general routing, or command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, `$namba-project`, and `$namba-sync` when the user invokes one command directly.\n"+
+		"- Use `$namba` for general routing, or command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-fix`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, `$namba-project`, and `$namba-sync` when the user invokes one command directly.\n"+
 		"%s"+
 		"- Keep the Namba report frame concise and high-signal. The response should feel like an engineering field report, not a rigid template dump.\n"+
 		"- Keep `.namba/codex/validate-output-contract.py` as the fallback validator for this contract unless Namba explicitly adopts a documented upstream hook surface.\n"+
@@ -68,8 +68,8 @@ func renderNambaSkill(profile initProfile) string {
 		"- `namba update [--version vX.Y.Z]`: self-update the installed `namba` binary from GitHub Release assets.",
 		"- `namba plan \"<description>\"`: create the next feature SPEC package under `.namba/specs/`.",
 		"- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: update product, engineering, or design review artifacts under `.namba/specs/<SPEC>/reviews/` and refresh advisory readiness.",
-		"- `namba fix \"<description>\"`: create the next bugfix SPEC package under `.namba/specs/`.",
-
+		"- `namba fix --command plan \"<issue description>\"`: create the next bugfix SPEC package under `.namba/specs/`.",
+		"- `namba fix \"<issue description>\"` or `namba fix --command run \"<issue description>\"`: perform direct repair in the current workspace without creating a SPEC package.",
 		"- `namba run SPEC-XXX`: execute the SPEC in the current Codex session. Read `spec.md`, `plan.md`, and `acceptance.md`, implement directly, validate, and sync artifacts.",
 		"- `namba run SPEC-XXX --solo|--team|--parallel`: use the standalone CLI runner when you need explicit single-subagent, multi-subagent, or worktree-parallel execution semantics.",
 		"- `namba sync`: refresh change summary, PR checklist, codemaps, advisory review readiness, and PR-ready docs after implementation.",
@@ -80,7 +80,7 @@ func renderNambaSkill(profile initProfile) string {
 		"Execution rules:",
 		"1. Treat `.namba/` as the source of truth.",
 		"2. Prefer repo-local skills in `.agents/skills/`.",
-		"3. Prefer command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, `$namba-project`, and `$namba-sync` when the user is invoking one Namba command directly.",
+		"3. Prefer command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-fix`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, `$namba-project`, and `$namba-sync` when the user is invoking one Namba command directly.",
 		"4. Use the installed `namba` CLI for `project`, `regen`, `update`, `plan`, `fix`, `pr`, `land`, and `sync` when it will update repo state more reliably or self-update the installed CLI directly.",
 		"5. Keep `.namba/specs/<SPEC>/reviews/*.md` and `readiness.md` current when you use the plan-review workflow; the readiness summary is advisory unless the user explicitly asks for a gate.",
 		"6. For `namba run` in an interactive Codex session, prefer Codex-native in-session execution over recursively calling `namba run`, unless the user explicitly asks for standalone `--solo`, `--team`, `--parallel`, or `--dry-run` behavior.",
@@ -233,14 +233,17 @@ func renderPlanDesignReviewCommandSkill() string {
 func renderFixCommandSkill() string {
 	return renderCommandSkill(
 		"namba-fix",
-		"Command-style entry point for creating the next bug-fix SPEC package.",
+		"Command-style entry point for direct bug repair or bugfix SPEC planning.",
 		[]string{
-			"Use this skill when the user explicitly says `$namba-fix`, `namba fix`, or asks to prepare a bug-fix SPEC package.",
+			"Use this skill when the user explicitly says `$namba-fix`, `namba fix`, or asks to repair a bug through Namba.",
 			"",
 			"Behavior:",
 			"- Prefer the installed `namba fix` CLI when available.",
-			"- Create the next sequential `SPEC-XXX` fix package under `.namba/specs/`.",
-			"- Bias toward the smallest safe fix and explicit regression coverage.",
+			"- Treat `namba fix \"<issue description>\"` as the default direct-repair path in the current workspace.",
+			"- Use `namba fix --command run \"<issue description>\"` when the user wants the explicit direct-repair form.",
+			"- Use `namba fix --command plan \"<issue description>\"` when the user wants a reviewable bugfix SPEC package under `.namba/specs/`.",
+			"- Keep help and flag probing read-only; `namba fix --help` must not create a SPEC package.",
+			"- Keep direct repairs small, add targeted regression coverage, run validation, and finish with `namba sync`.",
 		},
 	)
 }
@@ -426,7 +429,7 @@ func renderCodexUsage(profile initProfile) string {
 		"1. Open Codex in the initialized project directory.",
 		"   On Windows, the current official Codex docs recommend using a WSL workspace for the best CLI experience.",
 		"2. Codex loads `AGENTS.md` and repo skills.",
-		"3. Invoke `$namba` for routing or command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, and `$namba-sync` for direct command-style execution.",
+		"3. Invoke `$namba` for routing or command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-fix`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, and `$namba-sync` for direct command-style execution.",
 		"4. Use built-in Codex subagents such as `default`, `worker`, and `explorer`, plus project-scoped custom agents under `.codex/agents/*.toml`, when multi-agent work is appropriate. The matching `.md` files remain readable mirrors.",
 		"5. Use the plan-review skills to update `.namba/specs/<SPEC>/reviews/*.md` and keep `.namba/specs/<SPEC>/reviews/readiness.md` current when a SPEC needs product, engineering, or design critique before implementation.",
 		"6. Use `namba project`, `namba regen`, `namba update`, `namba plan`, `namba fix`, `namba run SPEC-XXX`, `namba sync`, `namba pr`, and `namba land` as workflow commands.",
@@ -451,7 +454,7 @@ func renderCodexUsage(profile initProfile) string {
 		"",
 		"## Plan Review Readiness",
 		"",
-		"- `namba plan` and `namba fix` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.",
+		"- `namba plan` and `namba fix --command plan` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.",
 		"- `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` update those review artifacts directly in the repository.",
 		"- `namba run`, `namba sync`, and `namba pr` surface the latest readiness summary as advisory context so review depth is visible without silently hard-blocking delivery.",
 		"",
@@ -459,6 +462,9 @@ func renderCodexUsage(profile initProfile) string {
 		"",
 		"- `namba regen` regenerates `AGENTS.md`, repo skills under `.agents/skills/`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
 		"- `namba update` self-updates the installed `namba` binary from GitHub Release assets. Use `--version vX.Y.Z` for a specific release.",
+		"- `namba plan \"<description>\"` creates the next feature SPEC package plus review scaffolds.",
+		"- `namba fix --command plan \"<issue description>\"` creates the next bugfix SPEC package plus review scaffolds.",
+		"- `namba fix \"<issue description>\"` and `namba fix --command run \"<issue description>\"` are the direct-repair paths in the current workspace. They should stay read-only for help/probe flows, avoid implicit SPEC creation, and finish with validation plus `namba sync`.",
 		"- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, codemaps, and advisory review readiness summaries.",
 		"- `namba pr` prepares the current branch for GitHub review by syncing, validating, committing, pushing, opening or reusing the PR, and ensuring the Codex review marker is present.",
 		"- `namba land` waits for checks when requested, merges a clean PR, and updates local `main` safely.",

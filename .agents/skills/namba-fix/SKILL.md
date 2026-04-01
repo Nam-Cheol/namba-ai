@@ -1,11 +1,14 @@
 ---
 name: namba-fix
-description: Command-style entry point for creating the next bug-fix SPEC package.
+description: Command-style entry point for direct bug repair or bugfix SPEC planning.
 ---
 
-Use this skill when the user explicitly says `$namba-fix`, `namba fix`, or asks to prepare a bug-fix SPEC package.
+Use this skill when the user explicitly says `$namba-fix`, `namba fix`, or asks to repair a bug through Namba.
 
 Behavior:
 - Prefer the installed `namba fix` CLI when available.
-- Create the next sequential `SPEC-XXX` fix package under `.namba/specs/`.
-- Bias toward the smallest safe fix and explicit regression coverage.
+- Treat `namba fix "<issue description>"` as the default direct-repair path in the current workspace.
+- Use `namba fix --command run "<issue description>"` when the user wants the explicit direct-repair form.
+- Use `namba fix --command plan "<issue description>"` when the user wants a reviewable bugfix SPEC package under `.namba/specs/`.
+- Keep help and flag probing read-only; `namba fix --help` must not create a SPEC package.
+- Keep direct repairs small, add targeted regression coverage, run validation, and finish with `namba sync`.

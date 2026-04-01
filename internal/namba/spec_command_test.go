@@ -3,12 +3,89 @@ package namba
 import (
 	"bytes"
 	"context"
+	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func TestRunFixCreatesBugfixSpec(t *testing.T) {
+func TestRunPlanHelpIsReadOnly(t *testing.T) {
+	t.Parallel()
+
+	for _, helpFlag := range []string{"--help", "-h"} {
+		helpFlag := helpFlag
+		t.Run(helpFlag, func(t *testing.T) {
+			t.Parallel()
+
+			tmp := t.TempDir()
+			stdout := &bytes.Buffer{}
+			app := NewApp(stdout, &bytes.Buffer{})
+			if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+				t.Fatalf("init failed: %v", err)
+			}
+
+			restore := chdirExecution(t, tmp)
+			defer restore()
+
+			if err := app.Run(context.Background(), []string{"plan", helpFlag}); err != nil {
+				t.Fatalf("plan help failed: %v", err)
+			}
+			if got := stdout.String(); !strings.Contains(got, "namba plan") || !strings.Contains(got, "Create the next feature SPEC package") {
+				t.Fatalf("unexpected plan help output: %q", got)
+			}
+
+			entries, err := os.ReadDir(filepath.Join(tmp, ".namba", "specs"))
+			if err != nil {
+				t.Fatalf("read specs dir: %v", err)
+			}
+			if got, want := len(entries), 1; got != want || entries[0].Name() != ".gitkeep" {
+				t.Fatalf("expected no SPEC write on help, got entries=%v", entries)
+			}
+		})
+	}
+}
+
+func TestRunFixHelpIsReadOnlyAndDescribesCommands(t *testing.T) {
+	t.Parallel()
+
+	for _, helpFlag := range []string{"--help", "-h"} {
+		helpFlag := helpFlag
+		t.Run(helpFlag, func(t *testing.T) {
+			t.Parallel()
+
+			tmp := t.TempDir()
+			stdout := &bytes.Buffer{}
+			app := NewApp(stdout, &bytes.Buffer{})
+			if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+				t.Fatalf("init failed: %v", err)
+			}
+
+			restore := chdirExecution(t, tmp)
+			defer restore()
+
+			if err := app.Run(context.Background(), []string{"fix", helpFlag}); err != nil {
+				t.Fatalf("fix help failed: %v", err)
+			}
+			got := stdout.String()
+			for _, want := range []string{"namba fix", "--command run|plan", "repair the issue directly in the current workspace"} {
+				if !strings.Contains(got, want) {
+					t.Fatalf("expected fix help to contain %q, got %q", want, got)
+				}
+			}
+
+			entries, err := os.ReadDir(filepath.Join(tmp, ".namba", "specs"))
+			if err != nil {
+				t.Fatalf("read specs dir: %v", err)
+			}
+			if got, want := len(entries), 1; got != want || entries[0].Name() != ".gitkeep" {
+				t.Fatalf("expected no SPEC write on help, got entries=%v", entries)
+			}
+		})
+	}
+}
+
+func TestRunFixCommandPlanCreatesBugfixSpec(t *testing.T) {
 	t.Parallel()
 
 	tmp := t.TempDir()
@@ -20,8 +97,8 @@ func TestRunFixCreatesBugfixSpec(t *testing.T) {
 	restore := chdirExecution(t, tmp)
 	defer restore()
 
-	if err := app.Run(context.Background(), []string{"fix", "startup", "panic"}); err != nil {
-		t.Fatalf("fix failed: %v", err)
+	if err := app.Run(context.Background(), []string{"fix", "--command", "plan", "startup", "panic"}); err != nil {
+		t.Fatalf("fix plan failed: %v", err)
 	}
 
 	spec := mustReadFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "spec.md"))
@@ -60,7 +137,238 @@ func TestRunFixCreatesBugfixSpec(t *testing.T) {
 	}
 }
 
-func TestRunFixRequiresDescription(t *testing.T) {
+func TestRunFixDirectRepairExecutesCurrentWorkspaceAndSyncs(t *testing.T) {
+	t.Parallel()
+
+	tmp := canonicalTempDir(t)
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
+		return testCodexCapabilities(), nil
+	}
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+	writeTestFile(t, filepath.Join(tmp, "README.md"), "# Demo\n\nThis repository exercises the direct fix flow.\n")
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		switch name {
+		case "codex", "git":
+			return name, nil
+		default:
+			return "", errors.New("missing dependency")
+		}
+	}
+	cases := []struct {
+		name string
+		args []string
+	}{
+		{name: "default", args: []string{"fix", "startup", "panic"}},
+		{name: "explicit run", args: []string{"fix", "--command", "run", "startup", "panic"}},
+	}
+
+	var prompts []string
+	for i, tc := range cases {
+		stdout.Reset()
+		var promptArg string
+		app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+			switch {
+			case isCodexExec(name, args):
+				promptArg = args[len(args)-1]
+				return "repair output", nil
+			case isShellCommand(name):
+				return "validation ok", nil
+			default:
+				t.Fatalf("unexpected command: %s %v", name, args)
+				return "", nil
+			}
+		}
+		if err := app.Run(context.Background(), tc.args); err != nil {
+			t.Fatalf("%s direct fix failed: %v", tc.name, err)
+		}
+		for _, want := range []string{"startup panic", "without creating a SPEC package", "Finish by running `namba sync`", "namba fix --command plan"} {
+			if !strings.Contains(promptArg, want) {
+				t.Fatalf("expected %s direct-fix prompt to contain %q, got %q", tc.name, want, promptArg)
+			}
+		}
+		if request := mustReadExecutionRequest(t, filepath.Join(tmp, ".namba", "logs", "runs", "direct-fix-request.json")); request.SpecID != "DIRECT-FIX" || request.Mode != executionModeDefault {
+			t.Fatalf("unexpected direct-fix request metadata: %+v", request)
+		}
+		result := mustReadExecutionResult(t, filepath.Join(tmp, ".namba", "logs", "runs", "direct-fix-execution.json"))
+		if !result.Succeeded || result.SpecID != "DIRECT-FIX" || result.ExecutionMode != "default" {
+			t.Fatalf("unexpected direct-fix result: %+v", result)
+		}
+		if !strings.Contains(stdout.String(), "Executed direct fix with codex") || !strings.Contains(stdout.String(), "Synced NambaAI artifacts.") {
+			t.Fatalf("expected direct-fix output to report execution and sync, got %q", stdout.String())
+		}
+		prompts = append(prompts, promptArg)
+		if i == 0 {
+			continue
+		}
+		if prompts[i] != prompts[0] {
+			t.Fatalf("expected %s prompt to match default direct-fix prompt\nfirst=%q\nsecond=%q", tc.name, prompts[0], prompts[i])
+		}
+	}
+
+	entries, err := os.ReadDir(filepath.Join(tmp, ".namba", "specs"))
+	if err != nil {
+		t.Fatalf("read specs dir: %v", err)
+	}
+	if got, want := len(entries), 1; got != want || entries[0].Name() != ".gitkeep" {
+		t.Fatalf("expected no SPEC write on direct fix, got entries=%v", entries)
+	}
+	if _, err := os.Stat(filepath.Join(tmp, ".namba", "project", "change-summary.md")); err != nil {
+		t.Fatalf("expected sync artifacts after direct fix, stat err=%v", err)
+	}
+}
+
+func TestRunPlanRejectsFlagOnlyInvocation(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"plan", "--dry-run"}); err == nil || !strings.Contains(err.Error(), "unknown flag") {
+		t.Fatalf("expected plan flag-only failure, got %v", err)
+	}
+
+	entries, err := os.ReadDir(filepath.Join(tmp, ".namba", "specs"))
+	if err != nil {
+		t.Fatalf("read specs dir: %v", err)
+	}
+	if got, want := len(entries), 1; got != want || entries[0].Name() != ".gitkeep" {
+		t.Fatalf("expected no SPEC write on malformed plan, got entries=%v", entries)
+	}
+}
+
+func TestRunFixRejectsMalformedCommandFlag(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "missing command value",
+			args:    []string{"fix", "--command"},
+			wantErr: "requires a value of run or plan",
+		},
+		{
+			name:    "flag-only probe",
+			args:    []string{"fix", "--dry-run"},
+			wantErr: "unknown flag",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tmp := t.TempDir()
+			app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+			if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+				t.Fatalf("init failed: %v", err)
+			}
+
+			restore := chdirExecution(t, tmp)
+			defer restore()
+
+			if err := app.Run(context.Background(), tc.args); err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("expected malformed fix command failure containing %q, got %v", tc.wantErr, err)
+			}
+
+			entries, err := os.ReadDir(filepath.Join(tmp, ".namba", "specs"))
+			if err != nil {
+				t.Fatalf("read specs dir: %v", err)
+			}
+			if got, want := len(entries), 1; got != want || entries[0].Name() != ".gitkeep" {
+				t.Fatalf("expected no SPEC write on malformed fix, got entries=%v", entries)
+			}
+		})
+	}
+}
+
+func TestRunFixCommandPlanAllowsFlagLikeTextInIssueDescription(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"fix", "--command", "plan", "--dry-run crashes startup"}); err != nil {
+		t.Fatalf("fix plan failed: %v", err)
+	}
+
+	spec := mustReadFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "spec.md"))
+	if !strings.Contains(spec, "--dry-run crashes startup") {
+		t.Fatalf("expected fix spec to preserve flag-like issue description, got %q", spec)
+	}
+}
+
+func TestRunFixDirectRepairAllowsFlagLikeTextInIssueDescription(t *testing.T) {
+	t.Parallel()
+
+	tmp := canonicalTempDir(t)
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
+		return testCodexCapabilities(), nil
+	}
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+	writeTestFile(t, filepath.Join(tmp, "README.md"), "# Demo\n\nThis repository exercises the direct fix flow.\n")
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		switch name {
+		case "codex", "git":
+			return name, nil
+		default:
+			return "", errors.New("missing dependency")
+		}
+	}
+
+	var promptArg string
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			promptArg = args[len(args)-1]
+			return "repair output", nil
+		case isShellCommand(name):
+			return "validation ok", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"fix", "--dry-run crashes startup"}); err != nil {
+		t.Fatalf("direct fix failed: %v", err)
+	}
+	if !strings.Contains(promptArg, "--dry-run crashes startup") {
+		t.Fatalf("expected direct-fix prompt to preserve flag-like issue description, got %q", promptArg)
+	}
+}
+
+func TestRunFixRequiresIssueDescription(t *testing.T) {
 	t.Parallel()
 
 	tmp := t.TempDir()
@@ -76,7 +384,7 @@ func TestRunFixRequiresDescription(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected fix description error")
 	}
-	if !strings.Contains(err.Error(), "fix requires a description") {
+	if !strings.Contains(err.Error(), "fix requires an issue description") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
