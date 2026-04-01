@@ -91,6 +91,7 @@ func codexSkillTemplates(profile initProfile) map[string]string {
 		filepath.ToSlash(filepath.Join("namba-regen", "SKILL.md")):              renderRegenCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-update", "SKILL.md")):             renderUpdateCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-plan", "SKILL.md")):               renderPlanCommandSkill(),
+		filepath.ToSlash(filepath.Join("namba-harness", "SKILL.md")):            renderHarnessCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-plan-pm-review", "SKILL.md")):     renderPlanPMReviewCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-plan-eng-review", "SKILL.md")):    renderPlanEngReviewCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-plan-design-review", "SKILL.md")): renderPlanDesignReviewCommandSkill(),

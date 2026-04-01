@@ -14,6 +14,16 @@
 - `namba pr`: 既定で sync と validation を実行し、現在のブランチを commit / push した上で PR を作成または再利用し、Codex review marker を保証します。
 - `namba land`: 必要なら checks を待ち、PR が clean なときだけ merge してから local `main` を安全に更新します。
 
+## `namba plan` と `namba fix`
+
+- `namba project`: 現在のリポジトリ docs と codemap を更新し、SPEC パッケージは作成しません。
+- `namba plan "description"`: 次の機能 SPEC パッケージと review artifact を作成します。
+- `namba harness "description"`: agent / skill / workflow / orchestration 再利用向けの harness-oriented SPEC パッケージと review artifact を作成します。
+- `namba fix --command plan "issue description"`: バグ修正 SPEC パッケージと review artifact を作成します。
+- `namba fix "issue description"`: 現在の workspace で direct repair を始めます。
+- `namba fix --command run "issue description"`: 同じ direct-repair path を明示的に選びます。
+- `namba plan --help` と `namba fix --help`: read-only の help / option probing であり、SPEC を作成しません。
+
 ## `namba run` モード
 
 - `namba run SPEC-XXX`: 1 つの workspace で動く標準 standalone Codex flow です。
@@ -30,7 +40,7 @@
 
 ## レビュー準備度
 
-- `namba plan` と `namba fix` は `.namba/specs/<SPEC>/reviews/product.md`、`engineering.md`、`design.md`、`readiness.md` を seed します。
+- `namba plan`、`namba harness`、`namba fix --command plan` は `.namba/specs/<SPEC>/reviews/product.md`、`engineering.md`、`design.md`、`readiness.md` を seed します。
 - 実装または GitHub handoff の前に `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` で review artifact を最新に保ってください。
 - `namba regen` または `namba sync` が生成された instruction surface を変えた場合は、長い repair loop を続ける前に fresh Codex session を開始して更新済み guidance を読み直してください。
 - review pass が欠けていても既定では advisory のままです。`namba run`、`namba sync`、`namba pr` は readiness summary を表示しますが、黙って hard gate にはしません。

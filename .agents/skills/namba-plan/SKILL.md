@@ -7,6 +7,7 @@ Use this skill when the user explicitly says `$namba-plan`, `namba plan`, or ask
 
 Behavior:
 - Prefer the installed `namba plan` CLI when available.
+- Keep `namba plan` for feature-oriented SPEC work; use `namba harness` when the request is about reusable agent, skill, workflow, or orchestration scaffolding.
 - When repo-managed MCP presets are configured, prefer them for planning context before broader web search; for example, use `context7` for library and framework docs, `sequential-thinking` for deeper decomposition, and `playwright` for browser-verified flows.
 - Create the next sequential `SPEC-XXX` package under `.namba/specs/`.
 - Seed `.namba/specs/<SPEC>/reviews/` with product, engineering, design, and aggregate readiness artifacts.

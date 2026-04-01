@@ -121,6 +121,7 @@ func legacyCodexSkillMirrorPaths() []string {
 		"namba-regen",
 		"namba-update",
 		"namba-plan",
+		"namba-harness",
 		"namba-plan-pm-review",
 		"namba-plan-eng-review",
 		"namba-plan-design-review",

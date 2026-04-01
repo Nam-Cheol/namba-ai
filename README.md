@@ -15,7 +15,7 @@ NambaAI is a Codex-native workflow for bootstrapping repositories, planning work
 ## What You Can Do With NambaAI
 
 - Bootstrap a Codex-ready repository from an empty directory with `namba init .`.
-- Turn change requests into SPEC packages with `namba plan` and `namba fix`.
+- Refresh repository context with `namba project`, plan feature SPEC work with `namba plan`, plan reusable agent/skill/workflow harness work with `namba harness`, create a reviewable bugfix SPEC with `namba fix --command plan`, or start direct repair in the current workspace with `namba fix`.
 - Execute work with `namba run SPEC-XXX` for the default flow, use `--solo` for a single runner in one workspace, `--team` for same-workspace multi-agent execution, or `--parallel` for worktree fan-out/fan-in before handing off with `namba sync`, `namba pr`, and `namba land`.
 - Run explicit plan reviews with `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when a SPEC needs product, engineering, or design critique before implementation.
 - Keep CLI versions aligned across the team with `namba update` and release assets.
@@ -62,7 +62,9 @@ namba land
 
 - `$namba`: general router when you want Codex to choose the right Namba workflow entry point.
 - `$namba-project`: refresh project docs and codemaps before starting or after larger changes.
-- `$namba-plan` / `$namba-fix`: create the next feature or bugfix SPEC package.
+- `$namba-plan`: create the next feature SPEC package.
+- `$namba-harness`: create the next harness-oriented SPEC package for reusable agent, skill, workflow, or orchestration work.
+- `$namba-fix`: run direct repair in the current workspace with `namba fix "issue description"` or create a reviewable bugfix SPEC with `namba fix --command plan "issue description"`.
 - `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: update product, engineering, or design review artifacts plus the advisory readiness summary for a SPEC.
 - `$namba-run`: execute a SPEC package through the Namba workflow in the current Codex session.
 - `$namba-sync`: refresh README bundles, project docs, codemaps, and PR-ready artifacts.
@@ -73,7 +75,8 @@ namba land
 
 - `$namba-project` -> `namba project`
 - `$namba-plan` -> `namba plan "description"`
-- `$namba-fix` -> `namba fix "description"`
+- `$namba-harness` -> `namba harness "description"`
+- `$namba-fix` -> `namba fix "issue description"` or `namba fix --command plan "issue description"`
 - `$namba-run` -> `namba run SPEC-XXX`
 - `$namba-sync` -> `namba sync`
 - `$namba-pr` -> `namba pr "title"`

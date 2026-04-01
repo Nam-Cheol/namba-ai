@@ -14,6 +14,16 @@
 - `namba pr`: run sync plus validation by default, commit and push the current branch, open or reuse the PR, and ensure the Codex review marker exists
 - `namba land`: optionally wait for checks, merge only when the PR is clean, and update local `main` safely
 
+## `namba plan` and `namba fix`
+
+- `namba project`: refresh current repository docs and codemaps without creating a SPEC package.
+- `namba plan "description"`: create the next feature SPEC package and review artifacts.
+- `namba harness "description"`: create the next harness-oriented SPEC package and review artifacts for reusable agent, skill, workflow, or orchestration work.
+- `namba fix --command plan "issue description"`: create a bugfix SPEC package plus review artifacts.
+- `namba fix "issue description"`: direct repair in the current workspace.
+- `namba fix --command run "issue description"`: explicit form of the same direct-repair path.
+- `namba plan --help` and `namba fix --help`: read-only help and option discovery; they must not create a SPEC package.
+
 ## `namba run` modes
 
 - `namba run SPEC-XXX`: standard standalone Codex flow in one workspace.
@@ -30,7 +40,7 @@
 
 ## Review readiness
 
-- `namba plan` and `namba fix` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.
+- `namba plan`, `namba harness`, and `namba fix --command plan` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.
 - Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` to keep those artifacts current before implementation or PR handoff.
 - If `namba regen` or `namba sync` changes generated instruction surfaces, start a fresh Codex session so the updated guidance is loaded before continuing a long repair loop.
 - Missing review passes stay advisory by default: `namba run`, `namba sync`, and `namba pr` surface the current readiness summary without silently hard-blocking delivery.

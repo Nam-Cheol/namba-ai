@@ -83,6 +83,15 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(planSkill, "context7") || !strings.Contains(planSkill, "sequential-thinking") || !strings.Contains(planSkill, "playwright") || !strings.Contains(planSkill, "repo-managed MCP presets") {
 		t.Fatalf("expected plan skill to describe managed MCP usage, got %q", planSkill)
 	}
+	if !strings.Contains(planSkill, "namba harness") {
+		t.Fatalf("expected plan skill to distinguish harness-oriented planning, got %q", planSkill)
+	}
+	harnessSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-harness", "SKILL.md"))
+	for _, want := range []string{"$namba-harness", "namba harness", "without inventing a second artifact model", "Codex-native"} {
+		if !strings.Contains(harnessSkill, want) {
+			t.Fatalf("expected harness skill to contain %q, got %q", want, harnessSkill)
+		}
+	}
 	fixSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-fix", "SKILL.md"))
 	for _, want := range []string{"namba fix --command run", "namba fix --command plan", "read-only", "namba sync"} {
 		if !strings.Contains(fixSkill, want) {
@@ -137,8 +146,11 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 			t.Fatalf("expected codex README to contain %q, got %q", want, codexReadme)
 		}
 	}
-	if !strings.Contains(codexReadme, "$namba-run") || !strings.Contains(codexReadme, "$namba-plan-pm-review") || !strings.Contains(codexReadme, "reviews/readiness.md") || strings.Contains(codexReadme, ".codex/skills/") {
+	if !strings.Contains(codexReadme, "$namba-run") || !strings.Contains(codexReadme, "$namba-harness") || !strings.Contains(codexReadme, "$namba-plan-pm-review") || !strings.Contains(codexReadme, "reviews/readiness.md") || strings.Contains(codexReadme, ".codex/skills/") {
 		t.Fatalf("expected codex README to describe command-entry skills without codex skill mirror, got %q", codexReadme)
+	}
+	if !strings.Contains(codexReadme, "`namba harness \"<description>\"`") {
+		t.Fatalf("expected codex README to describe harness-oriented planning semantics, got %q", codexReadme)
 	}
 	if !strings.Contains(codexReadme, "NAMBA-AI 작업 결과 보고") || !strings.Contains(codexReadme, "validate-output-contract.py") || !strings.Contains(codexReadme, "selected language palette") {
 		t.Fatalf("expected codex README to describe output contract fallback validation, got %q", codexReadme)

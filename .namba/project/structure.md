@@ -6,6 +6,7 @@
 .agents/skills/namba
 .agents/skills/namba-fix
 .agents/skills/namba-foundation-core
+.agents/skills/namba-harness
 .agents/skills/namba-init
 .agents/skills/namba-land
 .agents/skills/namba-plan
@@ -98,6 +99,7 @@
 .namba/specs/SPEC-017
 .namba/specs/SPEC-018
 .namba/specs/SPEC-019
+.namba/specs/SPEC-020
 AGENTS.md
 README.ja.md
 README.ko.md
@@ -166,7 +168,6 @@ internal/namba/version.go
 internal/namba/version_test.go
 internal/namba/write_outputs.go
 namba_test.go
-package-lock.json
 sync_stability_test.go
 workflow_test.go
 ```
