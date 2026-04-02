@@ -14,6 +14,16 @@
 - `namba pr`: 默认先跑 sync 和 validation，把当前分支 commit / push 后创建或复用 PR，并确保 Codex review marker 存在。
 - `namba land`: 需要时等待 checks，只在 PR clean 时 merge，然后安全更新本地 `main`。
 
+## 规划命令
+
+- `namba project`: 刷新当前仓库文档和 codemap，不会创建 SPEC 包。
+- `namba plan "description"`: 创建下一个功能 SPEC 包和 review artifact。
+- `namba harness "description"`: 创建面向 agent / skill / workflow / orchestration 复用的 harness-oriented SPEC 包和 review artifact。
+- `namba fix --command plan "issue description"`: 创建缺陷修复 SPEC 包和 review artifact。
+- `namba fix "issue description"`: 在当前 workspace 启动 direct repair。
+- `namba fix --command run "issue description"`: 显式选择同一个 direct-repair 路径。
+- `namba plan --help` 和 `namba fix --help`: 属于 read-only 的 help / option probing，不会创建 SPEC。
+
 ## `namba run` 模式
 
 - `namba run SPEC-XXX`: 在单一 workspace 中运行的标准 standalone Codex flow。
@@ -30,10 +40,16 @@
 
 ## 评审准备度
 
-- `namba plan` 和 `namba fix` 会 seed `.namba/specs/<SPEC>/reviews/product.md`、`engineering.md`、`design.md`、`readiness.md`。
+- `namba plan`、`namba harness` 和 `namba fix --command plan` 会 seed `.namba/specs/<SPEC>/reviews/product.md`、`engineering.md`、`design.md`、`readiness.md`。
 - 在实现或 GitHub handoff 之前，使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` 保持 review artifact 最新。
 - 如果 `namba regen` 或 `namba sync` 改变了生成的 instruction surface，请在继续长 repair loop 之前启动一个 fresh Codex session，以重新加载更新后的 guidance。
 - 即使 review pass 缺失，默认也只是 advisory。`namba run`、`namba sync`、`namba pr` 会展示 readiness summary，但不会悄悄变成 hard gate。
+
+## PR 与合并流程
+
+- `namba sync` 只负责刷新本地产物。
+- `namba pr` 负责 validation、commit、push 和 PR handoff。
+- `namba land` 负责合并 clean PR 并更新本地 `main`。
 
 ## 主要生成产物
 

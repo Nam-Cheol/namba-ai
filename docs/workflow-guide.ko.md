@@ -14,6 +14,16 @@
 - `namba pr`: 기본적으로 sync와 validation을 돌리고, 현재 브랜치를 commit/push 한 뒤 PR을 만들거나 재사용하고 Codex review marker를 보장합니다.
 - `namba land`: 필요하면 체크를 기다리고, PR이 깨끗할 때만 머지한 뒤 로컬 `main`을 안전하게 갱신합니다.
 
+## 계획 명령
+
+- `namba project`: 현재 저장소 문서와 codemap을 새로 고치며 SPEC 패키지를 만들지 않습니다.
+- `namba plan "description"`: 다음 기능 SPEC 패키지와 review artifact를 만듭니다.
+- `namba harness "description"`: agent, skill, workflow, orchestration 재사용을 위한 harness-oriented SPEC 패키지와 review artifact를 만듭니다.
+- `namba fix --command plan "issue description"`: 버그 수정 SPEC 패키지와 review artifact를 만듭니다.
+- `namba fix "issue description"`: 현재 workspace에서 direct repair를 시작합니다.
+- `namba fix --command run "issue description"`: 같은 direct-repair 경로를 명시적으로 선택합니다.
+- `namba plan --help`와 `namba fix --help`: read-only help/option probing 경로이며 SPEC를 만들지 않습니다.
+
 ## `namba run` 모드
 
 - `namba run SPEC-XXX`: 하나의 workspace에서 실행하는 표준 standalone Codex 흐름입니다.
@@ -30,10 +40,16 @@
 
 ## 리뷰 준비도
 
-- `namba plan`과 `namba fix`는 `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, `readiness.md`를 seed 합니다.
+- `namba plan`, `namba harness`, `namba fix --command plan`은 `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, `readiness.md`를 seed 합니다.
 - 구현이나 GitHub handoff 전에 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`로 review 산출물을 최신 상태로 유지하세요.
 - `namba regen` 또는 `namba sync`가 생성된 instruction surface를 바꾸면, 긴 repair loop를 이어 가기 전에 fresh Codex session을 시작해 갱신된 지침을 다시 불러오세요.
 - 리뷰 통과가 없어도 기본적으로 advisory 상태를 유지합니다. `namba run`, `namba sync`, `namba pr`는 readiness 요약을 보여주지만 조용히 hard gate로 바꾸지는 않습니다.
+
+## PR 및 머지 흐름
+
+- `namba sync`는 로컬 산출물 갱신에만 머뭅니다.
+- `namba pr`는 validation, commit, push, PR handoff를 담당합니다.
+- `namba land`는 clean PR을 merge하고 local `main`을 갱신합니다.
 
 ## 주요 생성 산출물
 

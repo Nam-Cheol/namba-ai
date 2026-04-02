@@ -6,16 +6,23 @@
 
 # NambaAI
 
-NambaAI 是一套 Codex-native 工作流，用来完成仓库初始化、将工作整理成 SPEC 包，以及在实现之后同步项目产物。
+NambaAI 是一套 Codex-native 工作流，用来完成仓库初始化、先选对应该用的 Namba 命令、将工作整理成 SPEC 包，以及在实现之后同步项目产物。
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [中文](README.zh.md)
 
 [Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](SECURITY.md)
 
+## 应该使用哪个命令？
+
+- `namba project`: 在开始工作前刷新仓库上下文和生成文档。
+- `namba plan`: 当请求是功能或产品变更时，把它整理成 SPEC 包。
+- `namba harness`: 当工作是为了复用 agent、skill、workflow 或 orchestration 的 scaffold 时，创建 harness-oriented SPEC 包。
+- `namba fix`: 在当前 workspace 中直接修复缺陷；如果需要一个可评审的缺陷修复 SPEC，就用 `namba fix --command plan`。
+
 ## 你可以用 NambaAI 做什么
 
 - 在空目录中通过 `namba init .` 直接启动一个 Codex-ready 仓库。
-- 用 `namba plan` 和 `namba fix` 把变更请求整理成 SPEC 包。
+- 先决定该用 `namba project`、`namba plan`、`namba harness` 还是 `namba fix`，再沿着选中的 SPEC 路径推进工作。
 - 用 `namba run SPEC-XXX` 运行默认流程，`--solo` 表示单一 workspace 中的单 runner，`--team` 表示同一 workspace 内的多智能体执行，`--parallel` 表示 worktree fan-out/fan-in 执行，然后再用 `namba sync`、`namba pr`、`namba land` 完成交付。
 - 如果实现前需要产品、工程或设计评审，可以使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review`。
 - 通过 `namba update` 和 release 资产让团队的 CLI 版本保持一致。
@@ -49,6 +56,8 @@ namba pr "add login audit logs"
 namba land
 ```
 
+- 如果工作是为了复用 agent、skill、workflow 或 orchestration，请把 `namba plan` 换成 `namba harness "description"`。
+
 ## 安装、更新与卸载
 
 - 在 Windows 上安装: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
@@ -60,20 +69,23 @@ namba land
 
 ## Codex 中的 Command Skill
 
-- `$namba`: 当你希望 Codex 自动选择合适的 Namba 入口时使用的通用路由器。
+- `$namba`: 当你希望 Codex 根据上下文自动选择合适的 Namba 入口时使用的通用路由器。
 - `$namba-project`: 在开始前或较大改动后刷新项目文档和 codemap。
-- `$namba-plan` / `$namba-fix`: 创建下一个功能或 bug 修复用 SPEC 包。
-- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: 更新 SPEC 的 product / engineering / design review 产物以及 advisory readiness 摘要。
-- `$namba-run`: 在当前 Codex 会话中用 Namba workflow 执行 SPEC 包。
-- `$namba-sync`: 刷新 README 套件、项目文档、codemap 和 PR 交接产物。
-- `$namba-pr` / `$namba-land`: 将当前分支提交到 GitHub 评审，并在检查通过后安全合并。
-- `$namba-regen` / `$namba-update`: 重新生成 repo-local Codex 资产，或自更新已安装的 `namba` CLI。
+- `$namba-plan`: 需要功能 SPEC 包时使用。
+- `$namba-harness`: 需要面向 agent、skill、workflow、orchestration 复用的 harness-oriented SPEC 包时使用。
+- `$namba-fix`: 在当前 workspace 直接修复问题时使用；如果要创建可评审的缺陷修复 SPEC，就走 `namba fix --command plan "issue description"`。
+- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: 在 SPEC 需要 product / engineering / design review 产物和 advisory readiness 时使用。
+- `$namba-run`: 在当前 Codex 会话中执行已经创建好的 SPEC 包时使用。
+- `$namba-sync`: 刷新 README 套件、项目文档、codemap 和 PR 交接产物时使用。
+- `$namba-pr` / `$namba-land`: 将当前分支提交到 GitHub 评审，并在检查通过后安全合并时使用。
+- `$namba-regen` / `$namba-update`: 重新生成 repo-local Codex 资产，或自更新已安装的 `namba` CLI 时使用。
 
 ## Skill To Command Mapping
 
 - `$namba-project` -> `namba project`
 - `$namba-plan` -> `namba plan "description"`
-- `$namba-fix` -> `namba fix "description"`
+- `$namba-harness` -> `namba harness "description"`
+- `$namba-fix` -> `namba fix "issue description"` 或 `namba fix --command plan "issue description"`
 - `$namba-run` -> `namba run SPEC-XXX`
 - `$namba-sync` -> `namba sync`
 - `$namba-pr` -> `namba pr "title"`

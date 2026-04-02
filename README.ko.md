@@ -6,16 +6,23 @@
 
 # NambaAI
 
-NambaAI는 저장소를 부트스트랩하고, 작업을 SPEC 패키지로 계획하고, 구현 이후 산출물을 동기화하는 Codex-native 워크플로입니다.
+NambaAI는 저장소를 부트스트랩하고, 먼저 어떤 Namba 명령을 써야 하는지 고르고, 작업을 SPEC 패키지로 계획하고, 구현 이후 산출물을 동기화하는 Codex-native 워크플로입니다.
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [中文](README.zh.md)
 
 [Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](SECURITY.md)
 
+## 어떤 명령을 써야 하나요?
+
+- `namba project`: 작업을 시작하기 전에 저장소 문맥과 생성 문서를 새로 고칩니다.
+- `namba plan`: 기능이나 제품 변경을 SPEC 패키지로 만들 때 사용합니다.
+- `namba harness`: agent, skill, workflow, orchestration 재사용을 위한 harness-oriented SPEC 패키지를 만들 때 사용합니다.
+- `namba fix`: 현재 workspace에서 버그를 직접 수리할 때 사용하고, review 가능한 버그 수정 SPEC가 필요하면 `namba fix --command plan`을 씁니다.
+
 ## NambaAI로 할 수 있는 일
 
 - 빈 디렉터리에서 `namba init .`로 Codex-ready 저장소를 바로 시작할 수 있습니다.
-- `namba plan`, `namba fix`로 변경 요청을 SPEC 패키지로 정리할 수 있습니다.
+- `namba project`, `namba plan`, `namba harness`, `namba fix` 중 무엇을 쓸지 먼저 고른 다음, 선택한 SPEC 경로로 작업을 진행합니다.
 - `namba run SPEC-XXX`로 기본 흐름을 실행하고, `--solo`는 하나의 workspace에서 단일 runner, `--team`은 같은 workspace의 멀티에이전트 실행, `--parallel`은 worktree fan-out/fan-in 실행에 사용한 뒤 `namba sync`, `namba pr`, `namba land`로 마무리합니다.
 - 구현 전에 제품, 엔지니어링, 디자인 검토가 필요하면 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`를 사용합니다.
 - `namba update`와 릴리스 자산으로 팀 전체 CLI 버전을 맞출 수 있습니다.
@@ -49,6 +56,8 @@ namba pr "add login audit logs"
 namba land
 ```
 
+- agent, skill, workflow, orchestration 재사용 작업이면 `namba plan` 대신 `namba harness "description"`를 넣으세요.
+
 ## 설치, 업데이트, 제거
 
 - 설치 (Windows): `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
@@ -60,20 +69,23 @@ namba land
 
 ## Codex에서 쓰는 Command Skill
 
-- `$namba`: Codex가 적절한 Namba 진입점을 고르게 맡기고 싶을 때 쓰는 일반 라우터입니다.
-- `$namba-project`: 시작 전이나 큰 변경 뒤에 프로젝트 문서와 codemap을 새로 고칩니다.
-- `$namba-plan` / `$namba-fix`: 다음 기능 또는 버그 수정용 SPEC 패키지를 만듭니다.
-- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: SPEC의 product, engineering, design review 산출물과 advisory readiness를 갱신합니다.
-- `$namba-run`: 현재 Codex 세션에서 SPEC 패키지를 Namba workflow로 실행합니다.
-- `$namba-sync`: README 묶음, 프로젝트 문서, codemap, PR 준비 산출물을 갱신합니다.
-- `$namba-pr` / `$namba-land`: 현재 브랜치를 GitHub 리뷰로 넘기고, 체크 통과 후 안전하게 머지합니다.
-- `$namba-regen` / `$namba-update`: repo-local Codex 자산을 다시 만들거나 설치된 `namba` CLI를 self-update 합니다.
+- `$namba`: Codex가 문맥을 보고 적절한 Namba 진입점을 고르게 맡기고 싶을 때 쓰는 일반 라우터입니다.
+- `$namba-project`: 작업을 시작하기 전이나 큰 변경 뒤에 프로젝트 문서와 codemap을 새로 고칩니다.
+- `$namba-plan`: 기능 SPEC 패키지를 만들고 싶을 때 씁니다.
+- `$namba-harness`: agent, skill, workflow, orchestration 재사용을 위한 harness-oriented SPEC 패키지를 만들고 싶을 때 씁니다.
+- `$namba-fix`: 현재 workspace에서 직접 버그를 수리할 때 쓰고, review 가능한 bugfix SPEC가 필요하면 `namba fix --command plan "issue description"` 경로를 선택합니다.
+- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: SPEC의 product, engineering, design review 산출물과 advisory readiness를 갱신할 때 씁니다.
+- `$namba-run`: 이미 만든 SPEC 패키지를 현재 Codex 세션에서 실행할 때 씁니다.
+- `$namba-sync`: README 묶음, 프로젝트 문서, codemap, PR 준비 산출물을 갱신할 때 씁니다.
+- `$namba-pr` / `$namba-land`: 현재 브랜치를 GitHub 리뷰로 넘기고, 체크 통과 후 안전하게 머지할 때 씁니다.
+- `$namba-regen` / `$namba-update`: repo-local Codex 자산을 다시 만들거나 설치된 `namba` CLI를 self-update 할 때 씁니다.
 
 ## Skill To Command Mapping
 
 - `$namba-project` -> `namba project`
 - `$namba-plan` -> `namba plan "description"`
-- `$namba-fix` -> `namba fix "description"`
+- `$namba-harness` -> `namba harness "description"`
+- `$namba-fix` -> `namba fix "issue description"` 또는 `namba fix --command plan "issue description"`
 - `$namba-run` -> `namba run SPEC-XXX`
 - `$namba-sync` -> `namba sync`
 - `$namba-pr` -> `namba pr "title"`

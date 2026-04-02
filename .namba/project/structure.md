@@ -100,6 +100,7 @@
 .namba/specs/SPEC-018
 .namba/specs/SPEC-019
 .namba/specs/SPEC-020
+.namba/specs/SPEC-021
 AGENTS.md
 README.ja.md
 README.ko.md
@@ -150,6 +151,7 @@ internal/namba/parallel_test.go
 internal/namba/pr_land_command.go
 internal/namba/pr_land_command_test.go
 internal/namba/readme.go
+internal/namba/readme_contract_test.go
 internal/namba/readme_sync_test.go
 internal/namba/release.go
 internal/namba/release_command.go
