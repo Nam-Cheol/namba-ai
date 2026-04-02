@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-01T15:58:14+09:00",
+  "generated_at": "2026-04-01T17:58:16+09:00",
   "entries": [
     {
       "path": ".agents/skills/namba-fix/SKILL.md",
@@ -12,6 +12,12 @@
       "kind": "skill",
       "checksum": "fe67323ac43211c111e7420c25f44ac68e57e2f3750209e9f8bacafd414ba1a0",
       "updated_at": "2026-03-29T19:45:52+09:00"
+    },
+    {
+      "path": ".agents/skills/namba-harness/SKILL.md",
+      "kind": "skill",
+      "checksum": "a11c6e24e915d776455c7e3b9ce3b5e66981f5ced6be3cb291297182afc1c750",
+      "updated_at": "2026-04-01T17:43:51+09:00"
     },
     {
       "path": ".agents/skills/namba-init/SKILL.md",
@@ -46,8 +52,8 @@
     {
       "path": ".agents/skills/namba-plan/SKILL.md",
       "kind": "skill",
-      "checksum": "53ef30b2cbd68af23ccd9308c7625b55ac3d4356c879d92b0a6d5d556199b0c4",
-      "updated_at": "2026-03-29T19:45:52+09:00"
+      "checksum": "0089cabc062852de93c9bed040836f82201138d1ae5776ea61c85f13130f19ea",
+      "updated_at": "2026-04-01T17:43:51+09:00"
     },
     {
       "path": ".agents/skills/namba-pr/SKILL.md",
@@ -106,8 +112,8 @@
     {
       "path": ".agents/skills/namba/SKILL.md",
       "kind": "skill",
-      "checksum": "c085928ff0e02e695412e1b49d7b39160a9f4975eaca6ed3eb383124a6005c89",
-      "updated_at": "2026-04-01T15:39:03+09:00"
+      "checksum": "79c8e3a3fb030fb4f9f989f695a756e41d6c6782ae633d812aae7bc6b20721ae",
+      "updated_at": "2026-04-01T17:43:51+09:00"
     },
     {
       "path": ".codex/agents/namba-backend-architect.md",
@@ -286,8 +292,8 @@
     {
       "path": ".namba/codex/README.md",
       "kind": "asset",
-      "checksum": "c4763b5498036ff31a21c0806fd0a8bb15a59f6f0e8ff135f9930a9c4849ca58",
-      "updated_at": "2026-04-01T15:39:03+09:00"
+      "checksum": "02cac4dfa8692bb31cb3638e2f2c7760d783c42efdd5d9e4898ee0f88df32da4",
+      "updated_at": "2026-04-01T17:43:51+09:00"
     },
     {
       "path": ".namba/codex/claude-codex-mapping.md",
@@ -376,8 +382,8 @@
     {
       "path": ".namba/project/change-summary.md",
       "kind": "project-doc",
-      "checksum": "e36fd3b5f941eadd4d6e9d3a023cd3d436bcdabfc8115f43cd5705b90723a5fc",
-      "updated_at": "2026-04-01T14:30:56+09:00"
+      "checksum": "633c5c5fdb897d6519e9413f93f609c72a9e6fbf06277cb42cb92c1cca811264",
+      "updated_at": "2026-04-01T17:43:51+09:00"
     },
     {
       "path": ".namba/project/codemaps/data-flow.md",
@@ -406,14 +412,14 @@
     {
       "path": ".namba/project/pr-checklist.md",
       "kind": "project-doc",
-      "checksum": "89131ce3e5f9a64a42943479a89bb92a5bb4bb5a832c023e990ab5e478334db3",
-      "updated_at": "2026-04-01T14:07:55+09:00"
+      "checksum": "4b41b56db734a03ce1d09b96611e55bebb010dc47a70167ddf4269ce9d7016ab",
+      "updated_at": "2026-04-01T17:43:51+09:00"
     },
     {
       "path": ".namba/project/product.md",
       "kind": "project-doc",
       "checksum": "a442df858dbec9ad23c7dcc332dde1597711957569933bdbaa709d709476c14b",
-      "updated_at": "2026-04-01T15:58:14+09:00"
+      "updated_at": "2026-04-01T17:58:16+09:00"
     },
     {
       "path": ".namba/project/release-checklist.md",
@@ -424,14 +430,14 @@
     {
       "path": ".namba/project/release-notes.md",
       "kind": "project-doc",
-      "checksum": "a1c10ff7001d36783a800ef9c06de444aff9af5e7f9076c2045efc66f8b40e11",
-      "updated_at": "2026-04-01T14:07:55+09:00"
+      "checksum": "d0db80fbc5520e5b835276aac151c84cc6b61dc3cf4cf5a2a48cc4f39e8c7406",
+      "updated_at": "2026-04-01T17:43:51+09:00"
     },
     {
       "path": ".namba/project/structure.md",
       "kind": "project-doc",
-      "checksum": "974fef09c3aaed6404e5290dcd098b9e69c7630ef3abb2cf1f5fbb882953e535",
-      "updated_at": "2026-04-01T15:38:49+09:00"
+      "checksum": "85f722eae32e1a92cd8d379229bedf8b9ca6df29019d929afd417c0f0cbf28eb",
+      "updated_at": "2026-04-01T17:58:16+09:00"
     },
     {
       "path": ".namba/project/tech.md",
@@ -728,6 +734,48 @@
       "updated_at": "2026-04-01T14:02:12+09:00"
     },
     {
+      "path": ".namba/specs/SPEC-020/acceptance.md",
+      "kind": "spec",
+      "checksum": "a81c2286c253e1638ed7b3dc23e0adb1e286b5a79936eed504a84e56c62518af",
+      "updated_at": "2026-04-01T17:11:57+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-020/plan.md",
+      "kind": "spec",
+      "checksum": "34315410e399b8435dc835ffff576941941804577ba91417c6c9b057ee8553d4",
+      "updated_at": "2026-04-01T17:11:57+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-020/reviews/design.md",
+      "kind": "spec",
+      "checksum": "c4583922d8111624550f4084321e159a42bec73e7943c47b14025197e705dd2b",
+      "updated_at": "2026-04-01T16:59:15+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-020/reviews/engineering.md",
+      "kind": "spec",
+      "checksum": "c8e1a41d6616f57acece67e84cd32d6c6b481a8dbb1abdbdc19a8a9d8aa14d8a",
+      "updated_at": "2026-04-01T17:25:31+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-020/reviews/product.md",
+      "kind": "spec",
+      "checksum": "f2d3bd37a1af6ce19b8d85efc57352f9f3d5a4bfedf33fc59b3f98e93f52837d",
+      "updated_at": "2026-04-01T17:25:31+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-020/reviews/readiness.md",
+      "kind": "spec",
+      "checksum": "7faa72abf55d954b4abc9b37495b6fe5534e4a2b675f49a522a2fa28da5d67fe",
+      "updated_at": "2026-04-01T17:28:28+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-020/spec.md",
+      "kind": "spec",
+      "checksum": "0fdcb46aa7524583d63813d9f4502c7fc67e677025b4ba1490bc91eacf6586b9",
+      "updated_at": "2026-04-01T17:11:57+09:00"
+    },
+    {
       "path": ".namba/worktrees/.gitkeep",
       "kind": "asset",
       "checksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -736,32 +784,32 @@
     {
       "path": "AGENTS.md",
       "kind": "asset",
-      "checksum": "50d42ed0dda3bca3a6f61fb9cb2f719d76995649a8806ce77d2e4a50e0ff40fb",
-      "updated_at": "2026-04-01T15:39:03+09:00"
+      "checksum": "6202a6d529b96443e48ffa02f30d0eb317fd89eed4e35f64f5531fcd28b6c573",
+      "updated_at": "2026-04-01T17:43:51+09:00"
     },
     {
       "path": "README.ja.md",
       "kind": "asset",
       "checksum": "602c79f608edc252b877512feed6de024a37177a66945d5938fda342be74aa7a",
-      "updated_at": "2026-04-01T15:58:14+09:00"
+      "updated_at": "2026-04-01T17:58:16+09:00"
     },
     {
       "path": "README.ko.md",
       "kind": "asset",
       "checksum": "1b9fae2f0d618cad348a9c5965b08e1253ba55ccf109ede2154f49c1658849e2",
-      "updated_at": "2026-04-01T15:58:14+09:00"
+      "updated_at": "2026-04-01T17:58:16+09:00"
     },
     {
       "path": "README.md",
       "kind": "asset",
       "checksum": "5d4f80fa08c6fc8e3450e84f28c59660a691831e7076d9d4e46a2ddff31e9dfe",
-      "updated_at": "2026-04-01T15:58:14+09:00"
+      "updated_at": "2026-04-01T17:58:16+09:00"
     },
     {
       "path": "README.zh.md",
       "kind": "asset",
       "checksum": "ffc15ac8d880ed8e0952142362aa0752bed1848e0014d5ae7c5b25979f2dc2ca",
-      "updated_at": "2026-04-01T15:58:14+09:00"
+      "updated_at": "2026-04-01T17:58:16+09:00"
     },
     {
       "path": "docs/getting-started.ja.md",
@@ -791,25 +839,25 @@
       "path": "docs/workflow-guide.ja.md",
       "kind": "asset",
       "checksum": "99ec984fe10a868a60cb4b61d75a5c9a6caa41831840f8d8ecd41290b92ea691",
-      "updated_at": "2026-04-01T15:58:14+09:00"
+      "updated_at": "2026-04-01T17:58:16+09:00"
     },
     {
       "path": "docs/workflow-guide.ko.md",
       "kind": "asset",
       "checksum": "56aacf1c66f684c87aca54d91cd0143d224f5358daaa3020dde5eaec791cdb26",
-      "updated_at": "2026-04-01T15:58:14+09:00"
+      "updated_at": "2026-04-01T17:58:16+09:00"
     },
     {
       "path": "docs/workflow-guide.md",
       "kind": "asset",
       "checksum": "8fcc89a445b6529187199946990a629e843c91854c7c088f6a587f8ea012703d",
-      "updated_at": "2026-04-01T15:58:14+09:00"
+      "updated_at": "2026-04-01T17:58:16+09:00"
     },
     {
       "path": "docs/workflow-guide.zh.md",
       "kind": "asset",
       "checksum": "82fa3d6cc12d8d31017a2c980a77e1b13e108950c843ca58d7c2c1837b9f82f8",
-      "updated_at": "2026-04-01T15:58:14+09:00"
+      "updated_at": "2026-04-01T17:58:16+09:00"
     }
   ]
 }

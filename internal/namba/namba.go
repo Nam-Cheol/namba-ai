@@ -165,6 +165,8 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return a.runRegen(ctx, args[1:])
 	case "plan":
 		return a.runPlan(ctx, args[1:])
+	case "harness":
+		return a.runHarness(ctx, args[1:])
 	case "fix":
 		return a.runFix(ctx, args[1:])
 	case "run":
@@ -202,6 +204,7 @@ Usage:
   namba update [--version vX.Y.Z]
   namba regen
   namba plan "<description>"
+  namba harness "<description>"
   namba fix [--command run|plan] "<issue description>"
   namba run SPEC-XXX [--solo|--team|--parallel] [--dry-run]
   namba sync
@@ -394,7 +397,7 @@ func (a *App) runProject(_ context.Context, _ []string) error {
 }
 
 func (a *App) runPlan(_ context.Context, args []string) error {
-	options, err := parsePlanArgs(args)
+	options, err := parseDescriptionCommandArgs("plan", "description", args)
 	if err != nil {
 		return err
 	}
@@ -402,6 +405,17 @@ func (a *App) runPlan(_ context.Context, args []string) error {
 		return a.printPlanUsage()
 	}
 	return a.createSpecPackage("plan", options.description)
+}
+
+func (a *App) runHarness(_ context.Context, args []string) error {
+	options, err := parseDescriptionCommandArgs("harness", "description", args)
+	if err != nil {
+		return err
+	}
+	if options.help {
+		return a.printHarnessUsage()
+	}
+	return a.createSpecPackage("harness", options.description)
 }
 
 func (a *App) runFix(ctx context.Context, args []string) error {
@@ -477,22 +491,26 @@ type fixInvocation struct {
 }
 
 func parsePlanArgs(args []string) (planInvocation, error) {
+	return parseDescriptionCommandArgs("plan", "description", args)
+}
+
+func parseDescriptionCommandArgs(command, field string, args []string) (planInvocation, error) {
 	if len(args) == 0 {
-		return planInvocation{}, errors.New("plan requires a description")
+		return planInvocation{}, fmt.Errorf("%s requires a %s", command, field)
 	}
 	for _, arg := range args {
 		switch arg {
 		case "--help", "-h":
 			return planInvocation{help: true}, nil
 		default:
-			if strings.HasPrefix(arg, "-") {
+			if isStandaloneFlagToken(arg) {
 				return planInvocation{}, fmt.Errorf("unknown flag %q", arg)
 			}
 		}
 	}
 	description := strings.TrimSpace(strings.Join(args, " "))
 	if description == "" {
-		return planInvocation{}, errors.New("plan requires a description")
+		return planInvocation{}, fmt.Errorf("%s requires a %s", command, field)
 	}
 	return planInvocation{description: description}, nil
 }
@@ -549,6 +567,11 @@ func (a *App) printPlanUsage() error {
 	return err
 }
 
+func (a *App) printHarnessUsage() error {
+	_, err := fmt.Fprint(a.stdout, harnessUsageText())
+	return err
+}
+
 func (a *App) printFixUsage() error {
 	_, err := fmt.Fprint(a.stdout, fixUsageText())
 	return err
@@ -562,6 +585,17 @@ Usage:
 
 Behavior:
   Create the next feature SPEC package under .namba/specs/ and seed review artifacts.
+`
+}
+
+func harnessUsageText() string {
+	return `namba harness
+
+Usage:
+  namba harness "<description>"
+
+Behavior:
+  Create the next harness-oriented SPEC package under .namba/specs/ and seed review artifacts.
 `
 }
 
@@ -663,6 +697,8 @@ func buildSpecDoc(kind, specID, description string, projectCfg projectConfig, qu
 	switch kind {
 	case "fix":
 		return fmt.Sprintf("# %s\n\n## Problem\n\n%s\n\n## Goal\n\nApply the smallest safe fix that resolves the reported issue.\n\n## Context\n\n- Project: %s\n- Project type: %s\n- Language: %s\n- Mode: %s\n- Work type: fix\n", specID, description, projectCfg.Name, projectCfg.ProjectType, projectCfg.Language, qualityCfg.DevelopmentMode)
+	case "harness":
+		return fmt.Sprintf("# %s\n\n## Problem\n\nThe current repository needs a dedicated harness-oriented planning flow for the following request:\n\n%s\n\n## Goal\n\nDesign a Codex-native harness change under the existing `SPEC-XXX` artifact flow without inventing a second planning model or importing Claude-only runtime primitives.\n\n## Context\n\n- Project: %s\n- Project type: %s\n- Language: %s\n- Mode: %s\n- Work type: plan\n- Planning surface: `namba harness \"<description>\"`\n\n## Desired Outcome\n\n- `namba harness \"<description>\"` acts as a top-level planning command while `namba plan` keeps its current feature-planning behavior.\n- The scaffold captures Codex-native execution topology, agent/skill boundaries, progressive-disclosure guidance, trigger strategy, and evaluation strategy for reusable skills or agents.\n- Help and accidental-write safety stay aligned with the shared command-parsing contract instead of creating command-specific drift.\n- The planned output remains under `.namba/specs/<SPEC>` with the normal review artifacts.\n\n## Non-Goals\n\n- Do not create a second artifact model outside `.namba/specs/`.\n- Do not emit `.claude/*`, `TeamCreate`, `SendMessage`, `TaskCreate`, or a mandatory `model: \"opus\"` requirement as part of the Codex-facing contract.\n- Do not change the default behavior of `namba plan`.\n", specID, description, projectCfg.Name, projectCfg.ProjectType, projectCfg.Language, qualityCfg.DevelopmentMode)
 	default:
 		return fmt.Sprintf("# %s\n\n## Goal\n\n%s\n\n## Context\n\n- Project: %s\n- Project type: %s\n- Language: %s\n- Mode: %s\n- Work type: plan\n", specID, description, projectCfg.Name, projectCfg.ProjectType, projectCfg.Language, qualityCfg.DevelopmentMode)
 	}
@@ -672,6 +708,8 @@ func buildSpecPlanDoc(kind, specID string) string {
 	switch kind {
 	case "fix":
 		return fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Reproduce or inspect the reported issue\n3. Run the relevant review passes under `.namba/specs/%s/reviews/` and refresh the readiness summary\n4. Implement the smallest safe fix\n5. Run validation commands and targeted regression checks\n6. Sync artifacts with `namba sync`\n", specID, specID)
+	case "harness":
+		return fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Define the top-level `namba harness` command contract while keeping `namba plan` unchanged\n3. Capture Codex-native execution topology, agent/skill boundaries, progressive-disclosure layout, trigger guidance, and evaluation strategy in the scaffold\n4. Run the relevant review passes under `.namba/specs/%s/reviews/` and refresh the readiness summary\n5. Implement the requested command and scaffold changes\n6. Run validation commands\n7. Sync artifacts with `namba sync`\n", specID, specID)
 	default:
 		return fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Run the relevant review passes under `.namba/specs/%s/reviews/` and refresh the readiness summary\n3. Implement the requested change\n4. Run validation commands\n5. Sync artifacts with `namba sync`\n", specID, specID)
 	}
@@ -680,6 +718,9 @@ func buildSpecPlanDoc(kind, specID string) string {
 func buildSpecAcceptanceDoc(kind, description, mode string) string {
 	if kind == "fix" {
 		return buildFixAcceptanceDoc(description, mode)
+	}
+	if kind == "harness" {
+		return buildHarnessAcceptanceDoc(description, mode)
 	}
 	return buildAcceptanceDoc(description, mode)
 }
@@ -2392,6 +2433,28 @@ func buildAcceptanceDoc(description, mode string) string {
 		bullets = append(bullets, "- [ ] Tests covering the new behavior are present")
 	} else {
 		bullets = append(bullets, "- [ ] Existing behavior is preserved while improving the target area")
+	}
+	return strings.Join(bullets, "\n")
+}
+
+func buildHarnessAcceptanceDoc(description, mode string) string {
+	bullets := []string{
+		"# Acceptance",
+		"",
+		"- [ ] `namba harness \"<description>\"` creates the next sequential `SPEC-XXX` package with a harness-oriented scaffold.",
+		"- [ ] `namba plan \"<description>\"` keeps its current default feature-planning behavior.",
+		"- [ ] `namba harness --help` is read-only and does not create or mutate `.namba/specs/<SPEC>`.",
+		"- [ ] The generated scaffold captures Codex-native execution topology, agent/skill boundaries, progressive-disclosure guidance, trigger strategy, and evaluation strategy.",
+		"- [ ] The generated scaffold stays on the existing `.namba/specs/<SPEC>` artifact model and does not invent a second planning package type.",
+		"- [ ] The generated scaffold excludes Claude-only primitives such as `.claude/*`, `TeamCreate`, `SendMessage`, `TaskCreate`, and a mandatory `model: \"opus\"` requirement.",
+		"- [ ] The requested harness-oriented behavior described below is represented in the scaffold:",
+		"  " + description,
+		"- [ ] Validation commands pass",
+	}
+	if mode == "tdd" {
+		bullets = append(bullets, "- [ ] Tests covering the new command/scaffold behavior are present")
+	} else {
+		bullets = append(bullets, "- [ ] Existing planning behavior is preserved while adding the harness surface")
 	}
 	return strings.Join(bullets, "\n")
 }
