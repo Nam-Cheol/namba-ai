@@ -374,7 +374,8 @@ func (a *App) runProject(_ context.Context, _ []string) error {
 	}
 
 	analysis := analyzeProject(root, projectCfg, qualityCfg, analysisCfg)
-	if _, err := a.writeOutputs(root, analysis.renderOutputs()); err != nil {
+	outputs := analysis.renderOutputs()
+	if _, err := a.replaceManagedOutputs(root, outputs, isProjectAnalysisManagedPath); err != nil {
 		return err
 	}
 

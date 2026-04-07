@@ -38,6 +38,12 @@ type analysisConflict struct {
 	Reason   string
 }
 
+type runtimeMention struct {
+	Label             string
+	Patterns          []string
+	CompatibleSignals []string
+}
+
 type analysisSystem struct {
 	Name             string
 	Slug             string
@@ -587,11 +593,11 @@ func detectAnalysisConflicts(projectCfg projectConfig, readmePath, readmeBody st
 	lower := strings.ToLower(summary)
 	var conflicts []analysisConflict
 
-	if strongest := strongestRuntimeSignal(projectCfg, files, systems); strongest != "" {
-		if contradictory := contradictoryRuntimeMention(lower, strongest); contradictory != "" {
+	if signals := runtimeSignals(projectCfg, files, systems); len(signals) > 0 {
+		if contradictory := contradictoryRuntimeMention(lower, signals); contradictory != "" {
 			conflicts = append(conflicts, analysisConflict{
-				Claim:    fmt.Sprintf("README describes the repository as `%s`, but the strongest code/config signals point to `%s`.", contradictory, strongest),
-				Stronger: strongestRuntimeEvidence(strongest, files, systems, cfg),
+				Claim:    fmt.Sprintf("README describes the repository as `%s`, but the strongest code/config signals point to `%s`.", contradictory, strings.Join(signals, ", ")),
+				Stronger: runtimeSignalEvidence(signals, files, systems, cfg),
 				Weaker:   readmePath,
 				Reason:   "code and authoritative manifests outrank prose documentation in the configured source-priority contract",
 			})
@@ -601,113 +607,147 @@ func detectAnalysisConflicts(projectCfg projectConfig, readmePath, readmeBody st
 	return conflicts
 }
 
-func strongestRuntimeSignal(projectCfg projectConfig, files []analysisFile, systems []analysisSystem) string {
-	for _, system := range systems {
-		switch system.Kind {
-		case "frontend":
-			return "react frontend"
-		case "backend", "go-service":
-			return "go service"
-		case "infra":
-			return "infrastructure stack"
+func runtimeSignals(projectCfg projectConfig, files []analysisFile, systems []analysisSystem) []string {
+	var signals []string
+	seen := map[string]bool{}
+	addSignal := func(signal string) {
+		if signal == "" || seen[signal] {
+			return
 		}
+		seen[signal] = true
+		signals = append(signals, signal)
+	}
+	for _, system := range systems {
+		addSignal(runtimeSignalForSystemKind(system.Kind))
+	}
+	if len(signals) > 0 {
+		return signals
 	}
 	switch strings.ToLower(projectCfg.Language) {
 	case "go":
-		return "go service"
+		addSignal("go service")
 	case "python":
-		return "python service"
+		addSignal("python service")
 	case "javascript", "typescript", "node":
-		return "node or frontend runtime"
+		addSignal("node or frontend runtime")
 	default:
 		if anyFileWithBase(files, "go.mod") {
-			return "go service"
+			addSignal("go service")
 		}
 		if anyFileWithBase(files, "package.json") {
-			return "node or frontend runtime"
+			addSignal("node or frontend runtime")
 		}
 	}
-	return ""
+	return signals
 }
 
-func contradictoryRuntimeMention(readme, strongest string) string {
-	candidates := []string{"rails", "django", "spring", "fastapi", "python service", "react frontend", "go service", "infrastructure stack"}
-	for _, candidate := range candidates {
-		if candidate == strongest {
+func runtimeSignalForSystemKind(kind string) string {
+	switch kind {
+	case "frontend":
+		return "react frontend"
+	case "backend", "go-service":
+		return "go service"
+	case "infra":
+		return "infrastructure stack"
+	case "python-service":
+		return "python service"
+	default:
+		return ""
+	}
+}
+
+func contradictoryRuntimeMention(readme string, signals []string) string {
+	mentions := []runtimeMention{
+		{Label: "rails", Patterns: []string{"rails"}},
+		{Label: "django", Patterns: []string{"django"}, CompatibleSignals: []string{"python service"}},
+		{Label: "spring", Patterns: []string{"spring"}},
+		{Label: "fastapi", Patterns: []string{"fastapi"}, CompatibleSignals: []string{"python service"}},
+		{Label: "python service", Patterns: []string{"python service", "python backend"}, CompatibleSignals: []string{"python service"}},
+		{Label: "react frontend", Patterns: []string{"react frontend", "react app", "single-page app", "spa frontend"}, CompatibleSignals: []string{"react frontend", "node or frontend runtime"}},
+		{Label: "go service", Patterns: []string{"go service", "golang service", "cobra cli"}, CompatibleSignals: []string{"go service"}},
+		{Label: "infrastructure stack", Patterns: []string{"terraform", "docker compose", "infrastructure"}, CompatibleSignals: []string{"infrastructure stack"}},
+	}
+
+	for _, mention := range mentions {
+		if !containsAny(readme, mention.Patterns...) {
 			continue
 		}
-		switch candidate {
-		case "python service":
-			if strings.Contains(readme, "python service") || strings.Contains(readme, "python backend") || strings.Contains(readme, "fastapi") || strings.Contains(readme, "django") {
-				return candidate
-			}
-		case "react frontend":
-			if strings.Contains(readme, "react frontend") || strings.Contains(readme, "react app") || strings.Contains(readme, "single-page app") || strings.Contains(readme, "spa frontend") {
-				return candidate
-			}
-		case "go service":
-			if strings.Contains(readme, "go service") || strings.Contains(readme, "golang service") || strings.Contains(readme, "cobra cli") {
-				return candidate
-			}
-		case "infrastructure stack":
-			if strings.Contains(readme, "terraform") || strings.Contains(readme, "docker compose") || strings.Contains(readme, "infrastructure") {
-				return candidate
-			}
-		default:
-			if strings.Contains(readme, candidate) {
-				return candidate
-			}
+		if runtimeMentionSupported(signals, mention) {
+			continue
 		}
+		return mention.Label
 	}
 	return ""
 }
 
-func strongestRuntimeEvidence(strongest string, files []analysisFile, systems []analysisSystem, cfg analysisConfig) string {
+func runtimeMentionSupported(signals []string, mention runtimeMention) bool {
+	compatible := mention.CompatibleSignals
+	if len(compatible) == 0 {
+		compatible = []string{mention.Label}
+	}
+	for _, signal := range signals {
+		for _, candidate := range compatible {
+			if signal == candidate {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func containsAny(text string, patterns ...string) bool {
+	for _, pattern := range patterns {
+		if strings.Contains(text, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+func runtimeSignalEvidence(signals []string, files []analysisFile, systems []analysisSystem, cfg analysisConfig) string {
 	type candidate struct {
 		path string
 		rank int
 	}
 	var candidates []candidate
-	for _, system := range systems {
-		if strongest == "react frontend" && system.Kind != "frontend" {
-			continue
+	allRoots := collectSystemRoots(files)
+	appendEvidence := func(paths []string) {
+		for _, evidence := range paths {
+			candidates = append(candidates, candidate{
+				path: evidence,
+				rank: sourcePriorityRank(cfg, evidenceCategory(files, evidence)),
+			})
 		}
-		if strongest == "go service" && system.Kind != "backend" && system.Kind != "go-service" {
-			continue
-		}
-		if strongest == "infrastructure stack" && system.Kind != "infra" {
-			continue
-		}
-		switch strongest {
-		case "react frontend":
-			for _, evidence := range preferredEvidence(filesForSystem(files, system.Root, collectSystemRoots(files)), "package.json", "src/main.tsx", "src/main.jsx", "src/app/App.tsx") {
-				candidates = append(candidates, candidate{
-					path: evidence,
-					rank: sourcePriorityRank(cfg, evidenceCategory(files, evidence)),
-				})
-			}
+	}
+	for _, signal := range signals {
+		switch signal {
 		case "go service":
-			for _, evidence := range preferredEvidence(filesForSystem(files, system.Root, collectSystemRoots(files)), "go.mod", "main.go") {
-				candidates = append(candidates, candidate{
-					path: evidence,
-					rank: sourcePriorityRank(cfg, evidenceCategory(files, evidence)),
-				})
-			}
+			appendEvidence(preferredEvidence(files, "go.mod", "main.go"))
+		case "react frontend", "node or frontend runtime":
+			appendEvidence(preferredEvidence(files, "package.json", "src/main.tsx", "src/main.jsx", "src/app/App.tsx"))
+		case "python service":
+			appendEvidence(preferredEvidence(files, "pyproject.toml", "requirements.txt", "main.py"))
 		case "infrastructure stack":
-			for _, evidence := range preferredEvidence(filesForSystem(files, system.Root, collectSystemRoots(files)), "docker-compose.yml", "docker-compose.yaml", "kustomization.yaml") {
-				candidates = append(candidates, candidate{
-					path: evidence,
-					rank: sourcePriorityRank(cfg, evidenceCategory(files, evidence)),
-				})
-			}
+			appendEvidence(preferredEvidence(files, "docker-compose.yml", "docker-compose.yaml", "kustomization.yaml"))
+		}
+	}
+	for _, system := range systems {
+		signal := runtimeSignalForSystemKind(system.Kind)
+		if signal == "" || !containsString(signals, signal) {
+			continue
+		}
+		switch signal {
+		case "react frontend":
+			appendEvidence(preferredEvidence(filesForSystem(files, system.Root, allRoots), "package.json", "src/main.tsx", "src/main.jsx", "src/app/App.tsx"))
+		case "go service":
+			appendEvidence(preferredEvidence(filesForSystem(files, system.Root, allRoots), "go.mod", "main.go"))
+		case "python service":
+			appendEvidence(preferredEvidence(filesForSystem(files, system.Root, allRoots), "pyproject.toml", "requirements.txt", "main.py"))
+		case "infrastructure stack":
+			appendEvidence(preferredEvidence(filesForSystem(files, system.Root, allRoots), "docker-compose.yml", "docker-compose.yaml", "kustomization.yaml"))
 		}
 		if len(system.Purpose) > 0 && len(system.Purpose[0].Evidence) > 0 {
-			for _, evidence := range system.Purpose[0].Evidence {
-				candidates = append(candidates, candidate{
-					path: evidence,
-					rank: sourcePriorityRank(cfg, evidenceCategory(files, evidence)),
-				})
-			}
+			appendEvidence(system.Purpose[0].Evidence)
 		}
 	}
 	if len(candidates) == 0 {
@@ -743,6 +783,15 @@ func strongestRuntimeEvidence(strongest string, files []analysisFile, systems []
 		return "repository scan"
 	}
 	return strings.Join(evidence, ", ")
+}
+
+func containsString(items []string, target string) bool {
+	for _, item := range items {
+		if item == target {
+			return true
+		}
+	}
+	return false
 }
 
 func evaluateAnalysisQuality(analysis projectAnalysis) analysisQuality {
@@ -911,6 +960,23 @@ func renderSystemDoc(system analysisSystem) string {
 	lines = append(lines, "", "## Deploy Runtime And Test Risks", "")
 	lines = appendFindings(lines, system.Risks)
 	return strings.Join(lines, "\n") + "\n"
+}
+
+func isProjectAnalysisManagedPath(rel string) bool {
+	switch rel {
+	case filepath.ToSlash(filepath.Join(projectDir, "product.md")),
+		filepath.ToSlash(filepath.Join(projectDir, "tech.md")),
+		filepath.ToSlash(filepath.Join(projectDir, "structure.md")),
+		filepath.ToSlash(filepath.Join(projectDir, "mismatch-report.md")),
+		filepath.ToSlash(filepath.Join(projectDir, "quality-report.md")),
+		filepath.ToSlash(filepath.Join(codemapsDir, "overview.md")),
+		filepath.ToSlash(filepath.Join(codemapsDir, "entry-points.md")),
+		filepath.ToSlash(filepath.Join(codemapsDir, "dependencies.md")),
+		filepath.ToSlash(filepath.Join(codemapsDir, "data-flow.md")):
+		return true
+	default:
+		return strings.HasPrefix(rel, filepath.ToSlash(systemDocsDir)+"/")
+	}
 }
 
 func renderOverviewDoc(analysis projectAnalysis) string {

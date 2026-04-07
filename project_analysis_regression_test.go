@@ -134,13 +134,69 @@ export default function App() {
 	}
 
 	mismatch := mustRead(t, filepath.Join(tmp, ".namba", "project", "mismatch-report.md"))
-	if !strings.Contains(mismatch, "README describes the repository as `go service`") || !strings.Contains(mismatch, "README.md") || !strings.Contains(mismatch, "package.json") {
-		t.Fatalf("expected explicit README drift report, got: %s", mismatch)
+	if !strings.Contains(mismatch, "No explicit code-vs-doc conflicts were detected") {
+		t.Fatalf("expected mixed-runtime repo to avoid false-positive README drift, got: %s", mismatch)
 	}
 
 	overview := mustRead(t, filepath.Join(tmp, ".namba", "project", "codemaps", "overview.md"))
 	if !strings.Contains(overview, "workspace") || !strings.Contains(overview, "api") {
 		t.Fatalf("expected overview to separate backend and frontend systems, got: %s", overview)
+	}
+}
+
+func TestProjectAnalysisRemovesStaleSystemDocs(t *testing.T) {
+	tmp := t.TempDir()
+	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	if err := os.MkdirAll(filepath.Join(tmp, "frontend", "src"), 0o755); err != nil {
+		t.Fatalf("mkdir frontend/src: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, "backend", "cmd", "api"), 0o755); err != nil {
+		t.Fatalf("mkdir backend/cmd/api: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "frontend", "package.json"), []byte(`{"name":"frontend","dependencies":{"react":"18.3.1","react-dom":"18.3.1"}}`), 0o644); err != nil {
+		t.Fatalf("write frontend/package.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "frontend", "src", "main.tsx"), []byte(`export function main() { return null; }`), 0o644); err != nil {
+		t.Fatalf("write frontend/src/main.tsx: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "backend", "go.mod"), []byte("module example.com/backend\n\ngo 1.22\n"), 0o644); err != nil {
+		t.Fatalf("write backend/go.mod: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "backend", "cmd", "api", "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatalf("write backend/cmd/api/main.go: %v", err)
+	}
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdir(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"project"}); err != nil {
+		t.Fatalf("first project failed: %v", err)
+	}
+	mustExist(t, filepath.Join(tmp, ".namba", "project", "systems", "frontend.md"))
+
+	if err := os.RemoveAll(filepath.Join(tmp, "frontend")); err != nil {
+		t.Fatalf("remove frontend system: %v", err)
+	}
+	if err := app.Run(context.Background(), []string{"project"}); err != nil {
+		t.Fatalf("second project failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(tmp, ".namba", "project", "systems", "frontend.md")); !os.IsNotExist(err) {
+		t.Fatalf("expected stale frontend system doc to be removed, stat err=%v", err)
+	}
+
+	product := mustRead(t, filepath.Join(tmp, ".namba", "project", "product.md"))
+	if strings.Contains(product, ".namba/project/systems/frontend.md") {
+		t.Fatalf("expected product doc to drop stale frontend reference, got: %s", product)
+	}
+
+	manifest := mustRead(t, filepath.Join(tmp, ".namba", "manifest.json"))
+	if strings.Contains(manifest, ".namba/project/systems/frontend.md") {
+		t.Fatalf("expected manifest to drop stale frontend system doc, got: %s", manifest)
 	}
 }
 
