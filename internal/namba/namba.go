@@ -293,12 +293,7 @@ func commandUsageText(command string) (string, bool) {
 }
 
 func wantsCommandHelp(args []string) bool {
-	for _, arg := range args {
-		if isHelpToken(arg) {
-			return true
-		}
-	}
-	return false
+	return len(args) == 1 && isHelpToken(args[0])
 }
 
 func isHelpToken(arg string) bool {
