@@ -22,7 +22,7 @@
 - `namba fix --command plan "issue description"`: バグ修正 SPEC パッケージと review artifact を作成します。
 - `namba fix "issue description"`: 現在の workspace で direct repair を始めます。
 - `namba fix --command run "issue description"`: 同じ direct-repair path を明示的に選びます。
-- `namba plan --help` と `namba fix --help`: read-only の help / option probing であり、SPEC を作成しません。
+- `namba <command> --help`、`namba <command> -h`、`namba help <command>`: すべての top-level command で read-only の help に入り、repo state を変更しません。
 
 ## `namba run` モード
 

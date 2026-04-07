@@ -100,6 +100,55 @@ func TestRunPRCreatesPullRequestAndAddsReviewComment(t *testing.T) {
 	}
 }
 
+func TestRunPRAllowsSingleDashHelpLikeTitleWord(t *testing.T) {
+	tmp, stdout, app, restore := preparePRLandProject(t)
+	defer restore()
+
+	var commands []string
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		commands = append(commands, name+" "+strings.Join(args, " "))
+		if dir != tmp {
+			t.Fatalf("expected workdir %s, got %s", tmp, dir)
+		}
+
+		switch {
+		case name == "gh" && len(args) == 2 && args[0] == "auth" && args[1] == "status":
+			return "", nil
+		case name == "git" && len(args) >= 2 && args[0] == "branch" && args[1] == "--show-current":
+			return "feature/login-audit", nil
+		case name == "git" && len(args) >= 2 && args[0] == "status" && args[1] == "--porcelain":
+			return "", nil
+		case name == "git" && len(args) == 4 && args[0] == "push" && args[1] == "--set-upstream":
+			return "", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list":
+			return "[]", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "create":
+			mustContainArgs(t, args, []string{"--title", "fix -h parsing"})
+			return "https://github.com/example/repo/pull/17", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "view" && args[2] == "feature/login-audit":
+			return mustMarshalJSON(t, githubPullRequest{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "fix -h parsing", HeadRefName: "feature/login-audit", BaseRefName: "main"}), nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "view" && args[2] == "17":
+			return mustMarshalJSON(t, githubPullRequest{Comments: []githubPRComment{}}), nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "comment":
+			return "", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"pr", "fix", "-h", "parsing", "--no-sync", "--no-validate"}); err != nil {
+		t.Fatalf("pr failed: %v", err)
+	}
+
+	if !strings.Contains(stdout.String(), "Prepared PR #17") {
+		t.Fatalf("expected PR output, got %q", stdout.String())
+	}
+	if !hasCommandContaining(commands, "gh pr create") {
+		t.Fatalf("expected PR creation command, got %v", commands)
+	}
+}
+
 func TestRunPRIncludesLatestReviewReadinessInBody(t *testing.T) {
 	tmp, _, app, restore := preparePRLandProject(t)
 	defer restore()

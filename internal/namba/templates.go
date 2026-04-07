@@ -265,7 +265,7 @@ func renderFixCommandSkill() string {
 			"- Treat `namba fix \"<issue description>\"` as the default direct-repair path in the current workspace.",
 			"- Use `namba fix --command run \"<issue description>\"` when the user wants the explicit direct-repair form.",
 			"- Use `namba fix --command plan \"<issue description>\"` when the user wants a reviewable bugfix SPEC package under `.namba/specs/`.",
-			"- Keep help and flag probing read-only; `namba fix --help` must not create a SPEC package.",
+			"- Keep CLI help and flag probing read-only; `namba <command> --help`, `namba <command> -h`, and `namba help <command>` must not mutate repository state.",
 			"- Keep direct repairs small, add targeted regression coverage, run validation, and finish with `namba sync`.",
 		},
 	)

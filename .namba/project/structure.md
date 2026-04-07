@@ -173,6 +173,13 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-022/reviews/product.md
 .namba/specs/SPEC-022/reviews/readiness.md
 .namba/specs/SPEC-022/spec.md
+.namba/specs/SPEC-023/acceptance.md
+.namba/specs/SPEC-023/plan.md
+.namba/specs/SPEC-023/reviews/design.md
+.namba/specs/SPEC-023/reviews/engineering.md
+.namba/specs/SPEC-023/reviews/product.md
+.namba/specs/SPEC-023/reviews/readiness.md
+.namba/specs/SPEC-023/spec.md
 AGENTS.md
 README.ja.md
 README.ko.md
@@ -208,6 +215,7 @@ internal/namba/console_windows.go
 internal/namba/execution.go
 internal/namba/execution_smoke_test.go
 internal/namba/execution_test.go
+internal/namba/help_contract_test.go
 internal/namba/init_wizard_test.go
 internal/namba/namba.go
 internal/namba/parallel_run.go

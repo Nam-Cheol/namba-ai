@@ -23,17 +23,20 @@ type semver struct {
 }
 
 func (a *App) runRelease(ctx context.Context, args []string) error {
+	if wantsCommandHelp(args) {
+		return a.printCommandUsage("release")
+	}
+	opts, err := parseReleaseArgs(args)
+	if err != nil {
+		return commandUsageError("release", err)
+	}
+
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
 	}
 	if !isGitRepository(root) {
 		return errors.New("release requires a git repository")
-	}
-
-	opts, err := parseReleaseArgs(args)
-	if err != nil {
-		return err
 	}
 
 	branch, err := a.currentBranch(ctx, root)

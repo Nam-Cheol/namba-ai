@@ -149,6 +149,11 @@ func (a *App) Run(ctx context.Context, args []string) error {
 	if len(args) == 0 {
 		return a.printUsage()
 	}
+	if topic, ok, err := parseTopLevelHelpTopic(args); ok {
+		return a.printCommandUsage(topic)
+	} else if err != nil {
+		return err
+	}
 
 	switch args[0] {
 	case "init":
@@ -181,8 +186,6 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return a.runRelease(ctx, args[1:])
 	case "worktree":
 		return a.runWorktree(ctx, args[1:])
-	case "help", "-h", "--help":
-		return a.printUsage()
 	default:
 		return fmt.Errorf("unknown command %q\n\n%s", args[0], usageText())
 	}
@@ -197,6 +200,7 @@ func usageText() string {
 	return `NambaAI CLI
 
 Usage:
+  namba help [command]
   namba init [path] [--yes] [--name NAME] [--mode tdd|ddd] [--project-type new|existing]
   namba doctor
   namba status
@@ -215,10 +219,176 @@ Usage:
 `
 }
 
+func parseTopLevelHelpTopic(args []string) (string, bool, error) {
+	switch args[0] {
+	case "help", "-h", "--help":
+		if len(args) > 2 {
+			return "", false, fmt.Errorf("help accepts at most one command\n\n%s", usageText())
+		}
+		if len(args) == 1 {
+			return "", true, nil
+		}
+		return normalizeCommandName(args[1]), true, nil
+	default:
+		return "", false, nil
+	}
+}
+
+func normalizeCommandName(name string) string {
+	switch name {
+	case "", "help", "-h", "--help":
+		return ""
+	default:
+		return strings.TrimSpace(name)
+	}
+}
+
+func (a *App) printCommandUsage(command string) error {
+	if command == "" {
+		return a.printUsage()
+	}
+	text, ok := commandUsageText(command)
+	if !ok {
+		return fmt.Errorf("unknown command %q\n\n%s", command, usageText())
+	}
+	_, err := fmt.Fprint(a.stdout, text)
+	return err
+}
+
+func commandUsageText(command string) (string, bool) {
+	switch command {
+	case "init":
+		return initUsageText(), true
+	case "doctor":
+		return doctorUsageText(), true
+	case "status":
+		return statusUsageText(), true
+	case "project":
+		return projectUsageText(), true
+	case "regen":
+		return regenUsageText(), true
+	case "update":
+		return updateUsageText(), true
+	case "plan":
+		return planUsageText(), true
+	case "harness":
+		return harnessUsageText(), true
+	case "fix":
+		return fixUsageText(), true
+	case "run":
+		return runUsageText(), true
+	case "sync":
+		return syncUsageText(), true
+	case "pr":
+		return prUsageText(), true
+	case "land":
+		return landUsageText(), true
+	case "release":
+		return releaseUsageText(), true
+	case "worktree":
+		return worktreeUsageText(), true
+	default:
+		return "", false
+	}
+}
+
+func wantsCommandHelp(args []string) bool {
+	return len(args) == 1 && isHelpToken(args[0])
+}
+
+func isHelpToken(arg string) bool {
+	switch strings.TrimSpace(arg) {
+	case "--help", "-h":
+		return true
+	default:
+		return false
+	}
+}
+
+func commandUsageError(command string, err error) error {
+	if err == nil {
+		return nil
+	}
+	text, ok := commandUsageText(command)
+	if !ok {
+		return err
+	}
+	return fmt.Errorf("%s\n\n%s", err.Error(), text)
+}
+
+func initUsageText() string {
+	return `namba init
+
+Usage:
+  namba init [path] [--yes] [--name NAME] [--mode tdd|ddd] [--project-type new|existing]
+
+Behavior:
+  Initialize the NambaAI scaffold, config, and repo-local Codex assets in the target directory.
+`
+}
+
+func doctorUsageText() string {
+	return `namba doctor
+
+Usage:
+  namba doctor
+
+Behavior:
+  Inspect the current repository and local toolchain readiness without mutating project files.
+`
+}
+
+func statusUsageText() string {
+	return `namba status
+
+Usage:
+  namba status
+
+Behavior:
+  Print a read-only summary of the current NambaAI repository state.
+`
+}
+
+func projectUsageText() string {
+	return `namba project
+
+Usage:
+  namba project
+
+Behavior:
+  Refresh .namba/project/* docs and codemaps for the current repository.
+`
+}
+
+func regenUsageText() string {
+	return `namba regen
+
+Usage:
+  namba regen
+
+Behavior:
+  Regenerate AGENTS, repo-local skills, Codex agents, and Codex config from .namba/config/sections/*.yaml.
+`
+}
+
+func updateUsageText() string {
+	return `namba update
+
+Usage:
+  namba update [--version vX.Y.Z]
+
+Behavior:
+  Download and install the requested NambaAI release for the current platform.
+`
+}
+
 func (a *App) runInit(_ context.Context, args []string) error {
+	if wantsCommandHelp(args) {
+		return a.printCommandUsage("init")
+	}
 	opts, err := parseInitArgs(args)
 	if err != nil {
-		return err
+		return commandUsageError("init", err)
 	}
 
 	root, err := filepath.Abs(opts.Path)
@@ -299,7 +469,14 @@ func (a *App) runInit(_ context.Context, args []string) error {
 	return nil
 }
 
-func (a *App) runDoctor(ctx context.Context, _ []string) error {
+func (a *App) runDoctor(ctx context.Context, args []string) error {
+	if wantsCommandHelp(args) {
+		return a.printCommandUsage("doctor")
+	}
+	if len(args) != 0 {
+		return commandUsageError("doctor", errors.New("doctor does not accept arguments"))
+	}
+
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
@@ -341,7 +518,14 @@ func (a *App) runDoctor(ctx context.Context, _ []string) error {
 	return nil
 }
 
-func (a *App) runStatus(_ context.Context, _ []string) error {
+func (a *App) runStatus(_ context.Context, args []string) error {
+	if wantsCommandHelp(args) {
+		return a.printCommandUsage("status")
+	}
+	if len(args) != 0 {
+		return commandUsageError("status", errors.New("status does not accept arguments"))
+	}
+
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
@@ -360,7 +544,15 @@ func (a *App) runStatus(_ context.Context, _ []string) error {
 	fmt.Fprintf(a.stdout, "State dir: %s\n", filepath.Join(root, nambaDir))
 	return nil
 }
-func (a *App) runProject(_ context.Context, _ []string) error {
+
+func (a *App) runProject(_ context.Context, args []string) error {
+	if wantsCommandHelp(args) {
+		return a.printCommandUsage("project")
+	}
+	if len(args) != 0 {
+		return commandUsageError("project", errors.New("project does not accept arguments"))
+	}
+
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
@@ -395,7 +587,7 @@ func (a *App) runProject(_ context.Context, _ []string) error {
 func (a *App) runPlan(_ context.Context, args []string) error {
 	options, err := parseDescriptionCommandArgs("plan", "description", args)
 	if err != nil {
-		return err
+		return commandUsageError("plan", err)
 	}
 	if options.help {
 		return a.printPlanUsage()
@@ -406,7 +598,7 @@ func (a *App) runPlan(_ context.Context, args []string) error {
 func (a *App) runHarness(_ context.Context, args []string) error {
 	options, err := parseDescriptionCommandArgs("harness", "description", args)
 	if err != nil {
-		return err
+		return commandUsageError("harness", err)
 	}
 	if options.help {
 		return a.printHarnessUsage()
@@ -417,7 +609,7 @@ func (a *App) runHarness(_ context.Context, args []string) error {
 func (a *App) runFix(ctx context.Context, args []string) error {
 	options, err := parseFixArgs(args)
 	if err != nil {
-		return err
+		return commandUsageError("fix", err)
 	}
 	if options.help {
 		return a.printFixUsage()
@@ -494,17 +686,26 @@ func parseDescriptionCommandArgs(command, field string, args []string) (planInvo
 	if len(args) == 0 {
 		return planInvocation{}, fmt.Errorf("%s requires a %s", command, field)
 	}
+	descriptionParts := make([]string, 0, len(args))
+	afterDelimiter := false
 	for _, arg := range args {
+		if afterDelimiter {
+			descriptionParts = append(descriptionParts, arg)
+			continue
+		}
 		switch arg {
+		case "--":
+			afterDelimiter = true
 		case "--help", "-h":
 			return planInvocation{help: true}, nil
 		default:
 			if isStandaloneFlagToken(arg) {
 				return planInvocation{}, fmt.Errorf("unknown flag %q", arg)
 			}
+			descriptionParts = append(descriptionParts, arg)
 		}
 	}
-	description := strings.TrimSpace(strings.Join(args, " "))
+	description := strings.TrimSpace(strings.Join(descriptionParts, " "))
 	if description == "" {
 		return planInvocation{}, fmt.Errorf("%s requires a %s", command, field)
 	}
@@ -518,9 +719,16 @@ func parseFixArgs(args []string) (fixInvocation, error) {
 
 	invocation := fixInvocation{command: "run"}
 	var descriptionParts []string
+	afterDelimiter := false
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
+		if afterDelimiter {
+			descriptionParts = append(descriptionParts, arg)
+			continue
+		}
 		switch arg {
+		case "--":
+			afterDelimiter = true
 		case "--help", "-h":
 			return fixInvocation{help: true}, nil
 		case "--command":
@@ -578,6 +786,7 @@ func planUsageText() string {
 
 Usage:
   namba plan "<description>"
+  namba plan -- "<description with flag-like text>"
 
 Behavior:
   Create the next feature SPEC package under .namba/specs/ and seed review artifacts.
@@ -589,6 +798,7 @@ func harnessUsageText() string {
 
 Usage:
   namba harness "<description>"
+  namba harness -- "<description with flag-like text>"
 
 Behavior:
   Create the next harness-oriented SPEC package under .namba/specs/ and seed review artifacts.
@@ -600,10 +810,80 @@ func fixUsageText() string {
 
 Usage:
   namba fix [--command run|plan] "<issue description>"
+  namba fix [--command run|plan] -- "<issue description with flag-like text>"
 
 Behavior:
   Use --command plan to scaffold the next bugfix SPEC package under .namba/specs/.
   Use --command run, or omit --command, to repair the issue directly in the current workspace.
+`
+}
+
+func runUsageText() string {
+	return `namba run
+
+Usage:
+  namba run SPEC-XXX [--solo|--team|--parallel] [--dry-run]
+
+Behavior:
+  Execute the selected SPEC package with one runner, same-workspace team routing, or managed worktree fan-out.
+`
+}
+
+func syncUsageText() string {
+	return `namba sync
+
+Usage:
+  namba sync
+
+Behavior:
+  Refresh README bundles, project docs, review readiness summaries, and PR/release support artifacts.
+`
+}
+
+func prUsageText() string {
+	return `namba pr
+
+Usage:
+  namba pr "<title>" [--remote origin] [--no-sync] [--no-validate]
+
+Behavior:
+  Sync, validate, push the current work branch, and create or reuse a GitHub pull request into the base branch.
+`
+}
+
+func landUsageText() string {
+	return `namba land
+
+Usage:
+  namba land [PR_NUMBER] [--wait] [--remote origin]
+
+Behavior:
+  Merge an approved pull request into the base branch and refresh the local base branch checkout.
+`
+}
+
+func releaseUsageText() string {
+	return `namba release
+
+Usage:
+  namba release [--bump patch|minor|major] [--version vX.Y.Z] [--push] [--remote origin]
+
+Behavior:
+  Create a release tag from a clean main branch and optionally push main plus the tag.
+`
+}
+
+func worktreeUsageText() string {
+	return `namba worktree
+
+Usage:
+  namba worktree new <name>
+  namba worktree list
+  namba worktree remove <name>
+  namba worktree clean
+
+Behavior:
+  Manage Namba-owned git worktrees under .namba/worktrees.
 `
 }
 
@@ -696,7 +976,7 @@ func buildSpecDoc(kind, specID, description string, projectCfg projectConfig, qu
 	case "harness":
 		return fmt.Sprintf("# %s\n\n## Problem\n\nThe current repository needs a dedicated harness-oriented planning flow for the following request:\n\n%s\n\n## Goal\n\nDesign a Codex-native harness change under the existing `SPEC-XXX` artifact flow without inventing a second planning model or importing Claude-only runtime primitives.\n\n## Context\n\n- Project: %s\n- Project type: %s\n- Language: %s\n- Mode: %s\n- Work type: plan\n- Planning surface: `namba harness \"<description>\"`\n\n## Desired Outcome\n\n- `namba harness \"<description>\"` acts as a top-level planning command while `namba plan` keeps its current feature-planning behavior.\n- The scaffold captures Codex-native execution topology, agent/skill boundaries, progressive-disclosure guidance, trigger strategy, and evaluation strategy for reusable skills or agents.\n- Help and accidental-write safety stay aligned with the shared command-parsing contract instead of creating command-specific drift.\n- The planned output remains under `.namba/specs/<SPEC>` with the normal review artifacts.\n\n## Non-Goals\n\n- Do not create a second artifact model outside `.namba/specs/`.\n- Do not emit `.claude/*`, `TeamCreate`, `SendMessage`, `TaskCreate`, or a mandatory `model: \"opus\"` requirement as part of the Codex-facing contract.\n- Do not change the default behavior of `namba plan`.\n", specID, description, projectCfg.Name, projectCfg.ProjectType, projectCfg.Language, qualityCfg.DevelopmentMode)
 	default:
-		return fmt.Sprintf("# %s\n\n## Goal\n\n%s\n\n## Context\n\n- Project: %s\n- Project type: %s\n- Language: %s\n- Mode: %s\n- Work type: plan\n", specID, description, projectCfg.Name, projectCfg.ProjectType, projectCfg.Language, qualityCfg.DevelopmentMode)
+		return fmt.Sprintf("# %s\n\n## Problem\n\n%s\n\n## Goal\n\nImplement the requested change under the normal feature-planning workflow.\n\n## Context\n\n- Project: %s\n- Project type: %s\n- Language: %s\n- Mode: %s\n- Work type: plan\n", specID, description, projectCfg.Name, projectCfg.ProjectType, projectCfg.Language, qualityCfg.DevelopmentMode)
 	}
 }
 
@@ -778,12 +1058,15 @@ func parseRunExecuteOptions(args []string) (runExecuteOptions, error) {
 }
 
 func (a *App) runExecute(ctx context.Context, args []string) error {
-	root, err := a.requireProjectRoot()
+	if wantsCommandHelp(args) {
+		return a.printCommandUsage("run")
+	}
+	options, err := parseRunExecuteOptions(args)
 	if err != nil {
-		return err
+		return commandUsageError("run", err)
 	}
 
-	options, err := parseRunExecuteOptions(args)
+	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
 	}
@@ -847,7 +1130,14 @@ func (a *App) runExecute(ctx context.Context, args []string) error {
 	return nil
 }
 
-func (a *App) runSync(ctx context.Context, _ []string) error {
+func (a *App) runSync(ctx context.Context, args []string) error {
+	if wantsCommandHelp(args) {
+		return a.printCommandUsage("sync")
+	}
+	if len(args) != 0 {
+		return commandUsageError("sync", errors.New("sync does not accept arguments"))
+	}
+
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
@@ -1151,17 +1441,24 @@ func quoteList(values []string) string {
 }
 
 func (a *App) runWorktree(ctx context.Context, args []string) error {
+	if wantsCommandHelp(args) {
+		return a.printCommandUsage("worktree")
+	}
+	if len(args) == 0 {
+		return commandUsageError("worktree", errors.New("worktree requires a subcommand"))
+	}
+
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
 	}
-	if len(args) == 0 {
-		return errors.New("worktree requires a subcommand")
-	}
 	switch args[0] {
 	case "new":
-		if len(args) < 2 {
-			return errors.New("worktree new requires a name")
+		if len(args) != 2 {
+			if len(args) < 2 {
+				return commandUsageError("worktree", errors.New("worktree new requires a name"))
+			}
+			return commandUsageError("worktree", errors.New("worktree new accepts exactly one name"))
 		}
 		name := args[1]
 		path := filepath.Join(root, worktreesDir, name)
@@ -1172,6 +1469,9 @@ func (a *App) runWorktree(ctx context.Context, args []string) error {
 		fmt.Fprintf(a.stdout, "Created worktree %s\n", path)
 		return nil
 	case "list":
+		if len(args) != 1 {
+			return commandUsageError("worktree", errors.New("worktree list does not accept arguments"))
+		}
 		out, err := a.runBinary(ctx, "git", []string{"worktree", "list", "--porcelain"}, root)
 		if err != nil {
 			return err
@@ -1179,8 +1479,11 @@ func (a *App) runWorktree(ctx context.Context, args []string) error {
 		fmt.Fprintln(a.stdout, out)
 		return nil
 	case "remove":
-		if len(args) < 2 {
-			return errors.New("worktree remove requires a name")
+		if len(args) != 2 {
+			if len(args) < 2 {
+				return commandUsageError("worktree", errors.New("worktree remove requires a name"))
+			}
+			return commandUsageError("worktree", errors.New("worktree remove accepts exactly one name"))
 		}
 		path := filepath.Join(root, worktreesDir, args[1])
 		_, err := a.runBinary(ctx, "git", []string{"worktree", "remove", "--force", path}, root)
@@ -1190,6 +1493,9 @@ func (a *App) runWorktree(ctx context.Context, args []string) error {
 		fmt.Fprintf(a.stdout, "Removed worktree %s\n", path)
 		return nil
 	case "clean":
+		if len(args) != 1 {
+			return commandUsageError("worktree", errors.New("worktree clean does not accept arguments"))
+		}
 		_, err := a.runBinary(ctx, "git", []string{"worktree", "prune"}, root)
 		if err != nil {
 			return err
@@ -1197,7 +1503,7 @@ func (a *App) runWorktree(ctx context.Context, args []string) error {
 		fmt.Fprintln(a.stdout, "Pruned worktrees.")
 		return nil
 	default:
-		return fmt.Errorf("unknown worktree subcommand %q", args[0])
+		return commandUsageError("worktree", fmt.Errorf("unknown worktree subcommand %q", args[0]))
 	}
 }
 

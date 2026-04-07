@@ -32,9 +32,12 @@ type updateTarget struct {
 }
 
 func (a *App) runUpdate(ctx context.Context, args []string) error {
+	if wantsCommandHelp(args) {
+		return a.printCommandUsage("update")
+	}
 	opts, err := parseUpdateArgs(args)
 	if err != nil {
-		return err
+		return commandUsageError("update", err)
 	}
 
 	assetName, err := releaseAssetName(a.goos, a.goarch)
