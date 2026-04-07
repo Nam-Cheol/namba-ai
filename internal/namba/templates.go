@@ -130,7 +130,9 @@ func renderProjectCommandSkill() string {
 			"Behavior:",
 			"- Prefer the installed `namba project` CLI when available.",
 			"- Refresh `.namba/project/*` docs and codemaps before planning or execution.",
-			"- Summarize entry points, structure, and generated artifacts after the refresh.",
+			"- Treat `product.md` as the landing document, `tech.md` as the technical hub, and `structure.md` as appendix material.",
+			"- Surface system boundaries, evidence/confidence, mismatch reporting, and quality warnings instead of flattening the repository into a shallow tree dump.",
+			"- Summarize entry points, per-system artifacts, and any drift or thin-output warnings after the refresh.",
 		},
 	)
 }
@@ -176,6 +178,8 @@ func renderPlanCommandSkill() string {
 			"- Prefer the installed `namba plan` CLI when available.",
 			"- Keep `namba plan` for feature-oriented SPEC work; use `namba harness` when the request is about reusable agent, skill, workflow, or orchestration scaffolding.",
 			"- When repo-managed MCP presets are configured, prefer them for planning context before broader web search; for example, use `context7` for library and framework docs, `sequential-thinking` for deeper decomposition, and `playwright` for browser-verified flows.",
+			"- Read `.namba/project/product.md`, `.namba/project/tech.md`, `.namba/project/mismatch-report.md`, `.namba/project/quality-report.md`, and any relevant `.namba/project/systems/*.md` artifacts before drafting the SPEC.",
+			"- Treat executable code and authoritative config as stronger planning evidence than docs, and preserve code-vs-doc conflicts instead of smoothing them out.",
 			"- Create the next sequential `SPEC-XXX` package under `.namba/specs/`.",
 			"- Seed `.namba/specs/<SPEC>/reviews/` with product, engineering, design, and aggregate readiness artifacts.",
 			"- Point follow-up review work to `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when the SPEC needs pre-implementation critique.",

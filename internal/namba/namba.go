@@ -238,6 +238,7 @@ func (a *App) runInit(_ context.Context, args []string) error {
 	files := map[string]string{
 		"AGENTS.md": renderAgents(profile),
 		filepath.ToSlash(filepath.Join(configDir, "project.yaml")):      renderProjectConfig(profile),
+		filepath.ToSlash(filepath.Join(configDir, "analysis.yaml")):     renderAnalysisConfig(profile),
 		filepath.ToSlash(filepath.Join(configDir, "quality.yaml")):      renderQualityConfig(profile.DevelopmentMode, testCmd, lintCmd, typecheckCmd),
 		filepath.ToSlash(filepath.Join(configDir, "workflow.yaml")):     renderWorkflowConfig(),
 		filepath.ToSlash(filepath.Join(configDir, "system.yaml")):       renderSystemConfig(profile),
@@ -366,31 +367,26 @@ func (a *App) runProject(_ context.Context, _ []string) error {
 	}
 
 	projectCfg, _ := a.loadProjectConfig(root)
-	readme := firstExisting(root, "README.md", "README.txt")
-	product := "# Product\n\n"
-	if readme != "" {
-		content, _ := os.ReadFile(filepath.Join(root, readme))
-		product += "Source: " + readme + "\n\n" + string(content)
-	} else {
-		product += fmt.Sprintf("%s is managed by NambaAI.\n", projectCfg.Name)
-	}
-
-	structure := buildStructureDoc(root)
-	tech := buildTechDoc(projectCfg)
-	overview, entries, deps, flow := buildCodemaps(root, projectCfg)
-
-	outputs := map[string]string{
-		filepath.ToSlash(filepath.Join(projectDir, "product.md")):       product,
-		filepath.ToSlash(filepath.Join(projectDir, "structure.md")):     structure,
-		filepath.ToSlash(filepath.Join(projectDir, "tech.md")):          tech,
-		filepath.ToSlash(filepath.Join(codemapsDir, "overview.md")):     overview,
-		filepath.ToSlash(filepath.Join(codemapsDir, "entry-points.md")): entries,
-		filepath.ToSlash(filepath.Join(codemapsDir, "dependencies.md")): deps,
-		filepath.ToSlash(filepath.Join(codemapsDir, "data-flow.md")):    flow,
-	}
-
-	if _, err := a.writeOutputs(root, outputs); err != nil {
+	qualityCfg, _ := a.loadQualityConfig(root)
+	analysisCfg, err := a.loadAnalysisConfig(root)
+	if err != nil {
 		return err
+	}
+
+	analysis := analyzeProject(root, projectCfg, qualityCfg, analysisCfg)
+	outputs := analysis.renderOutputs()
+	if _, err := a.replaceManagedOutputs(root, outputs, isProjectAnalysisManagedPath); err != nil {
+		return err
+	}
+
+	for _, warning := range analysis.Quality.Warnings {
+		fmt.Fprintf(a.stdout, "Project analysis warning: %s\n", warning)
+	}
+	if len(analysis.Quality.Errors) > 0 {
+		for _, item := range analysis.Quality.Errors {
+			fmt.Fprintf(a.stdout, "Project analysis error: %s\n", item)
+		}
+		return errors.New("project analysis quality gate failed")
 	}
 	fmt.Fprintln(a.stdout, "Refreshed NambaAI project docs and codemaps.")
 	return nil

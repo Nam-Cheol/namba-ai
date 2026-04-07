@@ -1,0 +1,22 @@
+# Acceptance
+
+- [ ] `namba project` excludes repository noise by default, including ignored artifacts, build outputs, caches, IDE state, downloaded runtimes, vendor directories, and logs, while still prioritizing source, tests, build/deploy config, CI, infra, and current design documents as analysis inputs.
+- [ ] The analysis pipeline detects app or system boundaries before summarization, so multi-app or mixed-runtime repositories are documented per system boundary instead of as one flat structure list.
+- [ ] Generated findings use an evidence-backed format with explicit support for source references and confidence levels; unsupported claims are marked as inference rather than stated as fact.
+- [ ] The minimum data contract for `evidence`, `confidence`, and `conflict` is defined in the implementation and is reflected consistently in generated outputs.
+- [ ] The analyzer applies a documented source-priority model where executable code and authoritative config outrank tests, tests outrank build/deploy config, and documents are treated as weaker evidence unless confirmed by code or config.
+- [ ] Code-vs-document mismatches are emitted as an explicit report artifact instead of being silently blended into a neutral summary.
+- [ ] `.namba/project/product.md` remains the first landing document, `.namba/project/tech.md` remains the technical hub, and `structure.md` is explicitly treated as appendix output.
+- [ ] System-by-system summaries follow a fixed repeatable pattern covering purpose, entry points/interfaces, module boundaries, data/state, auth/integrations, and deploy/runtime/test risks.
+- [ ] The generated project document set covers project purpose/user flow, runtime/deploy topology, module boundaries, entry points/interfaces, data/state summary, auth/security, test map/validation commands, mismatch report, and appendix-style structure output.
+- [ ] Analysis quality gates are separate from file-generation success and define when `namba project` warns, when it exits non-zero, and whether docs are still emitted on thin output.
+- [ ] The implementation cleanly separates a framework-agnostic analyzer core from language/framework adapters.
+- [ ] The v1 delivery is explicitly scoped as a planning-context foundation release, and broad first-party adapter rollout is documented as follow-up work rather than bundled into the same implementation unit.
+- [ ] The implementation ships a Go-first adapter path plus a generic extension seam that proves how later stack-specific adapters plug into the analyzer core.
+- [ ] Repository-level config can tune include paths, exclude paths, source priority, important user roles, important runtimes/services, and output templates without code changes.
+- [ ] `$namba-plan` and `$namba-project` guidance is updated so planning uses evidence-backed artifacts, preserves conflicts, and treats structure listings as supporting material rather than the main output.
+- [ ] Acceptance includes representative validation scenarios for at least:
+  - a multi-system repository where backend, frontend, or infra are separated in the generated summaries
+  - a repository or fixture where docs conflict with code/config and the mismatch is surfaced explicitly
+- [ ] Regression tests cover scoping, semantic extraction, mismatch reporting, adapter dispatch, and thin-output quality gates.
+- [ ] Validation commands pass.
