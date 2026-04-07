@@ -200,6 +200,117 @@ func TestProjectAnalysisRemovesStaleSystemDocs(t *testing.T) {
 	}
 }
 
+func TestProjectAnalysisGeneratesUniqueSystemDocSlugs(t *testing.T) {
+	tmp := t.TempDir()
+	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	if err := os.MkdirAll(filepath.Join(tmp, "services", "api", "cmd", "api"), 0o755); err != nil {
+		t.Fatalf("mkdir services/api/cmd/api: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, "services-api", "cmd", "alt"), 0o755); err != nil {
+		t.Fatalf("mkdir services-api/cmd/alt: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "services", "api", "go.mod"), []byte("module example.com/serviceapi\n\ngo 1.22\n"), 0o644); err != nil {
+		t.Fatalf("write services/api/go.mod: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "services", "api", "cmd", "api", "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatalf("write services/api main: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "services-api", "go.mod"), []byte("module example.com/servicesdashapi\n\ngo 1.22\n"), 0o644); err != nil {
+		t.Fatalf("write services-api/go.mod: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "services-api", "cmd", "alt", "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatalf("write services-api main: %v", err)
+	}
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdir(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"project"}); err != nil {
+		t.Fatalf("project failed: %v", err)
+	}
+
+	entries, err := os.ReadDir(filepath.Join(tmp, ".namba", "project", "systems"))
+	if err != nil {
+		t.Fatalf("read systems dir: %v", err)
+	}
+	if len(entries) < 2 {
+		t.Fatalf("expected at least two distinct system docs, got %d", len(entries))
+	}
+
+	var sawNested bool
+	var sawDashed bool
+	for _, entry := range entries {
+		body := mustRead(t, filepath.Join(tmp, ".namba", "project", "systems", entry.Name()))
+		if strings.Contains(body, "- Root: `services/api`") {
+			sawNested = true
+		}
+		if strings.Contains(body, "- Root: `services-api`") {
+			sawDashed = true
+		}
+	}
+	if !sawNested || !sawDashed {
+		t.Fatalf("expected distinct system docs for both roots, nested=%v dashed=%v", sawNested, sawDashed)
+	}
+}
+
+func TestProjectAnalysisKeepsNestedInfraRootsSeparate(t *testing.T) {
+	tmp := t.TempDir()
+	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	if err := os.MkdirAll(filepath.Join(tmp, "services", "api"), 0o755); err != nil {
+		t.Fatalf("mkdir services/api: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, "services", "web"), 0o755); err != nil {
+		t.Fatalf("mkdir services/web: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "services", "api", "docker-compose.yml"), []byte("services:\n  api:\n    image: busybox\n"), 0o644); err != nil {
+		t.Fatalf("write services/api/docker-compose.yml: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "services", "web", "docker-compose.yml"), []byte("services:\n  web:\n    image: busybox\n"), 0o644); err != nil {
+		t.Fatalf("write services/web/docker-compose.yml: %v", err)
+	}
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdir(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"project"}); err != nil {
+		t.Fatalf("project failed: %v", err)
+	}
+
+	entries, err := os.ReadDir(filepath.Join(tmp, ".namba", "project", "systems"))
+	if err != nil {
+		t.Fatalf("read systems dir: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("expected two infra system docs, got %d", len(entries))
+	}
+
+	var sawAPI bool
+	var sawWeb bool
+	for _, entry := range entries {
+		body := mustRead(t, filepath.Join(tmp, ".namba", "project", "systems", entry.Name()))
+		if strings.Contains(body, "- Root: `services/api`") {
+			sawAPI = true
+		}
+		if strings.Contains(body, "- Root: `services/web`") {
+			sawWeb = true
+		}
+		if strings.Contains(body, "- Root: `services`") {
+			t.Fatalf("expected nested infra roots to remain separated, got merged doc: %s", body)
+		}
+	}
+	if !sawAPI || !sawWeb {
+		t.Fatalf("expected separate docs for nested infra roots, api=%v web=%v", sawAPI, sawWeb)
+	}
+}
+
 func TestProjectAnalysisFailsWhenScopeExcludesEverything(t *testing.T) {
 	tmp := t.TempDir()
 	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})

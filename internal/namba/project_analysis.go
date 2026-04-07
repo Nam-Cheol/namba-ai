@@ -295,7 +295,41 @@ func detectSystems(root string, files []analysisFile) []analysisSystem {
 		systems = append(systems, buildAnalysisSystem(root, ".", roots, files))
 	}
 	sort.Slice(systems, func(i, j int) bool { return systems[i].Root < systems[j].Root })
+	assignUniqueSystemSlugs(systems)
 	return systems
+}
+
+func assignUniqueSystemSlugs(systems []analysisSystem) {
+	baseCounts := map[string]int{}
+	for _, system := range systems {
+		baseCounts[slugifySystemRoot(system.Root)]++
+	}
+
+	used := map[string]bool{}
+	for i := range systems {
+		base := slugifySystemRoot(systems[i].Root)
+		if baseCounts[base] == 1 && !used[base] {
+			systems[i].Slug = base
+			used[base] = true
+			continue
+		}
+
+		hash := checksum(systems[i].Root)
+		slug := ""
+		for width := 8; width <= len(hash); width += 4 {
+			candidate := fmt.Sprintf("%s--%s", base, hash[:width])
+			if used[candidate] {
+				continue
+			}
+			slug = candidate
+			break
+		}
+		if slug == "" {
+			slug = fmt.Sprintf("%s--%s", base, hash)
+		}
+		systems[i].Slug = slug
+		used[slug] = true
+	}
 }
 
 func collectSystemRoots(files []analysisFile) []string {
@@ -323,6 +357,9 @@ func candidateSystemRoot(rel string) string {
 	case base == "go.mod" || base == "package.json" || base == "pyproject.toml" || base == "requirements.txt" || base == "pom.xml" || base == "build.gradle" || base == "build.gradle.kts":
 		return filepath.ToSlash(filepath.Dir(rel))
 	case base == "docker-compose.yml" || base == "docker-compose.yaml" || base == "dockerfile" || strings.HasSuffix(base, ".tf") || base == "kustomization.yaml":
+		if len(parts) >= 3 && (parts[0] == "apps" || parts[0] == "services" || parts[0] == "packages") {
+			return filepath.ToSlash(filepath.Join(parts[0], parts[1]))
+		}
 		if len(parts) > 1 {
 			return parts[0]
 		}
