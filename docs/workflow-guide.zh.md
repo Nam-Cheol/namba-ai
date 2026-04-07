@@ -22,7 +22,7 @@
 - `namba fix --command plan "issue description"`: 创建缺陷修复 SPEC 包和 review artifact。
 - `namba fix "issue description"`: 在当前 workspace 启动 direct repair。
 - `namba fix --command run "issue description"`: 显式选择同一个 direct-repair 路径。
-- `namba plan --help` 和 `namba fix --help`: 属于 read-only 的 help / option probing，不会创建 SPEC。
+- `namba <command> --help`、`namba <command> -h`、`namba help <command>`: 所有 top-level command 都会走 read-only help 路径，不会改变 repo state。
 
 ## `namba run` 模式
 

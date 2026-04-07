@@ -60,17 +60,20 @@ type gitWorktree struct {
 }
 
 func (a *App) runPR(ctx context.Context, args []string) error {
+	if wantsCommandHelp(args) {
+		return a.printCommandUsage("pr")
+	}
+	opts, err := parsePRArgs(args)
+	if err != nil {
+		return commandUsageError("pr", err)
+	}
+
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
 	}
 	if !isGitRepository(root) {
 		return errors.New("pr requires a git repository")
-	}
-
-	opts, err := parsePRArgs(args)
-	if err != nil {
-		return err
 	}
 
 	profile, err := a.loadInitProfileFromConfig(root)
@@ -144,17 +147,20 @@ func (a *App) runPR(ctx context.Context, args []string) error {
 }
 
 func (a *App) runLand(ctx context.Context, args []string) error {
+	if wantsCommandHelp(args) {
+		return a.printCommandUsage("land")
+	}
+	opts, err := parseLandArgs(args)
+	if err != nil {
+		return commandUsageError("land", err)
+	}
+
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
 	}
 	if !isGitRepository(root) {
 		return errors.New("land requires a git repository")
-	}
-
-	opts, err := parseLandArgs(args)
-	if err != nil {
-		return err
 	}
 
 	profile, err := a.loadInitProfileFromConfig(root)

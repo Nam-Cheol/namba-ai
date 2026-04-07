@@ -22,7 +22,7 @@
 - `namba fix --command plan "issue description"`: create a bugfix SPEC package plus review artifacts.
 - `namba fix "issue description"`: direct repair in the current workspace.
 - `namba fix --command run "issue description"`: explicit form of the same direct-repair path.
-- `namba plan --help` and `namba fix --help`: read-only help and option discovery; they must not create a SPEC package.
+- `namba <command> --help`, `namba <command> -h`, and `namba help <command>`: read-only help flows for every top-level command; they must not mutate repository state.
 
 ## `namba run` modes
 
