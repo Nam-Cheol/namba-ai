@@ -98,6 +98,12 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 			t.Fatalf("expected help skill to contain %q, got %q", want, helpSkill)
 		}
 	}
+	createSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-create", "SKILL.md"))
+	for _, want := range []string{"$namba-create", "skill-first", "`unresolved` -> `narrowed` -> `confirmed`", "sequential-thinking", "context7", "playwright", ".agents/skills/<slug>/SKILL.md", ".codex/agents/<slug>.toml", ".codex/agents/<slug>.md", "five independent role outputs"} {
+		if !strings.Contains(createSkill, want) {
+			t.Fatalf("expected create skill to contain %q, got %q", want, createSkill)
+		}
+	}
 	harnessSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-harness", "SKILL.md"))
 	for _, want := range []string{"$namba-harness", "namba harness", "without inventing a second artifact model", "Codex-native"} {
 		if !strings.Contains(harnessSkill, want) {
@@ -126,8 +132,12 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	}
 
 	config := mustReadFile(t, filepath.Join(tmp, ".codex", "config.toml"))
-	if !strings.Contains(config, "#:schema https://developers.openai.com/codex/config-schema.json") || !strings.Contains(config, "repo-safe Codex defaults under version control") || !strings.Contains(config, "max_threads = 3") || !strings.Contains(config, `approval_policy = "never"`) || !strings.Contains(config, `sandbox_mode = "read-only"`) {
+	if !strings.Contains(config, "#:schema https://developers.openai.com/codex/config-schema.json") || !strings.Contains(config, "repo-safe Codex defaults under version control") || !strings.Contains(config, "max_threads = 5") || !strings.Contains(config, `approval_policy = "never"`) || !strings.Contains(config, `sandbox_mode = "read-only"`) {
 		t.Fatalf("expected multi-agent Codex config, got %q", config)
+	}
+	workflowConfig := mustReadFile(t, filepath.Join(tmp, ".namba", "config", "sections", "workflow.yaml"))
+	if !strings.Contains(workflowConfig, "max_parallel_workers: 3") {
+		t.Fatalf("expected worktree parallel config to stay separate from agent thread defaults, got %q", workflowConfig)
 	}
 	for _, want := range []string{"[mcp_servers.context7]", "@upstash/context7-mcp", "[mcp_servers.sequential-thinking]", "@modelcontextprotocol/server-sequential-thinking", "[mcp_servers.playwright]", "@playwright/mcp@latest"} {
 		if !strings.Contains(config, want) {
@@ -158,7 +168,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 			t.Fatalf("expected codex README to contain %q, got %q", want, codexReadme)
 		}
 	}
-	if !strings.Contains(codexReadme, "$namba-help") || !strings.Contains(codexReadme, "$namba-run") || !strings.Contains(codexReadme, "$namba-harness") || !strings.Contains(codexReadme, "$namba-plan-review") || !strings.Contains(codexReadme, "$namba-plan-pm-review") || !strings.Contains(codexReadme, "reviews/readiness.md") || strings.Contains(codexReadme, ".codex/skills/") {
+	if !strings.Contains(codexReadme, "$namba-help") || !strings.Contains(codexReadme, "$namba-create") || !strings.Contains(codexReadme, "$namba-run") || !strings.Contains(codexReadme, "$namba-harness") || !strings.Contains(codexReadme, "$namba-plan-review") || !strings.Contains(codexReadme, "$namba-plan-pm-review") || !strings.Contains(codexReadme, "reviews/readiness.md") || strings.Contains(codexReadme, ".codex/skills/") {
 		t.Fatalf("expected codex README to describe command-entry skills without codex skill mirror, got %q", codexReadme)
 	}
 	if !strings.Contains(codexReadme, "`namba harness \"<description>\"`") {

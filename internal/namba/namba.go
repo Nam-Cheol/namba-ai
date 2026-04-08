@@ -31,6 +31,8 @@ const (
 	logsDir      = ".namba/logs"
 	worktreesDir = ".namba/worktrees"
 	manifestPath = ".namba/manifest.json"
+
+	manifestOwnerManaged = "namba-managed"
 )
 
 type App struct {
@@ -58,6 +60,7 @@ type Manifest struct {
 type ManifestEntry struct {
 	Path      string `json:"path"`
 	Kind      string `json:"kind"`
+	Owner     string `json:"owner,omitempty"`
 	Checksum  string `json:"checksum"`
 	UpdatedAt string `json:"updated_at"`
 }
@@ -1586,10 +1589,12 @@ func (a *App) writeOutputs(root string, outputs map[string]string) (outputWriteR
 		entry := ManifestEntry{
 			Path:     rel,
 			Kind:     manifestKind(rel),
+			Owner:    manifestOwnerManaged,
 			Checksum: checksum(content),
 		}
 		if existing, ok := findManifestEntry(manifest, rel); ok && !wrote &&
 			existing.Kind == entry.Kind &&
+			existing.Owner == entry.Owner &&
 			existing.Checksum == entry.Checksum {
 			continue
 		}
@@ -3106,6 +3111,13 @@ func upsertManifest(manifest Manifest, entry ManifestEntry) Manifest {
 	sort.Slice(manifest.Entries, func(i, j int) bool { return manifest.Entries[i].Path < manifest.Entries[j].Path })
 	manifest.GeneratedAt = entry.UpdatedAt
 	return manifest
+}
+
+func manifestEntryIsManaged(entry ManifestEntry, managed func(string) bool) bool {
+	if strings.TrimSpace(entry.Owner) != "" {
+		return entry.Owner == manifestOwnerManaged && managed(entry.Path)
+	}
+	return managed(entry.Path)
 }
 
 func firstNonEmptyLine(text string) string {

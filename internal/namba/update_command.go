@@ -56,7 +56,7 @@ func (a *App) replaceManagedOutputs(root string, outputs map[string]string, mana
 
 	filtered := manifest.Entries[:0]
 	for _, entry := range manifest.Entries {
-		if managed(entry.Path) {
+		if manifestEntryIsManaged(entry, managed) {
 			if _, keep := outputs[entry.Path]; keep {
 				filtered = append(filtered, entry)
 				continue
@@ -81,11 +81,11 @@ func isRegenManagedPath(rel string) bool {
 		return true
 	case rel == repoCodexConfigPath:
 		return true
-	case strings.HasPrefix(rel, repoSkillsDir+"/"):
+	case isManagedRepoSkillPath(rel):
 		return true
 	case strings.HasPrefix(rel, ".codex/skills/"):
 		return true
-	case strings.HasPrefix(rel, repoCodexAgentsDir+"/"):
+	case isManagedRepoCodexAgentPath(rel):
 		return true
 	case strings.HasPrefix(rel, codexStateDir+"/"):
 		return true
@@ -117,29 +117,7 @@ func removeLegacyCodexSkillMirror(root string) error {
 }
 
 func legacyCodexSkillMirrorPaths() []string {
-	names := []string{
-		"namba",
-		"namba-init",
-		"namba-help",
-		"namba-project",
-		"namba-regen",
-		"namba-update",
-		"namba-plan",
-		"namba-plan-review",
-		"namba-harness",
-		"namba-plan-pm-review",
-		"namba-plan-eng-review",
-		"namba-plan-design-review",
-		"namba-fix",
-		"namba-run",
-		"namba-pr",
-		"namba-land",
-		"namba-sync",
-		"namba-foundation-core",
-		"namba-workflow-init",
-		"namba-workflow-project",
-		"namba-workflow-execution",
-	}
+	names := managedCodexSkillNames()
 	paths := make([]string, 0, len(names))
 	for _, name := range names {
 		paths = append(paths, filepath.ToSlash(filepath.Join(".codex", "skills", name)))

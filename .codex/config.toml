@@ -10,7 +10,7 @@ approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 
 [agents]
-max_threads = 3
+max_threads = 5
 
 [tui]
 status_line = ["project-root", "git-branch", "current-dir", "model-with-reasoning", "context-remaining", "context-used", "used-tokens", "session-id"]

@@ -86,11 +86,39 @@ func requiredCodexAgentFiles() []string {
 	}
 }
 
+func managedCodexSkillNames() []string {
+	return []string{
+		"namba",
+		"namba-init",
+		"namba-help",
+		"namba-create",
+		"namba-project",
+		"namba-regen",
+		"namba-update",
+		"namba-plan",
+		"namba-plan-review",
+		"namba-harness",
+		"namba-plan-pm-review",
+		"namba-plan-eng-review",
+		"namba-plan-design-review",
+		"namba-fix",
+		"namba-run",
+		"namba-pr",
+		"namba-land",
+		"namba-sync",
+		"namba-foundation-core",
+		"namba-workflow-init",
+		"namba-workflow-project",
+		"namba-workflow-execution",
+	}
+}
+
 func codexSkillTemplates(profile initProfile) map[string]string {
 	return map[string]string{
 		filepath.ToSlash(filepath.Join("namba", "SKILL.md")):                    renderNambaSkill(profile),
 		filepath.ToSlash(filepath.Join("namba-init", "SKILL.md")):               renderInitCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-help", "SKILL.md")):               renderHelpCommandSkill(),
+		filepath.ToSlash(filepath.Join("namba-create", "SKILL.md")):             renderCreateCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-project", "SKILL.md")):            renderProjectCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-regen", "SKILL.md")):              renderRegenCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-update", "SKILL.md")):             renderUpdateCommandSkill(),
@@ -112,6 +140,24 @@ func codexSkillTemplates(profile initProfile) map[string]string {
 	}
 }
 
+func isManagedRepoSkillPath(rel string) bool {
+	for _, name := range managedCodexSkillNames() {
+		if rel == filepath.ToSlash(filepath.Join(repoSkillsDir, name, "SKILL.md")) {
+			return true
+		}
+	}
+	return false
+}
+
+func isManagedRepoCodexAgentPath(rel string) bool {
+	if !strings.HasPrefix(rel, repoCodexAgentsDir+"/") {
+		return false
+	}
+	rel = strings.TrimPrefix(rel, repoCodexAgentsDir+"/")
+	_, ok := codexAgentTemplates()[rel]
+	return ok
+}
+
 func codexNativeIssues(root string) []string {
 	checks := []struct {
 		label string
@@ -119,6 +165,7 @@ func codexNativeIssues(root string) []string {
 	}{
 		{label: "AGENTS.md", path: filepath.Join(root, "AGENTS.md")},
 		{label: ".agents/skills/namba/SKILL.md", path: filepath.Join(root, ".agents", "skills", "namba", "SKILL.md")},
+		{label: ".agents/skills/namba-create/SKILL.md", path: filepath.Join(root, ".agents", "skills", "namba-create", "SKILL.md")},
 		{label: ".agents/skills/namba-run/SKILL.md", path: filepath.Join(root, ".agents", "skills", "namba-run", "SKILL.md")},
 		{label: ".codex/config.toml", path: filepath.Join(root, ".codex", "config.toml")},
 		{label: ".namba/codex/output-contract.md", path: filepath.Join(root, ".namba", "codex", "output-contract.md")},

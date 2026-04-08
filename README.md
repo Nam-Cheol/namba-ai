@@ -72,6 +72,7 @@ namba land
 
 - `$namba`: general router when you want Codex to choose the right Namba workflow entry point from context.
 - `$namba-help`: use when you want a read-only explanation of how to use NambaAI, which command or skill to choose next, or where the authoritative docs live.
+- `$namba-create`: use when you want a preview-first flow that creates a repo-local skill, a project-scoped custom agent, or both directly inside Codex. Phase 1 does not add a new `namba create` CLI command.
 - `$namba-project`: use when you need project docs and codemaps refreshed before starting or after larger changes.
 - `$namba-plan`: use when you want to create the next feature SPEC package.
 - `$namba-harness`: use when you want a harness-oriented SPEC package for reusable agent, skill, workflow, or orchestration work.
@@ -86,6 +87,7 @@ namba land
 ## Skill To Command Mapping
 
 - `$namba-help` -> read-only Namba usage guidance; no direct CLI mutation
+- `$namba-create` -> skill-first creation flow for `.agents/skills/*` or `.codex/agents/*`; no new `namba create` CLI in phase 1
 - `$namba-project` -> `namba project`
 - `$namba-plan` -> `namba plan "description"`
 - `$namba-harness` -> `namba harness "description"`

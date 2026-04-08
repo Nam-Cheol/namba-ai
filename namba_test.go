@@ -153,7 +153,7 @@ func TestInitSupportsCodexProfileFlags(t *testing.T) {
 	}
 
 	codexConfig := mustRead(t, filepath.Join(tmp, ".codex", "config.toml"))
-	if !strings.Contains(codexConfig, "#:schema https://developers.openai.com/codex/config-schema.json") || !strings.Contains(codexConfig, "repo-safe Codex defaults under version control") || !strings.Contains(codexConfig, "max_threads = 3") || !strings.Contains(codexConfig, `approval_policy = "never"`) || !strings.Contains(codexConfig, `sandbox_mode = "read-only"`) {
+	if !strings.Contains(codexConfig, "#:schema https://developers.openai.com/codex/config-schema.json") || !strings.Contains(codexConfig, "repo-safe Codex defaults under version control") || !strings.Contains(codexConfig, "max_threads = 5") || !strings.Contains(codexConfig, `approval_policy = "never"`) || !strings.Contains(codexConfig, `sandbox_mode = "read-only"`) {
 		t.Fatalf("unexpected codex repo config: %s", codexConfig)
 	}
 	if strings.Contains(codexConfig, "status_line") {

@@ -32,6 +32,7 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		"swap `namba plan` for `namba harness \"description\"`",
 		"`$namba`: general router",
 		"`$namba-help`",
+		"`$namba-create`: use when you want a preview-first flow",
 		"`$namba-project`: use when you need project docs and codemaps refreshed",
 		"`$namba-plan`: use when you want to create the next feature SPEC package",
 		"`$namba-plan-review`: use when you want one Codex entry point",
@@ -56,6 +57,7 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		"## Review readiness",
 		"## PR and merge flow",
 		"`namba project`",
+		"`$namba-create`: use the preview-first creation flow",
 		"`namba harness \"description\"`",
 		"`namba fix --command run \"issue description\"`",
 		"`namba plan`, `namba harness`, and `namba fix --command plan`",
@@ -78,6 +80,7 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		readme := outputs[readmePath(lang)]
 		for _, want := range []string{
 			"`$namba-help`",
+			"`$namba-create`",
 			"`$namba-run`",
 			"`$namba-harness`",
 			"`$namba-plan-review`",
@@ -96,6 +99,7 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		guide := outputs[guidePath("workflow-guide", lang)]
 		for _, want := range []string{
 			"`namba project`",
+			"`$namba-create`",
 			"`namba harness \"description\"`",
 			"`namba run SPEC-XXX --team`",
 			"`namba run SPEC-XXX --parallel`",
