@@ -1,0 +1,30 @@
+# Acceptance
+
+- [ ] `$namba-create` exists as a generated repo-local command-entry skill and is discoverable in the generated Namba routing/help surface.
+- [ ] Phase 1 delivers `$namba-create` as the primary entrypoint; a new `namba create` Go CLI command is not required for this SPEC.
+- [ ] The creation flow behaves as a staged generator with an explicit clarification contract: it does not write files while required decisions remain unresolved.
+- [ ] The workflow exposes an explicit or equivalent progression that distinguishes unresolved, narrowed, and confirmed creation state.
+- [ ] Each clarification turn summarizes the remaining unresolved items so the user can see what is still blocking generation.
+- [ ] If the user explicitly requests `skill`, `agent`, or `both`, that directive overrides heuristic classification.
+- [ ] If the user does not specify the target, the workflow selects `skill`, `agent`, or `both` only after clarification and explains the chosen routing.
+- [ ] Before generation, the workflow provides a non-mutating preview or resolution summary that includes target type, slug or name, output paths, validation plan, and any expected session-refresh consequence.
+- [ ] Skill generation writes only to `.agents/skills/<slug>/SKILL.md`.
+- [ ] Agent generation writes only to `.codex/agents/<slug>.toml` and `.codex/agents/<slug>.md`.
+- [ ] Path traversal, invalid slug input, silent overwrite, and incomplete agent mirror writes are rejected.
+- [ ] Raw user text is normalized before it becomes durable instructions, and generated content rejects stale Claude-only primitives or repo-policy violations.
+- [ ] The flow uses repo-managed MCP tooling intentionally, with `sequential-thinking` and `context7` available for planning or guidance and `playwright` used only when browser validation is actually relevant.
+- [ ] The generated repo-local Codex baseline raises `[agents].max_threads` from `3` to `5` when `agent_mode: multi`.
+- [ ] Worktree `max_parallel_workers` remains a separate control surface and is not silently coupled to the `max_threads` increase.
+- [ ] The planning and verification record includes at least five independent role outputs, and the repo-managed default supports five same-workspace roles under normal multi-agent settings.
+- [ ] The implementation defines a durable ownership rule so user-authored `namba-create` outputs are not deleted or overwritten by `namba regen` unless they are explicitly marked as managed built-ins.
+- [ ] Instruction-surface mutations continue to emit clear session-refresh messaging when a fresh Codex session is required to pick up the new assets.
+- [ ] Regression coverage proves:
+  - no file writes happen before confirmation
+  - explicit-user-intent override works
+  - skill/agent/both branching is deterministic
+  - generated `max_threads = 5` is emitted for repo-managed multi-agent defaults
+  - overwrite and path-safety rules hold
+  - regen preserves user-authored outputs
+  - session-refresh messaging appears when expected
+  - multi-role analysis or verification records are present
+- [ ] Validation commands pass.
