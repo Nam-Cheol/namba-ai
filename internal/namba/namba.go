@@ -570,7 +570,7 @@ func (a *App) runProject(_ context.Context, args []string) error {
 
 	analysis := analyzeProject(root, projectCfg, qualityCfg, analysisCfg)
 	outputs := analysis.renderOutputs()
-	if _, err := a.replaceManagedOutputs(root, outputs, isProjectAnalysisManagedPath); err != nil {
+	if _, err := a.replaceManagedOutputs(root, outputs, isProjectAnalysisManagedPath, false); err != nil {
 		return err
 	}
 
@@ -1155,7 +1155,7 @@ func (a *App) runSync(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := a.replaceManagedOutputs(root, buildReadmeOutputs(projectCfg, profile, docsCfg), isReadmeManagedPath); err != nil {
+	if _, err := a.replaceManagedOutputs(root, buildReadmeOutputs(projectCfg, profile, docsCfg), isReadmeManagedPath, false); err != nil {
 		return err
 	}
 	if err := a.runProject(ctx, nil); err != nil {
@@ -3113,8 +3113,11 @@ func upsertManifest(manifest Manifest, entry ManifestEntry) Manifest {
 	return manifest
 }
 
-func manifestEntryIsManaged(entry ManifestEntry, managed func(string) bool) bool {
+func manifestEntryIsManaged(entry ManifestEntry, managed func(string) bool, matchOwnedManaged bool) bool {
 	if strings.TrimSpace(entry.Owner) != "" {
+		if matchOwnedManaged {
+			return entry.Owner == manifestOwnerManaged
+		}
 		return entry.Owner == manifestOwnerManaged && managed(entry.Path)
 	}
 	return managed(entry.Path)

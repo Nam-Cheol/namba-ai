@@ -96,6 +96,90 @@ func TestRunRegenPreservesUserAuthoredCreateArtifacts(t *testing.T) {
 	}
 }
 
+func TestRunRegenRemovesStaleManagedCreateArtifacts(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	staleSkillPath := filepath.Join(tmp, ".agents", "skills", "namba-obsolete", "SKILL.md")
+	staleAgentTomlPath := filepath.Join(tmp, ".codex", "agents", "namba-obsolete.toml")
+	staleAgentMarkdownPath := filepath.Join(tmp, ".codex", "agents", "namba-obsolete.md")
+	if err := os.MkdirAll(filepath.Dir(staleSkillPath), 0o755); err != nil {
+		t.Fatalf("mkdir stale skill dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(staleAgentTomlPath), 0o755); err != nil {
+		t.Fatalf("mkdir stale agent dir: %v", err)
+	}
+	writeTestFile(t, staleSkillPath, "stale managed skill\n")
+	writeTestFile(t, staleAgentTomlPath, "name = \"namba-obsolete\"\n")
+	writeTestFile(t, staleAgentMarkdownPath, "# Namba Obsolete\n")
+
+	manifest, err := app.readManifest(tmp)
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	now := app.now().Format(time.RFC3339)
+	for _, entry := range []ManifestEntry{
+		{
+			Path:      ".agents/skills/namba-obsolete/SKILL.md",
+			Kind:      manifestKind(".agents/skills/namba-obsolete/SKILL.md"),
+			Owner:     manifestOwnerManaged,
+			Checksum:  checksum("stale managed skill\n"),
+			UpdatedAt: now,
+		},
+		{
+			Path:      ".codex/agents/namba-obsolete.toml",
+			Kind:      manifestKind(".codex/agents/namba-obsolete.toml"),
+			Owner:     manifestOwnerManaged,
+			Checksum:  checksum("name = \"namba-obsolete\"\n"),
+			UpdatedAt: now,
+		},
+		{
+			Path:      ".codex/agents/namba-obsolete.md",
+			Kind:      manifestKind(".codex/agents/namba-obsolete.md"),
+			Owner:     manifestOwnerManaged,
+			Checksum:  checksum("# Namba Obsolete\n"),
+			UpdatedAt: now,
+		},
+	} {
+		manifest = upsertManifest(manifest, entry)
+	}
+	if err := app.writeManifest(tmp, manifest); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"regen"}); err != nil {
+		t.Fatalf("regen failed: %v", err)
+	}
+
+	for _, path := range []string{staleSkillPath, staleAgentTomlPath, staleAgentMarkdownPath} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("expected stale managed artifact %s to be removed, stat err=%v", path, err)
+		}
+	}
+
+	manifest, err = app.readManifest(tmp)
+	if err != nil {
+		t.Fatalf("read manifest after regen: %v", err)
+	}
+	for _, rel := range []string{
+		".agents/skills/namba-obsolete/SKILL.md",
+		".codex/agents/namba-obsolete.toml",
+		".codex/agents/namba-obsolete.md",
+	} {
+		if _, ok := findManifestEntry(manifest, rel); ok {
+			t.Fatalf("expected stale managed manifest entry for %s to be removed", rel)
+		}
+	}
+}
+
 func TestCreateWorkflowSkillContractFixture(t *testing.T) {
 	t.Parallel()
 

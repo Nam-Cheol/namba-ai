@@ -36,7 +36,7 @@ func (a *App) runRegen(_ context.Context, args []string) error {
 	if err := removeLegacyCodexSkillMirror(root); err != nil {
 		return err
 	}
-	report, err := a.replaceManagedOutputs(root, outputs, isRegenManagedPath)
+	report, err := a.replaceManagedOutputs(root, outputs, isRegenManagedPath, true)
 	if err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func (a *App) runRegen(_ context.Context, args []string) error {
 	return nil
 }
 
-func (a *App) replaceManagedOutputs(root string, outputs map[string]string, managed func(string) bool) (outputWriteReport, error) {
+func (a *App) replaceManagedOutputs(root string, outputs map[string]string, managed func(string) bool, matchOwnedManaged bool) (outputWriteReport, error) {
 	manifest, err := a.readManifest(root)
 	if err != nil {
 		return outputWriteReport{}, err
@@ -56,7 +56,7 @@ func (a *App) replaceManagedOutputs(root string, outputs map[string]string, mana
 
 	filtered := manifest.Entries[:0]
 	for _, entry := range manifest.Entries {
-		if manifestEntryIsManaged(entry, managed) {
+		if manifestEntryIsManaged(entry, managed, matchOwnedManaged) {
 			if _, keep := outputs[entry.Path]; keep {
 				filtered = append(filtered, entry)
 				continue
