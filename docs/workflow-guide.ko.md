@@ -16,6 +16,7 @@
 
 ## 계획 명령
 
+- `$namba-help`: NambaAI 사용법, 다음에 어떤 명령이나 skill을 선택할지, 어디 문서를 봐야 하는지 read-only로 안내합니다.
 - `namba project`: 현재 저장소 문서와 codemap을 새로 고치며 SPEC 패키지를 만들지 않습니다.
 - `namba plan "description"`: 다음 기능 SPEC 패키지와 review artifact를 만듭니다.
 - `namba harness "description"`: agent, skill, workflow, orchestration 재사용을 위한 harness-oriented SPEC 패키지와 review artifact를 만듭니다.
@@ -41,7 +42,7 @@
 ## 리뷰 준비도
 
 - `namba plan`, `namba harness`, `namba fix --command plan`은 `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, `readiness.md`를 seed 합니다.
-- 구현이나 GitHub handoff 전에 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`로 review 산출물을 최신 상태로 유지하세요.
+- 구현이나 GitHub handoff 전에 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`로 review 산출물을 최신 상태로 유지하고, 생성부터 review loop까지 한 번에 처리하고 싶다면 `$namba-plan-review`를 사용하세요.
 - `namba regen` 또는 `namba sync`가 생성된 instruction surface를 바꾸면, 긴 repair loop를 이어 가기 전에 fresh Codex session을 시작해 갱신된 지침을 다시 불러오세요.
 - 리뷰 통과가 없어도 기본적으로 advisory 상태를 유지합니다. `namba run`, `namba sync`, `namba pr`는 readiness 요약을 보여주지만 조용히 hard gate로 바꾸지는 않습니다.
 

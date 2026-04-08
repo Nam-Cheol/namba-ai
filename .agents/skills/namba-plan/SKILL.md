@@ -13,5 +13,5 @@ Behavior:
 - Treat executable code and authoritative config as stronger planning evidence than docs, and preserve code-vs-doc conflicts instead of smoothing them out.
 - Create the next sequential `SPEC-XXX` package under `.namba/specs/`.
 - Seed `.namba/specs/<SPEC>/reviews/` with product, engineering, design, and aggregate readiness artifacts.
-- Point follow-up review work to `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when the SPEC needs pre-implementation critique.
+- Point follow-up review work to `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review`, or use `$namba-plan-review` when the user wants the create-plus-review loop bundled into one skill.
 - Keep the scope concrete and implementation-ready.

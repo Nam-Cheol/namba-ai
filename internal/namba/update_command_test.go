@@ -86,6 +86,18 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(planSkill, "namba harness") {
 		t.Fatalf("expected plan skill to distinguish harness-oriented planning, got %q", planSkill)
 	}
+	planReviewSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-plan-review", "SKILL.md"))
+	for _, want := range []string{"$namba-plan-review", "parallel", "namba-plan-reviewer", "aggregate validation", "readiness.md"} {
+		if !strings.Contains(planReviewSkill, want) {
+			t.Fatalf("expected plan-review skill to contain %q, got %q", want, planReviewSkill)
+		}
+	}
+	helpSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-help", "SKILL.md"))
+	for _, want := range []string{"$namba-help", "read-only", "README*.md", "which command or skill to use next", "Do not mutate repository state"} {
+		if !strings.Contains(helpSkill, want) {
+			t.Fatalf("expected help skill to contain %q, got %q", want, helpSkill)
+		}
+	}
 	harnessSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-harness", "SKILL.md"))
 	for _, want := range []string{"$namba-harness", "namba harness", "without inventing a second artifact model", "Codex-native"} {
 		if !strings.Contains(harnessSkill, want) {
@@ -141,12 +153,12 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 			t.Fatalf("expected codex README to contain %q, got %q", want, codexReadme)
 		}
 	}
-	for _, want := range []string{"## Namba Custom Agent Roster", "## Delegation Heuristics", "## Plan Review Readiness", "`namba-product-manager`", "`namba-mobile-engineer`", "`namba-designer`", "`namba-data-engineer`", "`namba-security-engineer`", "`namba-test-engineer`", "`namba-devops-engineer`"} {
+	for _, want := range []string{"## Namba Custom Agent Roster", "## Delegation Heuristics", "## Plan Review Readiness", "`namba-product-manager`", "`namba-plan-reviewer`", "`namba-mobile-engineer`", "`namba-designer`", "`namba-data-engineer`", "`namba-security-engineer`", "`namba-test-engineer`", "`namba-devops-engineer`"} {
 		if !strings.Contains(codexReadme, want) {
 			t.Fatalf("expected codex README to contain %q, got %q", want, codexReadme)
 		}
 	}
-	if !strings.Contains(codexReadme, "$namba-run") || !strings.Contains(codexReadme, "$namba-harness") || !strings.Contains(codexReadme, "$namba-plan-pm-review") || !strings.Contains(codexReadme, "reviews/readiness.md") || strings.Contains(codexReadme, ".codex/skills/") {
+	if !strings.Contains(codexReadme, "$namba-help") || !strings.Contains(codexReadme, "$namba-run") || !strings.Contains(codexReadme, "$namba-harness") || !strings.Contains(codexReadme, "$namba-plan-review") || !strings.Contains(codexReadme, "$namba-plan-pm-review") || !strings.Contains(codexReadme, "reviews/readiness.md") || strings.Contains(codexReadme, ".codex/skills/") {
 		t.Fatalf("expected codex README to describe command-entry skills without codex skill mirror, got %q", codexReadme)
 	}
 	if !strings.Contains(codexReadme, "`namba harness \"<description>\"`") {
@@ -191,6 +203,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 		snippets []string
 	}{
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-planner.toml"), snippets: []string{`name = "namba-planner"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "high"`, `developer_instructions = """`, `repo-managed MCP presets`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-plan-reviewer.toml"), snippets: []string{`name = "namba-plan-reviewer"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "high"`}},
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-product-manager.toml"), snippets: []string{`name = "namba-product-manager"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-architect.toml"), snippets: []string{`name = "namba-frontend-architect"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-implementer.toml"), snippets: []string{`name = "namba-frontend-implementer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
@@ -219,6 +232,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 		heading string
 	}{
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-planner.md"), heading: "# Namba Planner"},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-plan-reviewer.md"), heading: "# Namba Plan Reviewer"},
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-product-manager.md"), heading: "# Namba Product Manager"},
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-architect.md"), heading: "# Namba Frontend Architect"},
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-implementer.md"), heading: "# Namba Frontend Implementer"},

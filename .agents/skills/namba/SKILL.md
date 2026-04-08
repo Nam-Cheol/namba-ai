@@ -3,13 +3,15 @@ name: namba
 description: Codex-native Namba command surface for SPEC orchestration inside a repository.
 ---
 
-Use this skill whenever the user mentions `namba`, `namba project`, `namba regen`, `namba update`, `namba plan`, `namba harness`, `namba fix`, `namba run`, `namba sync`, `namba pr`, `namba land`, or asks to use the Namba workflow.
+Use this skill whenever the user mentions `namba`, `namba help`, `namba project`, `namba regen`, `namba update`, `namba plan`, `namba harness`, `namba fix`, `namba run`, `namba sync`, `namba pr`, `namba land`, `$namba-help`, `$namba-plan-review`, or asks to use the Namba workflow.
 
 Command mapping:
+- `$namba-help`: explain how to use NambaAI in this repository, which command or skill to use next, and where the authoritative docs live, without mutating repository state.
 - `namba project`: refresh repository docs and codemaps.
 - `namba regen`: regenerate AGENTS, repo-local skills, command-entry skills, Codex custom agents, readable role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.
 - `namba update [--version vX.Y.Z]`: self-update the installed `namba` binary from GitHub Release assets.
 - `namba plan "<description>"`: create the next feature SPEC package under `.namba/specs/`.
+- `$namba-plan-review`: create or resolve a SPEC, run the three plan-review tracks in parallel when possible, and drive the advisory readiness loop before implementation starts.
 - `namba harness "<description>"`: create the next harness-oriented SPEC package under `.namba/specs/` for reusable agent, skill, workflow, or orchestration work.
 - `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: update product, engineering, or design review artifacts under `.namba/specs/<SPEC>/reviews/` and refresh advisory readiness.
 - `namba fix --command plan "<issue description>"`: create the next bugfix SPEC package under `.namba/specs/`.
@@ -24,7 +26,7 @@ Command mapping:
 Execution rules:
 1. Treat `.namba/` as the source of truth.
 2. Prefer repo-local skills in `.agents/skills/`.
-3. Prefer command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-harness`, `$namba-fix`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, `$namba-project`, and `$namba-sync` when the user is invoking one Namba command directly.
+3. Prefer `$namba-help` for read-only usage guidance, and prefer command-entry skills such as `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-plan-review`, `$namba-harness`, `$namba-fix`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, `$namba-project`, and `$namba-sync` when the user is invoking one Namba command directly.
 4. Use the installed `namba` CLI for `project`, `regen`, `update`, `plan`, `harness`, `fix`, `pr`, `land`, and `sync` when it will update repo state more reliably or self-update the installed CLI directly.
 5. Keep `.namba/specs/<SPEC>/reviews/*.md` and `readiness.md` current when you use the plan-review workflow; the readiness summary is advisory unless the user explicitly asks for a gate.
 6. For `namba run` in an interactive Codex session, prefer Codex-native in-session execution over recursively calling `namba run`, unless the user explicitly asks for standalone `--solo`, `--team`, `--parallel`, or `--dry-run` behavior.

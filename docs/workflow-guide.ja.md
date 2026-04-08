@@ -16,6 +16,7 @@
 
 ## 計画コマンド
 
+- `$namba-help`: NambaAI の使い方、次にどの command や skill を選ぶべきか、どの文書を見るべきかを read-only で案内します。
 - `namba project`: 現在のリポジトリ docs と codemap を更新し、SPEC パッケージは作成しません。
 - `namba plan "description"`: 次の機能 SPEC パッケージと review artifact を作成します。
 - `namba harness "description"`: agent / skill / workflow / orchestration 再利用向けの harness-oriented SPEC パッケージと review artifact を作成します。
@@ -41,7 +42,7 @@
 ## レビュー準備度
 
 - `namba plan`、`namba harness`、`namba fix --command plan` は `.namba/specs/<SPEC>/reviews/product.md`、`engineering.md`、`design.md`、`readiness.md` を seed します。
-- 実装または GitHub handoff の前に `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` で review artifact を最新に保ってください。
+- 実装または GitHub handoff の前に `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` で review artifact を最新に保ち、作成から review loop までまとめたい場合は `$namba-plan-review` を使ってください。
 - `namba regen` または `namba sync` が生成された instruction surface を変えた場合は、長い repair loop を続ける前に fresh Codex session を開始して更新済み guidance を読み直してください。
 - review pass が欠けていても既定では advisory のままです。`namba run`、`namba sync`、`namba pr` は readiness summary を表示しますが、黙って hard gate にはしません。
 
