@@ -6,11 +6,13 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .agents/skills/namba-fix/SKILL.md
 .agents/skills/namba-foundation-core/SKILL.md
 .agents/skills/namba-harness/SKILL.md
+.agents/skills/namba-help/SKILL.md
 .agents/skills/namba-init/SKILL.md
 .agents/skills/namba-land/SKILL.md
 .agents/skills/namba-plan-design-review/SKILL.md
 .agents/skills/namba-plan-eng-review/SKILL.md
 .agents/skills/namba-plan-pm-review/SKILL.md
+.agents/skills/namba-plan-review/SKILL.md
 .agents/skills/namba-plan/SKILL.md
 .agents/skills/namba-pr/SKILL.md
 .agents/skills/namba-project/SKILL.md
@@ -40,6 +42,8 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .codex/agents/namba-implementer.toml
 .codex/agents/namba-mobile-engineer.md
 .codex/agents/namba-mobile-engineer.toml
+.codex/agents/namba-plan-reviewer.md
+.codex/agents/namba-plan-reviewer.toml
 .codex/agents/namba-planner.md
 .codex/agents/namba-planner.toml
 .codex/agents/namba-product-manager.md

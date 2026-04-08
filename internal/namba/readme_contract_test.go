@@ -31,8 +31,10 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		"`namba fix`",
 		"swap `namba plan` for `namba harness \"description\"`",
 		"`$namba`: general router",
+		"`$namba-help`",
 		"`$namba-project`: use when you need project docs and codemaps refreshed",
 		"`$namba-plan`: use when you want to create the next feature SPEC package",
+		"`$namba-plan-review`: use when you want one Codex entry point",
 		"`$namba-harness`: use when you want a harness-oriented SPEC package",
 		"`$namba-fix`: use when you need direct repair in the current workspace",
 		"`$namba-run`: use when you want to execute an existing SPEC package",
@@ -66,6 +68,8 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		"`namba-security-engineer`",
 		"`namba-devops-engineer`",
 		"`namba-reviewer`",
+		"`$namba-help`",
+		"`$namba-plan-review`",
 	} {
 		assertContains(t, workflowGuide, want, "workflow guide")
 	}
@@ -73,8 +77,10 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 	for _, lang := range []string{"ko", "ja", "zh"} {
 		readme := outputs[readmePath(lang)]
 		for _, want := range []string{
+			"`$namba-help`",
 			"`$namba-run`",
 			"`$namba-harness`",
+			"`$namba-plan-review`",
 			"`$namba-plan-pm-review`",
 			"`$namba-plan-eng-review`",
 			"`$namba-plan-design-review`",
@@ -96,6 +102,7 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 			"`namba fix --command plan \"issue description\"`",
 			"`namba fix --command run \"issue description\"`",
 			"`namba-reviewer`",
+			"`$namba-plan-review`",
 			"`namba pr`",
 			"`namba land`",
 		} {

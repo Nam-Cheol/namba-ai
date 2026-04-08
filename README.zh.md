@@ -70,10 +70,12 @@ namba land
 ## Codex 中的 Command Skill
 
 - `$namba`: 当你希望 Codex 根据上下文自动选择合适的 Namba 入口时使用的通用路由器。
+- `$namba-help`: 当你想以 read-only 方式了解这个仓库里该如何使用 NambaAI、该选哪个命令或 skill、以及应该看哪些文档时使用。
 - `$namba-project`: 在开始前或较大改动后刷新项目文档和 codemap。
 - `$namba-plan`: 需要功能 SPEC 包时使用。
 - `$namba-harness`: 需要面向 agent、skill、workflow、orchestration 复用的 harness-oriented SPEC 包时使用。
 - `$namba-fix`: 在当前 workspace 直接修复问题时使用；如果要创建可评审的缺陷修复 SPEC，就走 `namba fix --command plan "issue description"`。
+- `$namba-plan-review`: 需要把 SPEC 创建或选择、product / engineering / design 评审并行执行、aggregate validation 和 readiness 更新打包到一起时使用。
 - `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: 在 SPEC 需要 product / engineering / design review 产物和 advisory readiness 时使用。
 - `$namba-run`: 在当前 Codex 会话中执行已经创建好的 SPEC 包时使用。
 - `$namba-sync`: 刷新 README 套件、项目文档、codemap 和 PR 交接产物时使用。
@@ -82,9 +84,11 @@ namba land
 
 ## Skill To Command Mapping
 
+- `$namba-help` -> read-only Namba 使用说明，不直接触发 CLI 变更
 - `$namba-project` -> `namba project`
 - `$namba-plan` -> `namba plan "description"`
 - `$namba-harness` -> `namba harness "description"`
+- `$namba-plan-review` -> `namba plan "description"` 或 `namba harness "description"` + 并行 review + aggregate validation loop
 - `$namba-fix` -> `namba fix "issue description"` 或 `namba fix --command plan "issue description"`
 - `$namba-run` -> `namba run SPEC-XXX`
 - `$namba-sync` -> `namba sync`
@@ -95,7 +99,7 @@ namba land
 
 ## Codex 自定义 Agents
 
-- Strategy: `namba-product-manager` 负责收敛范围和 acceptance，`namba-planner` 把 SPEC 转成执行计划。
+- Strategy and readiness: `namba-product-manager` 负责收敛范围和 acceptance，`namba-planner` 把 SPEC 转成执行计划，`namba-plan-reviewer` 负责校验 plan-review 结果的一致性与 readiness。
 - UI and experience: `namba-frontend-architect`、`namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer` 负责 web UI、mobile execution 和 visual direction。
 - Backend and data: `namba-backend-architect`、`namba-backend-implementer`、`namba-data-engineer` 负责 API、persistence、migration 和 pipeline。
 - Security and delivery: `namba-security-engineer`、`namba-test-engineer`、`namba-devops-engineer`、`namba-reviewer` 负责 hardening、regression confidence、CI/CD 和 final acceptance。

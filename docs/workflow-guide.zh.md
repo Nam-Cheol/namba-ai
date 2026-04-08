@@ -16,6 +16,7 @@
 
 ## 规划命令
 
+- `$namba-help`: 以 read-only 方式说明如何使用 NambaAI、下一步该选哪个命令或 skill、以及应该看哪些文档。
 - `namba project`: 刷新当前仓库文档和 codemap，不会创建 SPEC 包。
 - `namba plan "description"`: 创建下一个功能 SPEC 包和 review artifact。
 - `namba harness "description"`: 创建面向 agent / skill / workflow / orchestration 复用的 harness-oriented SPEC 包和 review artifact。
@@ -41,7 +42,7 @@
 ## 评审准备度
 
 - `namba plan`、`namba harness` 和 `namba fix --command plan` 会 seed `.namba/specs/<SPEC>/reviews/product.md`、`engineering.md`、`design.md`、`readiness.md`。
-- 在实现或 GitHub handoff 之前，使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` 保持 review artifact 最新。
+- 在实现或 GitHub handoff 之前，使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` 保持 review artifact 最新；如果想把创建到 review loop 打包处理，就使用 `$namba-plan-review`。
 - 如果 `namba regen` 或 `namba sync` 改变了生成的 instruction surface，请在继续长 repair loop 之前启动一个 fresh Codex session，以重新加载更新后的 guidance。
 - 即使 review pass 缺失，默认也只是 advisory。`namba run`、`namba sync`、`namba pr` 会展示 readiness summary，但不会悄悄变成 hard gate。
 

@@ -16,6 +16,7 @@
 
 ## Planning commands
 
+- `$namba-help`: read-only guidance on how to use NambaAI, which command or skill to choose next, and where the authoritative docs live.
 - `namba project`: refresh current repository docs and codemaps without creating a SPEC package.
 - `namba plan "description"`: create the next feature SPEC package and review artifacts.
 - `namba harness "description"`: create the next harness-oriented SPEC package and review artifacts for reusable agent, skill, workflow, or orchestration work.
@@ -41,7 +42,7 @@
 ## Review readiness
 
 - `namba plan`, `namba harness`, and `namba fix --command plan` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.
-- Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` to keep those artifacts current before implementation or PR handoff.
+- Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` to keep those artifacts current before implementation or PR handoff, or use `$namba-plan-review` when you want one skill to handle SPEC creation plus the parallel review loop.
 - If `namba regen` or `namba sync` changes generated instruction surfaces, start a fresh Codex session so the updated guidance is loaded before continuing a long repair loop.
 - Missing review passes stay advisory by default: `namba run`, `namba sync`, and `namba pr` surface the current readiness summary without silently hard-blocking delivery.
 

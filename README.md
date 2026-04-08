@@ -23,8 +23,9 @@ NambaAI is a Codex-native workflow for bootstrapping repositories, choosing the 
 
 - Bootstrap a Codex-ready repository from an empty directory with `namba init .`.
 - Choose `namba project`, `namba plan`, `namba harness`, or `namba fix` based on whether you are refreshing context, starting a feature SPEC, planning reusable workflow scaffolding, or repairing a bug.
+- Use `$namba-help` when you want a read-only walkthrough of how to use NambaAI or which command or skill fits your goal.
 - Execute work with `namba run SPEC-XXX` for the default flow, use `--solo` for a single runner in one workspace, `--team` for same-workspace multi-agent execution, or `--parallel` for worktree fan-out/fan-in before handing off with `namba sync`, `namba pr`, and `namba land`.
-- Run explicit plan reviews with `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when a SPEC needs product, engineering, or design critique before implementation.
+- Run explicit plan reviews with `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when a SPEC needs product, engineering, or design critique before implementation, or use `$namba-plan-review` when you want SPEC creation plus the full review loop bundled into one skill.
 - Keep CLI versions aligned across the team with `namba update` and release assets.
 
 ## Quick Start
@@ -70,10 +71,12 @@ namba land
 ## Command Skills In Codex
 
 - `$namba`: general router when you want Codex to choose the right Namba workflow entry point from context.
+- `$namba-help`: use when you want a read-only explanation of how to use NambaAI, which command or skill to choose next, or where the authoritative docs live.
 - `$namba-project`: use when you need project docs and codemaps refreshed before starting or after larger changes.
 - `$namba-plan`: use when you want to create the next feature SPEC package.
 - `$namba-harness`: use when you want a harness-oriented SPEC package for reusable agent, skill, workflow, or orchestration work.
 - `$namba-fix`: use when you need direct repair in the current workspace, or choose `namba fix --command plan "issue description"` when you want a reviewable bugfix SPEC.
+- `$namba-plan-review`: use when you want one Codex entry point that creates or resolves a SPEC, runs the three plan-review tracks in parallel, validates readiness, and loops only where needed.
 - `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: use when a SPEC needs product, engineering, or design review artifacts plus an updated advisory readiness summary.
 - `$namba-run`: use when you want to execute an existing SPEC package through the Namba workflow in the current Codex session.
 - `$namba-sync`: use when you need README bundles, project docs, codemaps, and PR-ready artifacts refreshed.
@@ -82,9 +85,11 @@ namba land
 
 ## Skill To Command Mapping
 
+- `$namba-help` -> read-only Namba usage guidance; no direct CLI mutation
 - `$namba-project` -> `namba project`
 - `$namba-plan` -> `namba plan "description"`
 - `$namba-harness` -> `namba harness "description"`
+- `$namba-plan-review` -> `namba plan "description"` or `namba harness "description"` + parallel reviews + aggregate validation loop
 - `$namba-fix` -> `namba fix "issue description"` or `namba fix --command plan "issue description"`
 - `$namba-run` -> `namba run SPEC-XXX`
 - `$namba-sync` -> `namba sync`
@@ -95,7 +100,7 @@ namba land
 
 ## Custom Agents In Codex
 
-- Strategy: `namba-product-manager` shapes scope and acceptance, and `namba-planner` turns a SPEC into an execution plan.
+- Strategy and readiness: `namba-product-manager` shapes scope and acceptance, `namba-planner` turns a SPEC into an execution plan, and `namba-plan-reviewer` validates whether the plan-review set is coherent enough to start implementation.
 - UI and experience: `namba-frontend-architect`, `namba-frontend-implementer`, `namba-mobile-engineer`, and `namba-designer` cover web UI, mobile execution, and visual direction.
 - Backend and data: `namba-backend-architect`, `namba-backend-implementer`, and `namba-data-engineer` cover APIs, persistence, migrations, and pipelines.
 - Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, and `namba-reviewer` cover hardening, regression confidence, CI/CD, and final acceptance.

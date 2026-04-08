@@ -35,6 +35,8 @@ func codexAgentTemplates() map[string]string {
 	return map[string]string{
 		"namba-planner.md":                renderPlannerRoleCard(),
 		"namba-planner.toml":              renderPlannerCustomAgent(),
+		"namba-plan-reviewer.md":          renderPlanReviewerRoleCard(),
+		"namba-plan-reviewer.toml":        renderPlanReviewerCustomAgent(),
 		"namba-product-manager.md":        renderProductManagerRoleCard(),
 		"namba-product-manager.toml":      renderProductManagerCustomAgent(),
 		"namba-frontend-architect.md":     renderFrontendArchitectRoleCard(),
@@ -67,6 +69,7 @@ func codexAgentTemplates() map[string]string {
 func requiredCodexAgentFiles() []string {
 	return []string{
 		"namba-planner.toml",
+		"namba-plan-reviewer.toml",
 		"namba-product-manager.toml",
 		"namba-frontend-architect.toml",
 		"namba-frontend-implementer.toml",
@@ -87,10 +90,12 @@ func codexSkillTemplates(profile initProfile) map[string]string {
 	return map[string]string{
 		filepath.ToSlash(filepath.Join("namba", "SKILL.md")):                    renderNambaSkill(profile),
 		filepath.ToSlash(filepath.Join("namba-init", "SKILL.md")):               renderInitCommandSkill(),
+		filepath.ToSlash(filepath.Join("namba-help", "SKILL.md")):               renderHelpCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-project", "SKILL.md")):            renderProjectCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-regen", "SKILL.md")):              renderRegenCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-update", "SKILL.md")):             renderUpdateCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-plan", "SKILL.md")):               renderPlanCommandSkill(),
+		filepath.ToSlash(filepath.Join("namba-plan-review", "SKILL.md")):        renderPlanReviewLoopCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-harness", "SKILL.md")):            renderHarnessCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-plan-pm-review", "SKILL.md")):     renderPlanPMReviewCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-plan-eng-review", "SKILL.md")):    renderPlanEngReviewCommandSkill(),

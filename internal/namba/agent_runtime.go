@@ -17,6 +17,9 @@ func runtimeProfileForAgent(role string) agentRuntimeProfile {
 	case "namba-planner":
 		profile.Model = "gpt-5.4"
 		profile.ModelReasoningEffort = "high"
+	case "namba-plan-reviewer":
+		profile.Model = "gpt-5.4"
+		profile.ModelReasoningEffort = "high"
 	case "namba-product-manager":
 		profile.Model = "gpt-5.4"
 		profile.ModelReasoningEffort = "medium"

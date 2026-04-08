@@ -120,10 +120,12 @@ func legacyCodexSkillMirrorPaths() []string {
 	names := []string{
 		"namba",
 		"namba-init",
+		"namba-help",
 		"namba-project",
 		"namba-regen",
 		"namba-update",
 		"namba-plan",
+		"namba-plan-review",
 		"namba-harness",
 		"namba-plan-pm-review",
 		"namba-plan-eng-review",

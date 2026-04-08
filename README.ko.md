@@ -70,10 +70,12 @@ namba land
 ## Codex에서 쓰는 Command Skill
 
 - `$namba`: Codex가 문맥을 보고 적절한 Namba 진입점을 고르게 맡기고 싶을 때 쓰는 일반 라우터입니다.
+- `$namba-help`: 이 저장소에서 NambaAI를 어떻게 써야 하는지, 어떤 명령이나 skill을 골라야 하는지, 어디 문서를 봐야 하는지 read-only로 설명받고 싶을 때 씁니다.
 - `$namba-project`: 작업을 시작하기 전이나 큰 변경 뒤에 프로젝트 문서와 codemap을 새로 고칩니다.
 - `$namba-plan`: 기능 SPEC 패키지를 만들고 싶을 때 씁니다.
 - `$namba-harness`: agent, skill, workflow, orchestration 재사용을 위한 harness-oriented SPEC 패키지를 만들고 싶을 때 씁니다.
 - `$namba-fix`: 현재 workspace에서 직접 버그를 수리할 때 쓰고, review 가능한 bugfix SPEC가 필요하면 `namba fix --command plan "issue description"` 경로를 선택합니다.
+- `$namba-plan-review`: SPEC 생성 또는 선택부터 product / engineering / design 리뷰 병렬 실행, aggregate validation, readiness 갱신까지 한 번에 묶고 싶을 때 씁니다.
 - `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: SPEC의 product, engineering, design review 산출물과 advisory readiness를 갱신할 때 씁니다.
 - `$namba-run`: 이미 만든 SPEC 패키지를 현재 Codex 세션에서 실행할 때 씁니다.
 - `$namba-sync`: README 묶음, 프로젝트 문서, codemap, PR 준비 산출물을 갱신할 때 씁니다.
@@ -82,9 +84,11 @@ namba land
 
 ## Skill To Command Mapping
 
+- `$namba-help` -> read-only Namba 사용 안내, 직접적인 CLI 변경 없음
 - `$namba-project` -> `namba project`
 - `$namba-plan` -> `namba plan "description"`
 - `$namba-harness` -> `namba harness "description"`
+- `$namba-plan-review` -> `namba plan "description"` 또는 `namba harness "description"` + 병렬 review + aggregate validation loop
 - `$namba-fix` -> `namba fix "issue description"` 또는 `namba fix --command plan "issue description"`
 - `$namba-run` -> `namba run SPEC-XXX`
 - `$namba-sync` -> `namba sync`
@@ -95,7 +99,7 @@ namba land
 
 ## Codex용 Custom Agents
 
-- Strategy: `namba-product-manager`가 범위와 acceptance를 다듬고, `namba-planner`가 SPEC를 실행 계획으로 바꿉니다.
+- Strategy and readiness: `namba-product-manager`가 범위와 acceptance를 다듬고, `namba-planner`가 SPEC를 실행 계획으로 바꾸며, `namba-plan-reviewer`가 plan-review 결과의 일관성과 readiness를 검증합니다.
 - UI and experience: `namba-frontend-architect`, `namba-frontend-implementer`, `namba-mobile-engineer`, `namba-designer`가 웹 UI, 모바일 실행, 시각 방향을 담당합니다.
 - Backend and data: `namba-backend-architect`, `namba-backend-implementer`, `namba-data-engineer`가 API, 영속성, 마이그레이션, 파이프라인을 담당합니다.
 - Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, `namba-reviewer`가 보안 강화, 회귀 신뢰도, CI/CD, 최종 acceptance를 담당합니다.
