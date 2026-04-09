@@ -7,28 +7,28 @@ Advisory only: use this summary to decide whether the SPEC has enough pre-implem
 ## Review Tracks
 
 - Product Review
-  Status: pending
-  Last Reviewed: pending
-  Reviewer: pending
+  Status: clear
+  Last Reviewed: 2026-04-09
+  Reviewer: codex
   Skill: `$namba-plan-pm-review`
   Artifact: `.namba/specs/SPEC-026/reviews/product.md`
 - Engineering Review
-  Status: pending
-  Last Reviewed: pending
-  Reviewer: pending
+  Status: clear
+  Last Reviewed: 2026-04-09
+  Reviewer: codex
   Skill: `$namba-plan-eng-review`
   Artifact: `.namba/specs/SPEC-026/reviews/engineering.md`
 - Design Review
-  Status: pending
-  Last Reviewed: pending
-  Reviewer: pending
+  Status: clear
+  Last Reviewed: 2026-04-09
+  Reviewer: codex
   Skill: `$namba-plan-design-review`
   Artifact: `.namba/specs/SPEC-026/reviews/design.md`
 
 ## Summary
 
-- Cleared reviews: 0/3
-- Advisory status: follow up on product=pending, engineering=pending, design=pending before execution or GitHub handoff if the risk profile justifies it.
+- Cleared reviews: 3/3
+- Advisory status: all current review tracks are marked clear.
 
 ## Suggested Order
 

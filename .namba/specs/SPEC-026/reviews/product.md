@@ -1,8 +1,8 @@
 # Product Review
 
-- Status: pending
-- Last Reviewed: pending
-- Reviewer: pending
+- Status: clear
+- Last Reviewed: 2026-04-09
+- Reviewer: codex
 - Command Skill: `$namba-plan-pm-review`
 - Recommended Role: `namba-product-manager`
 
@@ -13,18 +13,19 @@
 ## Findings
 
 - `SPEC-025` already solved discovery and contract clarity for `$namba-create`; `SPEC-026` narrows the remaining user value to actual repo-tracked generation.
-- The planned scope intentionally excludes a new `namba create` CLI so the follow-up stays focused on the unmet behavior instead of reopening interface expansion.
-- Product review should validate the preview summary, overwrite disclosure, and session-refresh messaging because phase-2 now introduces durable writes.
+- The follow-up now makes the wrapper contract explicit: `$namba-create` stays the documented user-facing surface, while the engine is reached through a narrow internal adapter instead of a new public CLI.
+- The preview summary, overwrite disclosure, and session-refresh guidance are explicit enough to protect the user-facing behavior before implementation starts.
 
 ## Decisions
 
-- Pending product review on whether the proposed preview and confirmation surface is sufficient before execution starts.
+- Keep `SPEC-026` focused on real generation and do not reopen `SPEC-025` scope.
+- Keep the public interface skill-first and exclude public CLI expansion from this slice.
 
 ## Follow-ups
 
-- Verify that users can understand the exact files and overwrite impact before confirming generation.
-- Verify that `both` mode is only used when the user intent really requires both a skill and a custom agent.
+- Carry exact-file preview, overwrite impact, and session-refresh wording into implementation and validation.
+- Keep `both` mode justified by explicit user intent or clear wrapper guidance.
 
 ## Recommendation
 
-- Run product review before implementation because this SPEC changes durable user-visible behavior.
+- Clear. The remaining user problem and the proposed follow-up boundary are coherent.

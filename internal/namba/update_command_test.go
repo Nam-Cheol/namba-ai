@@ -99,7 +99,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 		}
 	}
 	createSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-create", "SKILL.md"))
-	for _, want := range []string{"$namba-create", "skill-first", "`unresolved` -> `narrowed` -> `confirmed`", "sequential-thinking", "context7", "playwright", ".agents/skills/<slug>/SKILL.md", ".codex/agents/<slug>.toml", ".codex/agents/<slug>.md", "five independent role outputs"} {
+	for _, want := range []string{"$namba-create", "skill-first", "`unresolved` -> `narrowed` -> `confirmed`", "sequential-thinking", "context7", "playwright", ".agents/skills/<slug>/SKILL.md", ".codex/agents/<slug>.toml", ".codex/agents/<slug>.md", "public `namba create` Go CLI command", "five independent role outputs", "namba __create preview", "namba __create apply"} {
 		if !strings.Contains(createSkill, want) {
 			t.Fatalf("expected create skill to contain %q, got %q", want, createSkill)
 		}

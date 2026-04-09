@@ -71,7 +71,7 @@ namba land
 
 - `$namba`: 文脈に応じて Codex に適切な Namba 入口を選ばせたいときの汎用ルーターです。
 - `$namba-help`: このリポジトリで NambaAI をどう使うか、どの command や skill を選ぶべきか、どの文書を見るべきかを read-only で知りたいときに使います。
-- `$namba-create`: repo-local skill、project-scoped custom agent、またはその両方を preview-first で作りたいときに使います。この経路は新しい `namba create` CLI を追加せず、Codex 内で完結します。
+- `$namba-create`: repo-local skill、project-scoped custom agent、またはその両方を preview-first で作りたいときに使います。この経路は skill-first の public surface を維持し、新しい `namba create` CLI は追加しません。
 - `$namba-project`: 作業開始前や大きな変更後にプロジェクト文書と codemap を更新します。
 - `$namba-plan`: 機能 SPEC パッケージを作りたいときに使います。
 - `$namba-harness`: agent、skill、workflow、orchestration の再利用向け harness-oriented SPEC パッケージを作りたいときに使います。
@@ -86,7 +86,7 @@ namba land
 ## Skill To Command Mapping
 
 - `$namba-help` -> read-only の Namba 利用案内、直接の CLI 変更なし
-- `$namba-create` -> `.agents/skills/*` または `.codex/agents/*` のための skill-first 生成フロー。phase 1 では新しい `namba create` CLI は追加しません
+- `$namba-create` -> `.agents/skills/*` または `.codex/agents/*` のための skill-first 生成フロー。この slice では public `namba create` CLI を追加しません
 - `$namba-project` -> `namba project`
 - `$namba-plan` -> `namba plan "description"`
 - `$namba-harness` -> `namba harness "description"`

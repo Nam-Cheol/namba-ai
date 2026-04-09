@@ -7,7 +7,7 @@ Use this skill whenever the user mentions `namba`, `namba help`, `namba project`
 
 Command mapping:
 - `$namba-help`: explain how to use NambaAI in this repository, which command or skill to use next, and where the authoritative docs live, without mutating repository state.
-- `$namba-create`: run the skill-first creation workflow for repo-local skills, project-scoped custom agents, or both. Phase 1 stays inside Codex; it does not add a new `namba create` CLI command.
+- `$namba-create`: run the skill-first creation workflow for repo-local skills, project-scoped custom agents, or both. Keep the user-facing surface inside Codex and do not add a public `namba create` CLI command in this slice.
 - `namba project`: refresh repository docs and codemaps.
 - `namba regen`: regenerate AGENTS, repo-local skills, command-entry skills, Codex custom agents, readable role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.
 - `namba update [--version vX.Y.Z]`: self-update the installed `namba` binary from GitHub Release assets.
