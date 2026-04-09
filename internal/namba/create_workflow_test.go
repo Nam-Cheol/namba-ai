@@ -655,18 +655,19 @@ func TestApplyCreateWritesAgentPair(t *testing.T) {
 	}
 }
 
-func TestRenderUserAgentTOMLEscapesQuotedFields(t *testing.T) {
+func TestRenderUserAgentTOMLEscapesUserFields(t *testing.T) {
 	t.Parallel()
 
 	description := "He said \"hello\"\nSecond line."
 	sandboxMode := "workspace-write\"\nunsafe"
 	model := "gpt-5.4\"\nmini"
 	reasoning := "high\"\ncareful"
+	instructions := "Use C:\\work\\repo during dry-runs.\nKeep \"\"\" markers literal."
 
 	got := renderUserAgentTOML(
 		"insight-builder",
 		description,
-		"Stay inside assigned files.",
+		instructions,
 		sandboxMode,
 		model,
 		reasoning,
@@ -682,6 +683,64 @@ func TestRenderUserAgentTOMLEscapesQuotedFields(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected escaped %s line %q in %q", key, want, got)
 		}
+	}
+
+	wantInstructions := strings.Join(splitCreateInstructions(withCreateAgentPreamble("insight-builder", instructions)), "\n")
+	wantInstructionLine := "developer_instructions = " + strconv.Quote(wantInstructions)
+	if !strings.Contains(got, wantInstructionLine) {
+		t.Fatalf("expected escaped developer instructions line %q in %q", wantInstructionLine, got)
+	}
+	if strings.Contains(got, `developer_instructions = """`) {
+		t.Fatalf("expected developer instructions to avoid multiline basic TOML strings, got %q", got)
+	}
+}
+
+func TestPreviewCreateRejectsTargetsResolvingOutsideRootViaSymlink(t *testing.T) {
+	t.Parallel()
+
+	tmp, app := prepareCreateProject(t)
+
+	externalDir := t.TempDir()
+	mustCreateSymlink(t, externalDir, filepath.Join(tmp, ".agents", "skills", "insight-builder"))
+
+	_, err := app.previewCreate(tmp, createRequest{
+		Target:       createTargetSkill,
+		Name:         "Insight Builder",
+		Description:  "Create repo-local creation helpers.",
+		Instructions: "Use this artifact to keep creation flows explicit and safe.",
+	})
+	if err == nil || !strings.Contains(err.Error(), "resolves outside the project root") {
+		t.Fatalf("expected symlink root escape error, got %v", err)
+	}
+}
+
+func TestApplyCreateRejectsSymlinkedAgentTargetAfterPreview(t *testing.T) {
+	t.Parallel()
+
+	tmp, app := prepareCreateProject(t)
+
+	req := createRequest{
+		Target:       createTargetAgent,
+		Name:         "Insight Builder",
+		Description:  "Create repo-local creation helpers.",
+		Instructions: "Use this artifact to keep creation flows explicit and safe.",
+	}
+	req.PreviewDigest = mustPreviewCreateDigest(t, app, tmp, req)
+
+	externalFile := filepath.Join(t.TempDir(), "outside-agent.toml")
+	writeTestFile(t, externalFile, "outside\n")
+	mustCreateSymlink(t, externalFile, filepath.Join(tmp, ".codex", "agents", "insight-builder.toml"))
+
+	_, err := app.applyCreate(tmp, createRequest{
+		Target:        req.Target,
+		Name:          req.Name,
+		Description:   req.Description,
+		Instructions:  req.Instructions,
+		PreviewDigest: req.PreviewDigest,
+		Confirmed:     true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("expected symlink rejection, got %v", err)
 	}
 }
 
@@ -978,4 +1037,15 @@ func mustPreviewCreateDigest(t *testing.T, app *App, root string, req createRequ
 		t.Fatalf("expected preview digest, got %+v", preview)
 	}
 	return preview.PreviewDigest
+}
+
+func mustCreateSymlink(t *testing.T, target, link string) {
+	t.Helper()
+
+	if err := os.MkdirAll(filepath.Dir(link), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(link), err)
+	}
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink not supported: %v", err)
+	}
 }

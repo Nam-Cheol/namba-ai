@@ -369,11 +369,10 @@ func createOutputPaths(target createTarget, slug string) []string {
 }
 
 func validateCreatePaths(root string, paths []string) error {
-	rootAbs, err := filepath.Abs(root)
+	rootAbs, err := resolvedCreateRoot(root)
 	if err != nil {
 		return err
 	}
-	rootAbs = filepath.Clean(rootAbs)
 	for _, rel := range paths {
 		switch {
 		case strings.HasPrefix(rel, repoSkillsDir+"/"):
@@ -391,8 +390,80 @@ func validateCreatePaths(root string, paths []string) error {
 		if abs != rootAbs && !strings.HasPrefix(abs, rootAbs+string(os.PathSeparator)) {
 			return fmt.Errorf("create path %s escapes the project root", rel)
 		}
+		if err := validateCreateResolvedPath(rootAbs, rel, abs); err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+func resolvedCreateRoot(root string) (string, error) {
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	rootAbs, err = filepath.EvalSymlinks(rootAbs)
+	if err != nil {
+		return "", fmt.Errorf("resolve project root: %w", err)
+	}
+	return filepath.Clean(rootAbs), nil
+}
+
+func validateCreateResolvedPath(rootAbs, rel, absPath string) error {
+	info, err := os.Lstat(absPath)
+	switch {
+	case err == nil:
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("create output path %s is a symlink; symlinked create targets are not allowed", rel)
+		}
+		resolved, err := filepath.EvalSymlinks(absPath)
+		if err != nil {
+			return fmt.Errorf("resolve %s: %w", rel, err)
+		}
+		if !createPathWithinRoot(rootAbs, resolved) {
+			return fmt.Errorf("create path %s resolves outside the project root", rel)
+		}
+		return nil
+	case errors.Is(err, os.ErrNotExist):
+		ancestor, err := nearestExistingCreateAncestor(rootAbs, absPath)
+		if err != nil {
+			return fmt.Errorf("inspect %s: %w", rel, err)
+		}
+		resolved, err := filepath.EvalSymlinks(ancestor)
+		if err != nil {
+			return fmt.Errorf("resolve %s: %w", rel, err)
+		}
+		if !createPathWithinRoot(rootAbs, resolved) {
+			return fmt.Errorf("create path %s resolves outside the project root", rel)
+		}
+		return nil
+	default:
+		return fmt.Errorf("lstat %s: %w", rel, err)
+	}
+}
+
+func nearestExistingCreateAncestor(rootAbs, absPath string) (string, error) {
+	current := filepath.Dir(absPath)
+	for {
+		if _, err := os.Lstat(current); err == nil {
+			return current, nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return "", err
+		}
+		if current == rootAbs {
+			return current, nil
+		}
+		next := filepath.Dir(current)
+		if next == current {
+			return "", fmt.Errorf("no existing ancestor for %s", absPath)
+		}
+		current = next
+	}
+}
+
+func createPathWithinRoot(rootAbs, candidate string) bool {
+	candidate = filepath.Clean(candidate)
+	return candidate == rootAbs || strings.HasPrefix(candidate, rootAbs+string(os.PathSeparator))
 }
 
 func detectCreateOverwritePaths(root string, target createTarget, outputPaths []string) ([]string, error) {
@@ -476,16 +547,15 @@ func renderUserAgentTOML(slug, description, instructions, sandboxMode, model, re
 	model = firstNonBlank(strings.TrimSpace(model), strings.TrimSpace(profile.Model), "gpt-5.4-mini")
 	reasoning = firstNonBlank(strings.TrimSpace(reasoning), strings.TrimSpace(profile.ModelReasoningEffort), "medium")
 	sandboxMode = firstNonBlank(strings.TrimSpace(sandboxMode), "workspace-write")
+	agentInstructions := strings.Join(splitCreateInstructions(withCreateAgentPreamble(slug, instructions)), "\n")
 	lines := []string{
 		"name = " + tomlString(slug),
 		"description = " + tomlString(description),
 		"sandbox_mode = " + tomlString(sandboxMode),
 		"model = " + tomlString(model),
 		"model_reasoning_effort = " + tomlString(reasoning),
-		`developer_instructions = """`,
+		"developer_instructions = " + tomlString(agentInstructions),
 	}
-	lines = append(lines, splitCreateInstructions(withCreateAgentPreamble(slug, instructions))...)
-	lines = append(lines, `"""`)
 	return strings.Join(lines, "\n") + "\n"
 }
 
@@ -589,13 +659,17 @@ func computeCreatePreviewDigest(preview createPreview, writes []createWrite) (st
 }
 
 func (a *App) applyCreateWrites(root string, writes []createWrite) error {
+	rootAbs, err := resolvedCreateRoot(root)
+	if err != nil {
+		return err
+	}
 	backups := make(map[string]createFileBackup, len(writes))
 	for _, write := range writes {
 		absPath := filepath.Join(root, filepath.FromSlash(write.Path))
 		if _, ok := backups[absPath]; ok {
 			continue
 		}
-		backup, err := snapshotCreateFile(write.Path, absPath)
+		backup, err := snapshotCreateFile(rootAbs, write.Path, absPath)
 		if err != nil {
 			return err
 		}
@@ -616,8 +690,11 @@ func (a *App) applyCreateWrites(root string, writes []createWrite) error {
 	return nil
 }
 
-func snapshotCreateFile(relPath, absPath string) (createFileBackup, error) {
-	info, err := os.Stat(absPath)
+func snapshotCreateFile(rootAbs, relPath, absPath string) (createFileBackup, error) {
+	if err := validateCreateResolvedPath(rootAbs, relPath, absPath); err != nil {
+		return createFileBackup{}, err
+	}
+	info, err := os.Lstat(absPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return createFileBackup{RelPath: relPath, AbsPath: absPath}, nil
