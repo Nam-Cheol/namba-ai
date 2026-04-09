@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -651,6 +652,36 @@ func TestApplyCreateWritesAgentPair(t *testing.T) {
 	wantPaths := []string{".codex/agents/insight-builder.toml", ".codex/agents/insight-builder.md"}
 	if strings.Join(result.WrittenPaths, "\n") != strings.Join(wantPaths, "\n") {
 		t.Fatalf("unexpected written paths: %+v", result.WrittenPaths)
+	}
+}
+
+func TestRenderUserAgentTOMLEscapesQuotedFields(t *testing.T) {
+	t.Parallel()
+
+	description := "He said \"hello\"\nSecond line."
+	sandboxMode := "workspace-write\"\nunsafe"
+	model := "gpt-5.4\"\nmini"
+	reasoning := "high\"\ncareful"
+
+	got := renderUserAgentTOML(
+		"insight-builder",
+		description,
+		"Stay inside assigned files.",
+		sandboxMode,
+		model,
+		reasoning,
+	)
+
+	for key, value := range map[string]string{
+		"description":            description,
+		"sandbox_mode":           sandboxMode,
+		"model":                  model,
+		"model_reasoning_effort": reasoning,
+	} {
+		want := key + " = " + strconv.Quote(value)
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected escaped %s line %q in %q", key, want, got)
+		}
 	}
 }
 

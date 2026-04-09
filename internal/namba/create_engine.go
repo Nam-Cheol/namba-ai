@@ -477,11 +477,11 @@ func renderUserAgentTOML(slug, description, instructions, sandboxMode, model, re
 	reasoning = firstNonBlank(strings.TrimSpace(reasoning), strings.TrimSpace(profile.ModelReasoningEffort), "medium")
 	sandboxMode = firstNonBlank(strings.TrimSpace(sandboxMode), "workspace-write")
 	lines := []string{
-		fmt.Sprintf(`name = "%s"`, slug),
-		fmt.Sprintf(`description = "%s"`, description),
-		fmt.Sprintf(`sandbox_mode = "%s"`, sandboxMode),
-		fmt.Sprintf(`model = "%s"`, model),
-		fmt.Sprintf(`model_reasoning_effort = "%s"`, reasoning),
+		"name = " + tomlString(slug),
+		"description = " + tomlString(description),
+		"sandbox_mode = " + tomlString(sandboxMode),
+		"model = " + tomlString(model),
+		"model_reasoning_effort = " + tomlString(reasoning),
 		`developer_instructions = """`,
 	}
 	lines = append(lines, splitCreateInstructions(withCreateAgentPreamble(slug, instructions))...)
