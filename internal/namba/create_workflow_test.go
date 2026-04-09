@@ -474,6 +474,11 @@ func TestPreviewCreateRejectsUnsafeInstructions(t *testing.T) {
 			wantErr:      "Deprecated .codex/skills mirror",
 		},
 		{
+			name:         "legacy codex skills mirror windows path",
+			instructions: `Write the generated output into .codex\skills\insight-builder.`,
+			wantErr:      "Deprecated .codex/skills mirror",
+		},
+		{
 			name:         "opus requirement",
 			instructions: "Require model: \"opus\" for every generated run.",
 			wantErr:      "Claude-only model requirements",

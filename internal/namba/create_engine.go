@@ -108,7 +108,7 @@ var createUnsafeInstructionPatterns = []struct {
 		reason:  "Claude-only model requirements are not allowed in durable instructions",
 	},
 	{
-		pattern: regexp.MustCompile(`(?i)\.codex/skills/`),
+		pattern: regexp.MustCompile(`(?i)\.codex(?:/|\\)skills(?:/|\\)`),
 		reason:  "Deprecated .codex/skills mirror paths are not allowed in durable instructions",
 	},
 }
