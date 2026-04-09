@@ -42,12 +42,16 @@ type App struct {
 	now                     func() time.Time
 	getenv                  func(string) string
 	getwd                   func() (string, error)
+	readFile                func(string) ([]byte, error)
+	writeFile               func(string, []byte, fs.FileMode) error
+	mkdirAll                func(string, fs.FileMode) error
 	lookPath                func(string) (string, error)
 	detectCodexCapabilities func(context.Context, string, executionRequest) (codexCapabilityMatrix, error)
 	runCmd                  func(context.Context, string, []string, string) (string, error)
 	startCmd                func(string, []string, string) error
 	downloadURL             func(context.Context, string) ([]byte, error)
 	executablePath          func() (string, error)
+	writeManifestOverride   func(string, Manifest) error
 	goos                    string
 	goarch                  string
 }
@@ -113,6 +117,9 @@ func NewApp(stdout, stderr io.Writer) *App {
 		now:            time.Now,
 		getenv:         os.Getenv,
 		getwd:          os.Getwd,
+		readFile:       os.ReadFile,
+		writeFile:      os.WriteFile,
+		mkdirAll:       os.MkdirAll,
 		lookPath:       exec.LookPath,
 		executablePath: os.Executable,
 		goos:           runtime.GOOS,
@@ -189,6 +196,8 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return a.runRelease(ctx, args[1:])
 	case "worktree":
 		return a.runWorktree(ctx, args[1:])
+	case internalCreateCommandName:
+		return a.runInternalCreate(ctx, args[1:])
 	default:
 		return fmt.Errorf("unknown command %q\n\n%s", args[0], usageText())
 	}
@@ -1619,26 +1628,29 @@ func (a *App) writeOutputs(root string, outputs map[string]string) (outputWriteR
 }
 
 func (a *App) writeManifest(root string, manifest Manifest) error {
+	if a.writeManifestOverride != nil {
+		return a.writeManifestOverride(root, manifest)
+	}
 	data, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return err
 	}
 	path := filepath.Join(root, manifestPath)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := a.mkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	existing, err := os.ReadFile(path)
+	existing, err := a.readFile(path)
 	if err == nil && string(existing) == string(data) {
 		return nil
 	}
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return a.writeFile(path, data, 0o644)
 }
 
 func (a *App) readManifest(root string) (Manifest, error) {
-	data, err := os.ReadFile(filepath.Join(root, manifestPath))
+	data, err := a.readFile(filepath.Join(root, manifestPath))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return Manifest{}, nil

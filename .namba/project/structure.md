@@ -185,6 +185,13 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-023/reviews/product.md
 .namba/specs/SPEC-023/reviews/readiness.md
 .namba/specs/SPEC-023/spec.md
+.namba/specs/SPEC-024/acceptance.md
+.namba/specs/SPEC-024/plan.md
+.namba/specs/SPEC-024/reviews/design.md
+.namba/specs/SPEC-024/reviews/engineering.md
+.namba/specs/SPEC-024/reviews/product.md
+.namba/specs/SPEC-024/reviews/readiness.md
+.namba/specs/SPEC-024/spec.md
 .namba/specs/SPEC-025/acceptance.md
 .namba/specs/SPEC-025/plan.md
 .namba/specs/SPEC-025/reviews/design.md
@@ -192,6 +199,13 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-025/reviews/product.md
 .namba/specs/SPEC-025/reviews/readiness.md
 .namba/specs/SPEC-025/spec.md
+.namba/specs/SPEC-026/acceptance.md
+.namba/specs/SPEC-026/plan.md
+.namba/specs/SPEC-026/reviews/design.md
+.namba/specs/SPEC-026/reviews/engineering.md
+.namba/specs/SPEC-026/reviews/product.md
+.namba/specs/SPEC-026/reviews/readiness.md
+.namba/specs/SPEC-026/spec.md
 AGENTS.md
 README.ja.md
 README.ko.md
@@ -224,6 +238,8 @@ internal/namba/codex_capability.go
 internal/namba/codex_mcp.go
 internal/namba/console_other.go
 internal/namba/console_windows.go
+internal/namba/create_adapter.go
+internal/namba/create_engine.go
 internal/namba/create_workflow_test.go
 internal/namba/execution.go
 internal/namba/execution_smoke_test.go
@@ -249,6 +265,7 @@ internal/namba/self_update_command.go
 internal/namba/self_update_command_test.go
 internal/namba/spec_command_test.go
 internal/namba/spec_review.go
+internal/namba/spec_review_test.go
 internal/namba/templates.go
 internal/namba/test_helpers_test.go
 internal/namba/update_command.go

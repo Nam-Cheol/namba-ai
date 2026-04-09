@@ -6,7 +6,8 @@ description: Skill-first entry point for creating a repo-local skill, a project-
 Use this skill when the user explicitly says `$namba-create` or asks to create a repo-local skill, a project-scoped custom agent, or both through Namba.
 
 Behavior:
-- Phase 1 is skill-first. Do not introduce a new `namba create` Go CLI command as part of this flow.
+- Keep this flow skill-first. Do not introduce a documented public `namba create` Go CLI command as part of this slice.
+- When the installed `namba` CLI is available, use the internal adapter `namba __create preview` and `namba __create apply` with JSON stdin/stdout as the durable generation path. Treat `__create` as wrapper-only plumbing, not a public command.
 - Run the interaction as a staged generator: `unresolved` -> `narrowed` -> `confirmed`.
 - Keep each turn stateful and visible: summarize the current candidate target and the remaining unresolved items before asking the next clarifying question.
 - If the user explicitly says `skill`, `agent`, or `both`, treat that directive as authoritative over any heuristic classification.

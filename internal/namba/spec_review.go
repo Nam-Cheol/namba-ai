@@ -245,7 +245,10 @@ func specReviewAdvisorySummary(root, specID string) string {
 }
 
 func (a *App) refreshSpecReviewReadiness(root, specID string) (string, error) {
-	if !specReviewReadinessExists(root, specID) {
+	if strings.TrimSpace(specID) == "" {
+		return "", nil
+	}
+	if !exists(filepath.Join(root, specsDir, specID, specReviewsDirName)) {
 		return "", nil
 	}
 	states := loadSpecReviewStates(filepath.Join(root, specsDir, specID))
