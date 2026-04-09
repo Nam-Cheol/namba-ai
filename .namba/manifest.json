@@ -973,11 +973,88 @@
       "updated_at": "2026-04-07T16:28:44+09:00"
     },
     {
+      "path": ".namba/specs/SPEC-024/acceptance.md",
+      "kind": "spec",
+      "checksum": "95dd6923f88ea73bd1d6d4193e5a94f97e03f15083d42c7e96d5addd2b8d527d",
+      "updated_at": "2026-04-08T16:57:05+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-024/plan.md",
+      "kind": "spec",
+      "checksum": "e4f3c43ae27d92a2386c6fa5b521be2780e601568d5c215680cf30254a8527fb",
+      "updated_at": "2026-04-08T16:57:05+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-024/reviews/design.md",
+      "kind": "spec",
+      "checksum": "c4583922d8111624550f4084321e159a42bec73e7943c47b14025197e705dd2b",
+      "updated_at": "2026-04-08T16:57:05+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-024/reviews/engineering.md",
+      "kind": "spec",
+      "checksum": "0576a22e3d37991625485d80d2770bda2c032a9ac4d2fc17c61b896942e59de6",
+      "updated_at": "2026-04-08T16:57:05+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-024/reviews/product.md",
+      "kind": "spec",
+      "checksum": "917bb2906c1c4c82eded44aa8f6d8a99ac5f056d28d471b2c830f2801804f4da",
+      "updated_at": "2026-04-08T16:57:05+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-024/reviews/readiness.md",
+      "kind": "spec",
+      "checksum": "2e22aa8ffb82e89947f7763d77b2a6127a2222972ac877619c7c144d63f4fc51",
+      "updated_at": "2026-04-08T16:57:05+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-024/spec.md",
+      "kind": "spec",
+      "checksum": "0f737587d33b37077afe12f9bc1692798ce7bdac8da01f11236d710b70568c51",
+      "updated_at": "2026-04-08T16:57:05+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-025/acceptance.md",
+      "kind": "spec",
+      "checksum": "54bc3600ccbe4a915ab3ca965fdb7df86d1e31af96f08b8cb7e3ec701849abaa",
+      "updated_at": "2026-04-08T16:58:26+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-025/plan.md",
+      "kind": "spec",
+      "checksum": "0541a683b47577c6e9f417727e6eaa8ecff73ef6192c6f561d4cf8b274540aef",
+      "updated_at": "2026-04-08T16:58:26+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-025/reviews/design.md",
+      "kind": "spec",
+      "checksum": "c4583922d8111624550f4084321e159a42bec73e7943c47b14025197e705dd2b",
+      "updated_at": "2026-04-08T16:58:26+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-025/reviews/engineering.md",
+      "kind": "spec",
+      "checksum": "0576a22e3d37991625485d80d2770bda2c032a9ac4d2fc17c61b896942e59de6",
+      "updated_at": "2026-04-08T16:58:26+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-025/reviews/product.md",
+      "kind": "spec",
+      "checksum": "917bb2906c1c4c82eded44aa8f6d8a99ac5f056d28d471b2c830f2801804f4da",
+      "updated_at": "2026-04-08T16:58:26+09:00"
+    },
+    {
       "path": ".namba/specs/SPEC-025/reviews/readiness.md",
       "kind": "spec",
-      "owner": "namba-managed",
-      "checksum": "8292eeebe62f1c750066f13e8fb7e27f050d338b492971a865dc0c0e967cf05c",
-      "updated_at": "2026-04-08T17:48:51+09:00"
+      "checksum": "96a9acbef1fd0508235f6c984f766d0ceecf87fbf20b3a8ca69fd4cfed6f7aaf",
+      "updated_at": "2026-04-08T16:58:26+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-025/spec.md",
+      "kind": "spec",
+      "checksum": "0a8f57eef9fa4120fc2de35b32b920b167210e63db75821b5b71679c9e0151ae",
+      "updated_at": "2026-04-08T16:58:26+09:00"
     },
     {
       "path": ".namba/worktrees/.gitkeep",
