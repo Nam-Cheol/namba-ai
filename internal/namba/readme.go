@@ -236,6 +236,18 @@ func renderDocLinkBar(lang string) string {
 	}, " | ")
 }
 
+func renderReadmeGuidePrelude(lang, guide string) []string {
+	return []string{
+		renderGeneratedDocHeader(),
+		fmt.Sprintf("# %s", localizeGuideLabel(lang, guide)),
+		"",
+		renderLanguageLinks("../"),
+		"",
+		renderDocLinkBar(lang),
+		"",
+	}
+}
+
 func renderNambaCLIRootLifecycleSection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
@@ -375,35 +387,386 @@ func renderNambaCLIUninstallGuideSection(lang string) []string {
 	}
 }
 
-func renderNambaCLIRoot(lang string, cfg docsConfig) string {
+func renderNambaCLIGettingStartedInstallSection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
-		lines := []string{
-			renderGeneratedDocHeader(),
-			renderHeroBlock(cfg.HeroImage, "NambaAI"),
-			"# NambaAI",
+		return []string{
+			"## 1. 설치",
 			"",
-			"NambaAI는 저장소를 부트스트랩하고, 먼저 어떤 Namba 명령을 써야 하는지 고르고, 작업을 SPEC 패키지로 계획하고, 구현 이후 산출물을 동기화하는 Codex-native 워크플로입니다.",
+			fmt.Sprintf("- Windows: `%s`", nambaInstallPowerShell),
+			"- Windows에서 저장소 안쪽 작업을 많이 한다면 Codex CLI 경험을 위해 WSL workspace를 권장합니다.",
+			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
+			"- 기본 경로가 아닌 곳에 설치하려면 `NAMBA_INSTALL_DIR`를 사용하세요.",
 			"",
-			renderLanguageLinks(""),
+		}
+	case "ja":
+		return []string{
+			"## 1. インストール",
 			"",
-			renderRootLinkBar(),
+			fmt.Sprintf("- Windows: `%s`", nambaInstallPowerShell),
+			"- Windows でリポジトリ内の作業が多いなら、Codex CLI 体験のために WSL workspace を推奨します。",
+			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
+			"- 既定以外の場所へ入れたい場合は `NAMBA_INSTALL_DIR` を使ってください。",
 			"",
-			"## 어떤 명령을 써야 하나요?",
+		}
+	case "zh":
+		return []string{
+			"## 1. 安装",
 			"",
-			"- `namba project`: 작업을 시작하기 전에 저장소 문맥과 생성 문서를 새로 고칩니다.",
-			"- `namba plan`: 기능이나 제품 변경을 SPEC 패키지로 만들 때 사용합니다.",
-			"- `namba harness`: agent, skill, workflow, orchestration 재사용을 위한 harness-oriented SPEC 패키지를 만들 때 사용합니다.",
-			"- `namba fix`: 현재 workspace에서 버그를 직접 수리할 때 사용하고, review 가능한 버그 수정 SPEC가 필요하면 `namba fix --command plan`을 씁니다.",
+			fmt.Sprintf("- Windows: `%s`", nambaInstallPowerShell),
+			"- 如果你经常在 Windows 下直接在仓库里工作，建议使用 WSL workspace 以获得更好的 Codex CLI 体验。",
+			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
+			"- 如果需要安装到非默认位置，请使用 `NAMBA_INSTALL_DIR`。",
 			"",
-			"## NambaAI로 할 수 있는 일",
+		}
+	default:
+		return []string{
+			"## 1. Install",
 			"",
-			"- 빈 디렉터리에서 `namba init .`로 Codex-ready 저장소를 바로 시작할 수 있습니다.",
-			"- `namba project`, `namba plan`, `namba harness`, `namba fix` 중 무엇을 쓸지 먼저 고른 다음, 선택한 SPEC 경로로 작업을 진행합니다.",
-			"- `namba run SPEC-XXX`로 기본 흐름을 실행하고, `--solo`는 하나의 workspace에서 단일 runner, `--team`은 같은 workspace의 멀티에이전트 실행, `--parallel`은 worktree fan-out/fan-in 실행에 사용한 뒤 `namba sync`, `namba pr`, `namba land`로 마무리합니다.",
-			"- 구현 전에 제품, 엔지니어링, 디자인 검토가 필요하면 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`를 사용합니다.",
-			"- `namba update`와 릴리스 자산으로 팀 전체 CLI 버전을 맞출 수 있습니다.",
+			fmt.Sprintf("- Windows: `%s`", nambaInstallPowerShell),
+			"- For the best Codex CLI experience on Windows, use a WSL workspace when you work inside a repository.",
+			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
+			"- Use `NAMBA_INSTALL_DIR` when you want a non-default install location.",
 			"",
+		}
+	}
+}
+
+func renderNambaCLIGettingStartedBootstrapSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 4. 새 저장소 부트스트랩",
+			"",
+			"```text",
+			"mkdir my-project",
+			"cd my-project",
+			"namba init .",
+			"```",
+			"",
+			"wizard는 작업 언어, approval_policy, sandbox_mode, PR 언어, Codex agent mode를 함께 정렬합니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 4. 新しいリポジトリをブートストラップ",
+			"",
+			"```text",
+			"mkdir my-project",
+			"cd my-project",
+			"namba init .",
+			"```",
+			"",
+			"wizard は作業言語、approval_policy、sandbox_mode、PR 言語、Codex agent mode をまとめてそろえます。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 4. 初始化新仓库",
+			"",
+			"```text",
+			"mkdir my-project",
+			"cd my-project",
+			"namba init .",
+			"```",
+			"",
+			"wizard 会统一工作语言、approval_policy、sandbox_mode、PR 语言以及 Codex agent mode。",
+			"",
+		}
+	default:
+		return []string{
+			"## 4. Bootstrap a new repository",
+			"",
+			"```text",
+			"mkdir my-project",
+			"cd my-project",
+			"namba init .",
+			"```",
+			"",
+			"The wizard aligns working language, approval_policy, sandbox_mode, PR language, and Codex agent mode.",
+			"",
+		}
+	}
+}
+
+func renderNambaCLIGettingStartedBasicFlowSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 5. 기본 Codex 흐름 실행",
+			"",
+			"```text",
+			"namba project",
+			"namba plan \"add dashboard filters\"",
+			"namba run SPEC-001",
+			"namba sync",
+			"namba pr \"add dashboard filters\"",
+			"namba land",
+			"```",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 5. 基本の Codex フローを実行",
+			"",
+			"```text",
+			"namba project",
+			"namba plan \"add dashboard filters\"",
+			"namba run SPEC-001",
+			"namba sync",
+			"namba pr \"add dashboard filters\"",
+			"namba land",
+			"```",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 5. 运行基础 Codex 流程",
+			"",
+			"```text",
+			"namba project",
+			"namba plan \"add dashboard filters\"",
+			"namba run SPEC-001",
+			"namba sync",
+			"namba pr \"add dashboard filters\"",
+			"namba land",
+			"```",
+			"",
+		}
+	default:
+		return []string{
+			"## 5. Run the basic Codex flow",
+			"",
+			"```text",
+			"namba project",
+			"namba plan \"add dashboard filters\"",
+			"namba run SPEC-001",
+			"namba sync",
+			"namba pr \"add dashboard filters\"",
+			"namba land",
+			"```",
+			"",
+		}
+	}
+}
+
+func renderNambaCLIGettingStartedNextDocsSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 6. 다음 문서",
+			"",
+			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
+			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 6. 次に読む文書",
+			"",
+			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
+			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 6. 接下来阅读",
+			"",
+			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
+			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
+			"",
+		}
+	default:
+		return []string{
+			"## 6. Read next",
+			"",
+			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
+			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
+			"",
+		}
+	}
+}
+
+func renderNambaCLIWorkflowGuidePRMergeSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## PR 및 머지 흐름",
+			"",
+			"- `namba sync`는 로컬 산출물 갱신에만 머뭅니다.",
+			"- `namba pr`는 validation, commit, push, PR handoff를 담당합니다.",
+			"- `namba land`는 clean PR을 merge하고 local `main`을 갱신합니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## PR とマージの流れ",
+			"",
+			"- `namba sync` はローカル成果物の更新にとどまります。",
+			"- `namba pr` は validation、commit、push、PR handoff を担当します。",
+			"- `namba land` は clean な PR を merge し、local `main` を更新します。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## PR 与合并流程",
+			"",
+			"- `namba sync` 只负责刷新本地产物。",
+			"- `namba pr` 负责 validation、commit、push 和 PR handoff。",
+			"- `namba land` 负责合并 clean PR 并更新本地 `main`。",
+			"",
+		}
+	default:
+		return []string{
+			"## PR and merge flow",
+			"",
+			"- `namba sync` stays local and refreshes generated artifacts only.",
+			"- `namba pr` handles validation, commit, push, and PR handoff.",
+			"- `namba land` merges a clean PR and updates local `main`.",
+			"",
+		}
+	}
+}
+
+func renderNambaCLIWorkflowGuideAssetsSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 주요 생성 산출물",
+			"",
+			"- `.namba/`: config, SPEC packages, project docs, logs",
+			"- `.namba/specs/<SPEC>/reviews/`: 각 SPEC의 advisory product, engineering, design, readiness artifact",
+			"- `.agents/skills/`: Codex가 직접 사용하는 repo-local skills",
+			"- `.codex/config.toml`: repo-local Codex defaults 와 Namba-managed MCP preset",
+			"- `.codex/agents/*.toml`: project-scoped custom agents",
+			"- `.namba/project/*`: change summary, release notes, checklist, codemap",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 主な生成物",
+			"",
+			"- `.namba/`: config、SPEC packages、project docs、logs",
+			"- `.namba/specs/<SPEC>/reviews/`: 各 SPEC の advisory product / engineering / design / readiness artifact",
+			"- `.agents/skills/`: Codex が直接使う repo-local skills",
+			"- `.codex/config.toml`: repo-local Codex defaults と Namba-managed MCP preset",
+			"- `.codex/agents/*.toml`: project-scoped custom agents",
+			"- `.namba/project/*`: change summary、release notes、checklist、codemap",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 主要生成产物",
+			"",
+			"- `.namba/`: config、SPEC packages、project docs、logs",
+			"- `.namba/specs/<SPEC>/reviews/`: 每个 SPEC 的 advisory product / engineering / design / readiness artifact",
+			"- `.agents/skills/`: Codex 直接使用的 repo-local skills",
+			"- `.codex/config.toml`: repo-local Codex defaults 和 Namba-managed MCP preset",
+			"- `.codex/agents/*.toml`: project-scoped custom agents",
+			"- `.namba/project/*`: change summary、release notes、checklist、codemap",
+			"",
+		}
+	default:
+		return []string{
+			"## Key generated assets",
+			"",
+			"- `.namba/`: config, SPEC packages, project docs, logs",
+			"- `.namba/specs/<SPEC>/reviews/`: advisory product, engineering, design, and readiness artifacts for each SPEC",
+			"- `.agents/skills/`: repo-local skills used directly by Codex",
+			"- `.codex/config.toml`: repo-local Codex defaults plus any configured Namba-managed MCP presets",
+			"- `.codex/agents/*.toml`: project-scoped custom agents",
+			"- `.namba/project/*`: change summary, release notes, checklist, codemap",
+			"",
+		}
+	}
+}
+
+func renderNambaCLIWorkflowGuideCollaborationDefaultsSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 협업 기본값",
+			"",
+			"- 작업은 전용 브랜치에서 진행합니다.",
+			"- `namba pr`은 `main`을 대상으로 하고, 설정된 PR 언어와 review marker를 그대로 유지합니다.",
+			"- `namba land`는 깨끗한 PR만 머지하고, 관련 없는 로컬 작업을 덮어쓰지 않은 채 `main`을 갱신합니다.",
+			"- GitHub review 요청은 `@codex review`를 사용합니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 協業の既定値",
+			"",
+			"- 作業は専用ブランチで進めます。",
+			"- `namba pr` は `main` を対象にし、設定済みの PR 言語と review marker をそのまま維持します。",
+			"- `namba land` は clean な PR だけを merge し、無関係な local work を壊さずに `main` を更新します。",
+			"- GitHub review request には `@codex review` を使います。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 协作默认值",
+			"",
+			"- 工作应在专用分支上进行。",
+			"- `namba pr` 以 `main` 为目标，并保持配置中的 PR 语言和 review marker 一致。",
+			"- `namba land` 只合并 clean PR，并在不覆盖无关本地改动的前提下更新 `main`。",
+			"- GitHub review request 使用 `@codex review`。",
+			"",
+		}
+	default:
+		return []string{
+			"## Collaboration defaults",
+			"",
+			"- Work happens on dedicated branches.",
+			"- `namba pr` targets `main` and keeps the configured PR language plus review marker aligned.",
+			"- `namba land` merges only clean PRs and updates local `main` without clobbering unrelated work.",
+			"- GitHub review requests use `@codex review`.",
+			"",
+		}
+	}
+}
+
+func renderNambaCLIWorkflowGuideReleaseFlowSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 릴리스 흐름",
+			"",
+			"- `namba release`는 `main`에서 clean working tree를 요구합니다.",
+			"- `--push`는 새 태그와 `main`을 함께 push한 뒤 GitHub Release workflow를 트리거합니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## リリースフロー",
+			"",
+			"- `namba release` は `main` 上の clean working tree を要求します。",
+			"- `--push` は新しい tag と `main` をまとめて push し、その後 GitHub Release workflow を起動します。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 发布流程",
+			"",
+			"- `namba release` 要求 `main` 上是 clean working tree。",
+			"- `--push` 会同时 push 新 tag 和 `main`，然后触发 GitHub Release workflow。",
+			"",
+		}
+	default:
+		return []string{
+			"## Release flow",
+			"",
+			"- `namba release` requires a clean working tree on `main`.",
+			"- `--push` pushes both the new tag and `main`, then triggers the GitHub Release workflow.",
+			"",
+		}
+	}
+}
+
+func renderNambaCLIRootQuickStartSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
 			"## 빠른 시작",
 			"",
 			"### 1. NambaAI 설치",
@@ -436,91 +799,8 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- agent, skill, workflow, orchestration 재사용 작업이면 `namba plan` 대신 `namba harness \"description\"`를 넣으세요.",
 			"",
 		}
-		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
-		lines = append(lines,
-			"## Codex에서 쓰는 Command Skill",
-			"",
-			"- `$namba`: Codex가 문맥을 보고 적절한 Namba 진입점을 고르게 맡기고 싶을 때 쓰는 일반 라우터입니다.",
-			"- `$namba-help`: 이 저장소에서 NambaAI를 어떻게 써야 하는지, 어떤 명령이나 skill을 골라야 하는지, 어디 문서를 봐야 하는지 read-only로 설명받고 싶을 때 씁니다.",
-			"- `$namba-create`: repo-local skill, project-scoped custom agent, 또는 둘 다를 preview-first로 만들고 싶을 때 씁니다. 이 경로는 skill-first public surface를 유지하고, 새 `namba create` CLI를 추가하지 않습니다.",
-			"- `$namba-project`: 작업을 시작하기 전이나 큰 변경 뒤에 프로젝트 문서와 codemap을 새로 고칩니다.",
-			"- `$namba-plan`: 기능 SPEC 패키지를 만들고 싶을 때 씁니다.",
-			"- `$namba-harness`: agent, skill, workflow, orchestration 재사용을 위한 harness-oriented SPEC 패키지를 만들고 싶을 때 씁니다.",
-			"- `$namba-fix`: 현재 workspace에서 직접 버그를 수리할 때 쓰고, review 가능한 bugfix SPEC가 필요하면 `namba fix --command plan \"issue description\"` 경로를 선택합니다.",
-			"- `$namba-plan-review`: SPEC 생성 또는 선택부터 product / engineering / design 리뷰 병렬 실행, aggregate validation, readiness 갱신까지 한 번에 묶고 싶을 때 씁니다.",
-			"- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: SPEC의 product, engineering, design review 산출물과 advisory readiness를 갱신할 때 씁니다.",
-			"- `$namba-run`: 이미 만든 SPEC 패키지를 현재 Codex 세션에서 실행할 때 씁니다.",
-			"- `$namba-sync`: README 묶음, 프로젝트 문서, codemap, PR 준비 산출물을 갱신할 때 씁니다.",
-			"- `$namba-pr` / `$namba-land`: 현재 브랜치를 GitHub 리뷰로 넘기고, 체크 통과 후 안전하게 머지할 때 씁니다.",
-			"- `$namba-regen` / `$namba-update`: repo-local Codex 자산을 다시 만들거나 설치된 `namba` CLI를 self-update 할 때 씁니다.",
-			"",
-			"## Skill To Command Mapping",
-			"",
-			"- `$namba-help` -> read-only Namba 사용 안내, 직접적인 CLI 변경 없음",
-			"- `$namba-create` -> `.agents/skills/*` 또는 `.codex/agents/*`를 위한 skill-first 생성 흐름, 이 slice에서는 public `namba create` CLI를 추가하지 않음",
-			"- `$namba-project` -> `namba project`",
-			"- `$namba-plan` -> `namba plan \"description\"`",
-			"- `$namba-harness` -> `namba harness \"description\"`",
-			"- `$namba-plan-review` -> `namba plan \"description\"` 또는 `namba harness \"description\"` + 병렬 review + aggregate validation loop",
-			"- `$namba-fix` -> `namba fix \"issue description\"` 또는 `namba fix --command plan \"issue description\"`",
-			"- `$namba-run` -> `namba run SPEC-XXX`",
-			"- `$namba-sync` -> `namba sync`",
-			"- `$namba-pr` -> `namba pr \"title\"`",
-			"- `$namba-land` -> `namba land`",
-			"- `$namba-regen` -> `namba regen`",
-			"- `$namba-update` -> `namba update [--version vX.Y.Z]`",
-			"",
-			"## Codex용 Custom Agents",
-			"",
-			"- Strategy and readiness: `namba-product-manager`가 범위와 acceptance를 다듬고, `namba-planner`가 SPEC를 실행 계획으로 바꾸며, `namba-plan-reviewer`가 plan-review 결과의 일관성과 readiness를 검증합니다.",
-			"- UI and experience: `namba-frontend-architect`, `namba-frontend-implementer`, `namba-mobile-engineer`, `namba-designer`가 웹 UI, 모바일 실행, 시각 방향을 담당합니다.",
-			"- Backend and data: `namba-backend-architect`, `namba-backend-implementer`, `namba-data-engineer`가 API, 영속성, 마이그레이션, 파이프라인을 담당합니다.",
-			"- Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, `namba-reviewer`가 보안 강화, 회귀 신뢰도, CI/CD, 최종 acceptance를 담당합니다.",
-			"- General delivery: `namba-implementer`는 여러 도메인을 가로지르지만 더 큰 specialist roster까지는 필요 없는 작업에서 일반 실행 에이전트로 남아 있습니다.",
-			"",
-			"## 더 읽기",
-			"",
-			fmt.Sprintf("- [%s](%s): 설치, 업데이트, 제거, init, 첫 실행 흐름", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
-			fmt.Sprintf("- [%s](%s): update / regen / sync / pr / land 차이, run 모드, 생성 산출물, 협업 기본값", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
-			"- [Codex Upstream Reference](docs/codex-upstream-reference.md): 이 저장소가 따르는 upstream 기준",
-			"- [SECURITY.md](SECURITY.md): 보안 정책",
-			"",
-			"## 기술 스냅샷",
-			"",
-			"- `.namba/`는 설정, SPEC 패키지, 프로젝트 문서의 source of truth 입니다.",
-			"- `.agents/skills/`는 Codex가 직접 사용하는 repo-local skill surface 입니다.",
-			"- `.codex/agents/*.toml`은 product, planning, design, frontend, mobile, backend, data, security, testing, ops, implementation, review 전반의 task-oriented custom agent를 정의합니다.",
-			"- `namba update`, `namba regen`, `namba sync`, `namba pr`, `namba land`는 서로 다른 문제를 푸는 명령이므로 섞어서 이해하면 안 됩니다.",
-			"",
-		)
-		return strings.Join(lines, "\n")
 	case "ja":
-		lines := []string{
-			renderGeneratedDocHeader(),
-			renderHeroBlock(cfg.HeroImage, "NambaAI"),
-			"# NambaAI",
-			"",
-			"NambaAI は、リポジトリのブートストラップ、最初に使うべき Namba コマンドの選択、作業の SPEC パッケージ化、実装後の成果物同期をまとめる Codex-native ワークフローです。",
-			"",
-			renderLanguageLinks(""),
-			"",
-			renderRootLinkBar(),
-			"",
-			"## どのコマンドを使うべきですか?",
-			"",
-			"- `namba project`: 作業を始める前に、リポジトリの文脈と生成済みドキュメントを更新します。",
-			"- `namba plan`: 機能やプロダクト変更を SPEC パッケージにするときに使います。",
-			"- `namba harness`: agent、skill、workflow、orchestration 再利用のための harness-oriented SPEC パッケージを作るときに使います。",
-			"- `namba fix`: 現在の workspace でバグを直接修正するときに使い、review 可能な bugfix SPEC が必要なら `namba fix --command plan` を使います。",
-			"",
-			"## NambaAI でできること",
-			"",
-			"- 空のディレクトリから `namba init .` で Codex-ready なリポジトリをすぐ始められます。",
-			"- `namba project`、`namba plan`、`namba harness`、`namba fix` のどれを使うかを先に決めてから、選んだ SPEC 経路で作業を進めます。",
-			"- `namba run SPEC-XXX` で標準フローを実行し、`--solo` は 1 workspace の単一 runner、`--team` は同じ workspace のマルチエージェント実行、`--parallel` は worktree fan-out/fan-in 実行として使い、その後 `namba sync`、`namba pr`、`namba land` で引き渡します。",
-			"- 実装前に product / engineering / design のレビューが必要な場合は `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` を使います。",
-			"- `namba update` とリリース資産でチーム全体の CLI バージョンをそろえられます。",
-			"",
+		return []string{
 			"## クイックスタート",
 			"",
 			"### 1. NambaAI をインストール",
@@ -553,91 +833,8 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- agent / skill / workflow / orchestration の再利用作業なら、`namba plan` の代わりに `namba harness \"description\"` を使ってください。",
 			"",
 		}
-		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
-		lines = append(lines,
-			"## Codex で使う Command Skill",
-			"",
-			"- `$namba`: 文脈に応じて Codex に適切な Namba 入口を選ばせたいときの汎用ルーターです。",
-			"- `$namba-help`: このリポジトリで NambaAI をどう使うか、どの command や skill を選ぶべきか、どの文書を見るべきかを read-only で知りたいときに使います。",
-			"- `$namba-create`: repo-local skill、project-scoped custom agent、またはその両方を preview-first で作りたいときに使います。この経路は skill-first の public surface を維持し、新しい `namba create` CLI は追加しません。",
-			"- `$namba-project`: 作業開始前や大きな変更後にプロジェクト文書と codemap を更新します。",
-			"- `$namba-plan`: 機能 SPEC パッケージを作りたいときに使います。",
-			"- `$namba-harness`: agent、skill、workflow、orchestration の再利用向け harness-oriented SPEC パッケージを作りたいときに使います。",
-			"- `$namba-fix`: 現在の workspace で直接修復するときに使い、review 可能な bugfix SPEC が必要なら `namba fix --command plan \"issue description\"` を選びます。",
-			"- `$namba-plan-review`: SPEC の作成または選択から product / engineering / design review の並列実行、aggregate validation、readiness 更新までをまとめて扱いたいときに使います。",
-			"- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: SPEC の product / engineering / design review 成果物と advisory readiness を更新するときに使います。",
-			"- `$namba-run`: 既に作成した SPEC パッケージを現在の Codex セッションで実行するときに使います。",
-			"- `$namba-sync`: README 一式、プロジェクト文書、codemap、PR 用成果物を更新するときに使います。",
-			"- `$namba-pr` / `$namba-land`: 現在のブランチを GitHub レビューに渡し、チェック通過後に安全にマージするときに使います。",
-			"- `$namba-regen` / `$namba-update`: repo-local Codex 資産を再生成するか、インストール済み `namba` CLI を self-update するときに使います。",
-			"",
-			"## Skill To Command Mapping",
-			"",
-			"- `$namba-help` -> read-only の Namba 利用案内、直接の CLI 変更なし",
-			"- `$namba-create` -> `.agents/skills/*` または `.codex/agents/*` のための skill-first 生成フロー。この slice では public `namba create` CLI を追加しません",
-			"- `$namba-project` -> `namba project`",
-			"- `$namba-plan` -> `namba plan \"description\"`",
-			"- `$namba-harness` -> `namba harness \"description\"`",
-			"- `$namba-plan-review` -> `namba plan \"description\"` または `namba harness \"description\"` + 並列 review + aggregate validation loop",
-			"- `$namba-fix` -> `namba fix \"issue description\"` または `namba fix --command plan \"issue description\"`",
-			"- `$namba-run` -> `namba run SPEC-XXX`",
-			"- `$namba-sync` -> `namba sync`",
-			"- `$namba-pr` -> `namba pr \"title\"`",
-			"- `$namba-land` -> `namba land`",
-			"- `$namba-regen` -> `namba regen`",
-			"- `$namba-update` -> `namba update [--version vX.Y.Z]`",
-			"",
-			"## Codex 用 Custom Agents",
-			"",
-			"- Strategy and readiness: `namba-product-manager` がスコープと acceptance を整え、`namba-planner` が SPEC を実行計画へ変換し、`namba-plan-reviewer` が plan-review 結果の整合性と readiness を検証します。",
-			"- UI and experience: `namba-frontend-architect`、`namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer` が web UI、mobile execution、visual direction を担当します。",
-			"- Backend and data: `namba-backend-architect`、`namba-backend-implementer`、`namba-data-engineer` が API、persistence、migration、pipeline を担当します。",
-			"- Security and delivery: `namba-security-engineer`、`namba-test-engineer`、`namba-devops-engineer`、`namba-reviewer` が hardening、regression confidence、CI/CD、final acceptance を担当します。",
-			"- General delivery: `namba-implementer` は、より大きな specialist roster を組むほどではない複数ドメインの作業で generalist execution agent として残ります。",
-			"",
-			"## さらに詳しく",
-			"",
-			fmt.Sprintf("- [%s](%s): インストール、更新、アンインストール、init、初回フロー", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
-			fmt.Sprintf("- [%s](%s): update / regen / sync / pr / land の違い、run mode、生成物、協業ルール", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
-			"- [Codex Upstream Reference](docs/codex-upstream-reference.md): このリポジトリが従う upstream 基準",
-			"- [SECURITY.md](SECURITY.md): セキュリティポリシー",
-			"",
-			"## 技術スナップショット",
-			"",
-			"- `.namba/` は設定、SPEC パッケージ、プロジェクト文書の source of truth です。",
-			"- `.agents/skills/` は Codex が直接使う repo-local skill surface です。",
-			"- `.codex/agents/*.toml` は product、planning、design、frontend、mobile、backend、data、security、testing、ops、implementation、review をまたぐ task-oriented custom agent を定義します。",
-			"- `namba update`、`namba regen`、`namba sync`、`namba pr`、`namba land` は別々の問題を解くコマンドであり、混同すべきではありません。",
-			"",
-		)
-		return strings.Join(lines, "\n")
 	case "zh":
-		lines := []string{
-			renderGeneratedDocHeader(),
-			renderHeroBlock(cfg.HeroImage, "NambaAI"),
-			"# NambaAI",
-			"",
-			"NambaAI 是一套 Codex-native 工作流，用来完成仓库初始化、先选对应该用的 Namba 命令、将工作整理成 SPEC 包，以及在实现之后同步项目产物。",
-			"",
-			renderLanguageLinks(""),
-			"",
-			renderRootLinkBar(),
-			"",
-			"## 应该使用哪个命令？",
-			"",
-			"- `namba project`: 在开始工作前刷新仓库上下文和生成文档。",
-			"- `namba plan`: 当请求是功能或产品变更时，把它整理成 SPEC 包。",
-			"- `namba harness`: 当工作是为了复用 agent、skill、workflow 或 orchestration 的 scaffold 时，创建 harness-oriented SPEC 包。",
-			"- `namba fix`: 在当前 workspace 中直接修复缺陷；如果需要一个可评审的缺陷修复 SPEC，就用 `namba fix --command plan`。",
-			"",
-			"## 你可以用 NambaAI 做什么",
-			"",
-			"- 在空目录中通过 `namba init .` 直接启动一个 Codex-ready 仓库。",
-			"- 先决定该用 `namba project`、`namba plan`、`namba harness` 还是 `namba fix`，再沿着选中的 SPEC 路径推进工作。",
-			"- 用 `namba run SPEC-XXX` 运行默认流程，`--solo` 表示单一 workspace 中的单 runner，`--team` 表示同一 workspace 内的多智能体执行，`--parallel` 表示 worktree fan-out/fan-in 执行，然后再用 `namba sync`、`namba pr`、`namba land` 完成交付。",
-			"- 如果实现前需要产品、工程或设计评审，可以使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review`。",
-			"- 通过 `namba update` 和 release 资产让团队的 CLI 版本保持一致。",
-			"",
+		return []string{
 			"## 快速开始",
 			"",
 			"### 1. 安装 NambaAI",
@@ -670,92 +867,8 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- 如果工作是为了复用 agent、skill、workflow 或 orchestration，请把 `namba plan` 换成 `namba harness \"description\"`。",
 			"",
 		}
-		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
-		lines = append(lines,
-			"## Codex 中的 Command Skill",
-			"",
-			"- `$namba`: 当你希望 Codex 根据上下文自动选择合适的 Namba 入口时使用的通用路由器。",
-			"- `$namba-help`: 当你想以 read-only 方式了解这个仓库里该如何使用 NambaAI、该选哪个命令或 skill、以及应该看哪些文档时使用。",
-			"- `$namba-create`: 当你想以 preview-first 方式创建 repo-local skill、project-scoped custom agent，或两者都创建时使用。这个路径会保持 skill-first public surface，不新增 `namba create` CLI。",
-			"- `$namba-project`: 在开始前或较大改动后刷新项目文档和 codemap。",
-			"- `$namba-plan`: 需要功能 SPEC 包时使用。",
-			"- `$namba-harness`: 需要面向 agent、skill、workflow、orchestration 复用的 harness-oriented SPEC 包时使用。",
-			"- `$namba-fix`: 在当前 workspace 直接修复问题时使用；如果要创建可评审的缺陷修复 SPEC，就走 `namba fix --command plan \"issue description\"`。",
-			"- `$namba-plan-review`: 需要把 SPEC 创建或选择、product / engineering / design 评审并行执行、aggregate validation 和 readiness 更新打包到一起时使用。",
-			"- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: 在 SPEC 需要 product / engineering / design review 产物和 advisory readiness 时使用。",
-			"- `$namba-run`: 在当前 Codex 会话中执行已经创建好的 SPEC 包时使用。",
-			"- `$namba-sync`: 刷新 README 套件、项目文档、codemap 和 PR 交接产物时使用。",
-			"- `$namba-pr` / `$namba-land`: 将当前分支提交到 GitHub 评审，并在检查通过后安全合并时使用。",
-			"- `$namba-regen` / `$namba-update`: 重新生成 repo-local Codex 资产，或自更新已安装的 `namba` CLI 时使用。",
-			"",
-			"## Skill To Command Mapping",
-			"",
-			"- `$namba-help` -> read-only Namba 使用说明，不直接触发 CLI 变更",
-			"- `$namba-create` -> 面向 `.agents/skills/*` 或 `.codex/agents/*` 的 skill-first 创建流程；这个 slice 不新增 public `namba create` CLI",
-			"- `$namba-project` -> `namba project`",
-			"- `$namba-plan` -> `namba plan \"description\"`",
-			"- `$namba-harness` -> `namba harness \"description\"`",
-			"- `$namba-plan-review` -> `namba plan \"description\"` 或 `namba harness \"description\"` + 并行 review + aggregate validation loop",
-			"- `$namba-fix` -> `namba fix \"issue description\"` 或 `namba fix --command plan \"issue description\"`",
-			"- `$namba-run` -> `namba run SPEC-XXX`",
-			"- `$namba-sync` -> `namba sync`",
-			"- `$namba-pr` -> `namba pr \"title\"`",
-			"- `$namba-land` -> `namba land`",
-			"- `$namba-regen` -> `namba regen`",
-			"- `$namba-update` -> `namba update [--version vX.Y.Z]`",
-			"",
-			"## Codex 自定义 Agents",
-			"",
-			"- Strategy and readiness: `namba-product-manager` 负责收敛范围和 acceptance，`namba-planner` 把 SPEC 转成执行计划，`namba-plan-reviewer` 负责校验 plan-review 结果的一致性与 readiness。",
-			"- UI and experience: `namba-frontend-architect`、`namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer` 负责 web UI、mobile execution 和 visual direction。",
-			"- Backend and data: `namba-backend-architect`、`namba-backend-implementer`、`namba-data-engineer` 负责 API、persistence、migration 和 pipeline。",
-			"- Security and delivery: `namba-security-engineer`、`namba-test-engineer`、`namba-devops-engineer`、`namba-reviewer` 负责 hardening、regression confidence、CI/CD 和 final acceptance。",
-			"- General delivery: `namba-implementer` 在任务跨多个领域但还不需要更大 specialist roster 时，继续作为通用执行 agent。",
-			"",
-			"## 继续阅读",
-			"",
-			fmt.Sprintf("- [%s](%s): 安装、更新、卸载、init 和首次运行流程", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
-			fmt.Sprintf("- [%s](%s): update / regen / sync / pr / land 的区别、run 模式、生成产物和协作默认值", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
-			"- [Codex Upstream Reference](docs/codex-upstream-reference.md): 本仓库遵循的 upstream 基线",
-			"- [SECURITY.md](SECURITY.md): 安全策略",
-			"",
-			"## 技术概览",
-			"",
-			"- `.namba/` 是配置、SPEC 包和项目文档的 source of truth。",
-			"- `.agents/skills/` 是 Codex 直接使用的 repo-local skill surface。",
-			"- `.codex/agents/*.toml` 定义了覆盖 product、planning、design、frontend、mobile、backend、data、security、testing、ops、implementation、review 的 task-oriented custom agent。",
-			"- `namba update`、`namba regen`、`namba sync`、`namba pr`、`namba land` 各自解决不同的问题，不应混用理解。",
-			"",
-		)
-		return strings.Join(lines, "\n")
 	default:
-		lines := []string{
-			renderGeneratedDocHeader(),
-			renderHeroBlock(cfg.HeroImage, "NambaAI"),
-			"# NambaAI",
-			"",
-			"NambaAI is a Codex-native workflow for bootstrapping repositories, choosing the right Namba command first, planning work as SPEC packages, and syncing project artifacts after implementation.",
-			"",
-			renderLanguageLinks(""),
-			"",
-			renderRootLinkBar(),
-			"",
-			"## Which Command Should I Use?",
-			"",
-			"- `namba project`: refresh the repository context and generated docs when you need to understand the codebase before choosing work.",
-			"- `namba plan`: create a feature SPEC when the request is a product change or product-facing feature.",
-			"- `namba harness`: create a harness-oriented SPEC when the work is about reusable agent, skill, workflow, or orchestration scaffolding.",
-			"- `namba fix`: repair a bug directly in the current workspace, or use `namba fix --command plan` when you want a reviewable bugfix SPEC.",
-			"",
-			"## What You Can Do With NambaAI",
-			"",
-			"- Bootstrap a Codex-ready repository from an empty directory with `namba init .`.",
-			"- Choose `namba project`, `namba plan`, `namba harness`, or `namba fix` based on whether you are refreshing context, starting a feature SPEC, planning reusable workflow scaffolding, or repairing a bug.",
-			"- Use `$namba-help` when you want a read-only walkthrough of how to use NambaAI or which command or skill fits your goal.",
-			"- Execute work with `namba run SPEC-XXX` for the default flow, use `--solo` for a single runner in one workspace, `--team` for same-workspace multi-agent execution, or `--parallel` for worktree fan-out/fan-in before handing off with `namba sync`, `namba pr`, and `namba land`.",
-			"- Run explicit plan reviews with `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when a SPEC needs product, engineering, or design critique before implementation, or use `$namba-plan-review` when you want SPEC creation plus the full review loop bundled into one skill.",
-			"- Keep CLI versions aligned across the team with `namba update` and release assets.",
-			"",
+		return []string{
 			"## Quick Start",
 			"",
 			"### 1. Install NambaAI",
@@ -788,8 +901,70 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- If the work is reusable agent, skill, workflow, or orchestration scaffolding, swap `namba plan` for `namba harness \"description\"`.",
 			"",
 		}
-		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
-		lines = append(lines,
+	}
+}
+
+func renderNambaCLIRootCommandSkillsSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## Codex에서 쓰는 Command Skill",
+			"",
+			"- `$namba`: Codex가 문맥을 보고 적절한 Namba 진입점을 고르게 맡기고 싶을 때 쓰는 일반 라우터입니다.",
+			"- `$namba-help`: 이 저장소에서 NambaAI를 어떻게 써야 하는지, 어떤 명령이나 skill을 골라야 하는지, 어디 문서를 봐야 하는지 read-only로 설명받고 싶을 때 씁니다.",
+			"- `$namba-create`: repo-local skill, project-scoped custom agent, 또는 둘 다를 preview-first로 만들고 싶을 때 씁니다. 이 경로는 skill-first public surface를 유지하고, 새 `namba create` CLI를 추가하지 않습니다.",
+			"- `$namba-project`: 작업을 시작하기 전이나 큰 변경 뒤에 프로젝트 문서와 codemap을 새로 고칩니다.",
+			"- `$namba-plan`: 기능 SPEC 패키지를 만들고 싶을 때 씁니다.",
+			"- `$namba-harness`: agent, skill, workflow, orchestration 재사용을 위한 harness-oriented SPEC 패키지를 만들고 싶을 때 씁니다.",
+			"- `$namba-fix`: 현재 workspace에서 직접 버그를 수리할 때 쓰고, review 가능한 bugfix SPEC가 필요하면 `namba fix --command plan \"issue description\"` 경로를 선택합니다.",
+			"- `$namba-plan-review`: SPEC 생성 또는 선택부터 product / engineering / design 리뷰 병렬 실행, aggregate validation, readiness 갱신까지 한 번에 묶고 싶을 때 씁니다.",
+			"- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: SPEC의 product, engineering, design review 산출물과 advisory readiness를 갱신할 때 씁니다.",
+			"- `$namba-run`: 이미 만든 SPEC 패키지를 현재 Codex 세션에서 실행할 때 씁니다.",
+			"- `$namba-sync`: README 묶음, 프로젝트 문서, codemap, PR 준비 산출물을 갱신할 때 씁니다.",
+			"- `$namba-pr` / `$namba-land`: 현재 브랜치를 GitHub 리뷰로 넘기고, 체크 통과 후 안전하게 머지할 때 씁니다.",
+			"- `$namba-regen` / `$namba-update`: repo-local Codex 자산을 다시 만들거나 설치된 `namba` CLI를 self-update 할 때 씁니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## Codex で使う Command Skill",
+			"",
+			"- `$namba`: 文脈に応じて Codex に適切な Namba 入口を選ばせたいときの汎用ルーターです。",
+			"- `$namba-help`: このリポジトリで NambaAI をどう使うか、どの command や skill を選ぶべきか、どの文書を見るべきかを read-only で知りたいときに使います。",
+			"- `$namba-create`: repo-local skill、project-scoped custom agent、またはその両方を preview-first で作りたいときに使います。この経路は skill-first の public surface を維持し、新しい `namba create` CLI は追加しません。",
+			"- `$namba-project`: 作業開始前や大きな変更後にプロジェクト文書と codemap を更新します。",
+			"- `$namba-plan`: 機能 SPEC パッケージを作りたいときに使います。",
+			"- `$namba-harness`: agent、skill、workflow、orchestration の再利用向け harness-oriented SPEC パッケージを作りたいときに使います。",
+			"- `$namba-fix`: 現在の workspace で直接修復するときに使い、review 可能な bugfix SPEC が必要なら `namba fix --command plan \"issue description\"` を選びます。",
+			"- `$namba-plan-review`: SPEC の作成または選択から product / engineering / design review の並列実行、aggregate validation、readiness 更新までをまとめて扱いたいときに使います。",
+			"- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: SPEC の product / engineering / design review 成果物と advisory readiness を更新するときに使います。",
+			"- `$namba-run`: 既に作成した SPEC パッケージを現在の Codex セッションで実行するときに使います。",
+			"- `$namba-sync`: README 一式、プロジェクト文書、codemap、PR 用成果物を更新するときに使います。",
+			"- `$namba-pr` / `$namba-land`: 現在のブランチを GitHub レビューに渡し、チェック通過後に安全にマージするときに使います。",
+			"- `$namba-regen` / `$namba-update`: repo-local Codex 資産を再生成するか、インストール済み `namba` CLI を self-update するときに使います。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## Codex 中的 Command Skill",
+			"",
+			"- `$namba`: 当你希望 Codex 根据上下文自动选择合适的 Namba 入口时使用的通用路由器。",
+			"- `$namba-help`: 当你想以 read-only 方式了解这个仓库里该如何使用 NambaAI、该选哪个命令或 skill、以及应该看哪些文档时使用。",
+			"- `$namba-create`: 当你想以 preview-first 方式创建 repo-local skill、project-scoped custom agent，或两者都创建时使用。这个路径会保持 skill-first public surface，不新增 `namba create` CLI。",
+			"- `$namba-project`: 在开始前或较大改动后刷新项目文档和 codemap。",
+			"- `$namba-plan`: 需要功能 SPEC 包时使用。",
+			"- `$namba-harness`: 需要面向 agent、skill、workflow、orchestration 复用的 harness-oriented SPEC 包时使用。",
+			"- `$namba-fix`: 在当前 workspace 直接修复问题时使用；如果要创建可评审的缺陷修复 SPEC，就走 `namba fix --command plan \"issue description\"`。",
+			"- `$namba-plan-review`: 需要把 SPEC 创建或选择、product / engineering / design 评审并行执行、aggregate validation 和 readiness 更新打包到一起时使用。",
+			"- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: 在 SPEC 需要 product / engineering / design review 产物和 advisory readiness 时使用。",
+			"- `$namba-run`: 在当前 Codex 会话中执行已经创建好的 SPEC 包时使用。",
+			"- `$namba-sync`: 刷新 README 套件、项目文档、codemap 和 PR 交接产物时使用。",
+			"- `$namba-pr` / `$namba-land`: 将当前分支提交到 GitHub 评审，并在检查通过后安全合并时使用。",
+			"- `$namba-regen` / `$namba-update`: 重新生成 repo-local Codex 资产，或自更新已安装的 `namba` CLI 时使用。",
+			"",
+		}
+	default:
+		return []string{
 			"## Command Skills In Codex",
 			"",
 			"- `$namba`: general router when you want Codex to choose the right Namba workflow entry point from context.",
@@ -806,6 +981,71 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- `$namba-pr` / `$namba-land`: use when you are ready to hand off the current branch for GitHub review and then merge it safely after checks pass.",
 			"- `$namba-regen` / `$namba-update`: use when you need repo-local Codex assets regenerated or the installed `namba` CLI updated.",
 			"",
+		}
+	}
+}
+
+func renderNambaCLIRootSkillMappingSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## Skill To Command Mapping",
+			"",
+			"- `$namba-help` -> read-only Namba 사용 안내, 직접적인 CLI 변경 없음",
+			"- `$namba-create` -> `.agents/skills/*` 또는 `.codex/agents/*`를 위한 skill-first 생성 흐름, 이 slice에서는 public `namba create` CLI를 추가하지 않음",
+			"- `$namba-project` -> `namba project`",
+			"- `$namba-plan` -> `namba plan \"description\"`",
+			"- `$namba-harness` -> `namba harness \"description\"`",
+			"- `$namba-plan-review` -> `namba plan \"description\"` 또는 `namba harness \"description\"` + 병렬 review + aggregate validation loop",
+			"- `$namba-fix` -> `namba fix \"issue description\"` 또는 `namba fix --command plan \"issue description\"`",
+			"- `$namba-run` -> `namba run SPEC-XXX`",
+			"- `$namba-sync` -> `namba sync`",
+			"- `$namba-pr` -> `namba pr \"title\"`",
+			"- `$namba-land` -> `namba land`",
+			"- `$namba-regen` -> `namba regen`",
+			"- `$namba-update` -> `namba update [--version vX.Y.Z]`",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## Skill To Command Mapping",
+			"",
+			"- `$namba-help` -> read-only の Namba 利用案内、直接の CLI 変更なし",
+			"- `$namba-create` -> `.agents/skills/*` または `.codex/agents/*` のための skill-first 生成フロー。この slice では public `namba create` CLI を追加しません",
+			"- `$namba-project` -> `namba project`",
+			"- `$namba-plan` -> `namba plan \"description\"`",
+			"- `$namba-harness` -> `namba harness \"description\"`",
+			"- `$namba-plan-review` -> `namba plan \"description\"` または `namba harness \"description\"` + 並列 review + aggregate validation loop",
+			"- `$namba-fix` -> `namba fix \"issue description\"` または `namba fix --command plan \"issue description\"`",
+			"- `$namba-run` -> `namba run SPEC-XXX`",
+			"- `$namba-sync` -> `namba sync`",
+			"- `$namba-pr` -> `namba pr \"title\"`",
+			"- `$namba-land` -> `namba land`",
+			"- `$namba-regen` -> `namba regen`",
+			"- `$namba-update` -> `namba update [--version vX.Y.Z]`",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## Skill To Command Mapping",
+			"",
+			"- `$namba-help` -> read-only Namba 使用说明，不直接触发 CLI 变更",
+			"- `$namba-create` -> 面向 `.agents/skills/*` 或 `.codex/agents/*` 的 skill-first 创建流程；这个 slice 不新增 public `namba create` CLI",
+			"- `$namba-project` -> `namba project`",
+			"- `$namba-plan` -> `namba plan \"description\"`",
+			"- `$namba-harness` -> `namba harness \"description\"`",
+			"- `$namba-plan-review` -> `namba plan \"description\"` 或 `namba harness \"description\"` + 并行 review + aggregate validation loop",
+			"- `$namba-fix` -> `namba fix \"issue description\"` 或 `namba fix --command plan \"issue description\"`",
+			"- `$namba-run` -> `namba run SPEC-XXX`",
+			"- `$namba-sync` -> `namba sync`",
+			"- `$namba-pr` -> `namba pr \"title\"`",
+			"- `$namba-land` -> `namba land`",
+			"- `$namba-regen` -> `namba regen`",
+			"- `$namba-update` -> `namba update [--version vX.Y.Z]`",
+			"",
+		}
+	default:
+		return []string{
 			"## Skill To Command Mapping",
 			"",
 			"- `$namba-help` -> read-only Namba usage guidance; no direct CLI mutation",
@@ -822,6 +1062,47 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- `$namba-regen` -> `namba regen`",
 			"- `$namba-update` -> `namba update [--version vX.Y.Z]`",
 			"",
+		}
+	}
+}
+
+func renderNambaCLIRootCustomAgentsSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## Codex용 Custom Agents",
+			"",
+			"- Strategy and readiness: `namba-product-manager`가 범위와 acceptance를 다듬고, `namba-planner`가 SPEC를 실행 계획으로 바꾸며, `namba-plan-reviewer`가 plan-review 결과의 일관성과 readiness를 검증합니다.",
+			"- UI and experience: `namba-frontend-architect`, `namba-frontend-implementer`, `namba-mobile-engineer`, `namba-designer`가 웹 UI, 모바일 실행, 시각 방향을 담당합니다.",
+			"- Backend and data: `namba-backend-architect`, `namba-backend-implementer`, `namba-data-engineer`가 API, 영속성, 마이그레이션, 파이프라인을 담당합니다.",
+			"- Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, `namba-reviewer`가 보안 강화, 회귀 신뢰도, CI/CD, 최종 acceptance를 담당합니다.",
+			"- General delivery: `namba-implementer`는 여러 도메인을 가로지르지만 더 큰 specialist roster까지는 필요 없는 작업에서 일반 실행 에이전트로 남아 있습니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## Codex 用 Custom Agents",
+			"",
+			"- Strategy and readiness: `namba-product-manager` がスコープと acceptance を整え、`namba-planner` が SPEC を実行計画へ変換し、`namba-plan-reviewer` が plan-review 結果の整合性と readiness を検証します。",
+			"- UI and experience: `namba-frontend-architect`、`namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer` が web UI、mobile execution、visual direction を担当します。",
+			"- Backend and data: `namba-backend-architect`、`namba-backend-implementer`、`namba-data-engineer` が API、persistence、migration、pipeline を担当します。",
+			"- Security and delivery: `namba-security-engineer`、`namba-test-engineer`、`namba-devops-engineer`、`namba-reviewer` が hardening、regression confidence、CI/CD、final acceptance を担当します。",
+			"- General delivery: `namba-implementer` は、より大きな specialist roster を組むほどではない複数ドメインの作業で generalist execution agent として残ります。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## Codex 自定义 Agents",
+			"",
+			"- Strategy and readiness: `namba-product-manager` 负责收敛范围和 acceptance，`namba-planner` 把 SPEC 转成执行计划，`namba-plan-reviewer` 负责校验 plan-review 结果的一致性与 readiness。",
+			"- UI and experience: `namba-frontend-architect`、`namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer` 负责 web UI、mobile execution 和 visual direction。",
+			"- Backend and data: `namba-backend-architect`、`namba-backend-implementer`、`namba-data-engineer` 负责 API、persistence、migration 和 pipeline。",
+			"- Security and delivery: `namba-security-engineer`、`namba-test-engineer`、`namba-devops-engineer`、`namba-reviewer` 负责 hardening、regression confidence、CI/CD 和 final acceptance。",
+			"- General delivery: `namba-implementer` 在任务跨多个领域但还不需要更大 specialist roster 时，继续作为通用执行 agent。",
+			"",
+		}
+	default:
+		return []string{
 			"## Custom Agents In Codex",
 			"",
 			"- Strategy and readiness: `namba-product-manager` shapes scope and acceptance, `namba-planner` turns a SPEC into an execution plan, and `namba-plan-reviewer` validates whether the plan-review set is coherent enough to start implementation.",
@@ -830,6 +1111,44 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, and `namba-reviewer` cover hardening, regression confidence, CI/CD, and final acceptance.",
 			"- General delivery: `namba-implementer` remains the generalist execution agent when a task spans multiple domains but does not justify a larger specialist team.",
 			"",
+		}
+	}
+}
+
+func renderNambaCLIRootReadMoreSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 더 읽기",
+			"",
+			fmt.Sprintf("- [%s](%s): 설치, 업데이트, 제거, init, 첫 실행 흐름", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
+			fmt.Sprintf("- [%s](%s): update / regen / sync / pr / land 차이, run 모드, 생성 산출물, 협업 기본값", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			"- [Codex Upstream Reference](docs/codex-upstream-reference.md): 이 저장소가 따르는 upstream 기준",
+			"- [SECURITY.md](SECURITY.md): 보안 정책",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## さらに詳しく",
+			"",
+			fmt.Sprintf("- [%s](%s): インストール、更新、アンインストール、init、初回フロー", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
+			fmt.Sprintf("- [%s](%s): update / regen / sync / pr / land の違い、run mode、生成物、協業ルール", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			"- [Codex Upstream Reference](docs/codex-upstream-reference.md): このリポジトリが従う upstream 基準",
+			"- [SECURITY.md](SECURITY.md): セキュリティポリシー",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 继续阅读",
+			"",
+			fmt.Sprintf("- [%s](%s): 安装、更新、卸载、init 和首次运行流程", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
+			fmt.Sprintf("- [%s](%s): update / regen / sync / pr / land 的区别、run 模式、生成产物和协作默认值", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			"- [Codex Upstream Reference](docs/codex-upstream-reference.md): 本仓库遵循的 upstream 基线",
+			"- [SECURITY.md](SECURITY.md): 安全策略",
+			"",
+		}
+	default:
+		return []string{
 			"## Need More Detail?",
 			"",
 			fmt.Sprintf("- [%s](%s): installation, updates, uninstall, init, and first-run flow", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
@@ -837,6 +1156,44 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- [Codex Upstream Reference](docs/codex-upstream-reference.md): upstream baseline this repository follows",
 			"- [SECURITY.md](SECURITY.md): security policy",
 			"",
+		}
+	}
+}
+
+func renderNambaCLIRootTechnicalSnapshotSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 기술 스냅샷",
+			"",
+			"- `.namba/`는 설정, SPEC 패키지, 프로젝트 문서의 source of truth 입니다.",
+			"- `.agents/skills/`는 Codex가 직접 사용하는 repo-local skill surface 입니다.",
+			"- `.codex/agents/*.toml`은 product, planning, design, frontend, mobile, backend, data, security, testing, ops, implementation, review 전반의 task-oriented custom agent를 정의합니다.",
+			"- `namba update`, `namba regen`, `namba sync`, `namba pr`, `namba land`는 서로 다른 문제를 푸는 명령이므로 섞어서 이해하면 안 됩니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 技術スナップショット",
+			"",
+			"- `.namba/` は設定、SPEC パッケージ、プロジェクト文書の source of truth です。",
+			"- `.agents/skills/` は Codex が直接使う repo-local skill surface です。",
+			"- `.codex/agents/*.toml` は product、planning、design、frontend、mobile、backend、data、security、testing、ops、implementation、review をまたぐ task-oriented custom agent を定義します。",
+			"- `namba update`、`namba regen`、`namba sync`、`namba pr`、`namba land` は別々の問題を解くコマンドであり、混同すべきではありません。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 技术概览",
+			"",
+			"- `.namba/` 是配置、SPEC 包和项目文档的 source of truth。",
+			"- `.agents/skills/` 是 Codex 直接使用的 repo-local skill surface。",
+			"- `.codex/agents/*.toml` 定义了覆盖 product、planning、design、frontend、mobile、backend、data、security、testing、ops、implementation、review 的 task-oriented custom agent。",
+			"- `namba update`、`namba regen`、`namba sync`、`namba pr`、`namba land` 各自解决不同的问题，不应混用理解。",
+			"",
+		}
+	default:
+		return []string{
 			"## Technical Snapshot",
 			"",
 			"- `.namba/` is the source of truth for config, SPEC packages, and project docs.",
@@ -844,27 +1201,213 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- `.codex/agents/*.toml` defines task-oriented custom agents across product, planning, design, frontend, mobile, backend, data, security, testing, ops, implementation, and review.",
 			"- `namba update`, `namba regen`, `namba sync`, `namba pr`, and `namba land` solve different problems and should not be mixed.",
 			"",
-		)
+		}
+	}
+}
+
+func renderNambaCLIWorkflowGuideCommandDifferencesSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## `update`, `regen`, `sync`, `pr`, `land`는 서로 다른 명령입니다",
+			"",
+			"- `namba update`: 설치된 CLI를 GitHub Release 자산 기준으로 self-update 합니다.",
+			"- `namba regen`: AGENTS, skills, custom agents, repo Codex config 같은 template-generated asset을 다시 생성합니다.",
+			"- `namba sync`: README, 프로젝트 문서, codemap, advisory review readiness, PR checklist, release notes를 갱신합니다.",
+			"- `namba pr`: 기본적으로 sync와 validation을 돌리고, 현재 브랜치를 commit/push 한 뒤 PR을 만들거나 재사용하고 Codex review marker를 보장합니다.",
+			"- `namba land`: 필요하면 체크를 기다리고, PR이 깨끗할 때만 머지한 뒤 로컬 `main`을 안전하게 갱신합니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## `update`, `regen`, `sync`, `pr`, `land` はそれぞれ別のコマンドです",
+			"",
+			"- `namba update`: インストール済み CLI を GitHub Release 資産から self-update します。",
+			"- `namba regen`: AGENTS、skills、custom agents、repo Codex config などの template-generated asset を再生成します。",
+			"- `namba sync`: README、project docs、codemap、advisory review readiness、PR checklist、release notes を更新します。",
+			"- `namba pr`: 既定で sync と validation を実行し、現在のブランチを commit / push した上で PR を作成または再利用し、Codex review marker を保証します。",
+			"- `namba land`: 必要なら checks を待ち、PR が clean なときだけ merge してから local `main` を安全に更新します。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## `update`、`regen`、`sync`、`pr`、`land` 是不同的命令",
+			"",
+			"- `namba update`: 从 GitHub Release 资产对已安装的 CLI 做 self-update。",
+			"- `namba regen`: 重新生成 AGENTS、skills、custom agents、repo Codex config 等 template-generated asset。",
+			"- `namba sync`: 刷新 README、project docs、codemap、advisory review readiness、PR checklist 和 release notes。",
+			"- `namba pr`: 默认先跑 sync 和 validation，把当前分支 commit / push 后创建或复用 PR，并确保 Codex review marker 存在。",
+			"- `namba land`: 需要时等待 checks，只在 PR clean 时 merge，然后安全更新本地 `main`。",
+			"",
+		}
+	default:
+		return []string{
+			"## `update`, `regen`, `sync`, `pr`, and `land` are different commands",
+			"",
+			"- `namba update`: self-update the installed CLI from GitHub Release assets",
+			"- `namba regen`: regenerate AGENTS, skills, custom agents, and repo Codex config",
+			"- `namba sync`: refresh README, project docs, codemaps, advisory review readiness, PR checklists, and release notes",
+			"- `namba pr`: run sync plus validation by default, commit and push the current branch, open or reuse the PR, and ensure the Codex review marker exists",
+			"- `namba land`: optionally wait for checks, merge only when the PR is clean, and update local `main` safely",
+			"",
+		}
+	}
+}
+
+func renderNambaCLIRoot(lang string, cfg docsConfig) string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		lines := []string{
+			renderGeneratedDocHeader(),
+			renderHeroBlock(cfg.HeroImage, "NambaAI"),
+			"# NambaAI",
+			"",
+			"NambaAI는 저장소를 부트스트랩하고, 먼저 어떤 Namba 명령을 써야 하는지 고르고, 작업을 SPEC 패키지로 계획하고, 구현 이후 산출물을 동기화하는 Codex-native 워크플로입니다.",
+			"",
+			renderLanguageLinks(""),
+			"",
+			renderRootLinkBar(),
+			"",
+			"## 어떤 명령을 써야 하나요?",
+			"",
+			"- `namba project`: 작업을 시작하기 전에 저장소 문맥과 생성 문서를 새로 고칩니다.",
+			"- `namba plan`: 기능이나 제품 변경을 SPEC 패키지로 만들 때 사용합니다.",
+			"- `namba harness`: agent, skill, workflow, orchestration 재사용을 위한 harness-oriented SPEC 패키지를 만들 때 사용합니다.",
+			"- `namba fix`: 현재 workspace에서 버그를 직접 수리할 때 사용하고, review 가능한 버그 수정 SPEC가 필요하면 `namba fix --command plan`을 씁니다.",
+			"",
+			"## NambaAI로 할 수 있는 일",
+			"",
+			"- 빈 디렉터리에서 `namba init .`로 Codex-ready 저장소를 바로 시작할 수 있습니다.",
+			"- `namba project`, `namba plan`, `namba harness`, `namba fix` 중 무엇을 쓸지 먼저 고른 다음, 선택한 SPEC 경로로 작업을 진행합니다.",
+			"- `namba run SPEC-XXX`로 기본 흐름을 실행하고, `--solo`는 하나의 workspace에서 단일 runner, `--team`은 같은 workspace의 멀티에이전트 실행, `--parallel`은 worktree fan-out/fan-in 실행에 사용한 뒤 `namba sync`, `namba pr`, `namba land`로 마무리합니다.",
+			"- 구현 전에 제품, 엔지니어링, 디자인 검토가 필요하면 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`를 사용합니다.",
+			"- `namba update`와 릴리스 자산으로 팀 전체 CLI 버전을 맞출 수 있습니다.",
+			"",
+		}
+		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
+		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
+		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)
+		lines = append(lines, renderNambaCLIRootSkillMappingSection(lang)...)
+		lines = append(lines, renderNambaCLIRootCustomAgentsSection(lang)...)
+		lines = append(lines, renderNambaCLIRootReadMoreSection(lang)...)
+		lines = append(lines, renderNambaCLIRootTechnicalSnapshotSection(lang)...)
+		return strings.Join(lines, "\n")
+	case "ja":
+		lines := []string{
+			renderGeneratedDocHeader(),
+			renderHeroBlock(cfg.HeroImage, "NambaAI"),
+			"# NambaAI",
+			"",
+			"NambaAI は、リポジトリのブートストラップ、最初に使うべき Namba コマンドの選択、作業の SPEC パッケージ化、実装後の成果物同期をまとめる Codex-native ワークフローです。",
+			"",
+			renderLanguageLinks(""),
+			"",
+			renderRootLinkBar(),
+			"",
+			"## どのコマンドを使うべきですか?",
+			"",
+			"- `namba project`: 作業を始める前に、リポジトリの文脈と生成済みドキュメントを更新します。",
+			"- `namba plan`: 機能やプロダクト変更を SPEC パッケージにするときに使います。",
+			"- `namba harness`: agent、skill、workflow、orchestration 再利用のための harness-oriented SPEC パッケージを作るときに使います。",
+			"- `namba fix`: 現在の workspace でバグを直接修正するときに使い、review 可能な bugfix SPEC が必要なら `namba fix --command plan` を使います。",
+			"",
+			"## NambaAI でできること",
+			"",
+			"- 空のディレクトリから `namba init .` で Codex-ready なリポジトリをすぐ始められます。",
+			"- `namba project`、`namba plan`、`namba harness`、`namba fix` のどれを使うかを先に決めてから、選んだ SPEC 経路で作業を進めます。",
+			"- `namba run SPEC-XXX` で標準フローを実行し、`--solo` は 1 workspace の単一 runner、`--team` は同じ workspace のマルチエージェント実行、`--parallel` は worktree fan-out/fan-in 実行として使い、その後 `namba sync`、`namba pr`、`namba land` で引き渡します。",
+			"- 実装前に product / engineering / design のレビューが必要な場合は `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` を使います。",
+			"- `namba update` とリリース資産でチーム全体の CLI バージョンをそろえられます。",
+			"",
+		}
+		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
+		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
+		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)
+		lines = append(lines, renderNambaCLIRootSkillMappingSection(lang)...)
+		lines = append(lines, renderNambaCLIRootCustomAgentsSection(lang)...)
+		lines = append(lines, renderNambaCLIRootReadMoreSection(lang)...)
+		lines = append(lines, renderNambaCLIRootTechnicalSnapshotSection(lang)...)
+		return strings.Join(lines, "\n")
+	case "zh":
+		lines := []string{
+			renderGeneratedDocHeader(),
+			renderHeroBlock(cfg.HeroImage, "NambaAI"),
+			"# NambaAI",
+			"",
+			"NambaAI 是一套 Codex-native 工作流，用来完成仓库初始化、先选对应该用的 Namba 命令、将工作整理成 SPEC 包，以及在实现之后同步项目产物。",
+			"",
+			renderLanguageLinks(""),
+			"",
+			renderRootLinkBar(),
+			"",
+			"## 应该使用哪个命令？",
+			"",
+			"- `namba project`: 在开始工作前刷新仓库上下文和生成文档。",
+			"- `namba plan`: 当请求是功能或产品变更时，把它整理成 SPEC 包。",
+			"- `namba harness`: 当工作是为了复用 agent、skill、workflow 或 orchestration 的 scaffold 时，创建 harness-oriented SPEC 包。",
+			"- `namba fix`: 在当前 workspace 中直接修复缺陷；如果需要一个可评审的缺陷修复 SPEC，就用 `namba fix --command plan`。",
+			"",
+			"## 你可以用 NambaAI 做什么",
+			"",
+			"- 在空目录中通过 `namba init .` 直接启动一个 Codex-ready 仓库。",
+			"- 先决定该用 `namba project`、`namba plan`、`namba harness` 还是 `namba fix`，再沿着选中的 SPEC 路径推进工作。",
+			"- 用 `namba run SPEC-XXX` 运行默认流程，`--solo` 表示单一 workspace 中的单 runner，`--team` 表示同一 workspace 内的多智能体执行，`--parallel` 表示 worktree fan-out/fan-in 执行，然后再用 `namba sync`、`namba pr`、`namba land` 完成交付。",
+			"- 如果实现前需要产品、工程或设计评审，可以使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review`。",
+			"- 通过 `namba update` 和 release 资产让团队的 CLI 版本保持一致。",
+			"",
+		}
+		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
+		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
+		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)
+		lines = append(lines, renderNambaCLIRootSkillMappingSection(lang)...)
+		lines = append(lines, renderNambaCLIRootCustomAgentsSection(lang)...)
+		lines = append(lines, renderNambaCLIRootReadMoreSection(lang)...)
+		lines = append(lines, renderNambaCLIRootTechnicalSnapshotSection(lang)...)
+		return strings.Join(lines, "\n")
+	default:
+		lines := []string{
+			renderGeneratedDocHeader(),
+			renderHeroBlock(cfg.HeroImage, "NambaAI"),
+			"# NambaAI",
+			"",
+			"NambaAI is a Codex-native workflow for bootstrapping repositories, choosing the right Namba command first, planning work as SPEC packages, and syncing project artifacts after implementation.",
+			"",
+			renderLanguageLinks(""),
+			"",
+			renderRootLinkBar(),
+			"",
+			"## Which Command Should I Use?",
+			"",
+			"- `namba project`: refresh the repository context and generated docs when you need to understand the codebase before choosing work.",
+			"- `namba plan`: create a feature SPEC when the request is a product change or product-facing feature.",
+			"- `namba harness`: create a harness-oriented SPEC when the work is about reusable agent, skill, workflow, or orchestration scaffolding.",
+			"- `namba fix`: repair a bug directly in the current workspace, or use `namba fix --command plan` when you want a reviewable bugfix SPEC.",
+			"",
+			"## What You Can Do With NambaAI",
+			"",
+			"- Bootstrap a Codex-ready repository from an empty directory with `namba init .`.",
+			"- Choose `namba project`, `namba plan`, `namba harness`, or `namba fix` based on whether you are refreshing context, starting a feature SPEC, planning reusable workflow scaffolding, or repairing a bug.",
+			"- Use `$namba-help` when you want a read-only walkthrough of how to use NambaAI or which command or skill fits your goal.",
+			"- Execute work with `namba run SPEC-XXX` for the default flow, use `--solo` for a single runner in one workspace, `--team` for same-workspace multi-agent execution, or `--parallel` for worktree fan-out/fan-in before handing off with `namba sync`, `namba pr`, and `namba land`.",
+			"- Run explicit plan reviews with `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when a SPEC needs product, engineering, or design critique before implementation, or use `$namba-plan-review` when you want SPEC creation plus the full review loop bundled into one skill.",
+			"- Keep CLI versions aligned across the team with `namba update` and release assets.",
+			"",
+		}
+		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
+		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
+		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)
+		lines = append(lines, renderNambaCLIRootSkillMappingSection(lang)...)
+		lines = append(lines, renderNambaCLIRootCustomAgentsSection(lang)...)
+		lines = append(lines, renderNambaCLIRootReadMoreSection(lang)...)
+		lines = append(lines, renderNambaCLIRootTechnicalSnapshotSection(lang)...)
 		return strings.Join(lines, "\n")
 	}
 }
 
-func renderManagedProjectRoot(lang string, projectCfg projectConfig, profile initProfile, cfg docsConfig) string {
-	title := projectCfg.Name
-	if title == "" {
-		title = "Project"
-	}
+func renderManagedProjectRootWorkSummarySection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
-		return strings.Join([]string{
-			renderGeneratedDocHeader(),
-			renderHeroBlock(cfg.HeroImage, title),
-			fmt.Sprintf("# %s", title),
-			"",
-			"이 저장소는 NambaAI로 관리됩니다. 이 README는 `namba sync`가 생성하며, 기여자가 코드를 건드리기 전에 작업 흐름을 빠르게 이해할 수 있도록 돕습니다.",
-			"",
-			renderLanguageLinks(""),
-			"",
+		return []string{
 			"## 이 저장소에서 할 수 있는 일",
 			"",
 			"- `namba project`로 현재 구조와 핵심 문서를 새로 고칩니다.",
@@ -874,6 +1417,50 @@ func renderManagedProjectRoot(lang string, projectCfg projectConfig, profile ini
 			"- `namba run SPEC-XXX`로 기본 흐름을 실행하고, `--solo`는 하나의 workspace에서 단일 runner, `--team`은 같은 workspace의 멀티에이전트 실행, `--parallel`은 worktree fan-out/fan-in 실행에 사용합니다.",
 			"- 브랜치, PR, Codex review 흐름을 기여자 간에 일관되게 유지합니다.",
 			"",
+		}
+	case "ja":
+		return []string{
+			"## このリポジトリでできること",
+			"",
+			"- `namba project` で現在の構造と主要ドキュメントを更新します。",
+			"- `namba plan` で機能 SPEC を作成し、`namba harness` で harness-oriented SPEC を作成し、`namba fix --command plan` でバグ修正 SPEC を作成するか、`namba fix` で現在の workspace から直接修復を始めます。",
+			"- `$namba-help` を使うと、このリポジトリで NambaAI をどう使うか、次にどの command や skill を選ぶべきかを read-only で案内できます。",
+			"- SPEC に明示的な事前レビューが必要なら `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` を使い、作成から並列レビュー ループまで一度に回したいなら `$namba-plan-review` を使います。",
+			"- `namba run SPEC-XXX` で標準フローを実行し、`--solo` は 1 workspace の単一 runner、`--team` は同じ workspace のマルチエージェント実行、`--parallel` は worktree fan-out/fan-in 実行として使います。",
+			"- ブランチ、PR、Codex review フローをコントリビューター間で一貫させます。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 这个仓库里可以做什么",
+			"",
+			"- 运行 `namba project` 刷新当前结构和核心文档。",
+			"- 用 `namba plan` 创建功能 SPEC，用 `namba harness` 创建 harness-oriented SPEC，用 `namba fix --command plan` 创建缺陷修复 SPEC，或者直接用 `namba fix` 在当前 workspace 开始修复。",
+			"- 可以使用 `$namba-help` 以 read-only 方式了解这个仓库里该如何使用 NambaAI，以及下一步应该选哪个命令或 skill。",
+			"- 如果某个 SPEC 需要明确的实现前评审，可以使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review`；如果想把创建和并行评审循环一次跑完，就使用 `$namba-plan-review`。",
+			"- 用 `namba run SPEC-XXX` 运行标准流程，`--solo` 表示单一 workspace 中的单 runner，`--team` 表示同一 workspace 内的多智能体执行，`--parallel` 表示 worktree fan-out/fan-in 执行。",
+			"- 让 branch、PR 和 Codex review 流程在不同贡献者之间保持一致。",
+			"",
+		}
+	default:
+		return []string{
+			"## What You Can Do In This Repository",
+			"",
+			"- Run `namba project` to refresh the current structure and core docs.",
+			"- Use `namba plan` for feature SPEC work, `namba harness` for harness-oriented SPEC work, `namba fix --command plan` for bugfix SPEC work, or `namba fix` for direct repair in the current workspace.",
+			"- Use `$namba-help` when you want a read-only walkthrough of how to use NambaAI in this repository or which command or skill to choose next.",
+			"- Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when a SPEC needs explicit pre-implementation review depth, or use `$namba-plan-review` when you want SPEC creation plus the review loop bundled into one skill.",
+			"- Execute `namba run SPEC-XXX` for the default flow, or use `--solo` for a single runner in one workspace, `--team` for same-workspace multi-agent execution, and `--parallel` for worktree fan-out/fan-in execution.",
+			"- Keep branch, PR, and Codex review flow consistent across contributors.",
+			"",
+		}
+	}
+}
+
+func renderManagedProjectRootQuickStartSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
 			"## 빠르게 시작하기",
 			"",
 			"```text",
@@ -886,39 +1473,9 @@ func renderManagedProjectRoot(lang string, projectCfg projectConfig, profile ini
 			"namba land",
 			"```",
 			"",
-			"## 더 읽기",
-			"",
-			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
-			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
-			"- [Codex Upstream Reference](docs/codex-upstream-reference.md)",
-			"",
-			"## 현재 기본값",
-			"",
-			fmt.Sprintf("- 작업 언어: %s", humanLanguageName(profile.DocumentationLanguage)),
-			fmt.Sprintf("- PR 대상 브랜치: `%s`", prBaseBranch(profile)),
-			fmt.Sprintf("- Codex 리뷰 코멘트: `%s`", codexReviewComment(profile)),
-			"- source of truth: `.namba/`",
-			"",
-		}, "\n")
+		}
 	case "ja":
-		return strings.Join([]string{
-			renderGeneratedDocHeader(),
-			renderHeroBlock(cfg.HeroImage, title),
-			fmt.Sprintf("# %s", title),
-			"",
-			"このリポジトリは NambaAI で管理されています。この README は `namba sync` によって生成され、コントリビューターがコードに触る前に作業フローを素早く理解できるようにします。",
-			"",
-			renderLanguageLinks(""),
-			"",
-			"## このリポジトリでできること",
-			"",
-			"- `namba project` で現在の構造と主要ドキュメントを更新します。",
-			"- `namba plan` で機能 SPEC を作成し、`namba harness` で harness-oriented SPEC を作成し、`namba fix --command plan` でバグ修正 SPEC を作成するか、`namba fix` で現在の workspace から直接修復を始めます。",
-			"- `$namba-help` を使うと、このリポジトリで NambaAI をどう使うか、次にどの command や skill を選ぶべきかを read-only で案内できます。",
-			"- SPEC に明示的な事前レビューが必要なら `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` を使い、作成から並列レビュー ループまで一度に回したいなら `$namba-plan-review` を使います。",
-			"- `namba run SPEC-XXX` で標準フローを実行し、`--solo` は 1 workspace の単一 runner、`--team` は同じ workspace のマルチエージェント実行、`--parallel` は worktree fan-out/fan-in 実行として使います。",
-			"- ブランチ、PR、Codex review フローをコントリビューター間で一貫させます。",
-			"",
+		return []string{
 			"## すぐ始める",
 			"",
 			"```text",
@@ -931,39 +1488,9 @@ func renderManagedProjectRoot(lang string, projectCfg projectConfig, profile ini
 			"namba land",
 			"```",
 			"",
-			"## さらに読む",
-			"",
-			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
-			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
-			"- [Codex Upstream Reference](docs/codex-upstream-reference.md)",
-			"",
-			"## 現在の既定値",
-			"",
-			fmt.Sprintf("- 作業言語: %s", humanLanguageName(profile.DocumentationLanguage)),
-			fmt.Sprintf("- PR 対象ブランチ: `%s`", prBaseBranch(profile)),
-			fmt.Sprintf("- Codex review コメント: `%s`", codexReviewComment(profile)),
-			"- source of truth: `.namba/`",
-			"",
-		}, "\n")
+		}
 	case "zh":
-		return strings.Join([]string{
-			renderGeneratedDocHeader(),
-			renderHeroBlock(cfg.HeroImage, title),
-			fmt.Sprintf("# %s", title),
-			"",
-			"这个仓库由 NambaAI 管理。README 由 `namba sync` 生成，目的是让贡献者在修改代码前就能快速理解工作流。",
-			"",
-			renderLanguageLinks(""),
-			"",
-			"## 这个仓库里可以做什么",
-			"",
-			"- 运行 `namba project` 刷新当前结构和核心文档。",
-			"- 用 `namba plan` 创建功能 SPEC，用 `namba harness` 创建 harness-oriented SPEC，用 `namba fix --command plan` 创建缺陷修复 SPEC，或者直接用 `namba fix` 在当前 workspace 开始修复。",
-			"- 可以使用 `$namba-help` 以 read-only 方式了解这个仓库里该如何使用 NambaAI，以及下一步应该选哪个命令或 skill。",
-			"- 如果某个 SPEC 需要明确的实现前评审，可以使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review`；如果想把创建和并行评审循环一次跑完，就使用 `$namba-plan-review`。",
-			"- 用 `namba run SPEC-XXX` 运行标准流程，`--solo` 表示单一 workspace 中的单 runner，`--team` 表示同一 workspace 内的多智能体执行，`--parallel` 表示 worktree fan-out/fan-in 执行。",
-			"- 让 branch、PR 和 Codex review 流程在不同贡献者之间保持一致。",
-			"",
+		return []string{
 			"## 快速开始",
 			"",
 			"```text",
@@ -976,39 +1503,9 @@ func renderManagedProjectRoot(lang string, projectCfg projectConfig, profile ini
 			"namba land",
 			"```",
 			"",
-			"## 继续阅读",
-			"",
-			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
-			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
-			"- [Codex Upstream Reference](docs/codex-upstream-reference.md)",
-			"",
-			"## 当前默认值",
-			"",
-			fmt.Sprintf("- 工作语言: %s", humanLanguageName(profile.DocumentationLanguage)),
-			fmt.Sprintf("- PR 目标分支: `%s`", prBaseBranch(profile)),
-			fmt.Sprintf("- Codex review 评论: `%s`", codexReviewComment(profile)),
-			"- source of truth: `.namba/`",
-			"",
-		}, "\n")
+		}
 	default:
-		return strings.Join([]string{
-			renderGeneratedDocHeader(),
-			renderHeroBlock(cfg.HeroImage, title),
-			fmt.Sprintf("# %s", title),
-			"",
-			"This repository is managed with NambaAI. The README is generated by `namba sync` so contributors can understand the workflow before they touch the code.",
-			"",
-			renderLanguageLinks(""),
-			"",
-			"## What You Can Do In This Repository",
-			"",
-			"- Run `namba project` to refresh the current structure and core docs.",
-			"- Use `namba plan` for feature SPEC work, `namba harness` for harness-oriented SPEC work, `namba fix --command plan` for bugfix SPEC work, or `namba fix` for direct repair in the current workspace.",
-			"- Use `$namba-help` when you want a read-only walkthrough of how to use NambaAI in this repository or which command or skill to choose next.",
-			"- Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when a SPEC needs explicit pre-implementation review depth, or use `$namba-plan-review` when you want SPEC creation plus the review loop bundled into one skill.",
-			"- Execute `namba run SPEC-XXX` for the default flow, or use `--solo` for a single runner in one workspace, `--team` for same-workspace multi-agent execution, and `--parallel` for worktree fan-out/fan-in execution.",
-			"- Keep branch, PR, and Codex review flow consistent across contributors.",
-			"",
+		return []string{
 			"## Start Fast",
 			"",
 			"```text",
@@ -1021,6 +1518,153 @@ func renderManagedProjectRoot(lang string, projectCfg projectConfig, profile ini
 			"namba land",
 			"```",
 			"",
+		}
+	}
+}
+
+func renderManagedProjectRootReadMoreSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 더 읽기",
+			"",
+			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
+			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			"- [Codex Upstream Reference](docs/codex-upstream-reference.md)",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## さらに読む",
+			"",
+			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
+			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			"- [Codex Upstream Reference](docs/codex-upstream-reference.md)",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 继续阅读",
+			"",
+			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
+			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			"- [Codex Upstream Reference](docs/codex-upstream-reference.md)",
+			"",
+		}
+	default:
+		return []string{
+			"## Read More",
+			"",
+			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
+			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			"- [Codex Upstream Reference](docs/codex-upstream-reference.md)",
+			"",
+		}
+	}
+}
+
+func renderManagedProjectRootCurrentDefaultsSection(lang string, profile initProfile) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 현재 기본값",
+			"",
+			fmt.Sprintf("- 작업 언어: %s", humanLanguageName(profile.DocumentationLanguage)),
+			fmt.Sprintf("- PR 대상 브랜치: `%s`", prBaseBranch(profile)),
+			fmt.Sprintf("- Codex 리뷰 코멘트: `%s`", codexReviewComment(profile)),
+			"- source of truth: `.namba/`",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 現在の既定値",
+			"",
+			fmt.Sprintf("- 作業言語: %s", humanLanguageName(profile.DocumentationLanguage)),
+			fmt.Sprintf("- PR 対象ブランチ: `%s`", prBaseBranch(profile)),
+			fmt.Sprintf("- Codex review コメント: `%s`", codexReviewComment(profile)),
+			"- source of truth: `.namba/`",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 当前默认值",
+			"",
+			fmt.Sprintf("- 工作语言: %s", humanLanguageName(profile.DocumentationLanguage)),
+			fmt.Sprintf("- PR 目标分支: `%s`", prBaseBranch(profile)),
+			fmt.Sprintf("- Codex review 评论: `%s`", codexReviewComment(profile)),
+			"- source of truth: `.namba/`",
+			"",
+		}
+	default:
+		return []string{
+			"## Current Defaults",
+			"",
+			fmt.Sprintf("- Working language: %s", humanLanguageName(profile.DocumentationLanguage)),
+			fmt.Sprintf("- PR base branch: `%s`", prBaseBranch(profile)),
+			fmt.Sprintf("- Codex review comment: `%s`", codexReviewComment(profile)),
+			"- source of truth: `.namba/`",
+			"",
+		}
+	}
+}
+
+func renderManagedProjectRootWhatYouCanDoSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 이 저장소에서 할 수 있는 일",
+			"",
+			"- `namba project`로 현재 구조와 핵심 문서를 새로 고칩니다.",
+			"- `namba plan`으로 기능 SPEC를 만들고, `namba harness`로 harness-oriented SPEC를 만들고, `namba fix --command plan`으로 버그 수정 SPEC를 만들거나, `namba fix`로 현재 workspace에서 직접 수리 경로를 시작합니다.",
+			"- `$namba-help`로 현재 저장소에서 NambaAI를 어떻게 써야 하는지, 어떤 명령이나 skill을 골라야 하는지 read-only로 안내받을 수 있습니다.",
+			"- SPEC에 명시적 사전 검토가 필요하면 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`를 사용하고, 생성부터 병렬 리뷰 루프까지 한 번에 돌리고 싶으면 `$namba-plan-review`를 사용합니다.",
+			"- `namba run SPEC-XXX`로 기본 흐름을 실행하고, `--solo`는 하나의 workspace에서 단일 runner, `--team`은 같은 workspace의 멀티에이전트 실행, `--parallel`은 worktree fan-out/fan-in 실행에 사용합니다.",
+			"- 브랜치, PR, Codex review 흐름을 기여자 간에 일관되게 유지합니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## このリポジトリでできること",
+			"",
+			"- `namba project` で現在の構造と主要ドキュメントを更新します。",
+			"- `namba plan` で機能 SPEC を作成し、`namba harness` で harness-oriented SPEC を作成し、`namba fix --command plan` でバグ修正 SPEC を作成するか、`namba fix` で現在の workspace から直接修復を始めます。",
+			"- `$namba-help` を使うと、このリポジトリで NambaAI をどう使うか、次にどの command や skill を選ぶべきかを read-only で案内できます。",
+			"- SPEC に明示的な事前レビューが必要なら `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` を使い、作成から並列レビュー ループまで一度に回したいなら `$namba-plan-review` を使います。",
+			"- `namba run SPEC-XXX` で標準フローを実行し、`--solo` は 1 workspace の単一 runner、`--team` は同じ workspace のマルチエージェント実行、`--parallel` は worktree fan-out/fan-in 実行として使います。",
+			"- ブランチ、PR、Codex review フローをコントリビューター間で一貫させます。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 这个仓库里可以做什么",
+			"",
+			"- 运行 `namba project` 刷新当前结构和核心文档。",
+			"- 用 `namba plan` 创建功能 SPEC，用 `namba harness` 创建 harness-oriented SPEC，用 `namba fix --command plan` 创建缺陷修复 SPEC，或者直接用 `namba fix` 在当前 workspace 开始修复。",
+			"- 可以使用 `$namba-help` 以 read-only 方式了解这个仓库里该如何使用 NambaAI，以及下一步应该选哪个命令或 skill。",
+			"- 如果某个 SPEC 需要明确的实现前评审，可以使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review`；如果想把创建和并行评审循环一次跑完，就使用 `$namba-plan-review`。",
+			"- 用 `namba run SPEC-XXX` 运行标准流程，`--solo` 表示单一 workspace 中的单 runner，`--team` 表示同一 workspace 内的多智能体执行，`--parallel` 表示 worktree fan-out/fan-in 执行。",
+			"- 让 branch、PR 和 Codex review 流程在不同贡献者之间保持一致。",
+			"",
+		}
+	default:
+		return []string{
+			"## What You Can Do In This Repository",
+			"",
+			"- Run `namba project` to refresh the current structure and core docs.",
+			"- Use `namba plan` for feature SPEC work, `namba harness` for harness-oriented SPEC work, `namba fix --command plan` for bugfix SPEC work, or `namba fix` for direct repair in the current workspace.",
+			"- Use `$namba-help` when you want a read-only walkthrough of how to use NambaAI in this repository or which command or skill to choose next.",
+			"- Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when a SPEC needs explicit pre-implementation review depth, or use `$namba-plan-review` when you want SPEC creation plus the review loop bundled into one skill.",
+			"- Execute `namba run SPEC-XXX` for the default flow, or use `--solo` for a single runner in one workspace, `--team` for same-workspace multi-agent execution, and `--parallel` for worktree fan-out/fan-in execution.",
+			"- Keep branch, PR, and Codex review flow consistent across contributors.",
+			"",
+		}
+	}
+}
+
+func renderManagedProjectRootCommandSkillsSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	default:
+		return []string{
 			"## Command Skills In Codex",
 			"",
 			"- `$namba`: general router when you want Codex to choose the right Namba entry point.",
@@ -1037,22 +1681,18 @@ func renderManagedProjectRoot(lang string, projectCfg projectConfig, profile ini
 			"- `$namba-pr` / `$namba-land`: prepare GitHub review handoff, then merge safely after checks pass.",
 			"- `$namba-regen` / `$namba-update`: regenerate repo-local Codex assets or update the installed `namba` CLI.",
 			"",
-			"## Skill To Command Mapping",
-			"",
-			"- `$namba-help` -> read-only Namba usage guidance; no direct CLI mutation",
-			"- `$namba-create` -> skill-first creation flow for `.agents/skills/*` or `.codex/agents/*`; no public `namba create` CLI in this slice",
-			"- `$namba-project` -> `namba project`",
-			"- `$namba-plan` -> `namba plan \"description\"`",
-			"- `$namba-harness` -> `namba harness \"description\"`",
-			"- `$namba-plan-review` -> `namba plan \"description\"` or `namba harness \"description\"` + parallel reviews + aggregate validation loop",
-			"- `$namba-fix` -> `namba fix \"issue description\"` or `namba fix --command plan \"issue description\"`",
-			"- `$namba-run` -> `namba run SPEC-XXX`",
-			"- `$namba-sync` -> `namba sync`",
-			"- `$namba-pr` -> `namba pr \"title\"`",
-			"- `$namba-land` -> `namba land`",
-			"- `$namba-regen` -> `namba regen`",
-			"- `$namba-update` -> `namba update [--version vX.Y.Z]`",
-			"",
+		}
+	}
+}
+
+func renderManagedProjectRootSkillMappingSection(lang string) []string {
+	return renderNambaCLIRootSkillMappingSection(lang)
+}
+
+func renderManagedProjectRootCustomAgentsSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	default:
+		return []string{
 			"## Custom Agents In Codex",
 			"",
 			"- Strategy and readiness: `namba-product-manager` shapes scope and acceptance, `namba-planner` turns a SPEC into an execution plan, and `namba-plan-reviewer` validates whether the review set is coherent enough to start implementation.",
@@ -1061,20 +1701,83 @@ func renderManagedProjectRoot(lang string, projectCfg projectConfig, profile ini
 			"- Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, and `namba-reviewer` cover hardening, regression confidence, CI/CD, and final acceptance.",
 			"- General delivery: `namba-implementer` remains available when a task spans multiple domains but does not justify a larger specialist roster.",
 			"",
-			"## Read More",
+		}
+	}
+}
+
+func renderManagedProjectRoot(lang string, projectCfg projectConfig, profile initProfile, cfg docsConfig) string {
+	title := projectCfg.Name
+	if title == "" {
+		title = "Project"
+	}
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		lines := []string{
+			renderGeneratedDocHeader(),
+			renderHeroBlock(cfg.HeroImage, title),
+			fmt.Sprintf("# %s", title),
 			"",
-			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
-			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
-			"- [Codex Upstream Reference](docs/codex-upstream-reference.md)",
+			"이 저장소는 NambaAI로 관리됩니다. 이 README는 `namba sync`가 생성하며, 기여자가 코드를 건드리기 전에 작업 흐름을 빠르게 이해할 수 있도록 돕습니다.",
 			"",
-			"## Current Defaults",
+			renderLanguageLinks(""),
 			"",
-			fmt.Sprintf("- Working language: %s", humanLanguageName(profile.DocumentationLanguage)),
-			fmt.Sprintf("- PR base branch: `%s`", prBaseBranch(profile)),
-			fmt.Sprintf("- Codex review comment: `%s`", codexReviewComment(profile)),
-			"- source of truth: `.namba/`",
+		}
+		lines = append(lines, renderManagedProjectRootWhatYouCanDoSection(lang)...)
+		lines = append(lines, renderManagedProjectRootQuickStartSection(lang)...)
+		lines = append(lines, renderManagedProjectRootReadMoreSection(lang)...)
+		lines = append(lines, renderManagedProjectRootCurrentDefaultsSection(lang, profile)...)
+		return strings.Join(lines, "\n")
+	case "ja":
+		lines := []string{
+			renderGeneratedDocHeader(),
+			renderHeroBlock(cfg.HeroImage, title),
+			fmt.Sprintf("# %s", title),
 			"",
-		}, "\n")
+			"このリポジトリは NambaAI で管理されています。この README は `namba sync` によって生成され、コントリビューターがコードに触る前に作業フローを素早く理解できるようにします。",
+			"",
+			renderLanguageLinks(""),
+			"",
+		}
+		lines = append(lines, renderManagedProjectRootWhatYouCanDoSection(lang)...)
+		lines = append(lines, renderManagedProjectRootQuickStartSection(lang)...)
+		lines = append(lines, renderManagedProjectRootReadMoreSection(lang)...)
+		lines = append(lines, renderManagedProjectRootCurrentDefaultsSection(lang, profile)...)
+		return strings.Join(lines, "\n")
+	case "zh":
+		lines := []string{
+			renderGeneratedDocHeader(),
+			renderHeroBlock(cfg.HeroImage, title),
+			fmt.Sprintf("# %s", title),
+			"",
+			"这个仓库由 NambaAI 管理。README 由 `namba sync` 生成，目的是让贡献者在修改代码前就能快速理解工作流。",
+			"",
+			renderLanguageLinks(""),
+			"",
+		}
+		lines = append(lines, renderManagedProjectRootWhatYouCanDoSection(lang)...)
+		lines = append(lines, renderManagedProjectRootQuickStartSection(lang)...)
+		lines = append(lines, renderManagedProjectRootReadMoreSection(lang)...)
+		lines = append(lines, renderManagedProjectRootCurrentDefaultsSection(lang, profile)...)
+		return strings.Join(lines, "\n")
+	default:
+		lines := []string{
+			renderGeneratedDocHeader(),
+			renderHeroBlock(cfg.HeroImage, title),
+			fmt.Sprintf("# %s", title),
+			"",
+			"This repository is managed with NambaAI. The README is generated by `namba sync` so contributors can understand the workflow before they touch the code.",
+			"",
+			renderLanguageLinks(""),
+			"",
+		}
+		lines = append(lines, renderManagedProjectRootWhatYouCanDoSection(lang)...)
+		lines = append(lines, renderManagedProjectRootQuickStartSection(lang)...)
+		lines = append(lines, renderManagedProjectRootCommandSkillsSection(lang)...)
+		lines = append(lines, renderManagedProjectRootSkillMappingSection(lang)...)
+		lines = append(lines, renderManagedProjectRootCustomAgentsSection(lang)...)
+		lines = append(lines, renderManagedProjectRootReadMoreSection(lang)...)
+		lines = append(lines, renderManagedProjectRootCurrentDefaultsSection(lang, profile)...)
+		return strings.Join(lines, "\n")
 	}
 }
 
@@ -1097,221 +1800,22 @@ func renderManagedProjectGuide(lang, guide string, projectCfg projectConfig, pro
 }
 
 func renderNambaCLIGettingStarted(lang string) string {
-	switch normalizeReadmeLanguage(lang) {
-	case "ko":
-		lines := []string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "getting-started")),
-			"",
-			renderLanguageLinks("../"),
-			"",
-			renderDocLinkBar(lang),
-			"",
-			"## 1. 설치",
-			"",
-			fmt.Sprintf("- Windows: `%s`", nambaInstallPowerShell),
-			"- Windows에서 저장소 안쪽 작업을 많이 한다면 Codex CLI 경험을 위해 WSL workspace를 권장합니다.",
-			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
-			"- 기본 경로가 아닌 곳에 설치하려면 `NAMBA_INSTALL_DIR`를 사용하세요.",
-			"",
-		}
-		lines = append(lines, renderNambaCLIUpdateGuideSection(lang)...)
-		lines = append(lines, renderNambaCLIUninstallGuideSection(lang)...)
-		lines = append(lines,
-			"## 4. 새 저장소 부트스트랩",
-			"",
-			"```text",
-			"mkdir my-project",
-			"cd my-project",
-			"namba init .",
-			"```",
-			"",
-			"wizard는 작업 언어, approval_policy, sandbox_mode, PR 언어, Codex agent mode를 함께 정렬합니다.",
-			"",
-			"## 5. 기본 Codex 흐름 실행",
-			"",
-			"```text",
-			"namba project",
-			"namba plan \"add dashboard filters\"",
-			"namba run SPEC-001",
-			"namba sync",
-			"namba pr \"add dashboard filters\"",
-			"namba land",
-			"```",
-			"",
-			"## 6. 다음 문서",
-			"",
-			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
-			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
-			"",
-		)
-		return strings.Join(lines, "\n")
-	case "ja":
-		lines := []string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "getting-started")),
-			"",
-			renderLanguageLinks("../"),
-			"",
-			renderDocLinkBar(lang),
-			"",
-			"## 1. インストール",
-			"",
-			fmt.Sprintf("- Windows: `%s`", nambaInstallPowerShell),
-			"- Windows でリポジトリ内の作業が多いなら、Codex CLI 体験のために WSL workspace を推奨します。",
-			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
-			"- 既定以外の場所へ入れたい場合は `NAMBA_INSTALL_DIR` を使ってください。",
-			"",
-		}
-		lines = append(lines, renderNambaCLIUpdateGuideSection(lang)...)
-		lines = append(lines, renderNambaCLIUninstallGuideSection(lang)...)
-		lines = append(lines,
-			"## 4. 新しいリポジトリをブートストラップ",
-			"",
-			"```text",
-			"mkdir my-project",
-			"cd my-project",
-			"namba init .",
-			"```",
-			"",
-			"wizard は作業言語、approval_policy、sandbox_mode、PR 言語、Codex agent mode をまとめてそろえます。",
-			"",
-			"## 5. 基本の Codex フローを実行",
-			"",
-			"```text",
-			"namba project",
-			"namba plan \"add dashboard filters\"",
-			"namba run SPEC-001",
-			"namba sync",
-			"namba pr \"add dashboard filters\"",
-			"namba land",
-			"```",
-			"",
-			"## 6. 次に読む文書",
-			"",
-			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
-			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
-			"",
-		)
-		return strings.Join(lines, "\n")
-	case "zh":
-		lines := []string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "getting-started")),
-			"",
-			renderLanguageLinks("../"),
-			"",
-			renderDocLinkBar(lang),
-			"",
-			"## 1. 安装",
-			"",
-			fmt.Sprintf("- Windows: `%s`", nambaInstallPowerShell),
-			"- 如果你经常在 Windows 下直接在仓库里工作，建议使用 WSL workspace 以获得更好的 Codex CLI 体验。",
-			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
-			"- 如果需要安装到非默认位置，请使用 `NAMBA_INSTALL_DIR`。",
-			"",
-		}
-		lines = append(lines, renderNambaCLIUpdateGuideSection(lang)...)
-		lines = append(lines, renderNambaCLIUninstallGuideSection(lang)...)
-		lines = append(lines,
-			"## 4. 初始化新仓库",
-			"",
-			"```text",
-			"mkdir my-project",
-			"cd my-project",
-			"namba init .",
-			"```",
-			"",
-			"wizard 会统一工作语言、approval_policy、sandbox_mode、PR 语言以及 Codex agent mode。",
-			"",
-			"## 5. 运行基础 Codex 流程",
-			"",
-			"```text",
-			"namba project",
-			"namba plan \"add dashboard filters\"",
-			"namba run SPEC-001",
-			"namba sync",
-			"namba pr \"add dashboard filters\"",
-			"namba land",
-			"```",
-			"",
-			"## 6. 接下来阅读",
-			"",
-			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
-			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
-			"",
-		)
-		return strings.Join(lines, "\n")
-	default:
-		lines := []string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "getting-started")),
-			"",
-			renderLanguageLinks("../"),
-			"",
-			renderDocLinkBar(lang),
-			"",
-			"## 1. Install",
-			"",
-			fmt.Sprintf("- Windows: `%s`", nambaInstallPowerShell),
-			"- For the best Codex CLI experience on Windows, use a WSL workspace when you work inside a repository.",
-			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
-			"- Use `NAMBA_INSTALL_DIR` when you want a non-default install location.",
-			"",
-		}
-		lines = append(lines, renderNambaCLIUpdateGuideSection(lang)...)
-		lines = append(lines, renderNambaCLIUninstallGuideSection(lang)...)
-		lines = append(lines,
-			"## 4. Bootstrap a new repository",
-			"",
-			"```text",
-			"mkdir my-project",
-			"cd my-project",
-			"namba init .",
-			"```",
-			"",
-			"The wizard aligns working language, approval_policy, sandbox_mode, PR language, and Codex agent mode.",
-			"",
-			"## 5. Run the basic Codex flow",
-			"",
-			"```text",
-			"namba project",
-			"namba plan \"add dashboard filters\"",
-			"namba run SPEC-001",
-			"namba sync",
-			"namba pr \"add dashboard filters\"",
-			"namba land",
-			"```",
-			"",
-			"## 6. Read next",
-			"",
-			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
-			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
-			"",
-		)
-		return strings.Join(lines, "\n")
-	}
+	lines := renderReadmeGuidePrelude(lang, "getting-started")
+	lines = append(lines, renderNambaCLIGettingStartedInstallSection(lang)...)
+	lines = append(lines, renderNambaCLIUpdateGuideSection(lang)...)
+	lines = append(lines, renderNambaCLIUninstallGuideSection(lang)...)
+	lines = append(lines, renderNambaCLIGettingStartedBootstrapSection(lang)...)
+	lines = append(lines, renderNambaCLIGettingStartedBasicFlowSection(lang)...)
+	lines = append(lines, renderNambaCLIGettingStartedNextDocsSection(lang)...)
+	return strings.Join(lines, "\n")
 }
 
 func renderNambaCLIWorkflowGuide(lang string) string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
-		lines := []string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "workflow-guide")),
-			"",
-			renderLanguageLinks("../"),
-			"",
-			renderDocLinkBar(lang),
-			"",
-			"## `update`, `regen`, `sync`, `pr`, `land`는 서로 다른 명령입니다",
-			"",
-			"- `namba update`: 설치된 CLI를 GitHub Release 자산 기준으로 self-update 합니다.",
-			"- `namba regen`: AGENTS, skills, custom agents, repo Codex config 같은 template-generated asset을 다시 생성합니다.",
-			"- `namba sync`: README, 프로젝트 문서, codemap, advisory review readiness, PR checklist, release notes를 갱신합니다.",
-			"- `namba pr`: 기본적으로 sync와 validation을 돌리고, 현재 브랜치를 commit/push 한 뒤 PR을 만들거나 재사용하고 Codex review marker를 보장합니다.",
-			"- `namba land`: 필요하면 체크를 기다리고, PR이 깨끗할 때만 머지한 뒤 로컬 `main`을 안전하게 갱신합니다.",
-			"",
+		lines := renderReadmeGuidePrelude(lang, "workflow-guide")
+		lines = append(lines, renderNambaCLIWorkflowGuideCommandDifferencesSection(lang)...)
+		lines = append(lines,
 			"## 계획 명령",
 			"",
 			"- `$namba-help`: NambaAI 사용법, 다음에 어떤 명령이나 skill을 선택할지, 어디 문서를 봐야 하는지 read-only로 안내합니다.",
@@ -1345,52 +1849,16 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- `namba regen` 또는 `namba sync`가 생성된 instruction surface를 바꾸면, 긴 repair loop를 이어 가기 전에 fresh Codex session을 시작해 갱신된 지침을 다시 불러오세요.",
 			"- 리뷰 통과가 없어도 기본적으로 advisory 상태를 유지합니다. `namba run`, `namba sync`, `namba pr`는 readiness 요약을 보여주지만 조용히 hard gate로 바꾸지는 않습니다.",
 			"",
-			"## PR 및 머지 흐름",
-			"",
-			"- `namba sync`는 로컬 산출물 갱신에만 머뭅니다.",
-			"- `namba pr`는 validation, commit, push, PR handoff를 담당합니다.",
-			"- `namba land`는 clean PR을 merge하고 local `main`을 갱신합니다.",
-			"",
-			"## 주요 생성 산출물",
-			"",
-			"- `.namba/`: config, SPEC packages, project docs, logs",
-			"- `.namba/specs/<SPEC>/reviews/`: 각 SPEC의 advisory product, engineering, design, readiness artifact",
-			"- `.agents/skills/`: Codex가 직접 사용하는 repo-local skills",
-			"- `.codex/config.toml`: repo-local Codex defaults 와 Namba-managed MCP preset",
-			"- `.codex/agents/*.toml`: project-scoped custom agents",
-			"- `.namba/project/*`: change summary, release notes, checklist, codemap",
-			"",
-			"## 협업 기본값",
-			"",
-			"- 작업은 전용 브랜치에서 진행합니다.",
-			"- `namba pr`은 `main`을 대상으로 하고, 설정된 PR 언어와 review marker를 그대로 유지합니다.",
-			"- `namba land`는 깨끗한 PR만 머지하고, 관련 없는 로컬 작업을 덮어쓰지 않은 채 `main`을 갱신합니다.",
-			"- GitHub review 요청은 `@codex review`를 사용합니다.",
-			"",
-			"## 릴리스 흐름",
-			"",
-			"- `namba release`는 `main`에서 clean working tree를 요구합니다.",
-			"- `--push`는 새 태그와 `main`을 함께 push한 뒤 GitHub Release workflow를 트리거합니다.",
-			"",
-		}
+		)
+		lines = append(lines, renderNambaCLIWorkflowGuidePRMergeSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideAssetsSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideCollaborationDefaultsSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
 		return strings.Join(lines, "\n")
 	case "ja":
-		lines := []string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "workflow-guide")),
-			"",
-			renderLanguageLinks("../"),
-			"",
-			renderDocLinkBar(lang),
-			"",
-			"## `update`, `regen`, `sync`, `pr`, `land` はそれぞれ別のコマンドです",
-			"",
-			"- `namba update`: インストール済み CLI を GitHub Release 資産から self-update します。",
-			"- `namba regen`: AGENTS、skills、custom agents、repo Codex config などの template-generated asset を再生成します。",
-			"- `namba sync`: README、project docs、codemap、advisory review readiness、PR checklist、release notes を更新します。",
-			"- `namba pr`: 既定で sync と validation を実行し、現在のブランチを commit / push した上で PR を作成または再利用し、Codex review marker を保証します。",
-			"- `namba land`: 必要なら checks を待ち、PR が clean なときだけ merge してから local `main` を安全に更新します。",
-			"",
+		lines := renderReadmeGuidePrelude(lang, "workflow-guide")
+		lines = append(lines, renderNambaCLIWorkflowGuideCommandDifferencesSection(lang)...)
+		lines = append(lines,
 			"## 計画コマンド",
 			"",
 			"- `$namba-help`: NambaAI の使い方、次にどの command や skill を選ぶべきか、どの文書を見るべきかを read-only で案内します。",
@@ -1424,52 +1892,16 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- `namba regen` または `namba sync` が生成された instruction surface を変えた場合は、長い repair loop を続ける前に fresh Codex session を開始して更新済み guidance を読み直してください。",
 			"- review pass が欠けていても既定では advisory のままです。`namba run`、`namba sync`、`namba pr` は readiness summary を表示しますが、黙って hard gate にはしません。",
 			"",
-			"## PR とマージの流れ",
-			"",
-			"- `namba sync` はローカル成果物の更新にとどまります。",
-			"- `namba pr` は validation、commit、push、PR handoff を担当します。",
-			"- `namba land` は clean な PR を merge し、local `main` を更新します。",
-			"",
-			"## 主な生成物",
-			"",
-			"- `.namba/`: config、SPEC packages、project docs、logs",
-			"- `.namba/specs/<SPEC>/reviews/`: 各 SPEC の advisory product / engineering / design / readiness artifact",
-			"- `.agents/skills/`: Codex が直接使う repo-local skills",
-			"- `.codex/config.toml`: repo-local Codex defaults と Namba-managed MCP preset",
-			"- `.codex/agents/*.toml`: project-scoped custom agents",
-			"- `.namba/project/*`: change summary、release notes、checklist、codemap",
-			"",
-			"## 協業の既定値",
-			"",
-			"- 作業は専用ブランチで進めます。",
-			"- `namba pr` は `main` を対象にし、設定済みの PR 言語と review marker をそのまま維持します。",
-			"- `namba land` は clean な PR だけを merge し、無関係な local work を壊さずに `main` を更新します。",
-			"- GitHub review request には `@codex review` を使います。",
-			"",
-			"## リリースフロー",
-			"",
-			"- `namba release` は `main` 上の clean working tree を要求します。",
-			"- `--push` は新しい tag と `main` をまとめて push し、その後 GitHub Release workflow を起動します。",
-			"",
-		}
+		)
+		lines = append(lines, renderNambaCLIWorkflowGuidePRMergeSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideAssetsSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideCollaborationDefaultsSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
 		return strings.Join(lines, "\n")
 	case "zh":
-		lines := []string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "workflow-guide")),
-			"",
-			renderLanguageLinks("../"),
-			"",
-			renderDocLinkBar(lang),
-			"",
-			"## `update`、`regen`、`sync`、`pr`、`land` 是不同的命令",
-			"",
-			"- `namba update`: 从 GitHub Release 资产对已安装的 CLI 做 self-update。",
-			"- `namba regen`: 重新生成 AGENTS、skills、custom agents、repo Codex config 等 template-generated asset。",
-			"- `namba sync`: 刷新 README、project docs、codemap、advisory review readiness、PR checklist 和 release notes。",
-			"- `namba pr`: 默认先跑 sync 和 validation，把当前分支 commit / push 后创建或复用 PR，并确保 Codex review marker 存在。",
-			"- `namba land`: 需要时等待 checks，只在 PR clean 时 merge，然后安全更新本地 `main`。",
-			"",
+		lines := renderReadmeGuidePrelude(lang, "workflow-guide")
+		lines = append(lines, renderNambaCLIWorkflowGuideCommandDifferencesSection(lang)...)
+		lines = append(lines,
 			"## 规划命令",
 			"",
 			"- `$namba-help`: 以 read-only 方式说明如何使用 NambaAI、下一步该选哪个命令或 skill、以及应该看哪些文档。",
@@ -1503,52 +1935,16 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- 如果 `namba regen` 或 `namba sync` 改变了生成的 instruction surface，请在继续长 repair loop 之前启动一个 fresh Codex session，以重新加载更新后的 guidance。",
 			"- 即使 review pass 缺失，默认也只是 advisory。`namba run`、`namba sync`、`namba pr` 会展示 readiness summary，但不会悄悄变成 hard gate。",
 			"",
-			"## PR 与合并流程",
-			"",
-			"- `namba sync` 只负责刷新本地产物。",
-			"- `namba pr` 负责 validation、commit、push 和 PR handoff。",
-			"- `namba land` 负责合并 clean PR 并更新本地 `main`。",
-			"",
-			"## 主要生成产物",
-			"",
-			"- `.namba/`: config、SPEC packages、project docs、logs",
-			"- `.namba/specs/<SPEC>/reviews/`: 每个 SPEC 的 advisory product / engineering / design / readiness artifact",
-			"- `.agents/skills/`: Codex 直接使用的 repo-local skills",
-			"- `.codex/config.toml`: repo-local Codex defaults 和 Namba-managed MCP preset",
-			"- `.codex/agents/*.toml`: project-scoped custom agents",
-			"- `.namba/project/*`: change summary、release notes、checklist、codemap",
-			"",
-			"## 协作默认值",
-			"",
-			"- 工作应在专用分支上进行。",
-			"- `namba pr` 以 `main` 为目标，并保持配置中的 PR 语言和 review marker 一致。",
-			"- `namba land` 只合并 clean PR，并在不覆盖无关本地改动的前提下更新 `main`。",
-			"- GitHub review request 使用 `@codex review`。",
-			"",
-			"## 发布流程",
-			"",
-			"- `namba release` 要求 `main` 上是 clean working tree。",
-			"- `--push` 会同时 push 新 tag 和 `main`，然后触发 GitHub Release workflow。",
-			"",
-		}
+		)
+		lines = append(lines, renderNambaCLIWorkflowGuidePRMergeSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideAssetsSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideCollaborationDefaultsSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
 		return strings.Join(lines, "\n")
 	default:
-		return strings.Join([]string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "workflow-guide")),
-			"",
-			renderLanguageLinks("../"),
-			"",
-			renderDocLinkBar(lang),
-			"",
-			"## `update`, `regen`, `sync`, `pr`, and `land` are different commands",
-			"",
-			"- `namba update`: self-update the installed CLI from GitHub Release assets",
-			"- `namba regen`: regenerate AGENTS, skills, custom agents, and repo Codex config",
-			"- `namba sync`: refresh README, project docs, codemaps, advisory review readiness, PR checklists, and release notes",
-			"- `namba pr`: run sync plus validation by default, commit and push the current branch, open or reuse the PR, and ensure the Codex review marker exists",
-			"- `namba land`: optionally wait for checks, merge only when the PR is clean, and update local `main` safely",
-			"",
+		lines := renderReadmeGuidePrelude(lang, "workflow-guide")
+		lines = append(lines, renderNambaCLIWorkflowGuideCommandDifferencesSection(lang)...)
+		lines = append(lines,
 			"## Planning commands",
 			"",
 			"- `$namba-help`: read-only guidance on how to use NambaAI, which command or skill to choose next, and where the authoritative docs live.",
@@ -1582,34 +1978,263 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- If `namba regen` or `namba sync` changes generated instruction surfaces, start a fresh Codex session so the updated guidance is loaded before continuing a long repair loop.",
 			"- Missing review passes stay advisory by default: `namba run`, `namba sync`, and `namba pr` surface the current readiness summary without silently hard-blocking delivery.",
 			"",
-			"## PR and merge flow",
+		)
+		lines = append(lines, renderNambaCLIWorkflowGuidePRMergeSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideAssetsSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideCollaborationDefaultsSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
+		return strings.Join(lines, "\n")
+	}
+}
+
+func renderManagedProjectGettingStartedOpenSection(lang, projectName string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 1. 저장소 열기",
 			"",
-			"- `namba sync` stays local and refreshes generated artifacts only.",
-			"- `namba pr` handles validation, commit, push, and PR handoff.",
-			"- `namba land` merges a clean PR and updates local `main`.",
+			fmt.Sprintf("- `%s` 루트에서 Codex를 시작하세요.", projectName),
+			"- 빠른 준비 상태 점검이 필요하면 `namba doctor`를 실행하세요.",
 			"",
-			"## Key generated assets",
+		}
+	case "ja":
+		return []string{
+			"## 1. リポジトリを開く",
 			"",
-			"- `.namba/`: config, SPEC packages, project docs, logs",
-			"- `.namba/specs/<SPEC>/reviews/`: advisory product, engineering, design, and readiness artifacts for each SPEC",
-			"- `.agents/skills/`: repo-local skills used directly by Codex",
-			"- `.codex/config.toml`: repo-local Codex defaults plus any configured Namba-managed MCP presets",
-			"- `.codex/agents/*.toml`: project-scoped custom agents",
-			"- `.namba/project/*`: change summary, release notes, checklist, codemap",
+			fmt.Sprintf("- `%s` のルートから Codex を開始してください。", projectName),
+			"- すばやい準備状態チェックが必要なら `namba doctor` を実行してください。",
 			"",
-			"## Collaboration defaults",
+		}
+	case "zh":
+		return []string{
+			"## 1. 打开仓库",
 			"",
-			"- Work happens on dedicated branches.",
-			"- `namba pr` targets `main` and keeps the configured PR language plus review marker aligned.",
-			"- `namba land` merges only clean PRs and updates local `main` without clobbering unrelated work.",
-			"- GitHub review requests use `@codex review`.",
+			fmt.Sprintf("- 从 `%s` 根目录启动 Codex。", projectName),
+			"- 如果需要快速检查准备状态，可以运行 `namba doctor`。",
 			"",
-			"## Release flow",
+		}
+	default:
+		return []string{
+			"## 1. Open the repository",
 			"",
-			"- `namba release` requires a clean working tree on `main`.",
-			"- `--push` pushes both the new tag and `main`, then triggers the GitHub Release workflow.",
+			fmt.Sprintf("- Start Codex from the root of `%s`.", projectName),
+			"- On Windows, prefer a WSL workspace when you want the best Codex CLI behavior inside the repository.",
+			"- Run `namba doctor` if you want a quick readiness check.",
 			"",
-		}, "\n")
+		}
+	}
+}
+
+func renderManagedProjectGettingStartedRefreshContextSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 2. 현재 컨텍스트 갱신",
+			"",
+			"```text",
+			"namba project",
+			"```",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 2. 現在のコンテキストを更新",
+			"",
+			"```text",
+			"namba project",
+			"```",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 2. 刷新当前上下文",
+			"",
+			"```text",
+			"namba project",
+			"```",
+			"",
+		}
+	default:
+		return []string{
+			"## 2. Refresh current context",
+			"",
+			"```text",
+			"namba project",
+			"```",
+			"",
+		}
+	}
+}
+
+func renderManagedProjectGettingStartedWorkPackageSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 3. 작업 패키지 만들기",
+			"",
+			"- 기능 요청: `namba plan \"description\"`",
+			"- harness 요청: `namba harness \"description\"`",
+			"- 버그 수정 SPEC 계획: `namba fix --command plan \"issue description\"`",
+			"- 현재 workspace에서 직접 버그 수정: `namba fix \"issue description\"` 또는 `namba fix --command run \"issue description\"`",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 3. 作業パッケージを作る",
+			"",
+			"- 機能要求: `namba plan \"description\"`",
+			"- harness 要求: `namba harness \"description\"`",
+			"- バグ修正 SPEC の計画: `namba fix --command plan \"issue description\"`",
+			"- 現在の workspace で直接バグ修正: `namba fix \"issue description\"` または `namba fix --command run \"issue description\"`",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 3. 创建工作包",
+			"",
+			"- 功能请求: `namba plan \"description\"`",
+			"- harness 请求: `namba harness \"description\"`",
+			"- 规划缺陷修复 SPEC: `namba fix --command plan \"issue description\"`",
+			"- 在当前 workspace 直接修复缺陷: `namba fix \"issue description\"` 或 `namba fix --command run \"issue description\"`",
+			"",
+		}
+	default:
+		return []string{
+			"## 3. Create a work package",
+			"",
+			"- Feature request: `namba plan \"description\"`",
+			"- Harness request: `namba harness \"description\"`",
+			"- Bugfix SPEC planning: `namba fix --command plan \"issue description\"`",
+			"- Direct repair in the current workspace: `namba fix \"issue description\"` or `namba fix --command run \"issue description\"`",
+			"",
+		}
+	}
+}
+
+func renderManagedProjectGettingStartedReviewReadinessSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 4. 계획 준비도 검토",
+			"",
+			"- 코딩 전에 product, engineering, design 관점 검토가 필요하면 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`를 사용하세요.",
+			"- `namba run`과 `namba pr` 전에 `.namba/specs/<SPEC>/reviews/readiness.md`를 최신 상태로 유지하세요.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 4. 計画の準備度を確認",
+			"",
+			"- 実装前に product / engineering / design の観点レビューが必要なら `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` を使ってください。",
+			"- `namba run` と `namba pr` の前に `.namba/specs/<SPEC>/reviews/readiness.md` を最新に保ってください。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 4. 检查计划准备度",
+			"",
+			"- 如果在编码前需要 product / engineering / design 视角的评审，请使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review`。",
+			"- 在 `namba run` 和 `namba pr` 之前，请保持 `.namba/specs/<SPEC>/reviews/readiness.md` 为最新状态。",
+			"",
+		}
+	default:
+		return []string{
+			"## 4. Review plan readiness",
+			"",
+			"- Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when a SPEC needs product, engineering, or design critique before coding starts.",
+			"- Keep `.namba/specs/<SPEC>/reviews/readiness.md` current so review depth stays visible before `namba run` and `namba pr`.",
+			"",
+		}
+	}
+}
+
+func renderManagedProjectGettingStartedImplementSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 5. 구현 및 sync",
+			"",
+			"```text",
+			"namba run SPEC-001",
+			"namba sync",
+			"```",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 5. 実装と sync",
+			"",
+			"```text",
+			"namba run SPEC-001",
+			"namba sync",
+			"```",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 5. 实现并 sync",
+			"",
+			"```text",
+			"namba run SPEC-001",
+			"namba sync",
+			"```",
+			"",
+		}
+	default:
+		return []string{
+			"## 5. Implement and sync",
+			"",
+			"```text",
+			"namba run SPEC-001",
+			"namba sync",
+			"```",
+			"",
+		}
+	}
+}
+
+func renderManagedProjectGettingStartedHandoffSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 6. 인계 및 머지",
+			"",
+			"```text",
+			"namba pr \"work description\"",
+			"namba land",
+			"```",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 6. 引き渡しとマージ",
+			"",
+			"```text",
+			"namba pr \"work description\"",
+			"namba land",
+			"```",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 6. 交接与合并",
+			"",
+			"```text",
+			"namba pr \"work description\"",
+			"namba land",
+			"```",
+			"",
+		}
+	default:
+		return []string{
+			"## 6. Hand off and merge",
+			"",
+			"```text",
+			"namba pr \"work description\"",
+			"namba land",
+			"```",
+			"",
+		}
 	}
 }
 
@@ -1618,216 +2243,69 @@ func renderManagedProjectGettingStarted(lang string, projectCfg projectConfig) s
 	if projectName == "" {
 		projectName = "this repository"
 	}
+	lines := renderReadmeGuidePrelude(lang, "getting-started")
+	lines = append(lines, renderManagedProjectGettingStartedOpenSection(lang, projectName)...)
+	lines = append(lines, renderManagedProjectGettingStartedRefreshContextSection(lang)...)
+	lines = append(lines, renderManagedProjectGettingStartedWorkPackageSection(lang)...)
+	lines = append(lines, renderManagedProjectGettingStartedReviewReadinessSection(lang)...)
+	lines = append(lines, renderManagedProjectGettingStartedImplementSection(lang)...)
+	lines = append(lines, renderManagedProjectGettingStartedHandoffSection(lang)...)
+	return strings.Join(lines, "\n")
+}
+
+func renderManagedProjectWorkflowGuideCollaborationRulesSection(lang string, profile initProfile) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
-		return strings.Join([]string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "getting-started")),
+		return []string{
+			"## 협업 규칙",
 			"",
-			renderLanguageLinks("../"),
+			fmt.Sprintf("- base branch: `%s`", branchBase(profile)),
+			fmt.Sprintf("- PR base: `%s`", prBaseBranch(profile)),
+			fmt.Sprintf("- PR language: %s", humanLanguageName(profile.PRLanguage)),
+			fmt.Sprintf("- review request: `%s`", codexReviewComment(profile)),
+			"- `namba sync`는 로컬 산출물 갱신에 머물고, `namba pr`와 `namba land`가 GitHub handoff와 merge를 담당합니다.",
 			"",
-			renderDocLinkBar(lang),
-			"",
-			"## 1. 저장소 열기",
-			"",
-			fmt.Sprintf("- `%s` 루트에서 Codex를 시작하세요.", projectName),
-			"- 빠른 준비 상태 점검이 필요하면 `namba doctor`를 실행하세요.",
-			"",
-			"## 2. 현재 컨텍스트 갱신",
-			"",
-			"```text",
-			"namba project",
-			"```",
-			"",
-			"## 3. 작업 패키지 만들기",
-			"",
-			"- 기능 요청: `namba plan \"description\"`",
-			"- harness 요청: `namba harness \"description\"`",
-			"- 버그 수정 SPEC 계획: `namba fix --command plan \"issue description\"`",
-			"- 현재 workspace에서 직접 버그 수정: `namba fix \"issue description\"` 또는 `namba fix --command run \"issue description\"`",
-			"",
-			"## 4. 계획 준비도 검토",
-			"",
-			"- 코딩 전에 product, engineering, design 관점 검토가 필요하면 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`를 사용하세요.",
-			"- `namba run`과 `namba pr` 전에 `.namba/specs/<SPEC>/reviews/readiness.md`를 최신 상태로 유지하세요.",
-			"",
-			"## 5. 구현 및 sync",
-			"",
-			"```text",
-			"namba run SPEC-001",
-			"namba sync",
-			"```",
-			"",
-			"## 6. 인계 및 머지",
-			"",
-			"```text",
-			"namba pr \"work description\"",
-			"namba land",
-			"```",
-			"",
-		}, "\n")
+		}
 	case "ja":
-		return strings.Join([]string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "getting-started")),
+		return []string{
+			"## 協業ルール",
 			"",
-			renderLanguageLinks("../"),
+			fmt.Sprintf("- base branch: `%s`", branchBase(profile)),
+			fmt.Sprintf("- PR base: `%s`", prBaseBranch(profile)),
+			fmt.Sprintf("- PR language: %s", humanLanguageName(profile.PRLanguage)),
+			fmt.Sprintf("- review request: `%s`", codexReviewComment(profile)),
+			"- `namba sync` はローカル成果物の更新にとどまり、`namba pr` と `namba land` が GitHub handoff と merge を担当します。",
 			"",
-			renderDocLinkBar(lang),
-			"",
-			"## 1. リポジトリを開く",
-			"",
-			fmt.Sprintf("- `%s` のルートから Codex を開始してください。", projectName),
-			"- すばやい準備状態チェックが必要なら `namba doctor` を実行してください。",
-			"",
-			"## 2. 現在のコンテキストを更新",
-			"",
-			"```text",
-			"namba project",
-			"```",
-			"",
-			"## 3. 作業パッケージを作る",
-			"",
-			"- 機能要求: `namba plan \"description\"`",
-			"- harness 要求: `namba harness \"description\"`",
-			"- バグ修正 SPEC の計画: `namba fix --command plan \"issue description\"`",
-			"- 現在の workspace で直接バグ修正: `namba fix \"issue description\"` または `namba fix --command run \"issue description\"`",
-			"",
-			"## 4. 計画の準備度を確認",
-			"",
-			"- 実装前に product / engineering / design の観点レビューが必要なら `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` を使ってください。",
-			"- `namba run` と `namba pr` の前に `.namba/specs/<SPEC>/reviews/readiness.md` を最新に保ってください。",
-			"",
-			"## 5. 実装と sync",
-			"",
-			"```text",
-			"namba run SPEC-001",
-			"namba sync",
-			"```",
-			"",
-			"## 6. 引き渡しとマージ",
-			"",
-			"```text",
-			"namba pr \"work description\"",
-			"namba land",
-			"```",
-			"",
-		}, "\n")
+		}
 	case "zh":
-		return strings.Join([]string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "getting-started")),
+		return []string{
+			"## 协作规则",
 			"",
-			renderLanguageLinks("../"),
+			fmt.Sprintf("- base branch: `%s`", branchBase(profile)),
+			fmt.Sprintf("- PR base: `%s`", prBaseBranch(profile)),
+			fmt.Sprintf("- PR language: %s", humanLanguageName(profile.PRLanguage)),
+			fmt.Sprintf("- review request: `%s`", codexReviewComment(profile)),
+			"- `namba sync` 只负责刷新本地产物，`namba pr` 和 `namba land` 负责 GitHub handoff 和 merge。",
 			"",
-			renderDocLinkBar(lang),
-			"",
-			"## 1. 打开仓库",
-			"",
-			fmt.Sprintf("- 从 `%s` 根目录启动 Codex。", projectName),
-			"- 如果需要快速检查准备状态，可以运行 `namba doctor`。",
-			"",
-			"## 2. 刷新当前上下文",
-			"",
-			"```text",
-			"namba project",
-			"```",
-			"",
-			"## 3. 创建工作包",
-			"",
-			"- 功能请求: `namba plan \"description\"`",
-			"- harness 请求: `namba harness \"description\"`",
-			"- 规划缺陷修复 SPEC: `namba fix --command plan \"issue description\"`",
-			"- 在当前 workspace 直接修复缺陷: `namba fix \"issue description\"` 或 `namba fix --command run \"issue description\"`",
-			"",
-			"## 4. 检查计划准备度",
-			"",
-			"- 如果在编码前需要 product / engineering / design 视角的评审，请使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review`。",
-			"- 在 `namba run` 和 `namba pr` 之前，请保持 `.namba/specs/<SPEC>/reviews/readiness.md` 为最新状态。",
-			"",
-			"## 5. 实现并 sync",
-			"",
-			"```text",
-			"namba run SPEC-001",
-			"namba sync",
-			"```",
-			"",
-			"## 6. 交接与合并",
-			"",
-			"```text",
-			"namba pr \"work description\"",
-			"namba land",
-			"```",
-			"",
-		}, "\n")
+		}
 	default:
-		return strings.Join([]string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "getting-started")),
+		return []string{
+			"## Collaboration rules",
 			"",
-			renderLanguageLinks("../"),
+			fmt.Sprintf("- base branch: `%s`", branchBase(profile)),
+			fmt.Sprintf("- PR base: `%s`", prBaseBranch(profile)),
+			fmt.Sprintf("- PR language: %s", humanLanguageName(profile.PRLanguage)),
+			fmt.Sprintf("- review request: `%s`", codexReviewComment(profile)),
+			"- `namba sync` stays local; `namba pr` and `namba land` handle GitHub handoff plus merge.",
 			"",
-			renderDocLinkBar(lang),
-			"",
-			"## 1. Open the repository",
-			"",
-			fmt.Sprintf("- Start Codex from the root of `%s`.", projectName),
-			"- On Windows, prefer a WSL workspace when you want the best Codex CLI behavior inside the repository.",
-			"- Run `namba doctor` if you want a quick readiness check.",
-			"",
-			"## 2. Refresh current context",
-			"",
-			"```text",
-			"namba project",
-			"```",
-			"",
-			"## 3. Create a work package",
-			"",
-			"- Feature request: `namba plan \"description\"`",
-			"- Harness request: `namba harness \"description\"`",
-			"- Bugfix SPEC planning: `namba fix --command plan \"issue description\"`",
-			"- Direct repair in the current workspace: `namba fix \"issue description\"` or `namba fix --command run \"issue description\"`",
-			"",
-			"## 4. Review plan readiness",
-			"",
-			"- Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when a SPEC needs product, engineering, or design critique before coding starts.",
-			"- Keep `.namba/specs/<SPEC>/reviews/readiness.md` current so review depth stays visible before `namba run` and `namba pr`.",
-			"",
-			"## 5. Implement and sync",
-			"",
-			"```text",
-			"namba run SPEC-001",
-			"namba sync",
-			"```",
-			"",
-			"## 6. Hand off and merge",
-			"",
-			"```text",
-			"namba pr \"work description\"",
-			"namba land",
-			"```",
-			"",
-		}, "\n")
+		}
 	}
 }
 
-func renderManagedProjectWorkflowGuide(lang string, projectCfg projectConfig, profile initProfile) string {
-	projectName := projectCfg.Name
-	if projectName == "" {
-		projectName = "this repository"
-	}
+func renderManagedProjectWorkflowGuideKeyLocationsSection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
-		return strings.Join([]string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "workflow-guide")),
-			"",
-			renderLanguageLinks("../"),
-			"",
-			renderDocLinkBar(lang),
-			"",
-			fmt.Sprintf("`%s`는 NambaAI 규칙으로 관리됩니다.", projectName),
-			"",
+		return []string{
 			"## 핵심 위치",
 			"",
 			"- `.namba/`: config, specs, project docs",
@@ -1835,6 +2313,44 @@ func renderManagedProjectWorkflowGuide(lang string, projectCfg projectConfig, pr
 			"- `.agents/skills/`: Codex가 직접 쓰는 skills",
 			"- `.codex/agents/*.toml`: project-scoped custom agents",
 			"",
+		}
+	case "ja":
+		return []string{
+			"## 主要な場所",
+			"",
+			"- `.namba/`: config、specs、project docs",
+			"- `.namba/specs/<SPEC>/reviews/`: 現在の SPEC に対する advisory product / engineering / design / readiness artifact",
+			"- `.agents/skills/`: Codex が直接使う skills",
+			"- `.codex/agents/*.toml`: project-scoped custom agents",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 关键位置",
+			"",
+			"- `.namba/`: config、specs、project docs",
+			"- `.namba/specs/<SPEC>/reviews/`: 当前 SPEC 的 advisory product / engineering / design / readiness artifact",
+			"- `.agents/skills/`: Codex 直接使用的 skills",
+			"- `.codex/agents/*.toml`: project-scoped custom agents",
+			"",
+		}
+	default:
+		return []string{
+			"## Key locations",
+			"",
+			"- `.namba/`: config, specs, project docs",
+			"- `.namba/specs/<SPEC>/reviews/`: advisory product, engineering, design, and readiness artifacts for the current SPEC",
+			"- `.agents/skills/`: skills used directly by Codex",
+			"- `.codex/agents/*.toml`: project-scoped custom agents",
+			"",
+		}
+	}
+}
+
+func renderManagedProjectWorkflowGuideWorkOrderSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
 			"## 작업 순서",
 			"",
 			"1. `namba project`",
@@ -1845,6 +2361,189 @@ func renderManagedProjectWorkflowGuide(lang string, projectCfg projectConfig, pr
 			"6. `namba pr \"review title\"`",
 			"7. `namba land`",
 			"",
+		}
+	case "ja":
+		return []string{
+			"## 作業順序",
+			"",
+			"1. `namba project`",
+			"2. `namba plan`、`namba harness`、または `namba fix --command plan`",
+			"3. 必要なら関連する plan-review skill を実行し、`.namba/specs/<SPEC>/reviews/readiness.md` を更新",
+			"4. `namba run SPEC-XXX`",
+			"5. `namba sync`",
+			"6. `namba pr \"review title\"`",
+			"7. `namba land`",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 工作顺序",
+			"",
+			"1. `namba project`",
+			"2. `namba plan`、`namba harness` 或 `namba fix --command plan`",
+			"3. 必要时执行相关 plan-review skill，并更新 `.namba/specs/<SPEC>/reviews/readiness.md`",
+			"4. `namba run SPEC-XXX`",
+			"5. `namba sync`",
+			"6. `namba pr \"review title\"`",
+			"7. `namba land`",
+			"",
+		}
+	default:
+		return []string{
+			"## Work order",
+			"",
+			"1. `namba project`",
+			"2. `namba plan`, `namba harness`, or `namba fix --command plan`",
+			"3. Run the relevant plan-review skills and refresh `.namba/specs/<SPEC>/reviews/readiness.md` when the SPEC needs product, engineering, or design critique",
+			"4. `namba run SPEC-XXX`",
+			"5. `namba sync`",
+			"6. `namba pr \"review title\"`",
+			"7. `namba land`",
+			"",
+		}
+	}
+}
+
+func renderManagedProjectWorkflowGuideRunModesSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## Run 모드",
+			"",
+			"- `namba run SPEC-XXX`: 하나의 workspace에서 실행하는 표준 standalone Codex 흐름입니다.",
+			"- `namba run SPEC-XXX --solo`: 하나의 workspace에서 단일 runner를 사용합니다.",
+			"- `namba run SPEC-XXX --team`: 같은 workspace의 멀티에이전트 실행입니다.",
+			"- `namba run SPEC-XXX --parallel`: Codex subagent orchestration이 아니라 Namba-managed git worktree fan-out/fan-in 입니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## Run モード",
+			"",
+			"- `namba run SPEC-XXX`: 1 つの workspace で動く標準 standalone Codex flow です。",
+			"- `namba run SPEC-XXX --solo`: 1 つの workspace で単一 runner を使います。",
+			"- `namba run SPEC-XXX --team`: 同じ workspace の multi-agent execution です。",
+			"- `namba run SPEC-XXX --parallel`: Codex subagent orchestration ではなく、Namba-managed git worktree fan-out/fan-in です。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## Run 模式",
+			"",
+			"- `namba run SPEC-XXX`: 在单一 workspace 中运行的标准 standalone Codex flow。",
+			"- `namba run SPEC-XXX --solo`: 在单一 workspace 中使用单 runner。",
+			"- `namba run SPEC-XXX --team`: 同一 workspace 内的 multi-agent execution。",
+			"- `namba run SPEC-XXX --parallel`: 这不是 Codex subagent orchestration，而是 Namba-managed git worktree fan-out/fan-in。",
+			"",
+		}
+	default:
+		return []string{
+			"## Run modes",
+			"",
+			"- `namba run SPEC-XXX`: standard standalone Codex flow in one workspace.",
+			"- `namba run SPEC-XXX --solo`: a single runner in one workspace.",
+			"- `namba run SPEC-XXX --team`: same-workspace multi-agent execution.",
+			"- `namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.",
+			"",
+		}
+	}
+}
+
+func renderManagedProjectWorkflowGuideReviewReadinessSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 리뷰 준비도",
+			"",
+			"- `namba plan`, `namba harness`, `namba fix --command plan`은 `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, `readiness.md`를 seed 합니다.",
+			"- 구현이나 GitHub handoff 전에 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`로 review 산출물을 최신 상태로 유지하고, 생성부터 review loop까지 한 번에 처리하고 싶다면 `$namba-plan-review`를 사용하세요.",
+			"- `namba regen` 또는 `namba sync`가 생성된 instruction surface를 바꾸면, 긴 repair loop 전에 fresh Codex session을 시작해 갱신된 지침을 다시 읽어오세요.",
+			"- 리뷰 통과가 빠져 있어도 advisory 상태를 유지합니다. `namba run`, `namba sync`, `namba pr`는 readiness 요약을 노출하지만 hard gate로 삼지는 않습니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## レビュー準備度",
+			"",
+			"- `namba plan`、`namba harness`、`namba fix --command plan` は `.namba/specs/<SPEC>/reviews/product.md`、`engineering.md`、`design.md`、`readiness.md` を seed します。",
+			"- 実装または GitHub handoff の前に `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` で review artifact を最新に保ち、作成から review loop までまとめたい場合は `$namba-plan-review` を使ってください。",
+			"- `namba regen` または `namba sync` が生成された instruction surface を変えた場合は、長い repair loop の前に fresh Codex session を開始して更新済み guidance を読み直してください。",
+			"- review pass が欠けていても advisory のままです。`namba run`、`namba sync`、`namba pr` は readiness summary を表示しますが hard gate にはしません。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 评审准备度",
+			"",
+			"- `namba plan`、`namba harness` 和 `namba fix --command plan` 会 seed `.namba/specs/<SPEC>/reviews/product.md`、`engineering.md`、`design.md`、`readiness.md`。",
+			"- 在实现或 GitHub handoff 之前，使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` 保持 review artifact 最新；如果想把创建到 review loop 打包处理，就使用 `$namba-plan-review`。",
+			"- 如果 `namba regen` 或 `namba sync` 改变了生成的 instruction surface，请在长 repair loop 之前启动 fresh Codex session，重新加载更新后的 guidance。",
+			"- 即使 review pass 缺失，默认也保持 advisory。`namba run`、`namba sync`、`namba pr` 会展示 readiness summary，但不会变成 hard gate。",
+			"",
+		}
+	default:
+		return []string{
+			"## Review readiness",
+			"",
+			"- `namba plan`, `namba harness`, and `namba fix --command plan` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.",
+			"- `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` keep those artifacts current before execution or GitHub handoff, and `$namba-plan-review` bundles SPEC creation plus the parallel review loop when you want one entry point.",
+			"- If `namba regen` or `namba sync` changes generated instruction surfaces, start a fresh Codex session so the updated guidance is loaded before continuing a long repair loop.",
+			"- Review readiness is advisory by default: missing review passes are surfaced clearly by `namba run`, `namba sync`, and `namba pr`, but they do not silently become a hard gate.",
+			"",
+		}
+	}
+}
+
+func renderManagedProjectWorkflowGuideRoleRoutingSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 역할 라우팅",
+			"",
+			"- 기본 `namba run`은 specialist 신호가 강하지 않으면 standalone runner에 남습니다.",
+			"- `--solo`는 한 명의 specialist로 위험을 줄일 수 있을 때만 분기하고, `--team`은 여러 specialist와 마지막 reviewer를 같은 workspace 안에서 조율합니다.",
+			"- UI / responsive / mobile / design은 `namba-frontend-implementer`, `namba-mobile-engineer`, `namba-designer`로, API / schema / pipeline은 `namba-backend-implementer`, `namba-data-engineer`로, auth / secrets / compliance는 `namba-security-engineer`로, deployment / runtime은 `namba-devops-engineer`로 보냅니다.",
+			"- standalone runner는 integrator와 validation owner를 맡고, final acceptance는 `namba-reviewer`가 담당합니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## ロールルーティング",
+			"",
+			"- 既定の `namba run` は、specialist signal が強くない限り standalone runner に留まります。",
+			"- `--solo` は 1 人の specialist でリスクを下げられる場合だけ分岐し、`--team` は複数 specialist と最終 reviewer を同じ workspace 内で調整します。",
+			"- UI / responsive / mobile / design は `namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer` に、API / schema / pipeline は `namba-backend-implementer`、`namba-data-engineer` に、auth / secrets / compliance は `namba-security-engineer` に、deployment / runtime は `namba-devops-engineer` に割り当てます。",
+			"- standalone runner は integrator と validation owner を担い、final acceptance は `namba-reviewer` が担当します。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 角色路由",
+			"",
+			"- 默认 `namba run` 会停留在 standalone runner，除非 specialist signal 足够强。",
+			"- `--solo` 只在一个 specialist 能明显降低风险时才分流，`--team` 会在同一 workspace 内协调多个 specialist 和最终 reviewer。",
+			"- UI / responsive / mobile / design 交给 `namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer`；API / schema / pipeline 交给 `namba-backend-implementer`、`namba-data-engineer`；auth / secrets / compliance 交给 `namba-security-engineer`；deployment / runtime 交给 `namba-devops-engineer`。",
+			"- standalone runner 继续担任 integrator 和 validation owner，final acceptance 由 `namba-reviewer` 负责。",
+			"",
+		}
+	default:
+		return []string{
+			"## Role routing",
+			"",
+			"- Default `namba run` stays inside the standalone runner unless specialist signals are strong enough to justify delegation.",
+			"- `--solo` keeps the run inside one runner unless a single specialist would materially reduce risk.",
+			"- `--team` keeps the work in one workspace while coordinating multiple specialists plus a final reviewer when acceptance spans multiple domains.",
+			"- Route UI, responsive, mobile, and design work to `namba-frontend-implementer`, `namba-mobile-engineer`, or `namba-designer`; API, schema, and pipeline work to `namba-backend-implementer` or `namba-data-engineer`; auth, secrets, and compliance work to `namba-security-engineer`; deployment and runtime work to `namba-devops-engineer`.",
+			"- Keep the standalone runner as integrator and validation owner, and use `namba-reviewer` last when multiple specialists contribute.",
+			"",
+		}
+	}
+}
+
+func renderManagedProjectWorkflowGuidePlanAndFixSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
 			"## `namba plan`과 `namba fix`",
 			"",
 			"- `$namba-help`: NambaAI 사용법, 다음 명령/skill 선택, 참고 문서를 read-only로 안내합니다.",
@@ -1856,64 +2555,9 @@ func renderManagedProjectWorkflowGuide(lang string, projectCfg projectConfig, pr
 			"- `namba fix --command run \"issue description\"`: 같은 direct-repair 경로를 명시적으로 선택합니다.",
 			"- `namba <command> --help`, `namba <command> -h`, `namba help <command>`: 모든 top-level command에서 read-only help 경로로 끝나며 repo state를 바꾸지 않습니다.",
 			"",
-			"## Run 모드",
-			"",
-			"- `namba run SPEC-XXX`: 하나의 workspace에서 실행하는 표준 standalone Codex 흐름입니다.",
-			"- `namba run SPEC-XXX --solo`: 하나의 workspace에서 단일 runner를 사용합니다.",
-			"- `namba run SPEC-XXX --team`: 같은 workspace의 멀티에이전트 실행입니다.",
-			"- `namba run SPEC-XXX --parallel`: Codex subagent orchestration이 아니라 Namba-managed git worktree fan-out/fan-in 입니다.",
-			"",
-			"## 역할 라우팅",
-			"",
-			"- 기본 `namba run`은 specialist 신호가 강하지 않으면 standalone runner에 남습니다.",
-			"- `--solo`는 한 명의 specialist로 위험을 줄일 수 있을 때만 분기하고, `--team`은 여러 specialist와 마지막 reviewer를 같은 workspace 안에서 조율합니다.",
-			"- UI / responsive / mobile / design은 `namba-frontend-implementer`, `namba-mobile-engineer`, `namba-designer`로, API / schema / pipeline은 `namba-backend-implementer`, `namba-data-engineer`로, auth / secrets / compliance는 `namba-security-engineer`로, deployment / runtime은 `namba-devops-engineer`로 보냅니다.",
-			"- standalone runner는 integrator와 validation owner를 맡고, final acceptance는 `namba-reviewer`가 담당합니다.",
-			"",
-			"## 리뷰 준비도",
-			"",
-			"- `namba plan`, `namba harness`, `namba fix --command plan`은 `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, `readiness.md`를 seed 합니다.",
-			"- 구현이나 GitHub handoff 전에 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`로 review 산출물을 최신 상태로 유지하고, 생성부터 review loop까지 한 번에 처리하고 싶다면 `$namba-plan-review`를 사용하세요.",
-			"- `namba regen` 또는 `namba sync`가 생성된 instruction surface를 바꾸면, 긴 repair loop 전에 fresh Codex session을 시작해 갱신된 지침을 다시 읽어오세요.",
-			"- 리뷰 통과가 빠져 있어도 advisory 상태를 유지합니다. `namba run`, `namba sync`, `namba pr`는 readiness 요약을 노출하지만 hard gate로 삼지는 않습니다.",
-			"",
-			"## 협업 규칙",
-			"",
-			fmt.Sprintf("- base branch: `%s`", branchBase(profile)),
-			fmt.Sprintf("- PR base: `%s`", prBaseBranch(profile)),
-			fmt.Sprintf("- PR language: %s", humanLanguageName(profile.PRLanguage)),
-			fmt.Sprintf("- review request: `%s`", codexReviewComment(profile)),
-			"- `namba sync`는 로컬 산출물 갱신에 머물고, `namba pr`와 `namba land`가 GitHub handoff와 merge를 담당합니다.",
-			"",
-		}, "\n")
+		}
 	case "ja":
-		return strings.Join([]string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "workflow-guide")),
-			"",
-			renderLanguageLinks("../"),
-			"",
-			renderDocLinkBar(lang),
-			"",
-			fmt.Sprintf("`%s` は NambaAI の規約で管理されています。", projectName),
-			"",
-			"## 主要な場所",
-			"",
-			"- `.namba/`: config、specs、project docs",
-			"- `.namba/specs/<SPEC>/reviews/`: 現在の SPEC に対する advisory product / engineering / design / readiness artifact",
-			"- `.agents/skills/`: Codex が直接使う skills",
-			"- `.codex/agents/*.toml`: project-scoped custom agents",
-			"",
-			"## 作業順序",
-			"",
-			"1. `namba project`",
-			"2. `namba plan`、`namba harness`、または `namba fix --command plan`",
-			"3. 必要なら関連する plan-review skill を実行し、`.namba/specs/<SPEC>/reviews/readiness.md` を更新",
-			"4. `namba run SPEC-XXX`",
-			"5. `namba sync`",
-			"6. `namba pr \"review title\"`",
-			"7. `namba land`",
-			"",
+		return []string{
 			"## `namba plan` と `namba fix`",
 			"",
 			"- `$namba-help`: NambaAI の使い方、次の command / skill 選択、参照ドキュメントを read-only で案内します。",
@@ -1925,64 +2569,9 @@ func renderManagedProjectWorkflowGuide(lang string, projectCfg projectConfig, pr
 			"- `namba fix --command run \"issue description\"`: 同じ direct-repair path を明示的に選びます。",
 			"- `namba <command> --help`、`namba <command> -h`、`namba help <command>`: すべての top-level command で read-only の help に入り、repo state を変更しません。",
 			"",
-			"## Run モード",
-			"",
-			"- `namba run SPEC-XXX`: 1 つの workspace で動く標準 standalone Codex flow です。",
-			"- `namba run SPEC-XXX --solo`: 1 つの workspace で単一 runner を使います。",
-			"- `namba run SPEC-XXX --team`: 同じ workspace の multi-agent execution です。",
-			"- `namba run SPEC-XXX --parallel`: Codex subagent orchestration ではなく、Namba-managed git worktree fan-out/fan-in です。",
-			"",
-			"## ロールルーティング",
-			"",
-			"- 既定の `namba run` は、specialist signal が強くない限り standalone runner に留まります。",
-			"- `--solo` は 1 人の specialist でリスクを下げられる場合だけ分岐し、`--team` は複数 specialist と最終 reviewer を同じ workspace 内で調整します。",
-			"- UI / responsive / mobile / design は `namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer` に、API / schema / pipeline は `namba-backend-implementer`、`namba-data-engineer` に、auth / secrets / compliance は `namba-security-engineer` に、deployment / runtime は `namba-devops-engineer` に割り当てます。",
-			"- standalone runner は integrator と validation owner を担い、final acceptance は `namba-reviewer` が担当します。",
-			"",
-			"## レビュー準備度",
-			"",
-			"- `namba plan`、`namba harness`、`namba fix --command plan` は `.namba/specs/<SPEC>/reviews/product.md`、`engineering.md`、`design.md`、`readiness.md` を seed します。",
-			"- 実装または GitHub handoff の前に `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` で review artifact を最新に保ち、作成から review loop までまとめたい場合は `$namba-plan-review` を使ってください。",
-			"- `namba regen` または `namba sync` が生成された instruction surface を変えた場合は、長い repair loop の前に fresh Codex session を開始して更新済み guidance を読み直してください。",
-			"- review pass が欠けていても advisory のままです。`namba run`、`namba sync`、`namba pr` は readiness summary を表示しますが hard gate にはしません。",
-			"",
-			"## 協業ルール",
-			"",
-			fmt.Sprintf("- base branch: `%s`", branchBase(profile)),
-			fmt.Sprintf("- PR base: `%s`", prBaseBranch(profile)),
-			fmt.Sprintf("- PR language: %s", humanLanguageName(profile.PRLanguage)),
-			fmt.Sprintf("- review request: `%s`", codexReviewComment(profile)),
-			"- `namba sync` はローカル成果物の更新にとどまり、`namba pr` と `namba land` が GitHub handoff と merge を担当します。",
-			"",
-		}, "\n")
+		}
 	case "zh":
-		return strings.Join([]string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "workflow-guide")),
-			"",
-			renderLanguageLinks("../"),
-			"",
-			renderDocLinkBar(lang),
-			"",
-			fmt.Sprintf("`%s` 由 NambaAI 约定管理。", projectName),
-			"",
-			"## 关键位置",
-			"",
-			"- `.namba/`: config、specs、project docs",
-			"- `.namba/specs/<SPEC>/reviews/`: 当前 SPEC 的 advisory product / engineering / design / readiness artifact",
-			"- `.agents/skills/`: Codex 直接使用的 skills",
-			"- `.codex/agents/*.toml`: project-scoped custom agents",
-			"",
-			"## 工作顺序",
-			"",
-			"1. `namba project`",
-			"2. `namba plan`、`namba harness` 或 `namba fix --command plan`",
-			"3. 必要时执行相关 plan-review skill，并更新 `.namba/specs/<SPEC>/reviews/readiness.md`",
-			"4. `namba run SPEC-XXX`",
-			"5. `namba sync`",
-			"6. `namba pr \"review title\"`",
-			"7. `namba land`",
-			"",
+		return []string{
 			"## `namba plan` 和 `namba fix`",
 			"",
 			"- `$namba-help`: 以 read-only 方式说明 NambaAI 的用法、下一步该选哪个命令或 skill，以及参考文档。",
@@ -1994,74 +2583,9 @@ func renderManagedProjectWorkflowGuide(lang string, projectCfg projectConfig, pr
 			"- `namba fix --command run \"issue description\"`: 显式选择同一个 direct-repair 路径。",
 			"- `namba <command> --help`、`namba <command> -h`、`namba help <command>`: 所有 top-level command 都会走 read-only help 路径，不会改变 repo state。",
 			"",
-			"## Run 模式",
-			"",
-			"- `namba run SPEC-XXX`: 在单一 workspace 中运行的标准 standalone Codex flow。",
-			"- `namba run SPEC-XXX --solo`: 在单一 workspace 中使用单 runner。",
-			"- `namba run SPEC-XXX --team`: 同一 workspace 内的 multi-agent execution。",
-			"- `namba run SPEC-XXX --parallel`: 这不是 Codex subagent orchestration，而是 Namba-managed git worktree fan-out/fan-in。",
-			"",
-			"## 角色路由",
-			"",
-			"- 默认 `namba run` 会停留在 standalone runner，除非 specialist signal 足够强。",
-			"- `--solo` 只在一个 specialist 能明显降低风险时才分流，`--team` 会在同一 workspace 内协调多个 specialist 和最终 reviewer。",
-			"- UI / responsive / mobile / design 交给 `namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer`；API / schema / pipeline 交给 `namba-backend-implementer`、`namba-data-engineer`；auth / secrets / compliance 交给 `namba-security-engineer`；deployment / runtime 交给 `namba-devops-engineer`。",
-			"- standalone runner 继续担任 integrator 和 validation owner，final acceptance 由 `namba-reviewer` 负责。",
-			"",
-			"## 评审准备度",
-			"",
-			"- `namba plan`、`namba harness` 和 `namba fix --command plan` 会 seed `.namba/specs/<SPEC>/reviews/product.md`、`engineering.md`、`design.md`、`readiness.md`。",
-			"- 在实现或 GitHub handoff 之前，使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` 保持 review artifact 最新；如果想把创建到 review loop 打包处理，就使用 `$namba-plan-review`。",
-			"- 如果 `namba regen` 或 `namba sync` 改变了生成的 instruction surface，请在长 repair loop 之前启动 fresh Codex session，重新加载更新后的 guidance。",
-			"- 即使 review pass 缺失，默认也保持 advisory。`namba run`、`namba sync`、`namba pr` 会展示 readiness summary，但不会变成 hard gate。",
-			"",
-			"## 协作规则",
-			"",
-			fmt.Sprintf("- base branch: `%s`", branchBase(profile)),
-			fmt.Sprintf("- PR base: `%s`", prBaseBranch(profile)),
-			fmt.Sprintf("- PR language: %s", humanLanguageName(profile.PRLanguage)),
-			fmt.Sprintf("- review request: `%s`", codexReviewComment(profile)),
-			"- `namba sync` 只负责刷新本地产物，`namba pr` 和 `namba land` 负责 GitHub handoff 和 merge。",
-			"",
-		}, "\n")
+		}
 	default:
-		return strings.Join([]string{
-			renderGeneratedDocHeader(),
-			fmt.Sprintf("# %s", localizeGuideLabel(lang, "workflow-guide")),
-			"",
-			renderLanguageLinks("../"),
-			"",
-			renderDocLinkBar(lang),
-			"",
-			fmt.Sprintf("`%s` is managed with NambaAI conventions.", projectName),
-			"",
-			"## Key locations",
-			"",
-			"- `.namba/`: config, specs, project docs",
-			"- `.namba/specs/<SPEC>/reviews/`: advisory product, engineering, design, and readiness artifacts for the current SPEC",
-			"- `.agents/skills/`: skills used directly by Codex",
-			"- `.codex/agents/*.toml`: project-scoped custom agents",
-			"",
-			"## Planning commands",
-			"",
-			"- `$namba-help`: read-only guidance on how to use NambaAI, which command or skill to choose next, and where the authoritative docs live.",
-			"- `$namba-create`: use the preview-first creation flow when you need repo-local skills or project-scoped custom agents directly instead of another SPEC package.",
-			"- `namba project`: refresh current repository docs and codemaps before choosing work.",
-			"- `namba plan`: create the next feature SPEC package.",
-			"- `namba harness`: create the next harness-oriented SPEC package for reusable agent, skill, workflow, or orchestration work.",
-			"- `namba fix --command plan`: create a reviewable bugfix SPEC package.",
-			"- `namba fix`: start direct repair in the current workspace.",
-			"",
-			"## Work order",
-			"",
-			"1. `namba project`",
-			"2. `namba plan`, `namba harness`, or `namba fix --command plan`",
-			"3. Run the relevant plan-review skills and refresh `.namba/specs/<SPEC>/reviews/readiness.md` when the SPEC needs product, engineering, or design critique",
-			"4. `namba run SPEC-XXX`",
-			"5. `namba sync`",
-			"6. `namba pr \"review title\"`",
-			"7. `namba land`",
-			"",
+		return []string{
 			"## `namba plan` and `namba fix`",
 			"",
 			"- `namba project`: refresh current repository docs and codemaps without creating a SPEC package.",
@@ -2072,42 +2596,76 @@ func renderManagedProjectWorkflowGuide(lang string, projectCfg projectConfig, pr
 			"- `namba fix --command run \"issue description\"`: explicit form of the same direct-repair path.",
 			"- `namba <command> --help`, `namba <command> -h`, and `namba help <command>`: read-only help flows for every top-level command; they must not mutate repository state.",
 			"",
-			"## Run modes",
-			"",
-			"- `namba run SPEC-XXX`: standard standalone Codex flow in one workspace.",
-			"- `namba run SPEC-XXX --solo`: a single runner in one workspace.",
-			"- `namba run SPEC-XXX --team`: same-workspace multi-agent execution.",
-			"- `namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.",
-			"",
-			"## Role routing",
-			"",
-			"- Default `namba run` stays inside the standalone runner unless specialist signals are strong enough to justify delegation.",
-			"- `--solo` keeps the run inside one runner unless a single specialist would materially reduce risk.",
-			"- `--team` keeps the work in one workspace while coordinating multiple specialists plus a final reviewer when acceptance spans multiple domains.",
-			"- Route UI, responsive, mobile, and design work to `namba-frontend-implementer`, `namba-mobile-engineer`, or `namba-designer`; API, schema, and pipeline work to `namba-backend-implementer` or `namba-data-engineer`; auth, secrets, and compliance work to `namba-security-engineer`; deployment and runtime work to `namba-devops-engineer`.",
-			"- Keep the standalone runner as integrator and validation owner, and use `namba-reviewer` last when multiple specialists contribute.",
-			"",
-			"## Review readiness",
-			"",
-			"- `namba plan`, `namba harness`, and `namba fix --command plan` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.",
-			"- `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` keep those artifacts current before execution or GitHub handoff, and `$namba-plan-review` bundles SPEC creation plus the parallel review loop when you want one entry point.",
-			"- If `namba regen` or `namba sync` changes generated instruction surfaces, start a fresh Codex session so the updated guidance is loaded before continuing a long repair loop.",
-			"- Review readiness is advisory by default: missing review passes are surfaced clearly by `namba run`, `namba sync`, and `namba pr`, but they do not silently become a hard gate.",
-			"",
-			"## PR and merge flow",
-			"",
-			"- `namba sync` stays local and refreshes generated artifacts only.",
-			"- `namba pr` handles validation, commit, push, and PR handoff.",
-			"- `namba land` merges a clean PR and updates local `main`.",
-			"",
-			"## Collaboration rules",
-			"",
-			fmt.Sprintf("- base branch: `%s`", branchBase(profile)),
-			fmt.Sprintf("- PR base: `%s`", prBaseBranch(profile)),
-			fmt.Sprintf("- PR language: %s", humanLanguageName(profile.PRLanguage)),
-			fmt.Sprintf("- review request: `%s`", codexReviewComment(profile)),
-			"- `namba sync` stays local; `namba pr` and `namba land` handle GitHub handoff plus merge.",
-			"",
-		}, "\n")
+		}
 	}
+}
+
+func renderManagedProjectWorkflowGuidePlanningCommandsSection() []string {
+	return []string{
+		"## Planning commands",
+		"",
+		"- `$namba-help`: read-only guidance on how to use NambaAI, which command or skill to choose next, and where the authoritative docs live.",
+		"- `$namba-create`: use the preview-first creation flow when you need repo-local skills or project-scoped custom agents directly instead of another SPEC package.",
+		"- `namba project`: refresh current repository docs and codemaps before choosing work.",
+		"- `namba plan`: create the next feature SPEC package.",
+		"- `namba harness`: create the next harness-oriented SPEC package for reusable agent, skill, workflow, or orchestration work.",
+		"- `namba fix --command plan`: create a reviewable bugfix SPEC package.",
+		"- `namba fix`: start direct repair in the current workspace.",
+		"",
+	}
+}
+
+func renderManagedProjectWorkflowGuidePRAndMergeFlowSection() []string {
+	return []string{
+		"## PR and merge flow",
+		"",
+		"- `namba sync` stays local and refreshes generated artifacts only.",
+		"- `namba pr` handles validation, commit, push, and PR handoff.",
+		"- `namba land` merges a clean PR and updates local `main`.",
+		"",
+	}
+}
+
+func appendManagedProjectWorkflowGuideSections(lines []string, lang string, includePlanningCommands bool, includePRAndMerge bool) []string {
+	lines = append(lines, renderManagedProjectWorkflowGuideKeyLocationsSection(lang)...)
+	lines = append(lines, renderManagedProjectWorkflowGuideWorkOrderSection(lang)...)
+	if includePlanningCommands {
+		lines = append(lines, renderManagedProjectWorkflowGuidePlanningCommandsSection()...)
+	}
+	lines = append(lines, renderManagedProjectWorkflowGuidePlanAndFixSection(lang)...)
+	lines = append(lines, renderManagedProjectWorkflowGuideRunModesSection(lang)...)
+	lines = append(lines, renderManagedProjectWorkflowGuideRoleRoutingSection(lang)...)
+	lines = append(lines, renderManagedProjectWorkflowGuideReviewReadinessSection(lang)...)
+	if includePRAndMerge {
+		lines = append(lines, renderManagedProjectWorkflowGuidePRAndMergeFlowSection()...)
+	}
+	return lines
+}
+
+func renderManagedProjectWorkflowGuidePrelude(lang, projectName string) []string {
+	lines := renderReadmeGuidePrelude(lang, "workflow-guide")
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return append(lines, fmt.Sprintf("`%s`는 NambaAI 규칙으로 관리됩니다.", projectName))
+	case "ja":
+		return append(lines, fmt.Sprintf("`%s` は NambaAI の規約で管理されています。", projectName))
+	case "zh":
+		return append(lines, fmt.Sprintf("`%s` 由 NambaAI 约定管理。", projectName))
+	default:
+		return append(lines, fmt.Sprintf("`%s` is managed with NambaAI conventions.", projectName))
+	}
+}
+
+func renderManagedProjectWorkflowGuide(lang string, projectCfg projectConfig, profile initProfile) string {
+	projectName := projectCfg.Name
+	if projectName == "" {
+		projectName = "this repository"
+	}
+	normalizedLang := normalizeReadmeLanguage(lang)
+	includeEnglishOnlySections := normalizedLang == "en"
+
+	lines := renderManagedProjectWorkflowGuidePrelude(normalizedLang, projectName)
+	lines = appendManagedProjectWorkflowGuideSections(lines, normalizedLang, includeEnglishOnlySections, includeEnglishOnlySections)
+	lines = append(lines, renderManagedProjectWorkflowGuideCollaborationRulesSection(normalizedLang, profile)...)
+	return strings.Join(lines, "\n")
 }

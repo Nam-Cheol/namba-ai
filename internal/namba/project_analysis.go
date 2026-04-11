@@ -25,6 +25,11 @@ type analysisFile struct {
 	Category string
 }
 
+type analysisInventory struct {
+	Files       []analysisFile
+	SystemRoots []string
+}
+
 type analysisFinding struct {
 	Claim      string
 	Confidence string
@@ -62,13 +67,53 @@ type analysisQuality struct {
 	Errors   []string
 }
 
+type analysisHeuristicInputs struct {
+	Config     analysisConfig
+	Project    projectConfig
+	ReadmePath string
+	ReadmeBody string
+	Inventory  analysisInventory
+	Systems    []analysisSystem
+}
+
+type analysisHeuristicOutputs struct {
+	Conflicts []analysisConflict
+	Quality   analysisQuality
+}
+
+type analysisQualityInputs struct {
+	FileCount     int
+	ReadmePath    string
+	ConflictCount int
+	Systems       []analysisSystemQualitySummary
+}
+
+type analysisConflictInputs struct {
+	ReadmePath      string
+	ReadmeBody      string
+	RuntimeSignals  []string
+	RuntimeEvidence string
+}
+
+type analysisConflictRuntimeSupport struct {
+	Signals  []string
+	Evidence string
+}
+
+type analysisSystemQualitySummary struct {
+	Name                  string
+	TotalFindings         int
+	LowConfidenceCount    int
+	StrongConfidenceCount int
+}
+
 type projectAnalysis struct {
 	Config       analysisConfig
 	Project      projectConfig
 	QualityCfg   qualityConfig
 	ReadmePath   string
 	ReadmeBody   string
-	Files        []analysisFile
+	Inventory    analysisInventory
 	Systems      []analysisSystem
 	Conflicts    []analysisConflict
 	Quality      analysisQuality
@@ -137,7 +182,7 @@ func (a *App) loadAnalysisConfig(root string) (analysisConfig, error) {
 }
 
 func analyzeProject(root string, projectCfg projectConfig, qualityCfg qualityConfig, cfg analysisConfig) projectAnalysis {
-	files := collectAnalysisFiles(root, cfg)
+	inventory := buildAnalysisInventory(root, cfg)
 	readmePath := firstExisting(root, "README.md", "README.txt")
 	readmeBody := ""
 	if readmePath != "" {
@@ -146,8 +191,15 @@ func analyzeProject(root string, projectCfg projectConfig, qualityCfg qualityCon
 		}
 	}
 
-	systems := detectSystems(root, files)
-	conflicts := detectAnalysisConflicts(projectCfg, readmePath, readmeBody, files, systems, cfg)
+	systems := detectSystems(root, inventory)
+	heuristics := evaluateAnalysisHeuristics(analysisHeuristicInputs{
+		Config:     cfg,
+		Project:    projectCfg,
+		ReadmePath: readmePath,
+		ReadmeBody: readmeBody,
+		Inventory:  inventory,
+		Systems:    systems,
+	})
 
 	analysis := projectAnalysis{
 		Config:       cfg,
@@ -155,17 +207,39 @@ func analyzeProject(root string, projectCfg projectConfig, qualityCfg qualityCon
 		QualityCfg:   qualityCfg,
 		ReadmePath:   readmePath,
 		ReadmeBody:   readmeBody,
-		Files:        files,
+		Inventory:    inventory,
 		Systems:      systems,
-		Conflicts:    conflicts,
-		StructureDoc: renderAnalysisStructure(files),
+		Conflicts:    heuristics.Conflicts,
+		StructureDoc: renderAnalysisStructure(inventory.Files),
 	}
 	analysis.EntryDoc = renderEntryPointsDoc(analysis.Systems)
 	analysis.DepsDoc = renderDependenciesDoc(root, analysis.Systems)
 	analysis.FlowDoc = renderDataFlowDoc(analysis.Systems, qualityCfg)
 	analysis.OverviewDoc = renderOverviewDoc(analysis)
-	analysis.Quality = evaluateAnalysisQuality(analysis)
+	analysis.Quality = heuristics.Quality
 	return analysis
+}
+
+func evaluateAnalysisHeuristics(inputs analysisHeuristicInputs) analysisHeuristicOutputs {
+	conflictInputs := buildAnalysisConflictInputs(inputs)
+	conflicts := detectAnalysisConflicts(conflictInputs)
+	qualityInputs := buildAnalysisQualityInputs(inputs, conflicts)
+	return analysisHeuristicOutputs{
+		Conflicts: conflicts,
+		Quality:   evaluateAnalysisQuality(qualityInputs),
+	}
+}
+
+func buildAnalysisInventory(root string, cfg analysisConfig) analysisInventory {
+	files := collectAnalysisFiles(root, cfg)
+	roots := collectSystemRoots(files)
+	if len(roots) == 0 {
+		roots = []string{"."}
+	}
+	return analysisInventory{
+		Files:       files,
+		SystemRoots: roots,
+	}
 }
 
 func (p projectAnalysis) renderOutputs() map[string]string {
@@ -277,22 +351,17 @@ func classifyAnalysisFile(rel string) string {
 	}
 }
 
-func detectSystems(root string, files []analysisFile) []analysisSystem {
-	roots := collectSystemRoots(files)
-	if len(roots) == 0 {
-		roots = []string{"."}
-	}
-
+func detectSystems(root string, inventory analysisInventory) []analysisSystem {
 	var systems []analysisSystem
-	for _, systemRoot := range roots {
-		system := buildAnalysisSystem(root, systemRoot, roots, files)
+	for _, systemRoot := range inventory.SystemRoots {
+		system := buildAnalysisSystem(root, systemRoot, inventory.SystemRoots, inventory.Files)
 		if totalSystemFindings(system) == 0 {
 			continue
 		}
 		systems = append(systems, system)
 	}
 	if len(systems) == 0 {
-		systems = append(systems, buildAnalysisSystem(root, ".", roots, files))
+		systems = append(systems, buildAnalysisSystem(root, ".", inventory.SystemRoots, inventory.Files))
 	}
 	sort.Slice(systems, func(i, j int) bool { return systems[i].Root < systems[j].Root })
 	assignUniqueSystemSlugs(systems)
@@ -622,20 +691,39 @@ func buildRiskFindings(systemRoot string, files []analysisFile) []analysisFindin
 	return []analysisFinding{newFinding("System-local regression coverage exists, but end-to-end drift across generated planning docs still needs command-level validation.", "medium", testEvidence)}
 }
 
-func detectAnalysisConflicts(projectCfg projectConfig, readmePath, readmeBody string, files []analysisFile, systems []analysisSystem, cfg analysisConfig) []analysisConflict {
-	summary := docSummary(readmeBody)
+func buildAnalysisConflictInputs(inputs analysisHeuristicInputs) analysisConflictInputs {
+	runtimeSupport := buildAnalysisConflictRuntimeSupport(inputs.Project, inputs.Inventory, inputs.Systems, inputs.Config)
+	return analysisConflictInputs{
+		ReadmePath:      inputs.ReadmePath,
+		ReadmeBody:      inputs.ReadmeBody,
+		RuntimeSignals:  runtimeSupport.Signals,
+		RuntimeEvidence: runtimeSupport.Evidence,
+	}
+}
+
+func buildAnalysisConflictRuntimeSupport(projectCfg projectConfig, inventory analysisInventory, systems []analysisSystem, cfg analysisConfig) analysisConflictRuntimeSupport {
+	signals := runtimeSignals(projectCfg, inventory.Files, systems)
+	support := analysisConflictRuntimeSupport{Signals: signals}
+	if len(signals) > 0 {
+		support.Evidence = runtimeSignalEvidence(signals, inventory, systems, cfg)
+	}
+	return support
+}
+
+func detectAnalysisConflicts(inputs analysisConflictInputs) []analysisConflict {
+	summary := docSummary(inputs.ReadmeBody)
 	if summary == "" {
 		return nil
 	}
 	lower := strings.ToLower(summary)
 	var conflicts []analysisConflict
 
-	if signals := runtimeSignals(projectCfg, files, systems); len(signals) > 0 {
-		if contradictory := contradictoryRuntimeMention(lower, signals); contradictory != "" {
+	if len(inputs.RuntimeSignals) > 0 {
+		if contradictory := contradictoryRuntimeMention(lower, inputs.RuntimeSignals); contradictory != "" {
 			conflicts = append(conflicts, analysisConflict{
-				Claim:    fmt.Sprintf("README describes the repository as `%s`, but the strongest code/config signals point to `%s`.", contradictory, strings.Join(signals, ", ")),
-				Stronger: runtimeSignalEvidence(signals, files, systems, cfg),
-				Weaker:   readmePath,
+				Claim:    fmt.Sprintf("README describes the repository as `%s`, but the strongest code/config signals point to `%s`.", contradictory, strings.Join(inputs.RuntimeSignals, ", ")),
+				Stronger: blankFallback(inputs.RuntimeEvidence, "repository scan"),
+				Weaker:   inputs.ReadmePath,
 				Reason:   "code and authoritative manifests outrank prose documentation in the configured source-priority contract",
 			})
 		}
@@ -741,31 +829,30 @@ func containsAny(text string, patterns ...string) bool {
 	return false
 }
 
-func runtimeSignalEvidence(signals []string, files []analysisFile, systems []analysisSystem, cfg analysisConfig) string {
+func runtimeSignalEvidence(signals []string, inventory analysisInventory, systems []analysisSystem, cfg analysisConfig) string {
 	type candidate struct {
 		path string
 		rank int
 	}
 	var candidates []candidate
-	allRoots := collectSystemRoots(files)
 	appendEvidence := func(paths []string) {
 		for _, evidence := range paths {
 			candidates = append(candidates, candidate{
 				path: evidence,
-				rank: sourcePriorityRank(cfg, evidenceCategory(files, evidence)),
+				rank: sourcePriorityRank(cfg, evidenceCategory(inventory.Files, evidence)),
 			})
 		}
 	}
 	for _, signal := range signals {
 		switch signal {
 		case "go service":
-			appendEvidence(preferredEvidence(files, "go.mod", "main.go"))
+			appendEvidence(preferredEvidence(inventory.Files, "go.mod", "main.go"))
 		case "react frontend", "node or frontend runtime":
-			appendEvidence(preferredEvidence(files, "package.json", "src/main.tsx", "src/main.jsx", "src/app/App.tsx"))
+			appendEvidence(preferredEvidence(inventory.Files, "package.json", "src/main.tsx", "src/main.jsx", "src/app/App.tsx"))
 		case "python service":
-			appendEvidence(preferredEvidence(files, "pyproject.toml", "requirements.txt", "main.py"))
+			appendEvidence(preferredEvidence(inventory.Files, "pyproject.toml", "requirements.txt", "main.py"))
 		case "infrastructure stack":
-			appendEvidence(preferredEvidence(files, "docker-compose.yml", "docker-compose.yaml", "kustomization.yaml"))
+			appendEvidence(preferredEvidence(inventory.Files, "docker-compose.yml", "docker-compose.yaml", "kustomization.yaml"))
 		}
 	}
 	for _, system := range systems {
@@ -775,20 +862,20 @@ func runtimeSignalEvidence(signals []string, files []analysisFile, systems []ana
 		}
 		switch signal {
 		case "react frontend":
-			appendEvidence(preferredEvidence(filesForSystem(files, system.Root, allRoots), "package.json", "src/main.tsx", "src/main.jsx", "src/app/App.tsx"))
+			appendEvidence(preferredEvidence(filesForSystem(inventory.Files, system.Root, inventory.SystemRoots), "package.json", "src/main.tsx", "src/main.jsx", "src/app/App.tsx"))
 		case "go service":
-			appendEvidence(preferredEvidence(filesForSystem(files, system.Root, allRoots), "go.mod", "main.go"))
+			appendEvidence(preferredEvidence(filesForSystem(inventory.Files, system.Root, inventory.SystemRoots), "go.mod", "main.go"))
 		case "python service":
-			appendEvidence(preferredEvidence(filesForSystem(files, system.Root, allRoots), "pyproject.toml", "requirements.txt", "main.py"))
+			appendEvidence(preferredEvidence(filesForSystem(inventory.Files, system.Root, inventory.SystemRoots), "pyproject.toml", "requirements.txt", "main.py"))
 		case "infrastructure stack":
-			appendEvidence(preferredEvidence(filesForSystem(files, system.Root, allRoots), "docker-compose.yml", "docker-compose.yaml", "kustomization.yaml"))
+			appendEvidence(preferredEvidence(filesForSystem(inventory.Files, system.Root, inventory.SystemRoots), "docker-compose.yml", "docker-compose.yaml", "kustomization.yaml"))
 		}
 		if len(system.Purpose) > 0 && len(system.Purpose[0].Evidence) > 0 {
 			appendEvidence(system.Purpose[0].Evidence)
 		}
 	}
 	if len(candidates) == 0 {
-		for _, file := range files {
+		for _, file := range inventory.Files {
 			candidates = append(candidates, candidate{
 				path: file.Path,
 				rank: sourcePriorityRank(cfg, file.Category),
@@ -831,25 +918,47 @@ func containsString(items []string, target string) bool {
 	return false
 }
 
-func evaluateAnalysisQuality(analysis projectAnalysis) analysisQuality {
+func buildAnalysisQualityInputs(inputs analysisHeuristicInputs, conflicts []analysisConflict) analysisQualityInputs {
+	qualityInputs := analysisQualityInputs{
+		FileCount:     len(inputs.Inventory.Files),
+		ReadmePath:    inputs.ReadmePath,
+		ConflictCount: len(conflicts),
+		Systems:       make([]analysisSystemQualitySummary, 0, len(inputs.Systems)),
+	}
+	for _, system := range inputs.Systems {
+		qualityInputs.Systems = append(qualityInputs.Systems, summarizeAnalysisSystemQuality(system))
+	}
+	return qualityInputs
+}
+
+func summarizeAnalysisSystemQuality(system analysisSystem) analysisSystemQualitySummary {
+	return analysisSystemQualitySummary{
+		Name:                  system.Name,
+		TotalFindings:         totalSystemFindings(system),
+		LowConfidenceCount:    lowConfidenceCount(system),
+		StrongConfidenceCount: highMediumConfidenceCount(system),
+	}
+}
+
+func evaluateAnalysisQuality(inputs analysisQualityInputs) analysisQuality {
 	var quality analysisQuality
-	if len(analysis.Files) == 0 {
+	if inputs.FileCount == 0 {
 		quality.Errors = append(quality.Errors, "No analyzable files matched the configured scope. Check `.namba/config/sections/analysis.yaml` include/exclude paths.")
 		return quality
 	}
-	if len(analysis.Systems) == 0 {
+	if len(inputs.Systems) == 0 {
 		quality.Errors = append(quality.Errors, "No system boundaries or analyzable repository surface were detected.")
 		return quality
 	}
-	for _, system := range analysis.Systems {
-		if totalSystemFindings(system) < 5 {
+	for _, system := range inputs.Systems {
+		if system.TotalFindings < 5 {
 			quality.Warnings = append(quality.Warnings, fmt.Sprintf("System `%s` is thin; fewer than five evidence-backed findings were produced.", system.Name))
 		}
-		if lowConfidenceCount(system) > highMediumConfidenceCount(system) {
+		if system.LowConfidenceCount > system.StrongConfidenceCount {
 			quality.Warnings = append(quality.Warnings, fmt.Sprintf("System `%s` is dominated by low-confidence inference; add stronger code/config signals or tune analysis scope.", system.Name))
 		}
 	}
-	if len(analysis.Conflicts) == 0 && analysis.ReadmePath != "" {
+	if inputs.ConflictCount == 0 && inputs.ReadmePath != "" {
 		quality.Warnings = append(quality.Warnings, "No code-vs-doc conflicts were detected. This may be correct, but the v1 conflict heuristics remain intentionally narrow.")
 	}
 	return quality
