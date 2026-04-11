@@ -331,6 +331,10 @@ func TestResolveTopLevelInvocationPreservesHelpAndUnknownCommandContracts(t *tes
 	if _, err := app.resolveTopLevelInvocation([]string{"help", "missing"}); err == nil || !strings.Contains(err.Error(), `unknown command "missing"`) {
 		t.Fatalf("expected help missing to preserve unknown command error, got %v", err)
 	}
+
+	if _, err := app.resolveTopLevelInvocation([]string{"help", "run", "extra"}); err == nil || !strings.Contains(err.Error(), "help accepts at most one command") {
+		t.Fatalf("expected malformed help invocation to preserve parse error, got %v", err)
+	}
 }
 
 func TestUsageTextMatchesPublicTopLevelCommandUsageSummaries(t *testing.T) {

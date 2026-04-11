@@ -223,10 +223,9 @@ func parseTopLevelHelpTopic(args []string) (string, bool, error) {
 }
 
 func (a *App) resolveTopLevelInvocation(args []string) (topLevelInvocation, error) {
-	if topic, ok, err := parseTopLevelHelpTopic(args); ok {
-		if err != nil {
-			return topLevelInvocation{}, err
-		}
+	if topic, ok, err := parseTopLevelHelpTopic(args); err != nil {
+		return topLevelInvocation{}, err
+	} else if ok {
 		if topic == "" {
 			return topLevelInvocation{UsageText: usageText()}, nil
 		}
