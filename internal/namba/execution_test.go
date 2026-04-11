@@ -459,6 +459,313 @@ func TestRunRejectsConflictingExecutionModes(t *testing.T) {
 	}
 }
 
+func TestLoadExecutionRuntimeConfigLoadsQualitySystemAndCodex(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "quality.yaml"), "development_mode: tdd\ntest_command: test\nlint_command: lint\ntypecheck_command: vet\n")
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "system.yaml"), "runner: codex\napproval_policy: never\nsandbox_mode: read-only\n")
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"), "profile: namba\nsession_mode: stateful\nrepair_attempts: 2\n")
+
+	runtimeCfg, err := app.loadExecutionRuntimeConfig(tmp)
+	if err != nil {
+		t.Fatalf("loadExecutionRuntimeConfig failed: %v", err)
+	}
+
+	if runtimeCfg.QualityCfg.TestCommand != "test" || runtimeCfg.QualityCfg.LintCommand != "lint" || runtimeCfg.QualityCfg.TypecheckCommand != "vet" {
+		t.Fatalf("unexpected quality config: %+v", runtimeCfg.QualityCfg)
+	}
+	if runtimeCfg.SystemCfg.Runner != "codex" || runtimeCfg.SystemCfg.ApprovalPolicy != "never" || runtimeCfg.SystemCfg.SandboxMode != "read-only" {
+		t.Fatalf("unexpected system config: %+v", runtimeCfg.SystemCfg)
+	}
+	if runtimeCfg.CodexCfg.Profile != "namba" || runtimeCfg.CodexCfg.SessionMode != "stateful" || runtimeCfg.CodexCfg.RepairAttempts != 2 {
+		t.Fatalf("unexpected codex config: %+v", runtimeCfg.CodexCfg)
+	}
+}
+
+func TestWriteExecutionPromptCreatesParentDirAndWritesPrompt(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	path := filepath.Join(tmp, ".namba", "logs", "runs", "custom-request.md")
+	if err := app.writeExecutionPrompt(path, "hello prompt"); err != nil {
+		t.Fatalf("writeExecutionPrompt failed: %v", err)
+	}
+
+	if got := mustReadFile(t, path); got != "hello prompt" {
+		t.Fatalf("expected prompt file to be written, got %q", got)
+	}
+}
+
+func TestDirectFixRepairContractLinesCaptureRepairRules(t *testing.T) {
+	got := strings.Join(directFixRepairContractLines(), "\n")
+
+	for _, want := range []string{
+		"Inspect the relevant repository files plus `.namba/config/sections/*.yaml` and `.namba/project/*` context before editing.",
+		"Finish by running `namba sync` in the same workspace after validation passes.",
+		"Do not create or mutate `.namba/specs/<SPEC>` as part of this direct repair flow.",
+		`For bugfix SPEC scaffolding, use ` + "`namba fix --command plan \"<issue description>\"`" + ".",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected repair-contract lines to contain %q, got %q", want, got)
+		}
+	}
+}
+
+func TestDirectFixProjectContextPromptLinesUseUnknownFallbacks(t *testing.T) {
+	lines := directFixProjectContextPromptLines(projectConfig{}, qualityConfig{})
+	got := strings.Join(lines, "\n")
+
+	for _, want := range []string{
+		"## Project Context",
+		"- Project: unknown",
+		"- Project type: unknown",
+		"- Language: unknown",
+		"- Framework: unknown",
+		"- Development mode: unknown",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected project-context lines to contain %q, got %q", want, got)
+		}
+	}
+}
+
+func TestDirectFixValidationPromptLinesSkipBlankCommands(t *testing.T) {
+	lines := directFixValidationPromptLines(qualityConfig{
+		TestCommand:            "go test ./...",
+		LintCommand:            "none",
+		TypecheckCommand:       "",
+		BuildCommand:           "go build ./...",
+		MigrationDryRunCommand: "none",
+		SmokeStartCommand:      "",
+		OutputContractCommand:  "python validate.py",
+	})
+	got := strings.Join(lines, "\n")
+
+	for _, want := range []string{
+		"## Validation",
+		"- test: go test ./...",
+		"- build: go build ./...",
+		"- output-contract: python validate.py",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected validation lines to contain %q, got %q", want, got)
+		}
+	}
+	for _, unwanted := range []string{"- lint:", "- typecheck:", "- migration-dry-run:", "- smoke-start:"} {
+		if strings.Contains(got, unwanted) {
+			t.Fatalf("expected validation lines to skip %q, got %q", unwanted, got)
+		}
+	}
+}
+
+func TestBuildDirectFixPromptPreservesSectionOrder(t *testing.T) {
+	prompt, delegation := buildDirectFixPrompt("/tmp/demo", "startup panic", projectConfig{Name: "demo"}, qualityConfig{
+		DevelopmentMode: "tdd",
+		TestCommand:     "go test ./...",
+	})
+	if delegation.IntegratorRole == "" {
+		t.Fatalf("expected delegation plan, got %+v", delegation)
+	}
+
+	sections := []string{
+		"## Issue",
+		"## Repair Contract",
+		"## Project Context",
+		"## Delegation Heuristics",
+		"## Validation",
+	}
+	last := -1
+	for _, section := range sections {
+		idx := strings.Index(prompt, section)
+		if idx == -1 {
+			t.Fatalf("expected prompt to contain %q, got %q", section, prompt)
+		}
+		if idx <= last {
+			t.Fatalf("expected section %q to appear after prior sections in prompt %q", section, prompt)
+		}
+		last = idx
+	}
+	if !strings.Contains(prompt, "Project root: /tmp/demo") {
+		t.Fatalf("expected prompt to include project root, got %q", prompt)
+	}
+}
+
+func TestLoadDirectFixExecutionContextBuildsPromptAndPromptPath(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	fixCtx, err := app.loadDirectFixExecutionContext(tmp, "startup panic")
+	if err != nil {
+		t.Fatalf("loadDirectFixExecutionContext failed: %v", err)
+	}
+
+	if fixCtx.Root != tmp || fixCtx.Description != "startup panic" {
+		t.Fatalf("unexpected direct-fix context: %+v", fixCtx)
+	}
+	if fixCtx.LogID != "direct-fix" || fixCtx.PromptPath != filepath.Join(tmp, ".namba", "logs", "runs", "direct-fix-request.md") {
+		t.Fatalf("unexpected direct-fix logging fields: %+v", fixCtx)
+	}
+	if !strings.Contains(fixCtx.Prompt, "# NambaAI Direct Repair Request") || !strings.Contains(fixCtx.Prompt, "startup panic") {
+		t.Fatalf("expected direct-fix prompt content, got %q", fixCtx.Prompt)
+	}
+	if fixCtx.Delegation.IntegratorRole != "standalone-runner" {
+		t.Fatalf("expected default direct-fix delegation role, got %+v", fixCtx.Delegation)
+	}
+}
+
+func TestMaterializeDirectFixExecutionPromptWritesMarkdownRequest(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	fixCtx, err := app.loadDirectFixExecutionContext(tmp, "startup panic")
+	if err != nil {
+		t.Fatalf("loadDirectFixExecutionContext failed: %v", err)
+	}
+	if err := app.materializeDirectFixExecutionPrompt(fixCtx); err != nil {
+		t.Fatalf("materializeDirectFixExecutionPrompt failed: %v", err)
+	}
+
+	written := mustReadFile(t, fixCtx.PromptPath)
+	if !strings.Contains(written, "# NambaAI Direct Repair Request") || !strings.Contains(written, "## Repair Contract") {
+		t.Fatalf("expected direct-fix request markdown to be written, got %q", written)
+	}
+}
+
+func TestDispatchDirectFixExecutionRunsAndSyncs(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	stdout := &bytes.Buffer{}
+	app.stdout = stdout
+	app.lookPath = func(name string) (string, error) {
+		switch name {
+		case "codex", "git":
+			return name, nil
+		default:
+			return "", errors.New("missing dependency")
+		}
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			return "repair output", nil
+		case isShellCommand(name):
+			return "validation ok", nil
+		default:
+			t.Fatalf("unexpected command during direct-fix dispatch: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	fixCtx, err := app.loadDirectFixExecutionContext(tmp, "startup panic")
+	if err != nil {
+		t.Fatalf("loadDirectFixExecutionContext failed: %v", err)
+	}
+	if err := app.materializeDirectFixExecutionPrompt(fixCtx); err != nil {
+		t.Fatalf("materializeDirectFixExecutionPrompt failed: %v", err)
+	}
+	if err := app.dispatchDirectFixExecution(context.Background(), fixCtx); err != nil {
+		t.Fatalf("dispatchDirectFixExecution failed: %v", err)
+	}
+
+	request := mustReadExecutionRequest(t, filepath.Join(tmp, ".namba", "logs", "runs", "direct-fix-request.json"))
+	if request.SpecID != "DIRECT-FIX" || request.Mode != executionModeDefault || request.TurnName != "direct-fix" {
+		t.Fatalf("unexpected direct-fix request metadata: %+v", request)
+	}
+	if request.TurnRole != fixCtx.Delegation.IntegratorRole {
+		t.Fatalf("expected direct-fix turn role to follow delegation, got %+v", request)
+	}
+	result := mustReadExecutionResult(t, filepath.Join(tmp, ".namba", "logs", "runs", "direct-fix-execution.json"))
+	if !result.Succeeded || result.SpecID != "DIRECT-FIX" {
+		t.Fatalf("unexpected direct-fix result: %+v", result)
+	}
+	if _, err := os.Stat(filepath.Join(tmp, ".namba", "project", "change-summary.md")); err != nil {
+		t.Fatalf("expected sync outputs after direct-fix dispatch, stat err=%v", err)
+	}
+	if !strings.Contains(stdout.String(), "Executed direct fix with codex") {
+		t.Fatalf("expected direct-fix dispatch output, got %q", stdout.String())
+	}
+}
+
+func TestLoadRunExecutionContextBuildsPromptTasksAndPromptPath(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	runCtx, err := app.loadRunExecutionContext(tmp, runExecuteOptions{specID: "SPEC-001", mode: executionModeTeam})
+	if err != nil {
+		t.Fatalf("loadRunExecutionContext failed: %v", err)
+	}
+
+	if runCtx.Root != tmp || runCtx.SpecPkg.ID != "SPEC-001" {
+		t.Fatalf("expected run context to target SPEC-001 in %s, got %+v", tmp, runCtx)
+	}
+	if runCtx.PromptPath != filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-request.md") {
+		t.Fatalf("unexpected prompt path: %+v", runCtx)
+	}
+	if len(runCtx.Tasks) == 0 {
+		t.Fatalf("expected acceptance tasks to be loaded, got %+v", runCtx)
+	}
+	if !strings.Contains(runCtx.Prompt, "- Mode: team") {
+		t.Fatalf("expected team mode prompt guidance, got %q", runCtx.Prompt)
+	}
+	if runCtx.Delegation.IntegratorRole != "same-workspace-integrator" {
+		t.Fatalf("expected team-mode integrator role, got %+v", runCtx.Delegation)
+	}
+	if runCtx.SystemCfg.Runner != "codex" || runCtx.WorkflowCfg.MaxParallelWorkers < 1 {
+		t.Fatalf("expected configs to be loaded into run context, got %+v", runCtx)
+	}
+}
+
+func TestMaterializeRunExecutionPromptWritesMarkdownRequest(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	runCtx, err := app.loadRunExecutionContext(tmp, runExecuteOptions{specID: "SPEC-001", mode: executionModeDefault})
+	if err != nil {
+		t.Fatalf("loadRunExecutionContext failed: %v", err)
+	}
+	if err := app.materializeRunExecutionPrompt(runCtx); err != nil {
+		t.Fatalf("materializeRunExecutionPrompt failed: %v", err)
+	}
+
+	written := mustReadFile(t, runCtx.PromptPath)
+	if !strings.Contains(written, "# NambaAI Execution Request") || !strings.Contains(written, "## Validation") {
+		t.Fatalf("expected prompt request markdown to be written, got %q", written)
+	}
+}
+
+func TestDispatchRunExecutionDryRunSkipsRunnerAndPrintsPromptPath(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	stdout := &bytes.Buffer{}
+	app.stdout = stdout
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		t.Fatalf("unexpected command during dry-run dispatch: %s %v", name, args)
+		return "", nil
+	}
+
+	options := runExecuteOptions{specID: "SPEC-001", mode: executionModeDefault, dryRun: true}
+	runCtx, err := app.loadRunExecutionContext(tmp, options)
+	if err != nil {
+		t.Fatalf("loadRunExecutionContext failed: %v", err)
+	}
+	if err := app.materializeRunExecutionPrompt(runCtx); err != nil {
+		t.Fatalf("materializeRunExecutionPrompt failed: %v", err)
+	}
+	if err := app.dispatchRunExecution(context.Background(), options, runCtx); err != nil {
+		t.Fatalf("dispatchRunExecution failed: %v", err)
+	}
+
+	if !strings.Contains(stdout.String(), "Prepared execution request at "+runCtx.PromptPath) {
+		t.Fatalf("expected dry-run dispatch message, got %q", stdout.String())
+	}
+	if _, err := os.Stat(filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-execution.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected dry-run dispatch to avoid execution artifacts, got err=%v", err)
+	}
+}
+
 func TestRunUsesConfiguredApprovalAndSandbox(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

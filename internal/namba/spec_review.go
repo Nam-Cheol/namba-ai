@@ -62,7 +62,7 @@ func specReviewOutputs(specID string) map[string]string {
 		states = append(states, state)
 		outputs[specReviewPath(specID, template.Slug)] = buildSpecReviewDoc(state)
 	}
-	outputs[specReviewReadinessPath(specID)] = buildSpecReviewReadinessDoc(specID, states)
+	outputs[specReviewReadinessPath(specID)] = buildSpecReviewReadinessDoc("", specID, states)
 	return outputs
 }
 
@@ -116,7 +116,7 @@ func buildSpecReviewDoc(state specReviewState) string {
 	}, "\n")
 }
 
-func buildSpecReviewReadinessDoc(specID string, states []specReviewState) string {
+func buildSpecReviewReadinessDoc(root, specID string, states []specReviewState) string {
 	var (
 		clearCount int
 		blockers   []string
@@ -157,6 +157,16 @@ func buildSpecReviewReadinessDoc(specID string, states []specReviewState) string
 	} else {
 		lines = append(lines, fmt.Sprintf("- Advisory status: follow up on %s before execution or GitHub handoff if the risk profile justifies it.", strings.Join(blockers, ", ")))
 	}
+	if evidence := specReadinessEvidencePaths(root, specID); len(evidence) > 0 {
+		lines = append(lines,
+			"",
+			"## Phase-1 Evidence",
+			"",
+		)
+		for _, entry := range evidence {
+			lines = append(lines, "- "+entry)
+		}
+	}
 	lines = append(lines,
 		"",
 		"## Suggested Order",
@@ -167,6 +177,32 @@ func buildSpecReviewReadinessDoc(specID string, states []specReviewState) string
 		"",
 	)
 	return strings.Join(lines, "\n")
+}
+
+func specReadinessEvidencePaths(root, specID string) []string {
+	if strings.TrimSpace(root) == "" {
+		return nil
+	}
+
+	type evidenceFile struct {
+		label string
+		path  string
+	}
+	candidates := []evidenceFile{
+		{label: "Runtime contract anchor", path: filepath.Join(specsDir, specID, "contract.md")},
+		{label: "Baseline evidence", path: filepath.Join(specsDir, specID, "baseline.md")},
+		{label: "Extraction map", path: filepath.Join(specsDir, specID, "extraction-map.md")},
+	}
+
+	var lines []string
+	for _, candidate := range candidates {
+		abs := filepath.Join(root, filepath.FromSlash(candidate.path))
+		if !exists(abs) {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("%s: `%s`", candidate.label, filepath.ToSlash(candidate.path)))
+	}
+	return lines
 }
 
 func isClearReviewStatus(status string) bool {
@@ -253,7 +289,7 @@ func (a *App) refreshSpecReviewReadiness(root, specID string) (string, error) {
 	}
 	states := loadSpecReviewStates(filepath.Join(root, specsDir, specID))
 	outputs := map[string]string{
-		specReviewReadinessPath(specID): buildSpecReviewReadinessDoc(specID, states),
+		specReviewReadinessPath(specID): buildSpecReviewReadinessDoc(root, specID, states),
 	}
 	if _, err := a.writeOutputs(root, outputs); err != nil {
 		return "", err

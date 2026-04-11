@@ -10,11 +10,8 @@ import (
 )
 
 func (a *App) runRegen(_ context.Context, args []string) error {
-	if wantsCommandHelp(args) {
-		return a.printCommandUsage("regen")
-	}
-	if len(args) != 0 {
-		return commandUsageError("regen", errors.New("regen does not accept arguments"))
+	if handled, err := a.handleNoArgTopLevelCommand("regen", args); handled {
+		return err
 	}
 
 	root, err := a.requireProjectRoot()

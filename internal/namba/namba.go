@@ -109,6 +109,31 @@ type specPackage struct {
 	Path        string
 }
 
+type topLevelCommandDefinition struct {
+	Name         string
+	UsageSummary string
+	UsageText    func() string
+	Run          func(*App, context.Context, []string) error
+}
+
+type worktreeSubcommandDefinition struct {
+	Name         string
+	UsageSummary string
+	Run          func(*App, context.Context, string, []string) error
+}
+
+type fixSubcommandDefinition struct {
+	Name            string
+	BehaviorSummary string
+	Run             func(*App, context.Context, string, string) error
+}
+
+type topLevelInvocation struct {
+	UsageText string
+	Command   topLevelCommandDefinition
+	Args      []string
+}
+
 func NewApp(stdout, stderr io.Writer) *App {
 	return &App{
 		stdin:          os.Stdin,
@@ -159,48 +184,11 @@ func (a *App) Run(ctx context.Context, args []string) error {
 	if len(args) == 0 {
 		return a.printUsage()
 	}
-	if topic, ok, err := parseTopLevelHelpTopic(args); ok {
-		return a.printCommandUsage(topic)
-	} else if err != nil {
+	invocation, err := a.resolveTopLevelInvocation(args)
+	if err != nil {
 		return err
 	}
-
-	switch args[0] {
-	case "init":
-		return a.runInit(ctx, args[1:])
-	case "doctor":
-		return a.runDoctor(ctx, args[1:])
-	case "status":
-		return a.runStatus(ctx, args[1:])
-	case "project":
-		return a.runProject(ctx, args[1:])
-	case "update":
-		return a.runUpdate(ctx, args[1:])
-	case "regen":
-		return a.runRegen(ctx, args[1:])
-	case "plan":
-		return a.runPlan(ctx, args[1:])
-	case "harness":
-		return a.runHarness(ctx, args[1:])
-	case "fix":
-		return a.runFix(ctx, args[1:])
-	case "run":
-		return a.runExecute(ctx, args[1:])
-	case "sync":
-		return a.runSync(ctx, args[1:])
-	case "pr":
-		return a.runPR(ctx, args[1:])
-	case "land":
-		return a.runLand(ctx, args[1:])
-	case "release":
-		return a.runRelease(ctx, args[1:])
-	case "worktree":
-		return a.runWorktree(ctx, args[1:])
-	case internalCreateCommandName:
-		return a.runInternalCreate(ctx, args[1:])
-	default:
-		return fmt.Errorf("unknown command %q\n\n%s", args[0], usageText())
-	}
+	return a.runTopLevelInvocation(ctx, invocation)
 }
 
 func (a *App) printUsage() error {
@@ -209,26 +197,14 @@ func (a *App) printUsage() error {
 }
 
 func usageText() string {
-	return `NambaAI CLI
-
-Usage:
-  namba help [command]
-  namba init [path] [--yes] [--name NAME] [--mode tdd|ddd] [--project-type new|existing]
-  namba doctor
-  namba status
-  namba project
-  namba update [--version vX.Y.Z]
-  namba regen
-  namba plan "<description>"
-  namba harness "<description>"
-  namba fix [--command run|plan] "<issue description>"
-  namba run SPEC-XXX [--solo|--team|--parallel] [--dry-run]
-  namba sync
-  namba pr "<title>" [--remote origin] [--no-sync] [--no-validate]
-  namba land [PR_NUMBER] [--wait] [--remote origin]
-  namba release [--bump patch|minor|major] [--version vX.Y.Z] [--push] [--remote origin]
-  namba worktree <new|list|remove|clean>
-`
+	lines := []string{
+		"NambaAI CLI",
+		"",
+		"Usage:",
+		"  namba help [command]",
+	}
+	lines = append(lines, publicTopLevelCommandUsageSummaries()...)
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func parseTopLevelHelpTopic(args []string) (string, bool, error) {
@@ -246,6 +222,35 @@ func parseTopLevelHelpTopic(args []string) (string, bool, error) {
 	}
 }
 
+func (a *App) resolveTopLevelInvocation(args []string) (topLevelInvocation, error) {
+	if topic, ok, err := parseTopLevelHelpTopic(args); err != nil {
+		return topLevelInvocation{}, err
+	} else if ok {
+		if topic == "" {
+			return topLevelInvocation{UsageText: usageText()}, nil
+		}
+		text, ok := commandUsageText(topic)
+		if !ok {
+			return topLevelInvocation{}, unknownTopLevelCommandError(topic)
+		}
+		return topLevelInvocation{UsageText: text}, nil
+	}
+
+	command, ok := a.resolveTopLevelCommand(args[0])
+	if !ok {
+		return topLevelInvocation{}, unknownTopLevelCommandError(args[0])
+	}
+	return topLevelInvocation{Command: command, Args: args[1:]}, nil
+}
+
+func (a *App) runTopLevelInvocation(ctx context.Context, invocation topLevelInvocation) error {
+	if invocation.UsageText != "" {
+		_, err := fmt.Fprint(a.stdout, invocation.UsageText)
+		return err
+	}
+	return invocation.Command.Run(a, ctx, invocation.Args)
+}
+
 func normalizeCommandName(name string) string {
 	switch name {
 	case "", "help", "-h", "--help":
@@ -261,51 +266,83 @@ func (a *App) printCommandUsage(command string) error {
 	}
 	text, ok := commandUsageText(command)
 	if !ok {
-		return fmt.Errorf("unknown command %q\n\n%s", command, usageText())
+		return unknownTopLevelCommandError(command)
 	}
 	_, err := fmt.Fprint(a.stdout, text)
 	return err
 }
 
-func commandUsageText(command string) (string, bool) {
-	switch command {
-	case "init":
-		return initUsageText(), true
-	case "doctor":
-		return doctorUsageText(), true
-	case "status":
-		return statusUsageText(), true
-	case "project":
-		return projectUsageText(), true
-	case "regen":
-		return regenUsageText(), true
-	case "update":
-		return updateUsageText(), true
-	case "plan":
-		return planUsageText(), true
-	case "harness":
-		return harnessUsageText(), true
-	case "fix":
-		return fixUsageText(), true
-	case "run":
-		return runUsageText(), true
-	case "sync":
-		return syncUsageText(), true
-	case "pr":
-		return prUsageText(), true
-	case "land":
-		return landUsageText(), true
-	case "release":
-		return releaseUsageText(), true
-	case "worktree":
-		return worktreeUsageText(), true
-	default:
-		return "", false
+func unknownTopLevelCommandError(command string) error {
+	return fmt.Errorf("unknown command %q\n\n%s", command, usageText())
+}
+
+func publicTopLevelCommandDefinitions() []topLevelCommandDefinition {
+	return []topLevelCommandDefinition{
+		{Name: "init", UsageSummary: "  namba init [path] [--yes] [--name NAME] [--mode tdd|ddd] [--project-type new|existing]", UsageText: initUsageText, Run: (*App).runInit},
+		{Name: "doctor", UsageSummary: "  namba doctor", UsageText: doctorUsageText, Run: (*App).runDoctor},
+		{Name: "status", UsageSummary: "  namba status", UsageText: statusUsageText, Run: (*App).runStatus},
+		{Name: "project", UsageSummary: "  namba project", UsageText: projectUsageText, Run: (*App).runProject},
+		{Name: "update", UsageSummary: "  namba update [--version vX.Y.Z]", UsageText: updateUsageText, Run: (*App).runUpdate},
+		{Name: "regen", UsageSummary: "  namba regen", UsageText: regenUsageText, Run: (*App).runRegen},
+		{Name: "plan", UsageSummary: "  namba plan \"<description>\"", UsageText: planUsageText, Run: (*App).runPlan},
+		{Name: "harness", UsageSummary: "  namba harness \"<description>\"", UsageText: harnessUsageText, Run: (*App).runHarness},
+		{Name: "fix", UsageSummary: "  namba fix [--command run|plan] \"<issue description>\"", UsageText: fixUsageText, Run: (*App).runFix},
+		{Name: "run", UsageSummary: "  namba run SPEC-XXX [--solo|--team|--parallel] [--dry-run]", UsageText: runUsageText, Run: (*App).runExecute},
+		{Name: "sync", UsageSummary: "  namba sync", UsageText: syncUsageText, Run: (*App).runSync},
+		{Name: "pr", UsageSummary: "  namba pr \"<title>\" [--remote origin] [--no-sync] [--no-validate]", UsageText: prUsageText, Run: (*App).runPR},
+		{Name: "land", UsageSummary: "  namba land [PR_NUMBER] [--wait] [--remote origin]", UsageText: landUsageText, Run: (*App).runLand},
+		{Name: "release", UsageSummary: "  namba release [--bump patch|minor|major] [--version vX.Y.Z] [--push] [--remote origin]", UsageText: releaseUsageText, Run: (*App).runRelease},
+		{Name: "worktree", UsageSummary: "  namba worktree <new|list|remove|clean>", UsageText: worktreeUsageText, Run: (*App).runWorktree},
 	}
+}
+
+func publicTopLevelCommandUsageSummaries() []string {
+	lines := make([]string, 0, len(publicTopLevelCommandDefinitions()))
+	for _, definition := range publicTopLevelCommandDefinitions() {
+		lines = append(lines, definition.UsageSummary)
+	}
+	return lines
+}
+
+func (a *App) topLevelCommandDefinitions() []topLevelCommandDefinition {
+	definitions := append([]topLevelCommandDefinition{}, publicTopLevelCommandDefinitions()...)
+	return append(definitions, topLevelCommandDefinition{
+		Name: internalCreateCommandName,
+		Run:  (*App).runInternalCreate,
+	})
+}
+
+func (a *App) resolveTopLevelCommand(command string) (topLevelCommandDefinition, bool) {
+	for _, definition := range a.topLevelCommandDefinitions() {
+		if definition.Name == command {
+			return definition, true
+		}
+	}
+	return topLevelCommandDefinition{}, false
+}
+
+func commandUsageText(command string) (string, bool) {
+	for _, definition := range publicTopLevelCommandDefinitions() {
+		if definition.Name == command && definition.UsageText != nil {
+			return definition.UsageText(), true
+		}
+	}
+	return "", false
 }
 
 func wantsCommandHelp(args []string) bool {
 	return len(args) == 1 && isHelpToken(args[0])
+}
+
+func (a *App) handleNoArgTopLevelCommand(command string, args []string) (bool, error) {
+	switch {
+	case wantsCommandHelp(args):
+		return true, a.printCommandUsage(command)
+	case len(args) != 0:
+		return true, commandUsageError(command, fmt.Errorf("%s does not accept arguments", command))
+	default:
+		return false, nil
+	}
 }
 
 func isHelpToken(arg string) bool {
@@ -329,69 +366,51 @@ func commandUsageError(command string, err error) error {
 }
 
 func initUsageText() string {
-	return `namba init
-
-Usage:
-  namba init [path] [--yes] [--name NAME] [--mode tdd|ddd] [--project-type new|existing]
-
-Behavior:
-  Initialize the NambaAI scaffold, config, and repo-local Codex assets in the target directory.
-`
+	return singleUsageLineCommandUsageText(
+		"init",
+		"  namba init [path] [--yes] [--name NAME] [--mode tdd|ddd] [--project-type new|existing]",
+		"  Initialize the NambaAI scaffold, config, and repo-local Codex assets in the target directory.",
+	)
 }
 
 func doctorUsageText() string {
-	return `namba doctor
-
-Usage:
-  namba doctor
-
-Behavior:
-  Inspect the current repository and local toolchain readiness without mutating project files.
-`
+	return singleUsageLineCommandUsageText(
+		"doctor",
+		"  namba doctor",
+		"  Inspect the current repository and local toolchain readiness without mutating project files.",
+	)
 }
 
 func statusUsageText() string {
-	return `namba status
-
-Usage:
-  namba status
-
-Behavior:
-  Print a read-only summary of the current NambaAI repository state.
-`
+	return singleUsageLineCommandUsageText(
+		"status",
+		"  namba status",
+		"  Print a read-only summary of the current NambaAI repository state.",
+	)
 }
 
 func projectUsageText() string {
-	return `namba project
-
-Usage:
-  namba project
-
-Behavior:
-  Refresh .namba/project/* docs and codemaps for the current repository.
-`
+	return singleUsageLineCommandUsageText(
+		"project",
+		"  namba project",
+		"  Refresh .namba/project/* docs and codemaps for the current repository.",
+	)
 }
 
 func regenUsageText() string {
-	return `namba regen
-
-Usage:
-  namba regen
-
-Behavior:
-  Regenerate AGENTS, repo-local skills, Codex agents, and Codex config from .namba/config/sections/*.yaml.
-`
+	return singleUsageLineCommandUsageText(
+		"regen",
+		"  namba regen",
+		"  Regenerate AGENTS, repo-local skills, Codex agents, and Codex config from .namba/config/sections/*.yaml.",
+	)
 }
 
 func updateUsageText() string {
-	return `namba update
-
-Usage:
-  namba update [--version vX.Y.Z]
-
-Behavior:
-  Download and install the requested NambaAI release for the current platform.
-`
+	return singleUsageLineCommandUsageText(
+		"update",
+		"  namba update [--version vX.Y.Z]",
+		"  Download and install the requested NambaAI release for the current platform.",
+	)
 }
 
 func (a *App) runInit(_ context.Context, args []string) error {
@@ -411,12 +430,13 @@ func (a *App) runInit(_ context.Context, args []string) error {
 		return fmt.Errorf("create target: %w", err)
 	}
 
-	profile, err := a.resolveInitProfile(root, opts)
+	scan := scanInitRepository(root)
+	profile, err := a.resolveInitProfileWithScan(root, opts, scan)
 	if err != nil {
 		return err
 	}
 
-	testCmd, lintCmd, typecheckCmd := defaultQualityCommands(root, profile.Language, profile.Framework)
+	testCmd, lintCmd, typecheckCmd := defaultQualityCommandsWithScan(root, profile.Language, profile.Framework, scan)
 	files := map[string]string{
 		"AGENTS.md": renderAgents(profile),
 		filepath.ToSlash(filepath.Join(configDir, "project.yaml")):      renderProjectConfig(profile),
@@ -482,11 +502,8 @@ func (a *App) runInit(_ context.Context, args []string) error {
 }
 
 func (a *App) runDoctor(ctx context.Context, args []string) error {
-	if wantsCommandHelp(args) {
-		return a.printCommandUsage("doctor")
-	}
-	if len(args) != 0 {
-		return commandUsageError("doctor", errors.New("doctor does not accept arguments"))
+	if handled, err := a.handleNoArgTopLevelCommand("doctor", args); handled {
+		return err
 	}
 
 	root, err := a.requireProjectRoot()
@@ -531,11 +548,8 @@ func (a *App) runDoctor(ctx context.Context, args []string) error {
 }
 
 func (a *App) runStatus(_ context.Context, args []string) error {
-	if wantsCommandHelp(args) {
-		return a.printCommandUsage("status")
-	}
-	if len(args) != 0 {
-		return commandUsageError("status", errors.New("status does not accept arguments"))
+	if handled, err := a.handleNoArgTopLevelCommand("status", args); handled {
+		return err
 	}
 
 	root, err := a.requireProjectRoot()
@@ -558,11 +572,8 @@ func (a *App) runStatus(_ context.Context, args []string) error {
 }
 
 func (a *App) runProject(_ context.Context, args []string) error {
-	if wantsCommandHelp(args) {
-		return a.printCommandUsage("project")
-	}
-	if len(args) != 0 {
-		return commandUsageError("project", errors.New("project does not accept arguments"))
+	if handled, err := a.handleNoArgTopLevelCommand("project", args); handled {
+		return err
 	}
 
 	root, err := a.requireProjectRoot()
@@ -632,50 +643,24 @@ func (a *App) runFix(ctx context.Context, args []string) error {
 		return err
 	}
 
-	switch options.command {
-	case "plan":
-		return a.createSpecPackage("fix", options.description)
-	case "run":
-		return a.executeDirectFix(ctx, root, options.description)
-	default:
+	subcommand, ok := a.resolveFixSubcommand(options.command)
+	if !ok {
 		return fmt.Errorf("invalid fix command %q", options.command)
 	}
+	return subcommand.Run(a, ctx, root, options.description)
 }
 
 func (a *App) createSpecPackage(kind, description string) error {
-	root, err := a.requireProjectRoot()
+	scaffoldCtx, err := a.loadSpecPackageScaffoldContext(kind, description)
 	if err != nil {
 		return err
 	}
-	projectCfg, _ := a.loadProjectConfig(root)
-	qualityCfg, _ := a.loadQualityConfig(root)
-
-	specID, err := nextSpecID(filepath.Join(root, specsDir))
-	if err != nil {
-		return err
-	}
-	specPath := filepath.Join(root, specsDir, specID)
-	if err := os.MkdirAll(specPath, 0o755); err != nil {
+	outputs := buildSpecPackageScaffoldOutputs(scaffoldCtx)
+	if err := a.materializeSpecPackageScaffoldOutputs(scaffoldCtx, outputs); err != nil {
 		return err
 	}
 
-	spec := buildSpecDoc(kind, specID, description, projectCfg, qualityCfg)
-	plan := buildSpecPlanDoc(kind, specID)
-	acceptance := buildSpecAcceptanceDoc(kind, description, qualityCfg.DevelopmentMode)
-
-	outputs := map[string]string{
-		filepath.ToSlash(filepath.Join(specsDir, specID, "spec.md")):       spec,
-		filepath.ToSlash(filepath.Join(specsDir, specID, "plan.md")):       plan,
-		filepath.ToSlash(filepath.Join(specsDir, specID, "acceptance.md")): acceptance,
-	}
-	for rel, body := range specReviewOutputs(specID) {
-		outputs[rel] = body
-	}
-	if _, err := a.writeOutputs(root, outputs); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(a.stdout, "Created %s\n", specID)
+	fmt.Fprintf(a.stdout, "Created %s\n", scaffoldCtx.SpecID)
 	return nil
 }
 
@@ -770,6 +755,38 @@ func parseFixArgs(args []string) (fixInvocation, error) {
 	return invocation, nil
 }
 
+func fixSubcommandDefinitions() []fixSubcommandDefinition {
+	return []fixSubcommandDefinition{
+		{Name: "plan", BehaviorSummary: "  Use --command plan to scaffold the next bugfix SPEC package under .namba/specs/.", Run: (*App).runFixPlanSubcommand},
+		{Name: "run", BehaviorSummary: "  Use --command run, or omit --command, to repair the issue directly in the current workspace.", Run: (*App).runFixRunSubcommand},
+	}
+}
+
+func fixSubcommandBehaviorSummaries() []string {
+	lines := make([]string, 0, len(fixSubcommandDefinitions()))
+	for _, definition := range fixSubcommandDefinitions() {
+		lines = append(lines, definition.BehaviorSummary)
+	}
+	return lines
+}
+
+func (a *App) resolveFixSubcommand(name string) (fixSubcommandDefinition, bool) {
+	for _, definition := range fixSubcommandDefinitions() {
+		if definition.Name == name {
+			return definition, true
+		}
+	}
+	return fixSubcommandDefinition{}, false
+}
+
+func (a *App) runFixPlanSubcommand(_ context.Context, _ string, description string) error {
+	return a.createSpecPackage("fix", description)
+}
+
+func (a *App) runFixRunSubcommand(ctx context.Context, root, description string) error {
+	return a.executeDirectFix(ctx, root, description)
+}
+
 func isStandaloneFlagToken(arg string) bool {
 	trimmed := strings.TrimSpace(arg)
 	if !strings.HasPrefix(trimmed, "-") {
@@ -794,151 +811,120 @@ func (a *App) printFixUsage() error {
 }
 
 func planUsageText() string {
-	return `namba plan
-
-Usage:
-  namba plan "<description>"
-  namba plan -- "<description with flag-like text>"
-
-Behavior:
-  Create the next feature SPEC package under .namba/specs/ and seed review artifacts.
-`
+	return descriptionScaffoldUsageText("plan", "  Create the next feature SPEC package under .namba/specs/ and seed review artifacts.")
 }
 
 func harnessUsageText() string {
-	return `namba harness
+	return descriptionScaffoldUsageText("harness", "  Create the next harness-oriented SPEC package under .namba/specs/ and seed review artifacts.")
+}
 
-Usage:
-  namba harness "<description>"
-  namba harness -- "<description with flag-like text>"
+func descriptionScaffoldUsageText(command, behaviorLine string) string {
+	lines := []string{
+		fmt.Sprintf("namba %s", command),
+		"",
+		"Usage:",
+	}
+	lines = append(lines, flagLikeTextUsageLines("namba "+command, "description")...)
+	lines = append(lines, "", "Behavior:", behaviorLine)
+	return strings.Join(lines, "\n") + "\n"
+}
 
-Behavior:
-  Create the next harness-oriented SPEC package under .namba/specs/ and seed review artifacts.
-`
+func flagLikeTextUsageLines(invocation, subject string) []string {
+	return []string{
+		fmt.Sprintf("  %s \"<%s>\"", invocation, subject),
+		fmt.Sprintf("  %s -- \"<%s with flag-like text>\"", invocation, subject),
+	}
 }
 
 func fixUsageText() string {
-	return `namba fix
+	lines := []string{
+		"namba fix",
+		"",
+		"Usage:",
+	}
+	lines = append(lines, flagLikeTextUsageLines("namba fix [--command run|plan]", "issue description")...)
+	lines = append(lines, "", "Behavior:")
+	lines = append(lines, fixSubcommandBehaviorSummaries()...)
+	return strings.Join(lines, "\n") + "\n"
+}
 
-Usage:
-  namba fix [--command run|plan] "<issue description>"
-  namba fix [--command run|plan] -- "<issue description with flag-like text>"
-
-Behavior:
-  Use --command plan to scaffold the next bugfix SPEC package under .namba/specs/.
-  Use --command run, or omit --command, to repair the issue directly in the current workspace.
-`
+func singleUsageLineCommandUsageText(command, usageLine, behaviorLine string) string {
+	lines := []string{
+		fmt.Sprintf("namba %s", command),
+		"",
+		"Usage:",
+		usageLine,
+		"",
+		"Behavior:",
+		behaviorLine,
+	}
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func runUsageText() string {
-	return `namba run
-
-Usage:
-  namba run SPEC-XXX [--solo|--team|--parallel] [--dry-run]
-
-Behavior:
-  Execute the selected SPEC package with one runner, same-workspace team routing, or managed worktree fan-out.
-`
+	return singleUsageLineCommandUsageText(
+		"run",
+		"  namba run SPEC-XXX [--solo|--team|--parallel] [--dry-run]",
+		"  Execute the selected SPEC package with one runner, same-workspace team routing, or managed worktree fan-out.",
+	)
 }
 
 func syncUsageText() string {
-	return `namba sync
-
-Usage:
-  namba sync
-
-Behavior:
-  Refresh README bundles, project docs, review readiness summaries, and PR/release support artifacts.
-`
+	return singleUsageLineCommandUsageText(
+		"sync",
+		"  namba sync",
+		"  Refresh README bundles, project docs, review readiness summaries, and PR/release support artifacts.",
+	)
 }
 
 func prUsageText() string {
-	return `namba pr
-
-Usage:
-  namba pr "<title>" [--remote origin] [--no-sync] [--no-validate]
-
-Behavior:
-  Sync, validate, push the current work branch, and create or reuse a GitHub pull request into the base branch.
-`
+	return singleUsageLineCommandUsageText(
+		"pr",
+		"  namba pr \"<title>\" [--remote origin] [--no-sync] [--no-validate]",
+		"  Sync, validate, push the current work branch, and create or reuse a GitHub pull request into the base branch.",
+	)
 }
 
 func landUsageText() string {
-	return `namba land
-
-Usage:
-  namba land [PR_NUMBER] [--wait] [--remote origin]
-
-Behavior:
-  Merge an approved pull request into the base branch and refresh the local base branch checkout.
-`
+	return singleUsageLineCommandUsageText(
+		"land",
+		"  namba land [PR_NUMBER] [--wait] [--remote origin]",
+		"  Merge an approved pull request into the base branch and refresh the local base branch checkout.",
+	)
 }
 
 func releaseUsageText() string {
-	return `namba release
-
-Usage:
-  namba release [--bump patch|minor|major] [--version vX.Y.Z] [--push] [--remote origin]
-
-Behavior:
-  Create a release tag from a clean main branch and optionally push main plus the tag.
-`
+	return singleUsageLineCommandUsageText(
+		"release",
+		"  namba release [--bump patch|minor|major] [--version vX.Y.Z] [--push] [--remote origin]",
+		"  Create a release tag from a clean main branch and optionally push main plus the tag.",
+	)
 }
 
 func worktreeUsageText() string {
-	return `namba worktree
-
-Usage:
-  namba worktree new <name>
-  namba worktree list
-  namba worktree remove <name>
-  namba worktree clean
-
-Behavior:
-  Manage Namba-owned git worktrees under .namba/worktrees.
-`
+	lines := []string{
+		"namba worktree",
+		"",
+		"Usage:",
+	}
+	lines = append(lines, worktreeSubcommandUsageSummaries()...)
+	lines = append(lines,
+		"",
+		"Behavior:",
+		"  Manage Namba-owned git worktrees under .namba/worktrees.",
+	)
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func (a *App) executeDirectFix(ctx context.Context, root, description string) error {
-	projectCfg, err := a.loadProjectConfig(root)
+	fixCtx, err := a.loadDirectFixExecutionContext(root, description)
 	if err != nil {
 		return err
 	}
-	qualityCfg, err := a.loadQualityConfig(root)
-	if err != nil {
+	if err := a.materializeDirectFixExecutionPrompt(fixCtx); err != nil {
 		return err
 	}
-	systemCfg, err := a.loadSystemConfig(root)
-	if err != nil {
-		return err
-	}
-	codexCfg, err := a.loadCodexConfig(root)
-	if err != nil {
-		return err
-	}
-
-	prompt, delegation := buildDirectFixPrompt(root, description, projectCfg, qualityCfg)
-	logID := "direct-fix"
-	logDir := filepath.Join(root, logsDir, "runs")
-	if err := os.MkdirAll(logDir, 0o755); err != nil {
-		return err
-	}
-	if err := os.WriteFile(filepath.Join(logDir, logID+"-request.md"), []byte(prompt), 0o644); err != nil {
-		return err
-	}
-
-	request := a.newExecutionRequest("DIRECT-FIX", root, prompt, executionModeDefault, delegation, systemCfg, codexCfg)
-	request.TurnName = "direct-fix"
-	request.TurnRole = delegation.IntegratorRole
-	if _, _, err := a.executeRun(ctx, root, logID, request, root, qualityCfg); err != nil {
-		return err
-	}
-	if err := a.runSync(ctx, nil); err != nil {
-		return err
-	}
-
-	fmt.Fprintf(a.stdout, "Executed direct fix with %s\n", request.Runner)
-	return nil
+	return a.dispatchDirectFixExecution(ctx, fixCtx)
 }
 
 func buildDirectFixPrompt(root, description string, projectCfg projectConfig, qualityCfg qualityConfig) (string, delegationPlan) {
@@ -952,6 +938,20 @@ func buildDirectFixPrompt(root, description string, projectCfg projectConfig, qu
 		description,
 		"",
 		"## Repair Contract",
+	}
+	lines = append(lines, directFixRepairContractLines()...)
+	lines = append(lines, "")
+	lines = append(lines, directFixProjectContextPromptLines(projectCfg, qualityCfg)...)
+	lines = append(lines, "")
+	lines = append(lines, formatDelegationPlanPrompt(delegation)...)
+	lines = append(lines, "")
+	lines = append(lines, directFixValidationPromptLines(qualityCfg)...)
+	lines = append(lines, "", fmt.Sprintf("Project root: %s", root))
+	return strings.Join(lines, "\n"), delegation
+}
+
+func directFixRepairContractLines() []string {
+	return []string{
 		"- Inspect the relevant repository files plus `.namba/config/sections/*.yaml` and `.namba/project/*` context before editing.",
 		"- Implement the smallest safe fix that resolves the reported issue in the current workspace.",
 		"- Add targeted regression coverage for the affected area.",
@@ -959,7 +959,11 @@ func buildDirectFixPrompt(root, description string, projectCfg projectConfig, qu
 		"- Finish by running `namba sync` in the same workspace after validation passes.",
 		"- Do not create or mutate `.namba/specs/<SPEC>` as part of this direct repair flow.",
 		"- For bugfix SPEC scaffolding, use `namba fix --command plan \"<issue description>\"`.",
-		"",
+	}
+}
+
+func directFixProjectContextPromptLines(projectCfg projectConfig, qualityCfg qualityConfig) []string {
+	return []string{
 		"## Project Context",
 		fmt.Sprintf("- Project: %s", firstNonBlank(projectCfg.Name, "unknown")),
 		fmt.Sprintf("- Project type: %s", firstNonBlank(projectCfg.ProjectType, "unknown")),
@@ -967,9 +971,10 @@ func buildDirectFixPrompt(root, description string, projectCfg projectConfig, qu
 		fmt.Sprintf("- Framework: %s", firstNonBlank(projectCfg.Framework, "unknown")),
 		fmt.Sprintf("- Development mode: %s", firstNonBlank(qualityCfg.DevelopmentMode, "unknown")),
 	}
-	lines = append(lines, "")
-	lines = append(lines, formatDelegationPlanPrompt(delegation)...)
-	lines = append(lines, "", "## Validation")
+}
+
+func directFixValidationPromptLines(qualityCfg qualityConfig) []string {
+	lines := []string{"## Validation"}
 	for _, step := range validationPipelineSteps(qualityCfg) {
 		command := strings.TrimSpace(step.Command)
 		if command == "" || command == "none" {
@@ -977,30 +982,53 @@ func buildDirectFixPrompt(root, description string, projectCfg projectConfig, qu
 		}
 		lines = append(lines, fmt.Sprintf("- %s: %s", step.Name, command))
 	}
-	lines = append(lines, "", fmt.Sprintf("Project root: %s", root))
-	return strings.Join(lines, "\n"), delegation
+	return lines
 }
 
 func buildSpecDoc(kind, specID, description string, projectCfg projectConfig, qualityCfg qualityConfig) string {
 	switch kind {
 	case "fix":
-		return fmt.Sprintf("# %s\n\n## Problem\n\n%s\n\n## Goal\n\nApply the smallest safe fix that resolves the reported issue.\n\n## Context\n\n- Project: %s\n- Project type: %s\n- Language: %s\n- Mode: %s\n- Work type: fix\n", specID, description, projectCfg.Name, projectCfg.ProjectType, projectCfg.Language, qualityCfg.DevelopmentMode)
+		return buildFixSpecDoc(specID, description, projectCfg, qualityCfg)
 	case "harness":
-		return fmt.Sprintf("# %s\n\n## Problem\n\nThe current repository needs a dedicated harness-oriented planning flow for the following request:\n\n%s\n\n## Goal\n\nDesign a Codex-native harness change under the existing `SPEC-XXX` artifact flow without inventing a second planning model or importing Claude-only runtime primitives.\n\n## Context\n\n- Project: %s\n- Project type: %s\n- Language: %s\n- Mode: %s\n- Work type: plan\n- Planning surface: `namba harness \"<description>\"`\n\n## Desired Outcome\n\n- `namba harness \"<description>\"` acts as a top-level planning command while `namba plan` keeps its current feature-planning behavior.\n- The scaffold captures Codex-native execution topology, agent/skill boundaries, progressive-disclosure guidance, trigger strategy, and evaluation strategy for reusable skills or agents.\n- Help and accidental-write safety stay aligned with the shared command-parsing contract instead of creating command-specific drift.\n- The planned output remains under `.namba/specs/<SPEC>` with the normal review artifacts.\n\n## Non-Goals\n\n- Do not create a second artifact model outside `.namba/specs/`.\n- Do not emit `.claude/*`, `TeamCreate`, `SendMessage`, `TaskCreate`, or a mandatory `model: \"opus\"` requirement as part of the Codex-facing contract.\n- Do not change the default behavior of `namba plan`.\n", specID, description, projectCfg.Name, projectCfg.ProjectType, projectCfg.Language, qualityCfg.DevelopmentMode)
+		return buildHarnessSpecDoc(specID, description, projectCfg, qualityCfg)
 	default:
-		return fmt.Sprintf("# %s\n\n## Problem\n\n%s\n\n## Goal\n\nImplement the requested change under the normal feature-planning workflow.\n\n## Context\n\n- Project: %s\n- Project type: %s\n- Language: %s\n- Mode: %s\n- Work type: plan\n", specID, description, projectCfg.Name, projectCfg.ProjectType, projectCfg.Language, qualityCfg.DevelopmentMode)
+		return buildFeatureSpecDoc(specID, description, projectCfg, qualityCfg)
 	}
 }
 
 func buildSpecPlanDoc(kind, specID string) string {
 	switch kind {
 	case "fix":
-		return fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Reproduce or inspect the reported issue\n3. Run the relevant review passes under `.namba/specs/%s/reviews/` and refresh the readiness summary\n4. Implement the smallest safe fix\n5. Run validation commands and targeted regression checks\n6. Sync artifacts with `namba sync`\n", specID, specID)
+		return buildFixSpecPlanDoc(specID)
 	case "harness":
-		return fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Define the top-level `namba harness` command contract while keeping `namba plan` unchanged\n3. Capture Codex-native execution topology, agent/skill boundaries, progressive-disclosure layout, trigger guidance, and evaluation strategy in the scaffold\n4. Run the relevant review passes under `.namba/specs/%s/reviews/` and refresh the readiness summary\n5. Implement the requested command and scaffold changes\n6. Run validation commands\n7. Sync artifacts with `namba sync`\n", specID, specID)
+		return buildHarnessSpecPlanDoc(specID)
 	default:
-		return fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Run the relevant review passes under `.namba/specs/%s/reviews/` and refresh the readiness summary\n3. Implement the requested change\n4. Run validation commands\n5. Sync artifacts with `namba sync`\n", specID, specID)
+		return buildFeatureSpecPlanDoc(specID)
 	}
+}
+
+func buildFixSpecDoc(specID, description string, projectCfg projectConfig, qualityCfg qualityConfig) string {
+	return fmt.Sprintf("# %s\n\n## Problem\n\n%s\n\n## Goal\n\nApply the smallest safe fix that resolves the reported issue.\n\n## Context\n\n- Project: %s\n- Project type: %s\n- Language: %s\n- Mode: %s\n- Work type: fix\n", specID, description, projectCfg.Name, projectCfg.ProjectType, projectCfg.Language, qualityCfg.DevelopmentMode)
+}
+
+func buildHarnessSpecDoc(specID, description string, projectCfg projectConfig, qualityCfg qualityConfig) string {
+	return fmt.Sprintf("# %s\n\n## Problem\n\nThe current repository needs a dedicated harness-oriented planning flow for the following request:\n\n%s\n\n## Goal\n\nDesign a Codex-native harness change under the existing `SPEC-XXX` artifact flow without inventing a second planning model or importing Claude-only runtime primitives.\n\n## Context\n\n- Project: %s\n- Project type: %s\n- Language: %s\n- Mode: %s\n- Work type: plan\n- Planning surface: `namba harness \"<description>\"`\n\n## Desired Outcome\n\n- `namba harness \"<description>\"` acts as a top-level planning command while `namba plan` keeps its current feature-planning behavior.\n- The scaffold captures Codex-native execution topology, agent/skill boundaries, progressive-disclosure guidance, trigger strategy, and evaluation strategy for reusable skills or agents.\n- Help and accidental-write safety stay aligned with the shared command-parsing contract instead of creating command-specific drift.\n- The planned output remains under `.namba/specs/<SPEC>` with the normal review artifacts.\n\n## Non-Goals\n\n- Do not create a second artifact model outside `.namba/specs/`.\n- Do not emit `.claude/*`, `TeamCreate`, `SendMessage`, `TaskCreate`, or a mandatory `model: \"opus\"` requirement as part of the Codex-facing contract.\n- Do not change the default behavior of `namba plan`.\n", specID, description, projectCfg.Name, projectCfg.ProjectType, projectCfg.Language, qualityCfg.DevelopmentMode)
+}
+
+func buildFeatureSpecDoc(specID, description string, projectCfg projectConfig, qualityCfg qualityConfig) string {
+	return fmt.Sprintf("# %s\n\n## Problem\n\n%s\n\n## Goal\n\nImplement the requested change under the normal feature-planning workflow.\n\n## Context\n\n- Project: %s\n- Project type: %s\n- Language: %s\n- Mode: %s\n- Work type: plan\n", specID, description, projectCfg.Name, projectCfg.ProjectType, projectCfg.Language, qualityCfg.DevelopmentMode)
+}
+
+func buildFixSpecPlanDoc(specID string) string {
+	return fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Reproduce or inspect the reported issue\n3. Run the relevant review passes under `.namba/specs/%s/reviews/` and refresh the readiness summary\n4. Implement the smallest safe fix\n5. Run validation commands and targeted regression checks\n6. Sync artifacts with `namba sync`\n", specID, specID)
+}
+
+func buildHarnessSpecPlanDoc(specID string) string {
+	return fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Define the top-level `namba harness` command contract while keeping `namba plan` unchanged\n3. Capture Codex-native execution topology, agent/skill boundaries, progressive-disclosure layout, trigger guidance, and evaluation strategy in the scaffold\n4. Run the relevant review passes under `.namba/specs/%s/reviews/` and refresh the readiness summary\n5. Implement the requested command and scaffold changes\n6. Run validation commands\n7. Sync artifacts with `namba sync`\n", specID, specID)
+}
+
+func buildFeatureSpecPlanDoc(specID string) string {
+	return fmt.Sprintf("# %s Plan\n\n1. Refresh project context with `namba project`\n2. Run the relevant review passes under `.namba/specs/%s/reviews/` and refresh the readiness summary\n3. Implement the requested change\n4. Run validation commands\n5. Sync artifacts with `namba sync`\n", specID, specID)
 }
 
 func buildSpecAcceptanceDoc(kind, description, mode string) string {
@@ -1010,13 +1038,62 @@ func buildSpecAcceptanceDoc(kind, description, mode string) string {
 	if kind == "harness" {
 		return buildHarnessAcceptanceDoc(description, mode)
 	}
-	return buildAcceptanceDoc(description, mode)
+	return buildFeatureAcceptanceDoc(description, mode)
 }
 
 type runExecuteOptions struct {
 	specID string
 	mode   executionMode
 	dryRun bool
+}
+
+type specPackageScaffoldContext struct {
+	Root        string
+	Kind        string
+	Description string
+	SpecID      string
+	ProjectCfg  projectConfig
+	QualityCfg  qualityConfig
+}
+
+type executionRuntimeConfig struct {
+	QualityCfg qualityConfig
+	SystemCfg  systemConfig
+	CodexCfg   codexConfig
+}
+
+type directFixExecutionContext struct {
+	Root        string
+	Description string
+	QualityCfg  qualityConfig
+	SystemCfg   systemConfig
+	CodexCfg    codexConfig
+	Prompt      string
+	PromptPath  string
+	LogID       string
+	Delegation  delegationPlan
+}
+
+type runExecutionContext struct {
+	Root              string
+	SpecPkg           specPackage
+	ReadinessAdvisory string
+	QualityCfg        qualityConfig
+	SystemCfg         systemConfig
+	CodexCfg          codexConfig
+	WorkflowCfg       workflowConfig
+	Prompt            string
+	PromptPath        string
+	Tasks             []string
+	Delegation        delegationPlan
+}
+
+type syncContext struct {
+	Root       string
+	ProjectCfg projectConfig
+	LatestSpec string
+	Profile    initProfile
+	DocsCfg    docsConfig
 }
 
 func parseRunExecuteOptions(args []string) (runExecuteOptions, error) {
@@ -1069,6 +1146,93 @@ func parseRunExecuteOptions(args []string) (runExecuteOptions, error) {
 	return options, nil
 }
 
+func (a *App) loadSpecPackageScaffoldContext(kind, description string) (specPackageScaffoldContext, error) {
+	root, err := a.requireProjectRoot()
+	if err != nil {
+		return specPackageScaffoldContext{}, err
+	}
+	projectCfg, _ := a.loadProjectConfig(root)
+	qualityCfg, _ := a.loadQualityConfig(root)
+	specID, err := nextSpecID(filepath.Join(root, specsDir))
+	if err != nil {
+		return specPackageScaffoldContext{}, err
+	}
+	return specPackageScaffoldContext{
+		Root:        root,
+		Kind:        kind,
+		Description: description,
+		SpecID:      specID,
+		ProjectCfg:  projectCfg,
+		QualityCfg:  qualityCfg,
+	}, nil
+}
+
+func buildSpecPackageScaffoldOutputs(scaffoldCtx specPackageScaffoldContext) map[string]string {
+	outputs := map[string]string{
+		filepath.ToSlash(filepath.Join(specsDir, scaffoldCtx.SpecID, "spec.md")):       buildSpecDoc(scaffoldCtx.Kind, scaffoldCtx.SpecID, scaffoldCtx.Description, scaffoldCtx.ProjectCfg, scaffoldCtx.QualityCfg),
+		filepath.ToSlash(filepath.Join(specsDir, scaffoldCtx.SpecID, "plan.md")):       buildSpecPlanDoc(scaffoldCtx.Kind, scaffoldCtx.SpecID),
+		filepath.ToSlash(filepath.Join(specsDir, scaffoldCtx.SpecID, "acceptance.md")): buildSpecAcceptanceDoc(scaffoldCtx.Kind, scaffoldCtx.Description, scaffoldCtx.QualityCfg.DevelopmentMode),
+	}
+	for rel, body := range specReviewOutputs(scaffoldCtx.SpecID) {
+		outputs[rel] = body
+	}
+	return outputs
+}
+
+func (a *App) materializeSpecPackageScaffoldOutputs(scaffoldCtx specPackageScaffoldContext, outputs map[string]string) error {
+	if err := a.mkdirAll(filepath.Join(scaffoldCtx.Root, specsDir, scaffoldCtx.SpecID), 0o755); err != nil {
+		return err
+	}
+	if _, err := a.writeOutputs(scaffoldCtx.Root, outputs); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *App) loadDirectFixExecutionContext(root, description string) (directFixExecutionContext, error) {
+	projectCfg, err := a.loadProjectConfig(root)
+	if err != nil {
+		return directFixExecutionContext{}, err
+	}
+	runtimeCfg, err := a.loadExecutionRuntimeConfig(root)
+	if err != nil {
+		return directFixExecutionContext{}, err
+	}
+
+	prompt, delegation := buildDirectFixPrompt(root, description, projectCfg, runtimeCfg.QualityCfg)
+	logID := "direct-fix"
+	return directFixExecutionContext{
+		Root:        root,
+		Description: description,
+		QualityCfg:  runtimeCfg.QualityCfg,
+		SystemCfg:   runtimeCfg.SystemCfg,
+		CodexCfg:    runtimeCfg.CodexCfg,
+		Prompt:      prompt,
+		PromptPath:  filepath.Join(root, logsDir, "runs", logID+"-request.md"),
+		LogID:       logID,
+		Delegation:  delegation,
+	}, nil
+}
+
+func (a *App) materializeDirectFixExecutionPrompt(fixCtx directFixExecutionContext) error {
+	return a.writeExecutionPrompt(fixCtx.PromptPath, fixCtx.Prompt)
+}
+
+func (a *App) dispatchDirectFixExecution(ctx context.Context, fixCtx directFixExecutionContext) error {
+	request := a.newExecutionRequest("DIRECT-FIX", fixCtx.Root, fixCtx.Prompt, executionModeDefault, fixCtx.Delegation, fixCtx.SystemCfg, fixCtx.CodexCfg)
+	request.TurnName = fixCtx.LogID
+	request.TurnRole = fixCtx.Delegation.IntegratorRole
+	if _, _, err := a.executeRun(ctx, fixCtx.Root, fixCtx.LogID, request, fixCtx.Root, fixCtx.QualityCfg); err != nil {
+		return err
+	}
+	if err := a.runSync(ctx, nil); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(a.stdout, "Executed direct fix with %s\n", request.Runner)
+	return nil
+}
+
 func (a *App) runExecute(ctx context.Context, args []string) error {
 	if wantsCommandHelp(args) {
 		return a.printCommandUsage("run")
@@ -1083,111 +1247,192 @@ func (a *App) runExecute(ctx context.Context, args []string) error {
 		return err
 	}
 
-	specPkg, err := a.loadSpec(root, options.specID)
+	runCtx, err := a.loadRunExecutionContext(root, options)
 	if err != nil {
 		return err
+	}
+	if err := a.materializeRunExecutionPrompt(runCtx); err != nil {
+		return err
+	}
+	return a.dispatchRunExecution(ctx, options, runCtx)
+}
+
+func (a *App) loadRunExecutionContext(root string, options runExecuteOptions) (runExecutionContext, error) {
+	specPkg, err := a.loadSpec(root, options.specID)
+	if err != nil {
+		return runExecutionContext{}, err
 	}
 	readinessAdvisory, err := a.refreshSpecReviewReadiness(root, specPkg.ID)
 	if err != nil {
-		return err
+		return runExecutionContext{}, err
 	}
-	qualityCfg, err := a.loadQualityConfig(root)
+	runtimeCfg, err := a.loadExecutionRuntimeConfig(root)
 	if err != nil {
-		return err
-	}
-	systemCfg, err := a.loadSystemConfig(root)
-	if err != nil {
-		return err
-	}
-	codexCfg, err := a.loadCodexConfig(root)
-	if err != nil {
-		return err
+		return runExecutionContext{}, err
 	}
 	workflowCfg, err := a.loadWorkflowConfig(root)
 	if err != nil {
-		return err
+		return runExecutionContext{}, err
 	}
-	prompt, tasks, delegation, err := a.buildExecutionPrompt(root, specPkg, qualityCfg, options.mode)
+	prompt, tasks, delegation, err := a.buildExecutionPrompt(root, specPkg, runtimeCfg.QualityCfg, options.mode)
 	if err != nil {
-		return err
+		return runExecutionContext{}, err
 	}
 
-	logDir := filepath.Join(root, logsDir, "runs")
-	if err := os.MkdirAll(logDir, 0o755); err != nil {
+	return runExecutionContext{
+		Root:              root,
+		SpecPkg:           specPkg,
+		ReadinessAdvisory: readinessAdvisory,
+		QualityCfg:        runtimeCfg.QualityCfg,
+		SystemCfg:         runtimeCfg.SystemCfg,
+		CodexCfg:          runtimeCfg.CodexCfg,
+		WorkflowCfg:       workflowCfg,
+		Prompt:            prompt,
+		PromptPath:        filepath.Join(root, logsDir, "runs", strings.ToLower(specPkg.ID)+"-request.md"),
+		Tasks:             tasks,
+		Delegation:        delegation,
+	}, nil
+}
+
+func (a *App) materializeRunExecutionPrompt(runCtx runExecutionContext) error {
+	return a.writeExecutionPrompt(runCtx.PromptPath, runCtx.Prompt)
+}
+
+func (a *App) loadExecutionRuntimeConfig(root string) (executionRuntimeConfig, error) {
+	qualityCfg, err := a.loadQualityConfig(root)
+	if err != nil {
+		return executionRuntimeConfig{}, err
+	}
+	systemCfg, err := a.loadSystemConfig(root)
+	if err != nil {
+		return executionRuntimeConfig{}, err
+	}
+	codexCfg, err := a.loadCodexConfig(root)
+	if err != nil {
+		return executionRuntimeConfig{}, err
+	}
+	return executionRuntimeConfig{
+		QualityCfg: qualityCfg,
+		SystemCfg:  systemCfg,
+		CodexCfg:   codexCfg,
+	}, nil
+}
+
+func (a *App) writeExecutionPrompt(path, prompt string) error {
+	if err := a.mkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	promptPath := filepath.Join(logDir, strings.ToLower(options.specID)+"-request.md")
-	if err := os.WriteFile(promptPath, []byte(prompt), 0o644); err != nil {
-		return err
-	}
-	if readinessAdvisory != "" {
-		fmt.Fprintf(a.stdout, "Review readiness for %s: %s (advisory only)\n", specPkg.ID, readinessAdvisory)
+	return a.writeFile(path, []byte(prompt), 0o644)
+}
+
+func (a *App) dispatchRunExecution(ctx context.Context, options runExecuteOptions, runCtx runExecutionContext) error {
+	if runCtx.ReadinessAdvisory != "" {
+		fmt.Fprintf(a.stdout, "Review readiness for %s: %s (advisory only)\n", runCtx.SpecPkg.ID, runCtx.ReadinessAdvisory)
 	}
 
 	if options.mode == executionModeParallel {
-		return a.runParallel(ctx, root, specPkg, tasks, prompt, qualityCfg, systemCfg, codexCfg, workflowCfg, options.dryRun)
+		return a.runParallel(ctx, runCtx.Root, runCtx.SpecPkg, runCtx.Tasks, runCtx.Prompt, runCtx.QualityCfg, runCtx.SystemCfg, runCtx.CodexCfg, runCtx.WorkflowCfg, options.dryRun)
 	}
 
 	if options.dryRun {
-		fmt.Fprintf(a.stdout, "Prepared execution request at %s\n", promptPath)
+		fmt.Fprintf(a.stdout, "Prepared execution request at %s\n", runCtx.PromptPath)
 		return nil
 	}
 
-	request := a.newExecutionRequest(specPkg.ID, root, prompt, options.mode, delegation, systemCfg, codexCfg)
-	if _, _, err := a.executeRun(ctx, root, strings.ToLower(options.specID), request, root, qualityCfg); err != nil {
+	request := a.newExecutionRequest(runCtx.SpecPkg.ID, runCtx.Root, runCtx.Prompt, options.mode, runCtx.Delegation, runCtx.SystemCfg, runCtx.CodexCfg)
+	if _, _, err := a.executeRun(ctx, runCtx.Root, strings.ToLower(runCtx.SpecPkg.ID), request, runCtx.Root, runCtx.QualityCfg); err != nil {
 		return err
 	}
 
-	fmt.Fprintf(a.stdout, "Executed %s with %s\n", options.specID, request.Runner)
+	fmt.Fprintf(a.stdout, "Executed %s with %s\n", runCtx.SpecPkg.ID, request.Runner)
 	return nil
 }
 
 func (a *App) runSync(ctx context.Context, args []string) error {
-	if wantsCommandHelp(args) {
-		return a.printCommandUsage("sync")
-	}
-	if len(args) != 0 {
-		return commandUsageError("sync", errors.New("sync does not accept arguments"))
+	if handled, err := a.handleNoArgTopLevelCommand("sync", args); handled {
+		return err
 	}
 
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
 	}
+
+	syncCtx, err := a.loadSyncContext(root)
+	if err != nil {
+		return err
+	}
+	if err := a.materializeSyncReadme(syncCtx); err != nil {
+		return err
+	}
+	if err := a.refreshSyncProjectArtifacts(ctx, syncCtx); err != nil {
+		return err
+	}
+	if err := a.writeSyncProjectSupportDocs(syncCtx); err != nil {
+		return err
+	}
+	fmt.Fprintln(a.stdout, "Synced NambaAI artifacts.")
+	return nil
+}
+
+func (a *App) loadSyncContext(root string) (syncContext, error) {
 	projectCfg, _ := a.loadProjectConfig(root)
 	latestSpec, _ := latestSpecID(filepath.Join(root, specsDir))
 	profile, err := a.loadInitProfileFromConfig(root)
 	if err != nil {
-		return err
+		return syncContext{}, err
 	}
 	docsCfg, err := a.loadDocsConfig(root)
 	if err != nil {
+		return syncContext{}, err
+	}
+	return syncContext{
+		Root:       root,
+		ProjectCfg: projectCfg,
+		LatestSpec: latestSpec,
+		Profile:    profile,
+		DocsCfg:    docsCfg,
+	}, nil
+}
+
+func (a *App) materializeSyncReadme(syncCtx syncContext) error {
+	if _, err := a.replaceManagedOutputs(syncCtx.Root, buildReadmeOutputs(syncCtx.ProjectCfg, syncCtx.Profile, syncCtx.DocsCfg), isReadmeManagedPath, false); err != nil {
 		return err
 	}
-	if _, err := a.replaceManagedOutputs(root, buildReadmeOutputs(projectCfg, profile, docsCfg), isReadmeManagedPath, false); err != nil {
-		return err
-	}
+	return nil
+}
+
+func (a *App) refreshSyncProjectArtifacts(ctx context.Context, syncCtx syncContext) error {
 	if err := a.runProject(ctx, nil); err != nil {
 		return err
 	}
-	if err := a.refreshAllSpecReviewReadiness(root); err != nil {
+	if err := a.refreshAllSpecReviewReadiness(syncCtx.Root); err != nil {
 		return err
 	}
+	return nil
+}
 
-	summary := buildChangeSummaryDoc(root, projectCfg, latestSpec, profile)
-	checklist := buildPRChecklistDoc(root, latestSpec, profile)
-	releaseNotes := buildReleaseNotesDoc(projectCfg, latestSpec, profile)
-	releaseChecklist := buildReleaseChecklistDoc()
-	outputs := map[string]string{
-		filepath.ToSlash(filepath.Join(projectDir, "change-summary.md")):    summary,
-		filepath.ToSlash(filepath.Join(projectDir, "pr-checklist.md")):      checklist,
-		filepath.ToSlash(filepath.Join(projectDir, "release-notes.md")):     releaseNotes,
-		filepath.ToSlash(filepath.Join(projectDir, "release-checklist.md")): releaseChecklist,
+func (a *App) writeSyncProjectSupportDocs(syncCtx syncContext) error {
+	outputs := buildSyncProjectSupportOutputs(syncCtx)
+	if err := a.materializeSyncProjectSupportOutputs(syncCtx.Root, outputs); err != nil {
+		return err
 	}
+	return nil
+}
+
+func buildSyncProjectSupportOutputs(syncCtx syncContext) map[string]string {
+	return map[string]string{
+		filepath.ToSlash(filepath.Join(projectDir, "change-summary.md")):    buildChangeSummaryDoc(syncCtx.Root, syncCtx.ProjectCfg, syncCtx.LatestSpec, syncCtx.Profile),
+		filepath.ToSlash(filepath.Join(projectDir, "pr-checklist.md")):      buildPRChecklistDoc(syncCtx.Root, syncCtx.LatestSpec, syncCtx.Profile),
+		filepath.ToSlash(filepath.Join(projectDir, "release-notes.md")):     buildReleaseNotesDoc(syncCtx.ProjectCfg, syncCtx.LatestSpec, syncCtx.Profile),
+		filepath.ToSlash(filepath.Join(projectDir, "release-checklist.md")): buildReleaseChecklistDoc(),
+	}
+}
+
+func (a *App) materializeSyncProjectSupportOutputs(root string, outputs map[string]string) error {
 	if _, err := a.writeOutputs(root, outputs); err != nil {
 		return err
 	}
-	fmt.Fprintln(a.stdout, "Synced NambaAI artifacts.")
 	return nil
 }
 
@@ -1464,59 +1709,94 @@ func (a *App) runWorktree(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	switch args[0] {
-	case "new":
-		if len(args) != 2 {
-			if len(args) < 2 {
-				return commandUsageError("worktree", errors.New("worktree new requires a name"))
-			}
-			return commandUsageError("worktree", errors.New("worktree new accepts exactly one name"))
-		}
-		name := args[1]
-		path := filepath.Join(root, worktreesDir, name)
-		_, err := a.runBinary(ctx, "git", []string{"worktree", "add", "-b", "namba/" + name, path, "HEAD"}, root)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(a.stdout, "Created worktree %s\n", path)
-		return nil
-	case "list":
-		if len(args) != 1 {
-			return commandUsageError("worktree", errors.New("worktree list does not accept arguments"))
-		}
-		out, err := a.runBinary(ctx, "git", []string{"worktree", "list", "--porcelain"}, root)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(a.stdout, out)
-		return nil
-	case "remove":
-		if len(args) != 2 {
-			if len(args) < 2 {
-				return commandUsageError("worktree", errors.New("worktree remove requires a name"))
-			}
-			return commandUsageError("worktree", errors.New("worktree remove accepts exactly one name"))
-		}
-		path := filepath.Join(root, worktreesDir, args[1])
-		_, err := a.runBinary(ctx, "git", []string{"worktree", "remove", "--force", path}, root)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(a.stdout, "Removed worktree %s\n", path)
-		return nil
-	case "clean":
-		if len(args) != 1 {
-			return commandUsageError("worktree", errors.New("worktree clean does not accept arguments"))
-		}
-		_, err := a.runBinary(ctx, "git", []string{"worktree", "prune"}, root)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintln(a.stdout, "Pruned worktrees.")
-		return nil
-	default:
+	subcommand, ok := a.resolveWorktreeSubcommand(args[0])
+	if !ok {
 		return commandUsageError("worktree", fmt.Errorf("unknown worktree subcommand %q", args[0]))
 	}
+	return subcommand.Run(a, ctx, root, args[1:])
+}
+
+func worktreeSubcommandDefinitions() []worktreeSubcommandDefinition {
+	return []worktreeSubcommandDefinition{
+		{Name: "new", UsageSummary: "  namba worktree new <name>", Run: (*App).runWorktreeNewSubcommand},
+		{Name: "list", UsageSummary: "  namba worktree list", Run: (*App).runWorktreeListSubcommand},
+		{Name: "remove", UsageSummary: "  namba worktree remove <name>", Run: (*App).runWorktreeRemoveSubcommand},
+		{Name: "clean", UsageSummary: "  namba worktree clean", Run: (*App).runWorktreeCleanSubcommand},
+	}
+}
+
+func worktreeSubcommandUsageSummaries() []string {
+	lines := make([]string, 0, len(worktreeSubcommandDefinitions()))
+	for _, definition := range worktreeSubcommandDefinitions() {
+		lines = append(lines, definition.UsageSummary)
+	}
+	return lines
+}
+
+func (a *App) resolveWorktreeSubcommand(name string) (worktreeSubcommandDefinition, bool) {
+	for _, definition := range worktreeSubcommandDefinitions() {
+		if definition.Name == name {
+			return definition, true
+		}
+	}
+	return worktreeSubcommandDefinition{}, false
+}
+
+func (a *App) runWorktreeNewSubcommand(ctx context.Context, root string, args []string) error {
+	if len(args) != 1 {
+		if len(args) == 0 {
+			return commandUsageError("worktree", errors.New("worktree new requires a name"))
+		}
+		return commandUsageError("worktree", errors.New("worktree new accepts exactly one name"))
+	}
+	name := args[0]
+	path := filepath.Join(root, worktreesDir, name)
+	_, err := a.runBinary(ctx, "git", []string{"worktree", "add", "-b", "namba/" + name, path, "HEAD"}, root)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(a.stdout, "Created worktree %s\n", path)
+	return nil
+}
+
+func (a *App) runWorktreeListSubcommand(ctx context.Context, root string, args []string) error {
+	if len(args) != 0 {
+		return commandUsageError("worktree", errors.New("worktree list does not accept arguments"))
+	}
+	out, err := a.runBinary(ctx, "git", []string{"worktree", "list", "--porcelain"}, root)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(a.stdout, out)
+	return nil
+}
+
+func (a *App) runWorktreeRemoveSubcommand(ctx context.Context, root string, args []string) error {
+	if len(args) != 1 {
+		if len(args) == 0 {
+			return commandUsageError("worktree", errors.New("worktree remove requires a name"))
+		}
+		return commandUsageError("worktree", errors.New("worktree remove accepts exactly one name"))
+	}
+	path := filepath.Join(root, worktreesDir, args[0])
+	_, err := a.runBinary(ctx, "git", []string{"worktree", "remove", "--force", path}, root)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(a.stdout, "Removed worktree %s\n", path)
+	return nil
+}
+
+func (a *App) runWorktreeCleanSubcommand(ctx context.Context, root string, args []string) error {
+	if len(args) != 0 {
+		return commandUsageError("worktree", errors.New("worktree clean does not accept arguments"))
+	}
+	_, err := a.runBinary(ctx, "git", []string{"worktree", "prune"}, root)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(a.stdout, "Pruned worktrees.")
+	return nil
 }
 
 type parallelWorkerState struct {
@@ -1876,93 +2156,6 @@ func runShellCommand(ctx context.Context, runner func(context.Context, string, [
 	}
 	return runner(ctx, "sh", []string{"-lc", command}, dir)
 }
-func detectLanguageFramework(root string) (string, string) {
-	switch {
-	case exists(filepath.Join(root, "go.mod")):
-		return "go", "none"
-	case exists(filepath.Join(root, "pom.xml")) || exists(filepath.Join(root, "build.gradle")) || exists(filepath.Join(root, "build.gradle.kts")) || exists(filepath.Join(root, "gradlew")) || exists(filepath.Join(root, "gradlew.bat")) || treeContainsExtension(root, ".java"):
-		return "java", detectJavaFramework(root)
-	case exists(filepath.Join(root, "package.json")):
-		return "typescript", detectNodeFramework(root)
-	case exists(filepath.Join(root, "pyproject.toml")) || exists(filepath.Join(root, "requirements.txt")):
-		return "python", "none"
-	default:
-		return "unknown", "none"
-	}
-}
-
-func detectJavaFramework(root string) string {
-	if exists(filepath.Join(root, "pom.xml")) {
-		data, err := os.ReadFile(filepath.Join(root, "pom.xml"))
-		if err == nil && strings.Contains(strings.ToLower(string(data)), "spring-boot") {
-			return "spring-boot"
-		}
-		return "maven"
-	}
-
-	for _, name := range []string{"build.gradle", "build.gradle.kts"} {
-		if !exists(filepath.Join(root, name)) {
-			continue
-		}
-		data, err := os.ReadFile(filepath.Join(root, name))
-		if err == nil && strings.Contains(strings.ToLower(string(data)), "spring-boot") {
-			return "spring-boot"
-		}
-		return "gradle"
-	}
-
-	if exists(filepath.Join(root, "gradlew")) || exists(filepath.Join(root, "gradlew.bat")) {
-		return "gradle"
-	}
-
-	return "none"
-}
-func detectNodeFramework(root string) string {
-	data, err := os.ReadFile(filepath.Join(root, "package.json"))
-	if err != nil {
-		return "none"
-	}
-	text := string(data)
-	switch {
-	case strings.Contains(text, "\"next\""):
-		return "nextjs"
-	case strings.Contains(text, "\"react\""):
-		return "react"
-	case strings.Contains(text, "\"vue\""):
-		return "vue"
-	default:
-		return "none"
-	}
-}
-
-func detectMethodology(root string) string {
-	source := 0
-	tests := 0
-	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
-		}
-		if strings.Contains(path, string(filepath.Separator)+".namba"+string(filepath.Separator)) {
-			return nil
-		}
-		switch filepath.Ext(path) {
-		case ".go", ".java", ".js", ".ts", ".tsx", ".py", ".rs":
-			source++
-			if strings.Contains(strings.ToLower(filepath.Base(path)), "test") {
-				tests++
-			}
-		}
-		return nil
-	})
-	if source == 0 {
-		return "tdd"
-	}
-	if float64(tests)/float64(source) >= 0.10 {
-		return "tdd"
-	}
-	return "ddd"
-}
-
 func detectProjectType(root string) string {
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -1972,110 +2165,6 @@ func detectProjectType(root string) string {
 		return "new"
 	}
 	return "existing"
-}
-
-func defaultQualityCommands(root, language, framework string) (string, string, string) {
-	switch language {
-	case "go":
-		return "go test ./...", defaultGoFormatCommand(root), "go vet ./..."
-	case "java":
-		return defaultJavaQualityCommands(root, framework)
-	case "typescript":
-		return "npm test", "npm run lint", "npm run typecheck"
-	case "python":
-		return "pytest", "ruff check .", "none"
-	default:
-		return "none", "none", "none"
-	}
-}
-
-func defaultJavaQualityCommands(root, framework string) (string, string, string) {
-	switch normalizeFramework(framework) {
-	case "spring-boot", "maven":
-		return "mvn -q test", "mvn -q spotless:check", "mvn -q -DskipTests compile"
-	case "gradle":
-		gradle := defaultGradleCommand(root)
-		return gradle + " test", gradle + " check", gradle + " compileJava"
-	default:
-		detected := detectJavaFramework(root)
-		if detected != "none" {
-			return defaultJavaQualityCommands(root, detected)
-		}
-		return "none", "none", "none"
-	}
-}
-
-func defaultGradleCommand(root string) string {
-	switch {
-	case exists(filepath.Join(root, "gradlew")):
-		return "./gradlew"
-	case exists(filepath.Join(root, "gradlew.bat")):
-		return ".\\gradlew.bat"
-	default:
-		return "gradle"
-	}
-}
-
-func treeContainsExtension(root, ext string) bool {
-	found := false
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
-		}
-		if filepath.Ext(path) == ext {
-			found = true
-		}
-		return nil
-	})
-	return found
-}
-func defaultGoFormatCommand(root string) string {
-	skipDirs := map[string]bool{
-		".git":     true,
-		".namba":   true,
-		".codex":   true,
-		"external": true,
-		"vendor":   true,
-	}
-
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		return "none"
-	}
-
-	var targets []string
-	for _, entry := range entries {
-		name := entry.Name()
-		switch {
-		case entry.IsDir() && skipDirs[name]:
-			continue
-		case entry.IsDir() && directoryContainsGo(filepath.Join(root, name)):
-			targets = append(targets, strconv.Quote(name))
-		case !entry.IsDir() && filepath.Ext(name) == ".go":
-			targets = append(targets, strconv.Quote(name))
-		}
-	}
-
-	if len(targets) == 0 {
-		return "none"
-	}
-
-	sort.Strings(targets)
-	return "gofmt -l " + strings.Join(targets, " ")
-}
-
-func directoryContainsGo(root string) bool {
-	found := false
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
-		}
-		if filepath.Ext(path) == ".go" {
-			found = true
-		}
-		return nil
-	})
-	return found
 }
 
 func buildStructureDoc(root string) string {
@@ -2746,18 +2835,37 @@ func readGoModule(root string) string {
 	return ""
 }
 
-func buildAcceptanceDoc(description, mode string) string {
-	bullets := []string{"# Acceptance", "", "- [ ] The requested behavior described below is implemented:", "  " + description, "- [ ] Validation commands pass"}
-	if mode == "tdd" {
-		bullets = append(bullets, "- [ ] Tests covering the new behavior are present")
-	} else {
-		bullets = append(bullets, "- [ ] Existing behavior is preserved while improving the target area")
-	}
+func buildFeatureAcceptanceDoc(description, mode string) string {
+	bullets := featureAcceptanceCoreLines(description)
+	bullets = append(bullets, featureAcceptanceModeLine(mode))
 	return strings.Join(bullets, "\n")
 }
 
 func buildHarnessAcceptanceDoc(description, mode string) string {
-	bullets := []string{
+	bullets := harnessAcceptanceCoreLines(description)
+	bullets = append(bullets, harnessAcceptanceModeLine(mode))
+	return strings.Join(bullets, "\n")
+}
+
+func featureAcceptanceCoreLines(description string) []string {
+	return []string{
+		"# Acceptance",
+		"",
+		"- [ ] The requested behavior described below is implemented:",
+		"  " + description,
+		"- [ ] Validation commands pass",
+	}
+}
+
+func featureAcceptanceModeLine(mode string) string {
+	if mode == "tdd" {
+		return "- [ ] Tests covering the new behavior are present"
+	}
+	return "- [ ] Existing behavior is preserved while improving the target area"
+}
+
+func harnessAcceptanceCoreLines(description string) []string {
+	return []string{
 		"# Acceptance",
 		"",
 		"- [ ] `namba harness \"<description>\"` creates the next sequential `SPEC-XXX` package with a harness-oriented scaffold.",
@@ -2770,29 +2878,56 @@ func buildHarnessAcceptanceDoc(description, mode string) string {
 		"  " + description,
 		"- [ ] Validation commands pass",
 	}
+}
+
+func harnessAcceptanceModeLine(mode string) string {
 	if mode == "tdd" {
-		bullets = append(bullets, "- [ ] Tests covering the new command/scaffold behavior are present")
-	} else {
-		bullets = append(bullets, "- [ ] Existing planning behavior is preserved while adding the harness surface")
+		return "- [ ] Tests covering the new command/scaffold behavior are present"
 	}
-	return strings.Join(bullets, "\n")
+	return "- [ ] Existing planning behavior is preserved while adding the harness surface"
 }
 
 func buildChangeSummaryDoc(root string, projectCfg projectConfig, latestSpec string, profile initProfile) string {
+	latestSpec = normalizedLatestSpec(latestSpec)
+	lines := changeSummaryHeaderLines(projectCfg, latestSpec)
+	lines = append(lines, "")
+	lines = append(lines, changeSummaryWorkflowDocsSection(profile)...)
+	lines = append(lines, "")
+	lines = append(lines, changeSummaryRefreshCommandsSection()...)
+	if readinessLines := changeSummaryLatestReviewReadinessSection(root, latestSpec); len(readinessLines) > 0 {
+		lines = append(lines, "")
+		lines = append(lines, readinessLines...)
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func normalizedProjectType(projectCfg projectConfig) string {
 	projectType := projectCfg.ProjectType
 	if strings.TrimSpace(projectType) == "" {
 		projectType = "existing"
 	}
+	return projectType
+}
+
+func normalizedLatestSpec(latestSpec string) string {
 	if strings.TrimSpace(latestSpec) == "" {
-		latestSpec = "none"
+		return "none"
 	}
-	lines := []string{
+	return latestSpec
+}
+
+func changeSummaryHeaderLines(projectCfg projectConfig, latestSpec string) []string {
+	return []string{
 		"# Change Summary",
 		"",
 		fmt.Sprintf("Project: %s", projectCfg.Name),
-		fmt.Sprintf("Project type: %s", projectType),
-		fmt.Sprintf("Latest SPEC: %s", latestSpec),
-		"",
+		fmt.Sprintf("Project type: %s", normalizedProjectType(projectCfg)),
+		fmt.Sprintf("Latest SPEC: %s", normalizedLatestSpec(latestSpec)),
+	}
+}
+
+func changeSummaryWorkflowDocsSection(profile initProfile) []string {
+	return []string{
 		"## Workflow Docs Synced",
 		"",
 		"- README bundles and product docs describe when to use `namba update`, `namba regen`, `namba sync`, `namba pr`, and `namba land`.",
@@ -2801,7 +2936,11 @@ func buildChangeSummaryDoc(root string, projectCfg projectConfig, latestSpec str
 		"- AGENTS and Codex docs define the Namba output contract plus the fallback validator script at `.namba/codex/validate-output-contract.py`.",
 		"- SPEC packages can keep advisory plan-review artifacts under `.namba/specs/<SPEC>/reviews/` so product, engineering, and design review state stays visible before execution and PR handoff.",
 		fmt.Sprintf("- Collaboration docs require one branch per SPEC/task from `%s`, PRs into `%s`, %s PR content, and Codex review requests via `%s`.", branchBase(profile), prBaseBranch(profile), strings.ToLower(humanLanguageName(profile.PRLanguage)), codexReviewComment(profile)),
-		"",
+	}
+}
+
+func changeSummaryRefreshCommandsSection() []string {
+	return []string{
 		"## Refresh Commands",
 		"",
 		"- `namba update` self-updates the installed `namba` binary from GitHub Release assets.",
@@ -2810,22 +2949,36 @@ func buildChangeSummaryDoc(root string, projectCfg projectConfig, latestSpec str
 		"- `namba pr` prepares the current branch for GitHub review by running sync and validation by default, then committing, pushing, opening or reusing the PR, and ensuring the Codex review marker exists.",
 		"- `namba land` optionally waits for checks, merges only when the PR is clean, and updates local `main` safely.",
 	}
-	if specReviewReadinessExists(root, latestSpec) {
-		lines = append(lines,
-			"",
-			"## Latest Review Readiness",
-			"",
-			fmt.Sprintf("- Latest readiness artifact: `%s`", specReviewReadinessPath(latestSpec)),
-			fmt.Sprintf("- Advisory summary: %s", specReviewAdvisorySummary(root, latestSpec)),
-		)
+}
+
+func changeSummaryLatestReviewReadinessSection(root, latestSpec string) []string {
+	if !specReviewReadinessExists(root, latestSpec) {
+		return nil
 	}
-	return strings.Join(lines, "\n") + "\n"
+	return []string{
+		"## Latest Review Readiness",
+		"",
+		fmt.Sprintf("- Latest readiness artifact: `%s`", specReviewReadinessPath(latestSpec)),
+		fmt.Sprintf("- Advisory summary: %s", specReviewAdvisorySummary(root, latestSpec)),
+	}
 }
 
 func buildPRChecklistDoc(root, latestSpec string, profile initProfile) string {
-	lines := []string{
+	lines := prChecklistHeaderLines()
+	lines = append(lines, prChecklistCoreItems(profile)...)
+	lines = append(lines, prChecklistLatestReviewReadinessItem(root, latestSpec)...)
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func prChecklistHeaderLines() []string {
+	return []string{
 		"# PR Checklist",
 		"",
+	}
+}
+
+func prChecklistCoreItems(profile initProfile) []string {
+	return []string{
 		fmt.Sprintf("- [ ] Dedicated work branch created from `%s` for this SPEC/task", branchBase(profile)),
 		fmt.Sprintf("- [ ] PR targets `%s`", prBaseBranch(profile)),
 		fmt.Sprintf("- [ ] PR title and body are written in %s", humanLanguageName(profile.PRLanguage)),
@@ -2838,27 +2991,40 @@ func buildPRChecklistDoc(root, latestSpec string, profile initProfile) string {
 		"- [ ] Validation commands passed",
 		"- [ ] Diff reviewed",
 	}
-	if specReviewReadinessExists(root, latestSpec) {
-		lines = append(lines, fmt.Sprintf("- [ ] Latest SPEC review readiness checked: `%s`", specReviewReadinessPath(latestSpec)))
+}
+
+func prChecklistLatestReviewReadinessItem(root, latestSpec string) []string {
+	if !specReviewReadinessExists(root, latestSpec) {
+		return nil
 	}
-	return strings.Join(lines, "\n") + "\n"
+	return []string{fmt.Sprintf("- [ ] Latest SPEC review readiness checked: `%s`", specReviewReadinessPath(latestSpec))}
 }
 
 func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec string, profile initProfile) string {
-	projectType := projectCfg.ProjectType
-	if strings.TrimSpace(projectType) == "" {
-		projectType = "existing"
-	}
-	if strings.TrimSpace(latestSpec) == "" {
-		latestSpec = "none"
-	}
-	lines := []string{
+	lines := releaseNotesHeaderLines(projectCfg, latestSpec)
+	lines = append(lines, "")
+	lines = append(lines, releaseNotesWorkflowChangesSection(profile)...)
+	lines = append(lines, "")
+	lines = append(lines, releaseNotesGuardrailsSection()...)
+	lines = append(lines, "")
+	lines = append(lines, releaseNotesCommandsSection()...)
+	lines = append(lines, "")
+	lines = append(lines, releaseNotesExpectedAssetsSection()...)
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func releaseNotesHeaderLines(projectCfg projectConfig, latestSpec string) []string {
+	return []string{
 		"# Release Notes Draft",
 		"",
 		fmt.Sprintf("Project: %s", projectCfg.Name),
-		fmt.Sprintf("Project type: %s", projectType),
-		fmt.Sprintf("Reference SPEC: %s", latestSpec),
-		"",
+		fmt.Sprintf("Project type: %s", normalizedProjectType(projectCfg)),
+		fmt.Sprintf("Reference SPEC: %s", normalizedLatestSpec(latestSpec)),
+	}
+}
+
+func releaseNotesWorkflowChangesSection(profile initProfile) []string {
+	return []string{
 		"## Workflow Changes",
 		"",
 		"- `namba update` self-updates the installed `namba` binary from GitHub Release assets.",
@@ -2868,14 +3034,22 @@ func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec string, profile i
 		"- `namba land` optionally waits for checks, merges only when the PR is clean, and updates local `main` safely.",
 		"- `namba run SPEC-XXX` keeps the standard standalone Codex flow; `--solo` and `--team` request single-subagent or multi-subagent workflows inside one workspace; `--parallel` still fans out into up to three git worktrees and merges only after every worker passes execution and validation.",
 		fmt.Sprintf("- Active collaboration defaults: one branch per SPEC/task from `%s`, PRs into `%s`, %s PR content, and Codex review requests via `%s`.", branchBase(profile), prBaseBranch(profile), strings.ToLower(humanLanguageName(profile.PRLanguage)), codexReviewComment(profile)),
-		"",
+	}
+}
+
+func releaseNotesGuardrailsSection() []string {
+	return []string{
 		"## Release Guardrails",
 		"",
 		"- `namba release` requires a git repository, the `main` branch, and a clean working tree.",
 		"- Validators from `.namba/config/sections/quality.yaml` run before the release tag is created.",
 		"- With no explicit version, `namba release` defaults to the next `patch` tag. Use `--bump minor|major` or `--version vX.Y.Z` when needed.",
 		"- `namba release --push` pushes both `main` and the new tag to the selected remote.",
-		"",
+	}
+}
+
+func releaseNotesCommandsSection() []string {
+	return []string{
 		"## Release Commands",
 		"",
 		"```text",
@@ -2886,7 +3060,11 @@ func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec string, profile i
 		"# or",
 		"namba release --version vX.Y.Z --push",
 		"```",
-		"",
+	}
+}
+
+func releaseNotesExpectedAssetsSection() []string {
+	return []string{
 		"## Expected Assets",
 		"",
 		"- `namba_Windows_x86.zip`",
@@ -2898,13 +3076,23 @@ func buildReleaseNotesDoc(projectCfg projectConfig, latestSpec string, profile i
 		"- `namba_macOS_arm64.tar.gz`",
 		"- `checksums.txt`",
 	}
-	return strings.Join(lines, "\n") + "\n"
 }
 
 func buildReleaseChecklistDoc() string {
-	return strings.Join([]string{
+	lines := releaseChecklistHeaderLines()
+	lines = append(lines, releaseChecklistItems()...)
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func releaseChecklistHeaderLines() []string {
+	return []string{
 		"# Release Checklist",
 		"",
+	}
+}
+
+func releaseChecklistItems() []string {
+	return []string{
 		"- [ ] `namba regen` rerun if template-generated Codex assets changed",
 		"- [ ] `namba sync` artifacts refreshed",
 		"- [ ] `namba pr` used for the GitHub review handoff when the branch is ready",
@@ -2914,11 +3102,17 @@ func buildReleaseChecklistDoc() string {
 		"- [ ] `namba release --version vX.Y.Z` or `namba release --bump patch` executed",
 		"- [ ] If `--push` was not used, `main` and the release tag were pushed manually",
 		"- [ ] GitHub Release workflow completed and published assets plus `checksums.txt`",
-	}, "\n") + "\n"
+	}
 }
 
 func buildFixAcceptanceDoc(description, mode string) string {
-	bullets := []string{
+	bullets := fixAcceptanceCoreLines(description)
+	bullets = append(bullets, fixAcceptanceModeLine(mode))
+	return strings.Join(bullets, "\n")
+}
+
+func fixAcceptanceCoreLines(description string) []string {
+	return []string{
 		"# Acceptance",
 		"",
 		"- [ ] The reported issue described below is resolved:",
@@ -2926,12 +3120,13 @@ func buildFixAcceptanceDoc(description, mode string) string {
 		"- [ ] Validation commands pass",
 		"- [ ] Existing behavior around the affected area is preserved",
 	}
+}
+
+func fixAcceptanceModeLine(mode string) string {
 	if mode == "tdd" {
-		bullets = append(bullets, "- [ ] A regression test covering the fix is present")
-	} else {
-		bullets = append(bullets, "- [ ] A targeted reproduction or verification step is documented")
+		return "- [ ] A regression test covering the fix is present"
 	}
-	return strings.Join(bullets, "\n")
+	return "- [ ] A targeted reproduction or verification step is documented"
 }
 
 func nextSpecID(root string) (string, error) {
@@ -3167,7 +3362,11 @@ func isGitRepository(root string) bool {
 const timeLayoutDateTime = "2006-01-02T15:04:05Z07:00"
 
 func (a *App) resolveInitProfile(root string, opts initOptions) (initProfile, error) {
-	profile := a.detectInitProfile(root)
+	return a.resolveInitProfileWithScan(root, opts, scanInitRepository(root))
+}
+
+func (a *App) resolveInitProfileWithScan(root string, opts initOptions, scan initRepositoryScan) (initProfile, error) {
+	profile := a.detectInitProfileWithScan(root, scan)
 	applyInitOverrides(&profile, opts)
 	if !opts.Yes && a.isInteractiveTerminal() {
 		var err error
@@ -3183,7 +3382,11 @@ func (a *App) resolveInitProfile(root string, opts initOptions) (initProfile, er
 }
 
 func (a *App) detectInitProfile(root string) initProfile {
-	language, framework := detectLanguageFramework(root)
+	return a.detectInitProfileWithScan(root, scanInitRepository(root))
+}
+
+func (a *App) detectInitProfileWithScan(root string, scan initRepositoryScan) initProfile {
+	language, framework := detectLanguageFrameworkWithScan(root, scan)
 	locale := detectLocale(a.getenv)
 	name := normalizeProjectName(filepath.Base(root))
 	if name == "" {
@@ -3195,7 +3398,7 @@ func (a *App) detectInitProfile(root string) initProfile {
 		ProjectType:           detectProjectType(root),
 		Language:              language,
 		Framework:             framework,
-		DevelopmentMode:       detectMethodology(root),
+		DevelopmentMode:       detectMethodologyWithScan(scan),
 		ConversationLanguage:  locale,
 		DocumentationLanguage: locale,
 		CommentLanguage:       locale,

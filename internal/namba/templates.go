@@ -63,6 +63,14 @@ func renderNambaSkill(profile initProfile) string {
 		"",
 		"Use this skill whenever the user mentions `namba`, `namba help`, `namba project`, `namba regen`, `namba update`, `namba plan`, `namba harness`, `namba fix`, `namba run`, `namba sync`, `namba pr`, `namba land`, `$namba-help`, `$namba-create`, `$namba-plan-review`, or asks to use the Namba workflow.",
 		"",
+	}
+	lines = append(lines, renderNambaSkillCommandMappingSection()...)
+	lines = append(lines, renderNambaSkillExecutionRulesSection(profile)...)
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func renderNambaSkillCommandMappingSection() []string {
+	return []string{
 		"Command mapping:",
 		"- `$namba-help`: explain how to use NambaAI in this repository, which command or skill to use next, and where the authoritative docs live, without mutating repository state.",
 		"- `$namba-create`: run the skill-first creation workflow for repo-local skills, project-scoped custom agents, or both. Keep the user-facing surface inside Codex and do not add a public `namba create` CLI command in this slice.",
@@ -82,6 +90,11 @@ func renderNambaSkill(profile initProfile) string {
 		"- `namba land`: resolve the current branch PR, optionally wait for checks, merge when the PR is clean, and update local `main` safely.",
 		"- `namba doctor`: verify that AGENTS, repo skills, `.namba` config, Codex CLI, and the global `namba` command are available.",
 		"",
+	}
+}
+
+func renderNambaSkillExecutionRulesSection(profile initProfile) []string {
+	return []string{
 		"Execution rules:",
 		"1. Treat `.namba/` as the source of truth.",
 		"2. Prefer repo-local skills in `.agents/skills/`.",
@@ -93,7 +106,6 @@ func renderNambaSkill(profile initProfile) string {
 		"8. Start each new SPEC or task on a dedicated work branch when `.namba/config/sections/git-strategy.yaml` enables branch-per-work collaboration.",
 		fmt.Sprintf("9. Prepare PRs against `%s`, write the title/body in %s, and request GitHub Codex review with `%s` when the review flow is enabled.", prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
 	}
-	return strings.Join(lines, "\n") + "\n"
 }
 
 func renderCommandSkill(name, description string, body []string) string {
@@ -508,51 +520,22 @@ func renderCodexUsage(profile initProfile) string {
 		"",
 		fmt.Sprintf("`%s` is configured for Codex-native Namba workflow.", profile.ProjectName),
 		"",
-		"## What `namba init .` Enables",
-		"",
-		"- Creates `AGENTS.md` with Namba orchestration rules.",
-		"- Creates repo-local skills under `.agents/skills/`, including read-only guidance plus command-entry skills such as `namba-help`, `namba-create`, `namba-run`, `namba-pr`, `namba-land`, `namba-plan`, `namba-plan-review`, `namba-harness`, `namba-plan-pm-review`, `namba-plan-eng-review`, `namba-plan-design-review`, and `namba-sync`.",
-		"- Creates task-oriented Codex custom agents under `.codex/agents/*.toml` and readable `.md` role-card mirrors.",
-		"- Creates repo-local Codex config under `.codex/config.toml`, keeping a narrow repo-safe baseline such as `approval_policy`, `sandbox_mode`, and agent thread limits, plus an allow-listed set of repo-managed MCP presets when configured.",
-		"- Creates `.namba/codex/output-contract.md` plus `.namba/codex/validate-output-contract.py` for NambaAI response-shape guidance and fallback validation.",
-		"- Creates `.namba/` project state, configs, docs, and SPEC storage.",
-		"",
-		"## How Codex Uses Namba After Init",
-		"",
-		"1. Open Codex in the initialized project directory.",
-		"   On Windows, the current official Codex docs recommend using a WSL workspace for the best CLI experience.",
-		"2. Codex loads `AGENTS.md` and repo skills.",
-		"3. Invoke `$namba` for routing, `$namba-help` for read-only Namba usage guidance, or command-entry skills such as `$namba-create`, `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-plan-review`, `$namba-harness`, `$namba-fix`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, and `$namba-sync` for direct command-style execution.",
-		"4. Use built-in Codex subagents such as `default`, `worker`, and `explorer`, plus project-scoped custom agents under `.codex/agents/*.toml`, when multi-agent work is appropriate. The matching `.md` files remain readable mirrors.",
-		"5. Use the plan-review skills to update `.namba/specs/<SPEC>/reviews/*.md` and keep `.namba/specs/<SPEC>/reviews/readiness.md` current when a SPEC needs product, engineering, or design critique before implementation, or use `$namba-plan-review` when you want the create-plus-review loop bundled into one Codex entry point.",
-		"6. Use `namba project`, `namba regen`, `namba update`, `namba plan`, `namba harness`, `namba fix`, `namba run SPEC-XXX`, `namba sync`, `namba pr`, and `namba land` as workflow commands.",
-		"",
-		"## Namba Custom Agent Roster",
-		"",
-		"- Strategy and readiness: `namba-product-manager` shapes scope and acceptance, `namba-planner` turns a SPEC into an execution plan, and `namba-plan-reviewer` validates whether the product/engineering/design review set is coherent enough to start implementation.",
-		"- UI: `namba-frontend-architect` plans component boundaries and UI risks, `namba-frontend-implementer` ships approved UI work, `namba-mobile-engineer` handles mobile-specific constraints, and `namba-designer` clarifies visual direction and interaction intent.",
-		"- Backend and data: `namba-backend-architect` plans service boundaries, `namba-backend-implementer` ships server-side changes, and `namba-data-engineer` owns data pipelines, transformations, migrations, and analytics-facing changes.",
-		"- Security and delivery: `namba-security-engineer` handles hardening work, `namba-test-engineer` adds targeted regression coverage, `namba-devops-engineer` handles CI/CD and runtime changes, and `namba-reviewer` checks implementation acceptance before sync.",
-		"- General delivery: `namba-implementer` remains the generalist execution agent for mixed-scope implementation slices.",
-		"- Built-in Codex subagents such as `explorer` and `worker` still matter; use the Namba custom roster when responsibility and output expectations need tighter framing.",
-		"",
-		"## Delegation Heuristics",
-		"",
-		"- Default `namba run` stays inside the standalone runner unless specialist signals are strong enough to justify delegation.",
-		"- `--solo` uses at most one specialist when one domain clearly dominates the request.",
-		"- `--team` prefers one specialist when one domain dominates and expands to two or three only when acceptance spans multiple domains.",
-		"- Repo-managed same-workspace defaults set `.codex/config.toml [agents].max_threads = 5` when `agent_mode: multi`; worktree fan-out remains separately controlled by `.namba/config/sections/workflow.yaml`.",
-		"- Team mode honors each selected role's `model` and `model_reasoning_effort` metadata from `.codex/agents/*.toml`, keeping planner/reviewer/security roles stronger and delivery roles lighter.",
-		"- Route UI, responsive, mobile, and Figma work to frontend/mobile/designer; API, schema, and pipeline work to backend/data; auth, secrets, and compliance work to security; deployment and runtime work to devops.",
-		"- Keep the standalone runner as the integrator and final validation owner, and use `namba-reviewer` last when multiple specialists contribute.",
-		"",
-		"## Plan Review Readiness",
-		"",
-		"- `namba plan`, `namba harness`, and `namba fix --command plan` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.",
-		"- `$namba-plan-review` bundles SPEC creation or resolution, the three review tracks, and an aggregate validation loop when you want that whole pre-implementation pass handled through one skill.",
-		"- `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` update those review artifacts directly in the repository.",
-		"- `namba run`, `namba sync`, and `namba pr` surface the latest readiness summary as advisory context so review depth is visible without silently hard-blocking delivery.",
-		"",
+	}
+	lines = append(lines, renderCodexUsageInitEnablesSection()...)
+	lines = append(lines, renderCodexUsageHowCodexUsesNambaSection()...)
+	lines = append(lines, renderCodexUsageWorkflowCommandSemanticsSection()...)
+	lines = append(lines, renderCodexUsageAgentRosterSection()...)
+	lines = append(lines, renderCodexUsageDelegationHeuristicsSection()...)
+	lines = append(lines, renderCodexUsagePlanReviewReadinessSection()...)
+	lines = append(lines, renderCodexUsageOutputContractSection(profile)...)
+	lines = append(lines, renderCodexUsageGitCollaborationSection(profile)...)
+	lines = append(lines, renderCodexUsageClaudeMappingSection()...)
+	lines = append(lines, renderCodexUsageImportantDistinctionSection()...)
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func renderCodexUsageWorkflowCommandSemanticsSection() []string {
+	return []string{
 		"## Workflow Command Semantics",
 		"",
 		"- `$namba-help` explains how to use NambaAI, which command to choose next, and where the authoritative docs live. It should stay read-only.",
@@ -572,6 +555,80 @@ func renderCodexUsage(profile initProfile) string {
 		"- `namba run SPEC-XXX --solo` requests a standalone Codex run that explicitly targets a single-subagent workflow inside one workspace.",
 		"- `namba run SPEC-XXX --team` requests a standalone Codex run that explicitly coordinates multiple subagents inside one workspace.",
 		"- `namba run SPEC-XXX --parallel` still refers to the standalone worktree runner path. It uses git worktrees, merges only after every worker passes execution and validation, and preserves failed worktrees and branches for inspection.",
+	}
+}
+
+func renderCodexUsageInitEnablesSection() []string {
+	return []string{
+		"## What `namba init .` Enables",
+		"",
+		"- Creates `AGENTS.md` with Namba orchestration rules.",
+		"- Creates repo-local skills under `.agents/skills/`, including read-only guidance plus command-entry skills such as `namba-help`, `namba-create`, `namba-run`, `namba-pr`, `namba-land`, `namba-plan`, `namba-plan-review`, `namba-harness`, `namba-plan-pm-review`, `namba-plan-eng-review`, `namba-plan-design-review`, and `namba-sync`.",
+		"- Creates task-oriented Codex custom agents under `.codex/agents/*.toml` and readable `.md` role-card mirrors.",
+		"- Creates repo-local Codex config under `.codex/config.toml`, keeping a narrow repo-safe baseline such as `approval_policy`, `sandbox_mode`, and agent thread limits, plus an allow-listed set of repo-managed MCP presets when configured.",
+		"- Creates `.namba/codex/output-contract.md` plus `.namba/codex/validate-output-contract.py` for NambaAI response-shape guidance and fallback validation.",
+		"- Creates `.namba/` project state, configs, docs, and SPEC storage.",
+		"",
+	}
+}
+
+func renderCodexUsageHowCodexUsesNambaSection() []string {
+	return []string{
+		"## How Codex Uses Namba After Init",
+		"",
+		"1. Open Codex in the initialized project directory.",
+		"   On Windows, the current official Codex docs recommend using a WSL workspace for the best CLI experience.",
+		"2. Codex loads `AGENTS.md` and repo skills.",
+		"3. Invoke `$namba` for routing, `$namba-help` for read-only Namba usage guidance, or command-entry skills such as `$namba-create`, `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-plan-review`, `$namba-harness`, `$namba-fix`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, and `$namba-sync` for direct command-style execution.",
+		"4. Use built-in Codex subagents such as `default`, `worker`, and `explorer`, plus project-scoped custom agents under `.codex/agents/*.toml`, when multi-agent work is appropriate. The matching `.md` files remain readable mirrors.",
+		"5. Use the plan-review skills to update `.namba/specs/<SPEC>/reviews/*.md` and keep `.namba/specs/<SPEC>/reviews/readiness.md` current when a SPEC needs product, engineering, or design critique before implementation, or use `$namba-plan-review` when you want the create-plus-review loop bundled into one Codex entry point.",
+		"6. Use `namba project`, `namba regen`, `namba update`, `namba plan`, `namba harness`, `namba fix`, `namba run SPEC-XXX`, `namba sync`, `namba pr`, and `namba land` as workflow commands.",
+	}
+}
+
+func renderCodexUsageAgentRosterSection() []string {
+	return []string{
+		"",
+		"## Namba Custom Agent Roster",
+		"",
+		"- Strategy and readiness: `namba-product-manager` shapes scope and acceptance, `namba-planner` turns a SPEC into an execution plan, and `namba-plan-reviewer` validates whether the product/engineering/design review set is coherent enough to start implementation.",
+		"- UI: `namba-frontend-architect` plans component boundaries and UI risks, `namba-frontend-implementer` ships approved UI work, `namba-mobile-engineer` handles mobile-specific constraints, and `namba-designer` clarifies visual direction and interaction intent.",
+		"- Backend and data: `namba-backend-architect` plans service boundaries, `namba-backend-implementer` ships server-side changes, and `namba-data-engineer` owns data pipelines, transformations, migrations, and analytics-facing changes.",
+		"- Security and delivery: `namba-security-engineer` handles hardening work, `namba-test-engineer` adds targeted regression coverage, `namba-devops-engineer` handles CI/CD and runtime changes, and `namba-reviewer` checks implementation acceptance before sync.",
+		"- General delivery: `namba-implementer` remains the generalist execution agent for mixed-scope implementation slices.",
+		"- Built-in Codex subagents such as `explorer` and `worker` still matter; use the Namba custom roster when responsibility and output expectations need tighter framing.",
+	}
+}
+
+func renderCodexUsageDelegationHeuristicsSection() []string {
+	return []string{
+		"",
+		"## Delegation Heuristics",
+		"",
+		"- Default `namba run` stays inside the standalone runner unless specialist signals are strong enough to justify delegation.",
+		"- `--solo` uses at most one specialist when one domain clearly dominates the request.",
+		"- `--team` prefers one specialist when one domain dominates and expands to two or three only when acceptance spans multiple domains.",
+		"- Repo-managed same-workspace defaults set `.codex/config.toml [agents].max_threads = 5` when `agent_mode: multi`; worktree fan-out remains separately controlled by `.namba/config/sections/workflow.yaml`.",
+		"- Team mode honors each selected role's `model` and `model_reasoning_effort` metadata from `.codex/agents/*.toml`, keeping planner/reviewer/security roles stronger and delivery roles lighter.",
+		"- Route UI, responsive, mobile, and Figma work to frontend/mobile/designer; API, schema, and pipeline work to backend/data; auth, secrets, and compliance work to security; deployment and runtime work to devops.",
+		"- Keep the standalone runner as the integrator and final validation owner, and use `namba-reviewer` last when multiple specialists contribute.",
+	}
+}
+
+func renderCodexUsagePlanReviewReadinessSection() []string {
+	return []string{
+		"",
+		"## Plan Review Readiness",
+		"",
+		"- `namba plan`, `namba harness`, and `namba fix --command plan` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.",
+		"- `$namba-plan-review` bundles SPEC creation or resolution, the three review tracks, and an aggregate validation loop when you want that whole pre-implementation pass handled through one skill.",
+		"- `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` update those review artifacts directly in the repository.",
+		"- `namba run`, `namba sync`, and `namba pr` surface the latest readiness summary as advisory context so review depth is visible without silently hard-blocking delivery.",
+	}
+}
+
+func renderCodexUsageOutputContractSection(profile initProfile) []string {
+	return []string{
 		"",
 		"## Output Contract",
 		"",
@@ -580,6 +637,11 @@ func renderCodexUsage(profile initProfile) string {
 		"- The semantic order stays fixed, but the exact labels can vary within the selected language palette so the writing does not become robotic.",
 		"- `.namba/codex/validate-output-contract.py` checks this contract from a saved response file or stdin.",
 		"- Namba keeps the validator script as the explicit repository enforcement path even as Codex's documented config and hook surface evolves.",
+	}
+}
+
+func renderCodexUsageGitCollaborationSection(profile initProfile) []string {
+	return []string{
 		"",
 		"## Git Collaboration Defaults",
 		"",
@@ -588,6 +650,11 @@ func renderCodexUsage(profile initProfile) string {
 		fmt.Sprintf("- PRs target `%s`.", prBaseBranch(profile)),
 		fmt.Sprintf("- PR titles and bodies should be written in %s.", humanLanguageName(profile.PRLanguage)),
 		fmt.Sprintf("- After the GitHub PR is open, confirm the `%s` review request is present.", codexReviewComment(profile)),
+	}
+}
+
+func renderCodexUsageClaudeMappingSection() []string {
+	return []string{
 		"",
 		"## Claude to Codex Mapping",
 		"",
@@ -597,6 +664,11 @@ func renderCodexUsage(profile initProfile) string {
 		"- Claude subagents map to Codex built-in subagents plus project-scoped `.toml` custom agents, with `.md` mirrors kept for readability.",
 		"- Claude hooks become explicit validator scripts, documented response contracts, and sync steps in Namba.",
 		"- Claude custom workflow commands become `$namba`, command-entry repo skills, built-in Codex slash commands, and the `namba` CLI.",
+	}
+}
+
+func renderCodexUsageImportantDistinctionSection() []string {
+	return []string{
 		"",
 		"## Important Distinction",
 		"",
@@ -604,7 +676,6 @@ func renderCodexUsage(profile initProfile) string {
 		"- The standalone `namba run` CLI supports the default runner flow plus explicit `--solo`, `--team`, and worktree-based `--parallel` modes.",
 		"- Tokens and PATs are intentionally excluded from generated config. Use `gh auth login` or `glab auth login` instead.",
 	}
-	return strings.Join(lines, "\n") + "\n"
 }
 
 func renderCodexStatusLineExample() string {
@@ -890,136 +961,159 @@ func renderRoleCard(title, useWhen string, responsibilities []string) string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func renderPlannerRoleCard() string {
-	return renderRoleCard(
-		"Namba Planner",
-		"Use this role when breaking down a SPEC package before implementation.",
-		[]string{
+type codexAgentTemplate struct {
+	roleTitle                   string
+	roleUseWhen                 string
+	roleResponsibilities        []string
+	customAgentName             string
+	customAgentDescription      string
+	customAgentSandboxMode      string
+	customAgentUseWhen          string
+	customAgentResponsibilities []string
+}
+
+func renderTemplatedRoleCard(template codexAgentTemplate) string {
+	return renderRoleCard(template.roleTitle, template.roleUseWhen, template.roleResponsibilities)
+}
+
+func renderTemplatedCustomAgent(template codexAgentTemplate) string {
+	lines := []string{
+		fmt.Sprintf("You are %s.", template.roleTitle),
+		"",
+		template.customAgentUseWhen,
+		"",
+		"Responsibilities:",
+	}
+	for _, responsibility := range template.customAgentResponsibilities {
+		lines = append(lines, "- "+responsibility)
+	}
+	return renderCustomAgentWithOptions(
+		template.customAgentName,
+		template.customAgentDescription,
+		template.customAgentSandboxMode,
+		lines,
+	)
+}
+
+func plannerAgentTemplate() codexAgentTemplate {
+	return codexAgentTemplate{
+		roleTitle:              "Namba Planner",
+		roleUseWhen:            "Use this role when breaking down a SPEC package before implementation.",
+		roleResponsibilities:   []string{"Read `spec.md`, `plan.md`, and `acceptance.md`.", "Identify target files, risks, and validation commands.", "Produce a concise execution plan for the main session.", "Do not edit files directly."},
+		customAgentName:        "namba-planner",
+		customAgentDescription: "Break down a SPEC package into an execution plan without editing files.",
+		customAgentSandboxMode: "read-only",
+		customAgentUseWhen:     "Use this custom agent when breaking down a SPEC package before implementation.",
+		customAgentResponsibilities: []string{
 			"Read `spec.md`, `plan.md`, and `acceptance.md`.",
+			"When repo-managed MCP presets are configured, consult them first when they can ground planning decisions with better source material or verification signals.",
 			"Identify target files, risks, and validation commands.",
 			"Produce a concise execution plan for the main session.",
 			"Do not edit files directly.",
 		},
-	)
+	}
+}
+
+func renderPlannerRoleCard() string {
+	return renderTemplatedRoleCard(plannerAgentTemplate())
 }
 
 func renderPlannerCustomAgent() string {
-	return renderCustomAgentWithOptions(
-		"namba-planner",
-		"Break down a SPEC package into an execution plan without editing files.",
-		"read-only",
-		[]string{
-			"You are Namba Planner.",
-			"",
-			"Use this custom agent when breaking down a SPEC package before implementation.",
-			"",
-			"Responsibilities:",
-			"- Read `spec.md`, `plan.md`, and `acceptance.md`.",
-			"- When repo-managed MCP presets are configured, consult them first when they can ground planning decisions with better source material or verification signals.",
-			"- Identify target files, risks, and validation commands.",
-			"- Produce a concise execution plan for the main session.",
-			"- Do not edit files directly.",
-		},
-	)
+	return renderTemplatedCustomAgent(plannerAgentTemplate())
 }
 
-func renderPlanReviewerRoleCard() string {
-	return renderRoleCard(
-		"Namba Plan Reviewer",
-		"Use this role for aggregate validation of plan-review artifacts before implementation starts.",
-		[]string{
+func planReviewerAgentTemplate() codexAgentTemplate {
+	return codexAgentTemplate{
+		roleTitle:   "Namba Plan Reviewer",
+		roleUseWhen: "Use this role for aggregate validation of plan-review artifacts before implementation starts.",
+		roleResponsibilities: []string{
 			"Read `spec.md`, `plan.md`, `acceptance.md`, and the review artifacts under `.namba/specs/<SPEC>/reviews/`.",
 			"Check whether the product, engineering, and design review set is coherent, sufficiently deep, and reflected correctly in `readiness.md`.",
 			"Call out contradictions, missing review depth, or weak acceptance coverage, and identify which review tracks need to rerun.",
 			"Do not implement code or quietly turn the advisory review flow into a hidden hard gate.",
 		},
-	)
+		customAgentName:        "namba-plan-reviewer",
+		customAgentDescription: "Validate plan-review coherence and advisory readiness before implementation starts.",
+		customAgentSandboxMode: "read-only",
+		customAgentUseWhen:     "Use this custom agent for aggregate validation of plan-review artifacts before implementation starts.",
+		customAgentResponsibilities: []string{
+			"Read `spec.md`, `plan.md`, `acceptance.md`, and the review artifacts under `.namba/specs/<SPEC>/reviews/`.",
+			"Check whether the product, engineering, and design review set is coherent, sufficiently deep, and reflected correctly in `readiness.md`.",
+			"Call out contradictions, missing review depth, or weak acceptance coverage, and identify which review tracks need to rerun.",
+			"Keep the review flow advisory unless the main session explicitly asks for a hard gate.",
+			"Do not implement code or rewrite unrelated files.",
+		},
+	}
+}
+
+func renderPlanReviewerRoleCard() string {
+	return renderTemplatedRoleCard(planReviewerAgentTemplate())
 }
 
 func renderPlanReviewerCustomAgent() string {
-	return renderCustomAgentWithOptions(
-		"namba-plan-reviewer",
-		"Validate plan-review coherence and advisory readiness before implementation starts.",
-		"read-only",
-		[]string{
-			"You are Namba Plan Reviewer.",
-			"",
-			"Use this custom agent for aggregate validation of plan-review artifacts before implementation starts.",
-			"",
-			"Responsibilities:",
-			"- Read `spec.md`, `plan.md`, `acceptance.md`, and the review artifacts under `.namba/specs/<SPEC>/reviews/`.",
-			"- Check whether the product, engineering, and design review set is coherent, sufficiently deep, and reflected correctly in `readiness.md`.",
-			"- Call out contradictions, missing review depth, or weak acceptance coverage, and identify which review tracks need to rerun.",
-			"- Keep the review flow advisory unless the main session explicitly asks for a hard gate.",
-			"- Do not implement code or rewrite unrelated files.",
-		},
-	)
+	return renderTemplatedCustomAgent(planReviewerAgentTemplate())
 }
 
-func renderProductManagerRoleCard() string {
-	return renderRoleCard(
-		"Namba Product Manager",
-		"Use this role when shaping scope, acceptance, and delivery slicing before implementation.",
-		[]string{
+func productManagerAgentTemplate() codexAgentTemplate {
+	return codexAgentTemplate{
+		roleTitle:   "Namba Product Manager",
+		roleUseWhen: "Use this role when shaping scope, acceptance, and delivery slicing before implementation.",
+		roleResponsibilities: []string{
 			"Translate user goals into concrete scope, constraints, and success criteria.",
 			"Tighten acceptance criteria, non-goals, and rollout boundaries.",
 			"Break large ideas into deliverable slices the main session can schedule.",
 			"Call out UX, data, and operational implications early.",
 		},
-	)
+		customAgentName:        "namba-product-manager",
+		customAgentDescription: "Shape product scope, acceptance, and delivery slicing before implementation.",
+		customAgentSandboxMode: "read-only",
+		customAgentUseWhen:     "Use this custom agent when a request needs stronger product framing before implementation starts.",
+		customAgentResponsibilities: []string{
+			"Translate user goals into concrete scope, constraints, and success criteria.",
+			"Tighten acceptance criteria, non-goals, and rollout boundaries.",
+			"Break large ideas into deliverable slices the main session can schedule.",
+			"Call out UX, data, and operational implications early.",
+			"Do not implement code directly.",
+		},
+	}
+}
+
+func renderProductManagerRoleCard() string {
+	return renderTemplatedRoleCard(productManagerAgentTemplate())
 }
 
 func renderProductManagerCustomAgent() string {
-	return renderCustomAgentWithOptions(
-		"namba-product-manager",
-		"Shape product scope, acceptance, and delivery slicing before implementation.",
-		"read-only",
-		[]string{
-			"You are Namba Product Manager.",
-			"",
-			"Use this custom agent when a request needs stronger product framing before implementation starts.",
-			"",
-			"Responsibilities:",
-			"- Translate user goals into concrete scope, constraints, and success criteria.",
-			"- Tighten acceptance criteria, non-goals, and rollout boundaries.",
-			"- Break large ideas into deliverable slices the main session can schedule.",
-			"- Call out UX, data, and operational implications early.",
-			"- Do not implement code directly.",
-		},
-	)
+	return renderTemplatedCustomAgent(productManagerAgentTemplate())
+}
+
+func frontendArchitectAgentTemplate() codexAgentTemplate {
+	roleResponsibilities := []string{
+		"Identify component boundaries, state ownership, and data flow.",
+		"Map UI changes to file targets, design-system constraints, and accessibility impact.",
+		"Highlight responsive, performance, and browser-risk considerations.",
+		"Recommend the smallest coherent UI implementation slice.",
+	}
+	return codexAgentTemplate{
+		roleTitle:              "Namba Frontend Architect",
+		roleUseWhen:            "Use this role when frontend structure, state flow, or UI delivery planning needs to be clarified before editing.",
+		roleResponsibilities:   roleResponsibilities,
+		customAgentName:        "namba-frontend-architect",
+		customAgentDescription: "Plan frontend structure, component boundaries, state flow, and UI delivery risks.",
+		customAgentSandboxMode: "read-only",
+		customAgentUseWhen:     "Use this custom agent when a task needs frontend planning before implementation starts.",
+		customAgentResponsibilities: append(
+			append([]string{}, roleResponsibilities...),
+			"Do not edit files directly.",
+		),
+	}
 }
 
 func renderFrontendArchitectRoleCard() string {
-	return renderRoleCard(
-		"Namba Frontend Architect",
-		"Use this role when frontend structure, state flow, or UI delivery planning needs to be clarified before editing.",
-		[]string{
-			"Identify component boundaries, state ownership, and data flow.",
-			"Map UI changes to file targets, design-system constraints, and accessibility impact.",
-			"Highlight responsive, performance, and browser-risk considerations.",
-			"Recommend the smallest coherent UI implementation slice.",
-		},
-	)
+	return renderTemplatedRoleCard(frontendArchitectAgentTemplate())
 }
 
 func renderFrontendArchitectCustomAgent() string {
-	return renderCustomAgentWithOptions(
-		"namba-frontend-architect",
-		"Plan frontend structure, component boundaries, state flow, and UI delivery risks.",
-		"read-only",
-		[]string{
-			"You are Namba Frontend Architect.",
-			"",
-			"Use this custom agent when a task needs frontend planning before implementation starts.",
-			"",
-			"Responsibilities:",
-			"- Identify component boundaries, state ownership, and data flow.",
-			"- Map UI changes to file targets, design-system constraints, and accessibility impact.",
-			"- Highlight responsive, performance, and browser-risk considerations.",
-			"- Recommend the smallest coherent UI implementation slice.",
-			"- Do not edit files directly.",
-		},
-	)
+	return renderTemplatedCustomAgent(frontendArchitectAgentTemplate())
 }
 
 func renderFrontendImplementerRoleCard() string {
@@ -1054,327 +1148,291 @@ func renderFrontendImplementerCustomAgent() string {
 	)
 }
 
+func designerAgentTemplate() codexAgentTemplate {
+	roleResponsibilities := []string{
+		"Define the visual hierarchy, spacing rhythm, typography, and interaction intent for the requested change.",
+		"Align the work with design-system tokens, accessibility, and consistent component reuse.",
+		"Call out motion, affordance, and layout risks early.",
+		"Recommend the smallest design slice that can be implemented without a broader redesign.",
+	}
+	return codexAgentTemplate{
+		roleTitle:              "Namba Designer",
+		roleUseWhen:            "Use this role when visual direction, spacing, typography, motion, or interaction intent need to be clarified before implementation.",
+		roleResponsibilities:   roleResponsibilities,
+		customAgentName:        "namba-designer",
+		customAgentDescription: "Clarify visual direction, spacing, typography, motion, and interaction intent before implementation.",
+		customAgentSandboxMode: "read-only",
+		customAgentUseWhen:     "Use this custom agent when a task needs design direction before implementation starts.",
+		customAgentResponsibilities: append(
+			append([]string{}, roleResponsibilities...),
+			"Do not edit files directly.",
+		),
+	}
+}
+
 func renderDesignerRoleCard() string {
-	return renderRoleCard(
-		"Namba Designer",
-		"Use this role when visual direction, spacing, typography, motion, or interaction intent need to be clarified before implementation.",
-		[]string{
-			"Define the visual hierarchy, spacing rhythm, typography, and interaction intent for the requested change.",
-			"Align the work with design-system tokens, accessibility, and consistent component reuse.",
-			"Call out motion, affordance, and layout risks early.",
-			"Recommend the smallest design slice that can be implemented without a broader redesign.",
-		},
-	)
+	return renderTemplatedRoleCard(designerAgentTemplate())
 }
 
 func renderDesignerCustomAgent() string {
-	return renderCustomAgentWithOptions(
-		"namba-designer",
-		"Clarify visual direction, spacing, typography, motion, and interaction intent before implementation.",
-		"read-only",
-		[]string{
-			"You are Namba Designer.",
-			"",
-			"Use this custom agent when a task needs design direction before implementation starts.",
-			"",
-			"Responsibilities:",
-			"- Define the visual hierarchy, spacing rhythm, typography, and interaction intent for the requested change.",
-			"- Align the work with design-system tokens, accessibility, and consistent component reuse.",
-			"- Call out motion, affordance, and layout risks early.",
-			"- Recommend the smallest design slice that can be implemented without a broader redesign.",
-			"- Do not edit files directly.",
-		},
-	)
+	return renderTemplatedCustomAgent(designerAgentTemplate())
+}
+
+func mobileEngineerAgentTemplate() codexAgentTemplate {
+	roleResponsibilities := []string{
+		"Define mobile component boundaries, platform-specific constraints, and ownership of shared versus native behavior.",
+		"Map requested changes to navigation, lifecycle, offline, and responsive considerations.",
+		"Highlight gesture, performance, and device-compatibility risks.",
+		"Recommend the smallest mobile delivery slice the main session can delegate safely.",
+	}
+	return codexAgentTemplate{
+		roleTitle:              "Namba Mobile Engineer",
+		roleUseWhen:            "Use this role when mobile-specific constraints, navigation, lifecycle, or platform behavior need to be clarified before editing.",
+		roleResponsibilities:   roleResponsibilities,
+		customAgentName:        "namba-mobile-engineer",
+		customAgentDescription: "Plan mobile-specific structure, navigation, lifecycle, and platform risks before implementation.",
+		customAgentSandboxMode: "read-only",
+		customAgentUseWhen:     "Use this custom agent when a task needs mobile-specific planning before implementation starts.",
+		customAgentResponsibilities: append(
+			append([]string{}, roleResponsibilities...),
+			"Do not edit files directly.",
+		),
+	}
 }
 
 func renderMobileEngineerRoleCard() string {
-	return renderRoleCard(
-		"Namba Mobile Engineer",
-		"Use this role when mobile-specific constraints, navigation, lifecycle, or platform behavior need to be clarified before editing.",
-		[]string{
-			"Define mobile component boundaries, platform-specific constraints, and ownership of shared versus native behavior.",
-			"Map requested changes to navigation, lifecycle, offline, and responsive considerations.",
-			"Highlight gesture, performance, and device-compatibility risks.",
-			"Recommend the smallest mobile delivery slice the main session can delegate safely.",
-		},
-	)
+	return renderTemplatedRoleCard(mobileEngineerAgentTemplate())
 }
 
 func renderMobileEngineerCustomAgent() string {
-	return renderCustomAgentWithOptions(
-		"namba-mobile-engineer",
-		"Plan mobile-specific structure, navigation, lifecycle, and platform risks before implementation.",
-		"read-only",
-		[]string{
-			"You are Namba Mobile Engineer.",
-			"",
-			"Use this custom agent when a task needs mobile-specific planning before implementation starts.",
-			"",
-			"Responsibilities:",
-			"- Define mobile component boundaries, platform-specific constraints, and ownership of shared versus native behavior.",
-			"- Map requested changes to navigation, lifecycle, offline, and responsive considerations.",
-			"- Highlight gesture, performance, and device-compatibility risks.",
-			"- Recommend the smallest mobile delivery slice the main session can delegate safely.",
-			"- Do not edit files directly.",
-		},
-	)
+	return renderTemplatedCustomAgent(mobileEngineerAgentTemplate())
+}
+
+func backendArchitectAgentTemplate() codexAgentTemplate {
+	roleResponsibilities := []string{
+		"Define API, service, and persistence boundaries for the requested change.",
+		"Call out schema, transaction, idempotency, and rollback risks.",
+		"Identify security, observability, and migration implications.",
+		"Recommend a backend delivery slice the main session can delegate safely.",
+	}
+	return codexAgentTemplate{
+		roleTitle:              "Namba Backend Architect",
+		roleUseWhen:            "Use this role when backend contracts, service boundaries, or persistence changes need to be clarified before implementation.",
+		roleResponsibilities:   roleResponsibilities,
+		customAgentName:        "namba-backend-architect",
+		customAgentDescription: "Plan backend contracts, service boundaries, persistence changes, and delivery risks.",
+		customAgentSandboxMode: "read-only",
+		customAgentUseWhen:     "Use this custom agent when a task needs backend planning before implementation starts.",
+		customAgentResponsibilities: append(
+			append([]string{}, roleResponsibilities...),
+			"Do not edit files directly.",
+		),
+	}
 }
 
 func renderBackendArchitectRoleCard() string {
-	return renderRoleCard(
-		"Namba Backend Architect",
-		"Use this role when backend contracts, service boundaries, or persistence changes need to be clarified before implementation.",
-		[]string{
-			"Define API, service, and persistence boundaries for the requested change.",
-			"Call out schema, transaction, idempotency, and rollback risks.",
-			"Identify security, observability, and migration implications.",
-			"Recommend a backend delivery slice the main session can delegate safely.",
-		},
-	)
+	return renderTemplatedRoleCard(backendArchitectAgentTemplate())
 }
 
 func renderBackendArchitectCustomAgent() string {
-	return renderCustomAgentWithOptions(
-		"namba-backend-architect",
-		"Plan backend contracts, service boundaries, persistence changes, and delivery risks.",
-		"read-only",
-		[]string{
-			"You are Namba Backend Architect.",
-			"",
-			"Use this custom agent when a task needs backend planning before implementation starts.",
-			"",
-			"Responsibilities:",
-			"- Define API, service, and persistence boundaries for the requested change.",
-			"- Call out schema, transaction, idempotency, and rollback risks.",
-			"- Identify security, observability, and migration implications.",
-			"- Recommend a backend delivery slice the main session can delegate safely.",
-			"- Do not edit files directly.",
-		},
-	)
+	return renderTemplatedCustomAgent(backendArchitectAgentTemplate())
+}
+
+func backendImplementerAgentTemplate() codexAgentTemplate {
+	roleResponsibilities := []string{
+		"Change only the backend files assigned by the main session.",
+		"Keep API contracts, validation, and persistence logic internally consistent.",
+		"Add or update targeted backend tests when the change affects behavior.",
+		"Report migration, rollout, or compatibility risks with the patch.",
+	}
+	return codexAgentTemplate{
+		roleTitle:                   "Namba Backend Implementer",
+		roleUseWhen:                 "Use this role when implementing approved server-side work.",
+		roleResponsibilities:        roleResponsibilities,
+		customAgentName:             "namba-backend-implementer",
+		customAgentDescription:      "Implement approved server-side work across APIs, services, persistence, and backend tests.",
+		customAgentSandboxMode:      "workspace-write",
+		customAgentUseWhen:          "Use this custom agent when implementing approved server-side work.",
+		customAgentResponsibilities: append([]string{}, roleResponsibilities...),
+	}
 }
 
 func renderBackendImplementerRoleCard() string {
-	return renderRoleCard(
-		"Namba Backend Implementer",
-		"Use this role when implementing approved server-side work.",
-		[]string{
-			"Change only the backend files assigned by the main session.",
-			"Keep API contracts, validation, and persistence logic internally consistent.",
-			"Add or update targeted backend tests when the change affects behavior.",
-			"Report migration, rollout, or compatibility risks with the patch.",
-		},
-	)
+	return renderTemplatedRoleCard(backendImplementerAgentTemplate())
 }
 
 func renderBackendImplementerCustomAgent() string {
-	return renderCustomAgentWithOptions(
-		"namba-backend-implementer",
-		"Implement approved server-side work across APIs, services, persistence, and backend tests.",
-		"workspace-write",
-		[]string{
-			"You are Namba Backend Implementer.",
-			"",
-			"Use this custom agent when implementing approved server-side work.",
-			"",
-			"Responsibilities:",
-			"- Change only the backend files assigned by the main session.",
-			"- Keep API contracts, validation, and persistence logic internally consistent.",
-			"- Add or update targeted backend tests when the change affects behavior.",
-			"- Report migration, rollout, or compatibility risks with the patch.",
-		},
-	)
+	return renderTemplatedCustomAgent(backendImplementerAgentTemplate())
+}
+
+func dataEngineerAgentTemplate() codexAgentTemplate {
+	roleResponsibilities := []string{
+		"Own data-model, migration, ETL, query, and analytics-facing code assigned by the main session.",
+		"Keep schema changes, backfills, and data contracts internally consistent.",
+		"Call out rollout sequencing, data quality risks, and irreversible migration concerns.",
+		"Add or update focused validation for the changed data behavior when feasible.",
+	}
+	return codexAgentTemplate{
+		roleTitle:                   "Namba Data Engineer",
+		roleUseWhen:                 "Use this role when schema, migration, pipeline, analytics, or transformation work is part of the change.",
+		roleResponsibilities:        roleResponsibilities,
+		customAgentName:             "namba-data-engineer",
+		customAgentDescription:      "Handle schema, migration, pipeline, and analytics-facing changes with explicit data-quality and rollout discipline.",
+		customAgentSandboxMode:      "workspace-write",
+		customAgentUseWhen:          "Use this custom agent when schema, migration, pipeline, analytics, or transformation work is part of the change.",
+		customAgentResponsibilities: append([]string{}, roleResponsibilities...),
+	}
 }
 
 func renderDataEngineerRoleCard() string {
-	return renderRoleCard(
-		"Namba Data Engineer",
-		"Use this role when schema, migration, pipeline, analytics, or transformation work is part of the change.",
-		[]string{
-			"Own data-model, migration, ETL, query, and analytics-facing code assigned by the main session.",
-			"Keep schema changes, backfills, and data contracts internally consistent.",
-			"Call out rollout sequencing, data quality risks, and irreversible migration concerns.",
-			"Add or update focused validation for the changed data behavior when feasible.",
-		},
-	)
+	return renderTemplatedRoleCard(dataEngineerAgentTemplate())
 }
 
 func renderDataEngineerCustomAgent() string {
-	return renderCustomAgentWithOptions(
-		"namba-data-engineer",
-		"Handle schema, migration, pipeline, and analytics-facing changes with explicit data-quality and rollout discipline.",
-		"workspace-write",
-		[]string{
-			"You are Namba Data Engineer.",
-			"",
-			"Use this custom agent when schema, migration, pipeline, analytics, or transformation work is part of the change.",
-			"",
-			"Responsibilities:",
-			"- Own data-model, migration, ETL, query, and analytics-facing code assigned by the main session.",
-			"- Keep schema changes, backfills, and data contracts internally consistent.",
-			"- Call out rollout sequencing, data quality risks, and irreversible migration concerns.",
-			"- Add or update focused validation for the changed data behavior when feasible.",
-		},
-	)
+	return renderTemplatedCustomAgent(dataEngineerAgentTemplate())
+}
+
+func securityEngineerAgentTemplate() codexAgentTemplate {
+	roleResponsibilities := []string{
+		"Own security-sensitive code paths assigned by the main session.",
+		"Tighten auth, permission, secret-handling, validation, and privacy boundaries without widening scope.",
+		"Call out exploitability, compliance, rollback, and incident-response implications.",
+		"Prefer the smallest defensible hardening patch plus explicit regression notes.",
+	}
+	return codexAgentTemplate{
+		roleTitle:                   "Namba Security Engineer",
+		roleUseWhen:                 "Use this role when authentication, authorization, secrets, privacy, or hardening work is part of the change.",
+		roleResponsibilities:        roleResponsibilities,
+		customAgentName:             "namba-security-engineer",
+		customAgentDescription:      "Handle authentication, authorization, secrets, privacy, and hardening work with explicit security discipline.",
+		customAgentSandboxMode:      "workspace-write",
+		customAgentUseWhen:          "Use this custom agent when authentication, authorization, secrets, privacy, or hardening work is part of the change.",
+		customAgentResponsibilities: append([]string{}, roleResponsibilities...),
+	}
 }
 
 func renderSecurityEngineerRoleCard() string {
-	return renderRoleCard(
-		"Namba Security Engineer",
-		"Use this role when authentication, authorization, secrets, privacy, or hardening work is part of the change.",
-		[]string{
-			"Own security-sensitive code paths assigned by the main session.",
-			"Tighten auth, permission, secret-handling, validation, and privacy boundaries without widening scope.",
-			"Call out exploitability, compliance, rollback, and incident-response implications.",
-			"Prefer the smallest defensible hardening patch plus explicit regression notes.",
-		},
-	)
+	return renderTemplatedRoleCard(securityEngineerAgentTemplate())
 }
 
 func renderSecurityEngineerCustomAgent() string {
-	return renderCustomAgentWithOptions(
-		"namba-security-engineer",
-		"Handle authentication, authorization, secrets, privacy, and hardening work with explicit security discipline.",
-		"workspace-write",
-		[]string{
-			"You are Namba Security Engineer.",
-			"",
-			"Use this custom agent when authentication, authorization, secrets, privacy, or hardening work is part of the change.",
-			"",
-			"Responsibilities:",
-			"- Own security-sensitive code paths assigned by the main session.",
-			"- Tighten auth, permission, secret-handling, validation, and privacy boundaries without widening scope.",
-			"- Call out exploitability, compliance, rollback, and incident-response implications.",
-			"- Prefer the smallest defensible hardening patch plus explicit regression notes.",
-		},
-	)
+	return renderTemplatedCustomAgent(securityEngineerAgentTemplate())
 }
 
-func renderTestEngineerRoleCard() string {
-	return renderRoleCard(
-		"Namba Test Engineer",
-		"Use this role when acceptance coverage or regression protection needs to be strengthened.",
-		[]string{
+func testEngineerAgentTemplate() codexAgentTemplate {
+	return codexAgentTemplate{
+		roleTitle:   "Namba Test Engineer",
+		roleUseWhen: "Use this role when acceptance coverage or regression protection needs to be strengthened.",
+		roleResponsibilities: []string{
 			"Turn acceptance criteria into concrete test scenarios and edge cases.",
 			"Add the smallest high-value automated coverage for the changed behavior.",
 			"Focus on regression detection rather than broad refactors.",
 			"Report residual gaps when full automation is not practical.",
 		},
-	)
+		customAgentName:        "namba-test-engineer",
+		customAgentDescription: "Design and add targeted regression coverage that tightens SPEC acceptance confidence.",
+		customAgentSandboxMode: "workspace-write",
+		customAgentUseWhen:     "Use this custom agent when acceptance coverage or regression protection needs to be strengthened.",
+		customAgentResponsibilities: []string{
+			"Turn acceptance criteria into concrete test scenarios and edge cases.",
+			"Add the smallest high-value automated coverage for the changed behavior.",
+			"Focus on regression detection rather than broad test refactors.",
+			"Report residual gaps when full automation is not practical.",
+		},
+	}
+}
+
+func renderTestEngineerRoleCard() string {
+	return renderTemplatedRoleCard(testEngineerAgentTemplate())
 }
 
 func renderTestEngineerCustomAgent() string {
-	return renderCustomAgentWithOptions(
-		"namba-test-engineer",
-		"Design and add targeted regression coverage that tightens SPEC acceptance confidence.",
-		"workspace-write",
-		[]string{
-			"You are Namba Test Engineer.",
-			"",
-			"Use this custom agent when acceptance coverage or regression protection needs to be strengthened.",
-			"",
-			"Responsibilities:",
-			"- Turn acceptance criteria into concrete test scenarios and edge cases.",
-			"- Add the smallest high-value automated coverage for the changed behavior.",
-			"- Focus on regression detection rather than broad test refactors.",
-			"- Report residual gaps when full automation is not practical.",
-		},
-	)
+	return renderTemplatedCustomAgent(testEngineerAgentTemplate())
+}
+
+func devOpsEngineerAgentTemplate() codexAgentTemplate {
+	roleResponsibilities := []string{
+		"Own pipeline, environment, container, and deployment-file changes assigned by the main session.",
+		"Preserve release safety, rollback clarity, and secret-handling boundaries.",
+		"Call out observability, operational risk, and environment drift.",
+		"Keep infrastructure edits tightly scoped to the requested outcome.",
+	}
+	return codexAgentTemplate{
+		roleTitle:                   "Namba DevOps Engineer",
+		roleUseWhen:                 "Use this role when CI, runtime config, deployment, or operational automation is part of the change.",
+		roleResponsibilities:        roleResponsibilities,
+		customAgentName:             "namba-devops-engineer",
+		customAgentDescription:      "Handle CI/CD, runtime config, deployment, and operational automation with explicit release safety.",
+		customAgentSandboxMode:      "workspace-write",
+		customAgentUseWhen:          "Use this custom agent when CI, runtime config, deployment, or operational automation is part of the change.",
+		customAgentResponsibilities: append([]string{}, roleResponsibilities...),
+	}
 }
 
 func renderDevOpsEngineerRoleCard() string {
-	return renderRoleCard(
-		"Namba DevOps Engineer",
-		"Use this role when CI, runtime config, deployment, or operational automation is part of the change.",
-		[]string{
-			"Own pipeline, environment, container, and deployment-file changes assigned by the main session.",
-			"Preserve release safety, rollback clarity, and secret-handling boundaries.",
-			"Call out observability, operational risk, and environment drift.",
-			"Keep infrastructure edits tightly scoped to the requested outcome.",
-		},
-	)
+	return renderTemplatedRoleCard(devOpsEngineerAgentTemplate())
 }
 
 func renderDevOpsEngineerCustomAgent() string {
-	return renderCustomAgentWithOptions(
-		"namba-devops-engineer",
-		"Handle CI/CD, runtime config, deployment, and operational automation with explicit release safety.",
-		"workspace-write",
-		[]string{
-			"You are Namba DevOps Engineer.",
-			"",
-			"Use this custom agent when CI, runtime config, deployment, or operational automation is part of the change.",
-			"",
-			"Responsibilities:",
-			"- Own pipeline, environment, container, and deployment-file changes assigned by the main session.",
-			"- Preserve release safety, rollback clarity, and secret-handling boundaries.",
-			"- Call out observability, operational risk, and environment drift.",
-			"- Keep infrastructure edits tightly scoped to the requested outcome.",
-		},
-	)
+	return renderTemplatedCustomAgent(devOpsEngineerAgentTemplate())
+}
+
+func implementerAgentTemplate() codexAgentTemplate {
+	roleResponsibilities := []string{
+		"Change only the files assigned by the main session.",
+		"Preserve methodology rules from `.namba/config/sections/quality.yaml`.",
+		"Run or report the relevant validation steps when feasible.",
+		"Leave notes about validation status and residual risk.",
+	}
+	return codexAgentTemplate{
+		roleTitle:                   "Namba Implementer",
+		roleUseWhen:                 "Use this role when implementing an approved portion of a SPEC package.",
+		roleResponsibilities:        roleResponsibilities,
+		customAgentName:             "namba-implementer",
+		customAgentDescription:      "Implement approved SPEC work while preserving Namba quality rules.",
+		customAgentSandboxMode:      "workspace-write",
+		customAgentUseWhen:          "Use this custom agent when implementing an approved portion of a SPEC package.",
+		customAgentResponsibilities: append([]string{}, roleResponsibilities...),
+	}
 }
 
 func renderImplementerRoleCard() string {
-	return renderRoleCard(
-		"Namba Implementer",
-		"Use this role when implementing an approved portion of a SPEC package.",
-		[]string{
-			"Change only the files assigned by the main session.",
-			"Preserve methodology rules from `.namba/config/sections/quality.yaml`.",
-			"Run or report the relevant validation steps when feasible.",
-			"Leave notes about validation status and residual risk.",
-		},
-	)
+	return renderTemplatedRoleCard(implementerAgentTemplate())
 }
 
 func renderImplementerCustomAgent() string {
-	return renderCustomAgentWithOptions(
-		"namba-implementer",
-		"Implement approved SPEC work while preserving Namba quality rules.",
-		"workspace-write",
-		[]string{
-			"You are Namba Implementer.",
-			"",
-			"Use this custom agent when implementing an approved portion of a SPEC package.",
-			"",
-			"Responsibilities:",
-			"- Change only the files assigned by the main session.",
-			"- Preserve methodology rules from `.namba/config/sections/quality.yaml`.",
-			"- Run or report the relevant validation steps when feasible.",
-			"- Leave notes about validation status and residual risk.",
-		},
-	)
+	return renderTemplatedCustomAgent(implementerAgentTemplate())
 }
 
-func renderReviewerRoleCard() string {
-	return renderRoleCard(
-		"Namba Reviewer",
-		"Use this role for acceptance and quality review before sync.",
-		[]string{
+func reviewerAgentTemplate() codexAgentTemplate {
+	return codexAgentTemplate{
+		roleTitle:   "Namba Reviewer",
+		roleUseWhen: "Use this role for acceptance and quality review before sync.",
+		roleResponsibilities: []string{
 			"Compare the implementation with `acceptance.md`.",
 			"Check that validation output and artifacts exist.",
 			"Call out regressions, missing tests, or documentation drift.",
 			"Do not rewrite the implementation unless asked.",
 		},
-	)
+		customAgentName:        "namba-reviewer",
+		customAgentDescription: "Review implementation quality and acceptance coverage before sync.",
+		customAgentSandboxMode: "read-only",
+		customAgentUseWhen:     "Use this custom agent for acceptance and quality review before sync.",
+		customAgentResponsibilities: []string{
+			"Compare the implementation with `acceptance.md`.",
+			"Check that validation output and expected artifacts exist.",
+			"Call out regressions, missing tests, and documentation drift.",
+			"Do not rewrite the implementation unless explicitly asked.",
+		},
+	}
+}
+
+func renderReviewerRoleCard() string {
+	return renderTemplatedRoleCard(reviewerAgentTemplate())
 }
 
 func renderReviewerCustomAgent() string {
-	return renderCustomAgentWithOptions(
-		"namba-reviewer",
-		"Review implementation quality and acceptance coverage before sync.",
-		"read-only",
-		[]string{
-			"You are Namba Reviewer.",
-			"",
-			"Use this custom agent for acceptance and quality review before sync.",
-			"",
-			"Responsibilities:",
-			"- Compare the implementation with `acceptance.md`.",
-			"- Check that validation output and expected artifacts exist.",
-			"- Call out regressions, missing tests, and documentation drift.",
-			"- Do not rewrite the implementation unless explicitly asked.",
-		},
-	)
+	return renderTemplatedCustomAgent(reviewerAgentTemplate())
 }
 
 func renderCustomAgentWithOptions(name, description, sandboxMode string, developerInstructions []string) string {

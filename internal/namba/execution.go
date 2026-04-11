@@ -10,54 +10,6 @@ import (
 	"time"
 )
 
-type systemConfig struct {
-	Runner         string
-	ApprovalPolicy string
-	SandboxMode    string
-}
-
-type executionMode string
-
-const (
-	executionModeDefault  executionMode = "default"
-	executionModeSolo     executionMode = "solo"
-	executionModeTeam     executionMode = "team"
-	executionModeParallel executionMode = "parallel"
-)
-
-type delegationPlan struct {
-	DominantDomains      []string              `json:"dominant_domains,omitempty"`
-	SelectedRoles        []string              `json:"selected_roles,omitempty"`
-	SelectedRoleProfiles []agentRuntimeProfile `json:"selected_role_profiles,omitempty"`
-	DelegationBudget     int                   `json:"delegation_budget,omitempty"`
-	IntegratorRole       string                `json:"integrator_role,omitempty"`
-	ReviewerRole         string                `json:"reviewer_role,omitempty"`
-	RoutingRationale     []string              `json:"routing_rationale,omitempty"`
-}
-
-type executionRequest struct {
-	SpecID                   string         `json:"spec_id"`
-	WorkDir                  string         `json:"work_dir"`
-	Prompt                   string         `json:"prompt"`
-	Mode                     executionMode  `json:"mode"`
-	Runner                   string         `json:"runner"`
-	ApprovalPolicy           string         `json:"approval_policy"`
-	SandboxMode              string         `json:"sandbox_mode"`
-	Model                    string         `json:"model,omitempty"`
-	Profile                  string         `json:"profile,omitempty"`
-	WebSearch                bool           `json:"web_search,omitempty"`
-	AddDirs                  []string       `json:"add_dirs,omitempty"`
-	SessionMode              string         `json:"session_mode,omitempty"`
-	RepairAttempts           int            `json:"repair_attempts,omitempty"`
-	RequiredEnv              []string       `json:"required_env,omitempty"`
-	RequiresNetwork          bool           `json:"requires_network,omitempty"`
-	DelegationPlan           delegationPlan `json:"delegation_plan,omitempty"`
-	TurnName                 string         `json:"turn_name,omitempty"`
-	TurnRole                 string         `json:"turn_role,omitempty"`
-	RequestedReasoningEffort string         `json:"requested_reasoning_effort,omitempty"`
-	ResumeSession            bool           `json:"resume_session,omitempty"`
-}
-
 type executionTurnResult struct {
 	Name            string   `json:"name"`
 	Role            string   `json:"role,omitempty"`
@@ -182,19 +134,6 @@ func buildCodexExecArgs(req executionRequest, capabilities codexCapabilityMatrix
 	return invocation.Args, nil
 }
 
-func (a *App) loadSystemConfig(root string) (systemConfig, error) {
-	values, err := readKeyValueFile(filepath.Join(root, configDir, "system.yaml"))
-	if err != nil {
-		return systemConfig{}, err
-	}
-
-	return systemConfig{
-		Runner:         normalizeRunner(values["runner"]),
-		ApprovalPolicy: normalizeApprovalPolicy(firstNonBlank(values["approval_policy"], values["approval_mode"])),
-		SandboxMode:    normalizeSandboxMode(values["sandbox_mode"]),
-	}, nil
-}
-
 func (a *App) runnerFor(cfg systemConfig) (runner, error) {
 	switch normalizeRunner(cfg.Runner) {
 	case "", "codex":
@@ -205,28 +144,6 @@ func (a *App) runnerFor(cfg systemConfig) (runner, error) {
 		}, nil
 	default:
 		return nil, fmt.Errorf("runner %q is not supported", cfg.Runner)
-	}
-}
-
-func (a *App) newExecutionRequest(specID, workDir, prompt string, mode executionMode, plan delegationPlan, systemCfg systemConfig, codexCfg codexConfig) executionRequest {
-	runtimeCfg := resolveCodexRuntimeForMode(codexCfg, mode)
-	return executionRequest{
-		SpecID:          specID,
-		WorkDir:         workDir,
-		Prompt:          prompt,
-		Mode:            normalizeExecutionMode(mode),
-		Runner:          normalizeRunner(systemCfg.Runner),
-		ApprovalPolicy:  normalizeApprovalPolicy(systemCfg.ApprovalPolicy),
-		SandboxMode:     normalizeSandboxMode(systemCfg.SandboxMode),
-		Model:           runtimeCfg.Model,
-		Profile:         runtimeCfg.Profile,
-		WebSearch:       runtimeCfg.WebSearch,
-		AddDirs:         append([]string(nil), runtimeCfg.AddDirs...),
-		SessionMode:     runtimeCfg.SessionMode,
-		RepairAttempts:  runtimeCfg.RepairAttempts,
-		RequiredEnv:     append([]string(nil), runtimeCfg.RequiredEnv...),
-		RequiresNetwork: runtimeCfg.RequiresNetwork,
-		DelegationPlan:  plan,
 	}
 }
 
@@ -617,59 +534,4 @@ func writeJSONFile(path string, value any) error {
 		return err
 	}
 	return os.WriteFile(path, data, 0o644)
-}
-
-func normalizeRunner(name string) string {
-	normalized := strings.TrimSpace(strings.ToLower(name))
-	if normalized == "" {
-		return "codex"
-	}
-	return normalized
-}
-
-func normalizeApprovalPolicy(value string) string {
-	normalized := strings.TrimSpace(strings.ToLower(value))
-	if normalized == "" {
-		return "on-request"
-	}
-	return normalized
-}
-
-func normalizeSandboxMode(value string) string {
-	normalized := strings.TrimSpace(strings.ToLower(value))
-	if normalized == "" {
-		return "workspace-write"
-	}
-	return normalized
-}
-
-func normalizeExecutionMode(mode executionMode) executionMode {
-	switch executionMode(strings.TrimSpace(strings.ToLower(string(mode)))) {
-	case executionModeSolo:
-		return executionModeSolo
-	case executionModeTeam:
-		return executionModeTeam
-	case executionModeParallel:
-		return executionModeParallel
-	default:
-		return executionModeDefault
-	}
-}
-
-func isAllowedApprovalPolicy(value string) bool {
-	switch value {
-	case "untrusted", "on-failure", "on-request", "never":
-		return true
-	default:
-		return false
-	}
-}
-
-func isAllowedSandboxMode(value string) bool {
-	switch value {
-	case "read-only", "workspace-write", "danger-full-access":
-		return true
-	default:
-		return false
-	}
 }

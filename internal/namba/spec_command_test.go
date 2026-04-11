@@ -173,6 +173,63 @@ func TestRunFixCommandPlanCreatesBugfixSpec(t *testing.T) {
 	}
 }
 
+func TestResolveFixSubcommandDefinitions(t *testing.T) {
+	t.Parallel()
+
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	for _, name := range []string{"plan", "run"} {
+		definition, ok := app.resolveFixSubcommand(name)
+		if !ok || definition.Run == nil {
+			t.Fatalf("expected fix subcommand %q to resolve with runner, got %#v ok=%v", name, definition, ok)
+		}
+		if strings.TrimSpace(definition.BehaviorSummary) == "" {
+			t.Fatalf("expected fix subcommand %q to expose behavior summary, got %#v", name, definition)
+		}
+	}
+
+	if _, ok := app.resolveFixSubcommand("missing"); ok {
+		t.Fatalf("did not expect unknown fix subcommand to resolve")
+	}
+}
+
+func TestFixUsageTextMatchesSubcommandBehaviorSummaries(t *testing.T) {
+	t.Parallel()
+
+	got := fixUsageText()
+	if !strings.HasPrefix(got, "namba fix\n\nUsage:\n") {
+		t.Fatalf("unexpected fix usage header: %q", got)
+	}
+	for _, want := range []string{
+		"  namba fix [--command run|plan] \"<issue description>\"",
+		"  namba fix [--command run|plan] -- \"<issue description with flag-like text>\"",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected fix usage to contain %q, got %q", want, got)
+		}
+	}
+	firstExampleIndex := strings.Index(got, "  namba fix [--command run|plan] \"<issue description>\"")
+	secondExampleIndex := strings.Index(got, "  namba fix [--command run|plan] -- \"<issue description with flag-like text>\"")
+	if firstExampleIndex >= secondExampleIndex {
+		t.Fatalf("expected fix usage example lines to stay ordered, got %q", got)
+	}
+
+	lastIndex := -1
+	for _, definition := range fixSubcommandDefinitions() {
+		index := strings.Index(got, definition.BehaviorSummary)
+		if index < 0 {
+			t.Fatalf("expected fix usage to contain %q, got %q", definition.BehaviorSummary, got)
+		}
+		if index <= lastIndex {
+			t.Fatalf("expected behavior summary %q to appear after previous summary in %q", definition.BehaviorSummary, got)
+		}
+		lastIndex = index
+	}
+	if secondExampleIndex >= strings.Index(got, fixSubcommandDefinitions()[0].BehaviorSummary) {
+		t.Fatalf("expected fix usage example lines to stay before behavior summaries, got %q", got)
+	}
+}
+
 func TestRunHarnessCreatesHarnessSpec(t *testing.T) {
 	t.Parallel()
 
@@ -213,6 +270,197 @@ func TestRunHarnessCreatesHarnessSpec(t *testing.T) {
 	readiness := mustReadFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews", "readiness.md"))
 	if !strings.Contains(readiness, "Cleared reviews: 0/3") {
 		t.Fatalf("unexpected harness review readiness scaffold: %q", readiness)
+	}
+}
+
+func TestLoadSpecPackageScaffoldContextLoadsNextSpecAndConfigs(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	scaffoldCtx, err := app.loadSpecPackageScaffoldContext("plan", "improve review workflow")
+	if err != nil {
+		t.Fatalf("loadSpecPackageScaffoldContext failed: %v", err)
+	}
+
+	if scaffoldCtx.Root != tmp || scaffoldCtx.Kind != "plan" || scaffoldCtx.Description != "improve review workflow" {
+		t.Fatalf("unexpected scaffold context identity: %+v", scaffoldCtx)
+	}
+	if scaffoldCtx.SpecID != "SPEC-001" {
+		t.Fatalf("expected next spec id SPEC-001, got %+v", scaffoldCtx)
+	}
+	if scaffoldCtx.ProjectCfg.Name == "" || scaffoldCtx.QualityCfg.DevelopmentMode == "" {
+		t.Fatalf("expected scaffold context to load project and quality config, got %+v", scaffoldCtx)
+	}
+}
+
+func TestBuildSpecPackageScaffoldOutputsIncludesCoreAndReviewArtifacts(t *testing.T) {
+	scaffoldCtx := specPackageScaffoldContext{
+		Root:        "/repo",
+		Kind:        "harness",
+		Description: "design reusable agent/skill system",
+		SpecID:      "SPEC-003",
+		ProjectCfg: projectConfig{
+			Name:        "namba-ai",
+			ProjectType: "existing",
+			Language:    "go",
+		},
+		QualityCfg: qualityConfig{DevelopmentMode: "tdd"},
+	}
+
+	outputs := buildSpecPackageScaffoldOutputs(scaffoldCtx)
+	expectedPaths := []string{
+		filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "spec.md")),
+		filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "plan.md")),
+		filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "acceptance.md")),
+		filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "reviews", "product.md")),
+		filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "reviews", "engineering.md")),
+		filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "reviews", "design.md")),
+		filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "reviews", "readiness.md")),
+	}
+	if len(outputs) != len(expectedPaths) {
+		t.Fatalf("expected %d scaffold outputs, got %d: %+v", len(expectedPaths), len(outputs), outputs)
+	}
+	for _, path := range expectedPaths {
+		if _, ok := outputs[path]; !ok {
+			t.Fatalf("expected scaffold outputs to include %s, got %+v", path, outputs)
+		}
+	}
+	if !strings.Contains(outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "spec.md"))], "`namba harness \"<description>\"`") {
+		t.Fatalf("expected harness spec scaffold content, got %q", outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "spec.md"))])
+	}
+	if !strings.Contains(outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "reviews", "readiness.md"))], "Cleared reviews: 0/3") {
+		t.Fatalf("expected readiness scaffold content, got %q", outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "reviews", "readiness.md"))])
+	}
+}
+
+func TestBuildSpecDocRoutesByKind(t *testing.T) {
+	projectCfg := projectConfig{Name: "namba-ai", ProjectType: "existing", Language: "go"}
+	qualityCfg := qualityConfig{DevelopmentMode: "tdd"}
+
+	fixDoc := buildSpecDoc("fix", "SPEC-001", "startup panic", projectCfg, qualityCfg)
+	if !strings.Contains(fixDoc, "Apply the smallest safe fix") || !strings.Contains(fixDoc, "Work type: fix") {
+		t.Fatalf("unexpected fix spec doc: %q", fixDoc)
+	}
+
+	harnessDoc := buildSpecDoc("harness", "SPEC-002", "design reusable agent/skill system", projectCfg, qualityCfg)
+	for _, want := range []string{"`namba harness \"<description>\"`", "Do not create a second artifact model", "Codex-native harness change"} {
+		if !strings.Contains(harnessDoc, want) {
+			t.Fatalf("expected harness spec doc to contain %q, got %q", want, harnessDoc)
+		}
+	}
+
+	featureDoc := buildSpecDoc("plan", "SPEC-003", "improve review workflow", projectCfg, qualityCfg)
+	if !strings.Contains(featureDoc, "Implement the requested change under the normal feature-planning workflow") || !strings.Contains(featureDoc, "Work type: plan") {
+		t.Fatalf("unexpected feature spec doc: %q", featureDoc)
+	}
+}
+
+func TestBuildSpecPlanDocRoutesByKind(t *testing.T) {
+	fixPlan := buildSpecPlanDoc("fix", "SPEC-001")
+	if !strings.Contains(fixPlan, "Implement the smallest safe fix") || !strings.Contains(fixPlan, ".namba/specs/SPEC-001/reviews/") {
+		t.Fatalf("unexpected fix spec plan: %q", fixPlan)
+	}
+
+	harnessPlan := buildSpecPlanDoc("harness", "SPEC-002")
+	for _, want := range []string{"top-level `namba harness` command contract", "Codex-native execution topology", ".namba/specs/SPEC-002/reviews/"} {
+		if !strings.Contains(harnessPlan, want) {
+			t.Fatalf("expected harness spec plan to contain %q, got %q", want, harnessPlan)
+		}
+	}
+
+	featurePlan := buildSpecPlanDoc("plan", "SPEC-003")
+	if !strings.Contains(featurePlan, "Implement the requested change") || !strings.Contains(featurePlan, ".namba/specs/SPEC-003/reviews/") {
+		t.Fatalf("unexpected feature spec plan: %q", featurePlan)
+	}
+}
+
+func TestBuildSpecAcceptanceDocRoutesByKind(t *testing.T) {
+	fixAcceptance := buildSpecAcceptanceDoc("fix", "startup panic", "tdd")
+	for _, want := range []string{"The reported issue described below is resolved", "A regression test covering the fix is present"} {
+		if !strings.Contains(fixAcceptance, want) {
+			t.Fatalf("expected fix acceptance doc to contain %q, got %q", want, fixAcceptance)
+		}
+	}
+
+	harnessAcceptance := buildSpecAcceptanceDoc("harness", "design reusable agent/skill system", "prod")
+	for _, want := range []string{"`namba harness \"<description>\"` creates the next sequential `SPEC-XXX` package", "Existing planning behavior is preserved while adding the harness surface"} {
+		if !strings.Contains(harnessAcceptance, want) {
+			t.Fatalf("expected harness acceptance doc to contain %q, got %q", want, harnessAcceptance)
+		}
+	}
+
+	featureAcceptance := buildSpecAcceptanceDoc("plan", "improve review workflow", "tdd")
+	for _, want := range []string{"The requested behavior described below is implemented", "Tests covering the new behavior are present"} {
+		if !strings.Contains(featureAcceptance, want) {
+			t.Fatalf("expected feature acceptance doc to contain %q, got %q", want, featureAcceptance)
+		}
+	}
+}
+
+func TestAcceptanceDocModeLines(t *testing.T) {
+	cases := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{
+			name: "feature prod",
+			got:  featureAcceptanceModeLine("prod"),
+			want: "- [ ] Existing behavior is preserved while improving the target area",
+		},
+		{
+			name: "harness tdd",
+			got:  harnessAcceptanceModeLine("tdd"),
+			want: "- [ ] Tests covering the new command/scaffold behavior are present",
+		},
+		{
+			name: "fix prod",
+			got:  fixAcceptanceModeLine("prod"),
+			want: "- [ ] A targeted reproduction or verification step is documented",
+		},
+	}
+
+	for _, tc := range cases {
+		if tc.got != tc.want {
+			t.Fatalf("%s mismatch: got %q want %q", tc.name, tc.got, tc.want)
+		}
+	}
+}
+
+func TestMaterializeSpecPackageScaffoldOutputsWritesArtifacts(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	scaffoldCtx := specPackageScaffoldContext{
+		Root:   tmp,
+		SpecID: "SPEC-001",
+	}
+	outputs := map[string]string{
+		filepath.ToSlash(filepath.Join(specsDir, "SPEC-001", "spec.md")):                 "spec",
+		filepath.ToSlash(filepath.Join(specsDir, "SPEC-001", "reviews", "readiness.md")): "ready",
+	}
+	if err := app.materializeSpecPackageScaffoldOutputs(scaffoldCtx, outputs); err != nil {
+		t.Fatalf("materializeSpecPackageScaffoldOutputs failed: %v", err)
+	}
+
+	if got := mustReadFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "spec.md")); got != "spec" {
+		t.Fatalf("expected materialized spec file, got %q", got)
+	}
+	if got := mustReadFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews", "readiness.md")); got != "ready" {
+		t.Fatalf("expected materialized readiness file, got %q", got)
 	}
 }
 
@@ -388,8 +636,20 @@ func TestRunFixRejectsMalformedCommandFlag(t *testing.T) {
 			restore := chdirExecution(t, tmp)
 			defer restore()
 
-			if err := app.Run(context.Background(), tc.args); err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+			err := app.Run(context.Background(), tc.args)
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 				t.Fatalf("expected malformed fix command failure containing %q, got %v", tc.wantErr, err)
+			}
+			if tc.name == "missing command value" {
+				for _, want := range []string{
+					"  namba fix [--command run|plan] \"<issue description>\"",
+					"Use --command plan to scaffold the next bugfix SPEC package under .namba/specs/.",
+					"Use --command run, or omit --command, to repair the issue directly in the current workspace.",
+				} {
+					if !strings.Contains(err.Error(), want) {
+						t.Fatalf("expected malformed fix error to include %q, got %v", want, err)
+					}
+				}
 			}
 
 			entries, err := os.ReadDir(filepath.Join(tmp, ".namba", "specs"))
