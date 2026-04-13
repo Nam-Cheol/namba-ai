@@ -235,7 +235,6 @@ docs/getting-started.ko.md
 docs/getting-started.md
 docs/getting-started.zh.md
 docs/moai-adk-codex-migration-analysis.md
-docs/releases/v0.4.1.md
 docs/workflow-guide.ja.md
 docs/workflow-guide.ko.md
 docs/workflow-guide.md
