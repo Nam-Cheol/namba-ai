@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-13T13:11:43+09:00",
+  "generated_at": "2026-04-14T09:39:42+09:00",
   "entries": [
     {
       "path": ".agents/skills/namba-create/SKILL.md",
@@ -1160,29 +1160,29 @@
       "path": "README.ja.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "4e3558d347f4b18ab3e20c477f2076c831b339e3ebc0e51cc3359a43e3997131",
-      "updated_at": "2026-04-10T09:17:31+09:00"
+      "checksum": "a9c3422e91cd791218ab2fe468d1ac4e7e75523d444f43f2d2c8a068d5ff7bfd",
+      "updated_at": "2026-04-14T09:39:42+09:00"
     },
     {
       "path": "README.ko.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "4ee37d427e471679b8315ca794ba66bf8acebc99dda6188bdd1c23e620d71776",
-      "updated_at": "2026-04-10T09:17:31+09:00"
+      "checksum": "17c028501c812fd088bfdd11cc98df83e175d56e8104493058805d172e848b51",
+      "updated_at": "2026-04-14T09:39:42+09:00"
     },
     {
       "path": "README.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "7c9c263732dcee1e0c9af8766b60c03bf093641cb82627e58f83b4f49b0bedcd",
-      "updated_at": "2026-04-10T09:17:31+09:00"
+      "checksum": "6b31e3e61cb75d47af73d8b13982d4c8982d58d18854ca919f965442e3e3dff4",
+      "updated_at": "2026-04-14T09:39:42+09:00"
     },
     {
       "path": "README.zh.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "3567002e5b9b8038fba2ede1c13c4129342a3364649f1eb680149ae1b5f9b9d1",
-      "updated_at": "2026-04-10T09:17:31+09:00"
+      "checksum": "bbb27e73c64e9ef5e69661c487430ac76bad546f644d49102490aa4f347c39de",
+      "updated_at": "2026-04-14T09:39:42+09:00"
     },
     {
       "path": "docs/getting-started.ja.md",

@@ -32,9 +32,13 @@ NambaAI is a Codex-native workflow for bootstrapping repositories, choosing the 
 
 ### 1. Install NambaAI
 
+Windows:
+
 ```powershell
 irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex
 ```
+
+macOS / Linux:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh
