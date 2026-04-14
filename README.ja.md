@@ -31,9 +31,13 @@ NambaAI は、リポジトリのブートストラップ、最初に使うべき
 
 ### 1. NambaAI をインストール
 
+Windows:
+
 ```powershell
 irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex
 ```
+
+macOS / Linux:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh

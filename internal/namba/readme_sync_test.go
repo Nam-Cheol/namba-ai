@@ -1194,6 +1194,8 @@ func TestRenderNambaCLIRootQuickStartSectionPreservesLocalizedAnchors(t *testing
 		lang              string
 		quickStartHeading string
 		installHeading    string
+		windowsLabel      string
+		unixLabel         string
 		bootstrapHeading  string
 		workHeading       string
 		harnessNote       string
@@ -1202,6 +1204,8 @@ func TestRenderNambaCLIRootQuickStartSectionPreservesLocalizedAnchors(t *testing
 			lang:              "en",
 			quickStartHeading: "## Quick Start",
 			installHeading:    "### 1. Install NambaAI",
+			windowsLabel:      "Windows:",
+			unixLabel:         "macOS / Linux:",
 			bootstrapHeading:  "### 2. Bootstrap a new repository",
 			workHeading:       "### 3. Start working from Codex",
 			harnessNote:       "swap `namba plan` for `namba harness \"description\"`",
@@ -1210,6 +1214,8 @@ func TestRenderNambaCLIRootQuickStartSectionPreservesLocalizedAnchors(t *testing
 			lang:              "ko",
 			quickStartHeading: "## 빠른 시작",
 			installHeading:    "### 1. NambaAI 설치",
+			windowsLabel:      "Windows:",
+			unixLabel:         "macOS / Linux:",
 			bootstrapHeading:  "### 2. 새 저장소 초기화",
 			workHeading:       "### 3. Codex에서 작업 시작",
 			harnessNote:       "`namba plan` 대신 `namba harness \"description\"`",
@@ -1218,6 +1224,8 @@ func TestRenderNambaCLIRootQuickStartSectionPreservesLocalizedAnchors(t *testing
 			lang:              "ja",
 			quickStartHeading: "## クイックスタート",
 			installHeading:    "### 1. NambaAI をインストール",
+			windowsLabel:      "Windows:",
+			unixLabel:         "macOS / Linux:",
 			bootstrapHeading:  "### 2. 新しいリポジトリを初期化",
 			workHeading:       "### 3. Codex から作業を開始",
 			harnessNote:       "`namba plan` の代わりに `namba harness \"description\"`",
@@ -1226,6 +1234,8 @@ func TestRenderNambaCLIRootQuickStartSectionPreservesLocalizedAnchors(t *testing
 			lang:              "zh",
 			quickStartHeading: "## 快速开始",
 			installHeading:    "### 1. 安装 NambaAI",
+			windowsLabel:      "Windows:",
+			unixLabel:         "macOS / Linux:",
 			bootstrapHeading:  "### 2. 初始化新仓库",
 			workHeading:       "### 3. 从 Codex 开始工作",
 			harnessNote:       "`namba plan` 换成 `namba harness \"description\"`",
@@ -1237,6 +1247,8 @@ func TestRenderNambaCLIRootQuickStartSectionPreservesLocalizedAnchors(t *testing
 		for _, want := range []string{
 			tc.quickStartHeading,
 			tc.installHeading,
+			tc.windowsLabel,
+			tc.unixLabel,
 			tc.bootstrapHeading,
 			tc.workHeading,
 			nambaInstallPowerShell,

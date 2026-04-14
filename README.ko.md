@@ -31,9 +31,13 @@ NambaAI는 저장소를 부트스트랩하고, 먼저 어떤 Namba 명령을 써
 
 ### 1. NambaAI 설치
 
+Windows:
+
 ```powershell
 irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex
 ```
+
+macOS / Linux:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh
