@@ -1,0 +1,21 @@
+# Acceptance
+
+- [ ] Parallel execution writes an append-only progress artifact under `.namba/logs/runs/` while the run is active instead of only persisting terminal aggregate state after completion.
+- [ ] The progress artifact uses an explicit event contract with stable fields for run identity, timestamp, source, scope, phase, status, and worker identity when applicable.
+- [ ] The event contract includes a stable `run_id` plus a deterministic ordering mechanism such as monotonic `sequence` values or an equivalent serialized publication guarantee.
+- [ ] The initial implementation emits lifecycle-originated events without requiring a Codex transport rewrite, but the contract is explicitly source-aware so future Codex-native stream events can reuse it.
+- [ ] The minimum watcher-facing lifecycle states are represented clearly enough for downstream consumers to distinguish `queued`, `running`, `validating`, `merge_pending`, `merging`, `done`, and `failed`.
+- [ ] The watcher-facing baseline phases are treated as compatibility-sensitive; any extra phases remain additive and do not change the meaning of the baseline set.
+- [ ] Event publication is routed through a reusable sink/observer boundary instead of scattering direct JSONL file appends through every execution callsite.
+- [ ] The publication boundary between `parallel_lifecycle.go` and `executeRun` is explicit enough that execution turns, validation, and repair attempts can publish under the same contract.
+- [ ] `parallel_lifecycle.go` emits progress for worker staging, worker execution boundaries, merge boundaries, cleanup or preserved outcomes, and overall run completion.
+- [ ] `execution.go` emits the execution-owned progress transitions needed for parallel runs, especially execution/validation boundaries and repair attempts when applicable.
+- [ ] The progress schema can carry concise operator-useful summary/detail information for failures, preserved workers, and merge-blocked states without requiring a schema break in later watch surfaces.
+- [ ] Sink failure handling is explicitly specified and tested for initialization failure, append failure during active execution, and final flush/close failure.
+- [ ] The existing final `spec-xxx-parallel.json` summary report remains intact as the terminal aggregate artifact rather than being replaced by the event log.
+- [ ] Existing request, preflight, execution, and validation artifacts remain available and compatible with the new progress model.
+- [ ] Regression coverage proves ordered append-only event persistence for both success and failure paths, including merge-blocked, preserved-worker, and sink-failure scenarios.
+- [ ] The implementation does not repurpose `namba status` into a live-run surface in this slice.
+- [ ] The implementation does not require rewriting the current `CombinedOutput()` Codex runner path to ship the first version of progress events.
+- [ ] Validation commands pass
+- [ ] Tests covering the new behavior are present
