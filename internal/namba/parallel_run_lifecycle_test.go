@@ -46,10 +46,81 @@ func TestRunParallelPreflightFailureStopsBeforeSetupAndWritesReport(t *testing.T
 	if len(report.Steps) == 0 {
 		t.Fatalf("expected preflight steps to be recorded, got %+v", report)
 	}
+	parallelReport := mustReadParallelReport(t, filepath.Join(h.tmp, ".namba", "logs", "runs", "spec-003-parallel.json"))
+	if !parallelReport.MergeBlocked || parallelReport.FinishedAt == "" {
+		t.Fatalf("expected terminal parallel report on preflight failure, got %+v", parallelReport)
+	}
+	if parallelReport.ProgressLogFailed {
+		t.Fatalf("did not expect progress log failure on preflight error, got %+v", parallelReport)
+	}
+
+	events := mustReadParallelProgressEvents(t, filepath.Join(h.tmp, ".namba", "logs", "runs", "spec-003-parallel.events.jsonl"))
+	failedIdx := indexProgressEvent(events, func(event parallelProgressRecord) bool {
+		return eventString(event, "scope") == parallelProgressScopeRun &&
+			eventString(event, "phase") == "failed" &&
+			eventString(event, "status") == "preflight_failed"
+	})
+	if failedIdx == -1 {
+		t.Fatalf("expected terminal preflight failure event, got %+v", events)
+	}
 
 	_, statErr := os.Stat(filepath.Join(h.tmp, ".namba", "logs", "runs", "spec-003-p1-request.md"))
 	if !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("expected no request log to be written after preflight failure, got err=%v", statErr)
+	}
+}
+
+func TestRunParallelStagingFailureWritesTerminalReportAndPreservesPreparedWorkers(t *testing.T) {
+	h, restore := newParallelHarness(t)
+	defer restore()
+
+	blockedWorktree := filepath.Join(h.tmp, worktreesDir, "spec-003-p2")
+	h.worktreeAddErr[blockedWorktree] = errors.New("worktree add denied")
+
+	err := h.app.runParallel(
+		context.Background(),
+		h.tmp,
+		specPackage{ID: "SPEC-003"},
+		[]string{"one", "two", "three"},
+		"prompt",
+		qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"},
+		systemConfig{Runner: "codex"},
+		codexConfig{},
+		workflowConfig{MaxParallelWorkers: 3},
+		false,
+	)
+	if err == nil || !strings.Contains(err.Error(), "worktree add denied") {
+		t.Fatalf("expected staging failure, got %v", err)
+	}
+	if h.codexCount != 0 {
+		t.Fatalf("expected no worker execution after staging failure, got %v", h.commands)
+	}
+
+	report := mustReadParallelReport(t, filepath.Join(h.tmp, ".namba", "logs", "runs", "spec-003-parallel.json"))
+	if !report.MergeBlocked || report.FinishedAt == "" {
+		t.Fatalf("expected merge-blocked terminal report, got %+v", report)
+	}
+	if len(report.Workers) != 1 {
+		t.Fatalf("expected partial staged workers in report, got %+v", report.Workers)
+	}
+	worker := report.Workers[0]
+	if worker.Name != "spec-003-p1" || !worker.Preserved {
+		t.Fatalf("expected staged worker to remain preserved, got %+v", worker)
+	}
+
+	events := mustReadParallelProgressEvents(t, filepath.Join(h.tmp, ".namba", "logs", "runs", "spec-003-parallel.events.jsonl"))
+	failedIdx := indexProgressEvent(events, func(event parallelProgressRecord) bool {
+		return eventString(event, "scope") == parallelProgressScopeRun &&
+			eventString(event, "phase") == "failed" &&
+			eventString(event, "status") == "staging_failed"
+	})
+	preservedIdx := indexProgressEvent(events, func(event parallelProgressRecord) bool {
+		return eventString(event, "scope") == parallelProgressScopeWorker &&
+			eventString(event, "worker_name", "worker_id", "worker") == "spec-003-p1" &&
+			eventString(event, "status") == "preserved"
+	})
+	if failedIdx == -1 || preservedIdx == -1 {
+		t.Fatalf("expected staging failure and preserved worker events, got %+v", events)
 	}
 }
 

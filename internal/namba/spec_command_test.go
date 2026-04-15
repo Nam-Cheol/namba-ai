@@ -290,7 +290,15 @@ func TestLoadSpecPackageScaffoldContextLoadsNextSpecAndConfigs(t *testing.T) {
 		t.Fatalf("loadSpecPackageScaffoldContext failed: %v", err)
 	}
 
-	if scaffoldCtx.Root != tmp || scaffoldCtx.Kind != "plan" || scaffoldCtx.Description != "improve review workflow" {
+	resolvedTmp, err := filepath.EvalSymlinks(tmp)
+	if err != nil {
+		t.Fatalf("eval temp root: %v", err)
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(scaffoldCtx.Root)
+	if err != nil {
+		t.Fatalf("eval scaffold root: %v", err)
+	}
+	if resolvedRoot != resolvedTmp || scaffoldCtx.Kind != "plan" || scaffoldCtx.Description != "improve review workflow" {
 		t.Fatalf("unexpected scaffold context identity: %+v", scaffoldCtx)
 	}
 	if scaffoldCtx.SpecID != "SPEC-001" {

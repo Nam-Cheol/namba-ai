@@ -52,6 +52,7 @@ type App struct {
 	downloadURL             func(context.Context, string) ([]byte, error)
 	executablePath          func() (string, error)
 	writeManifestOverride   func(string, Manifest) error
+	newParallelProgressSink func(parallelProgressSinkConfig) (parallelProgressSink, error)
 	goos                    string
 	goarch                  string
 }
@@ -136,16 +137,19 @@ type topLevelInvocation struct {
 
 func NewApp(stdout, stderr io.Writer) *App {
 	return &App{
-		stdin:          os.Stdin,
-		stdout:         stdout,
-		stderr:         stderr,
-		now:            time.Now,
-		getenv:         os.Getenv,
-		getwd:          os.Getwd,
-		readFile:       os.ReadFile,
-		writeFile:      os.WriteFile,
-		mkdirAll:       os.MkdirAll,
-		lookPath:       exec.LookPath,
+		stdin:     os.Stdin,
+		stdout:    stdout,
+		stderr:    stderr,
+		now:       time.Now,
+		getenv:    os.Getenv,
+		getwd:     os.Getwd,
+		readFile:  os.ReadFile,
+		writeFile: os.WriteFile,
+		mkdirAll:  os.MkdirAll,
+		lookPath:  exec.LookPath,
+		newParallelProgressSink: func(cfg parallelProgressSinkConfig) (parallelProgressSink, error) {
+			return newJSONLParallelProgressSink(cfg)
+		},
 		executablePath: os.Executable,
 		goos:           runtime.GOOS,
 		goarch:         runtime.GOARCH,
@@ -1222,7 +1226,7 @@ func (a *App) dispatchDirectFixExecution(ctx context.Context, fixCtx directFixEx
 	request := a.newExecutionRequest("DIRECT-FIX", fixCtx.Root, fixCtx.Prompt, executionModeDefault, fixCtx.Delegation, fixCtx.SystemCfg, fixCtx.CodexCfg)
 	request.TurnName = fixCtx.LogID
 	request.TurnRole = fixCtx.Delegation.IntegratorRole
-	if _, _, err := a.executeRun(ctx, fixCtx.Root, fixCtx.LogID, request, fixCtx.Root, fixCtx.QualityCfg); err != nil {
+	if _, _, err := a.executeRun(ctx, fixCtx.Root, fixCtx.LogID, request, fixCtx.Root, fixCtx.QualityCfg, nil, ""); err != nil {
 		return err
 	}
 	if err := a.runSync(ctx, nil); err != nil {
@@ -1340,7 +1344,7 @@ func (a *App) dispatchRunExecution(ctx context.Context, options runExecuteOption
 	}
 
 	request := a.newExecutionRequest(runCtx.SpecPkg.ID, runCtx.Root, runCtx.Prompt, options.mode, runCtx.Delegation, runCtx.SystemCfg, runCtx.CodexCfg)
-	if _, _, err := a.executeRun(ctx, runCtx.Root, strings.ToLower(runCtx.SpecPkg.ID), request, runCtx.Root, runCtx.QualityCfg); err != nil {
+	if _, _, err := a.executeRun(ctx, runCtx.Root, strings.ToLower(runCtx.SpecPkg.ID), request, runCtx.Root, runCtx.QualityCfg, nil, ""); err != nil {
 		return err
 	}
 

@@ -14,20 +14,21 @@ import (
 )
 
 type parallelHarness struct {
-	t             *testing.T
-	tmp           string
-	stdout        *bytes.Buffer
-	app           *App
-	commands      []string
-	codexCount    int
-	lastCodexIdx  int
-	mu            sync.Mutex
-	execFailures  map[string]error
-	validationErr map[string]error
-	mergeErr      map[string]error
-	removeErr     map[string]error
-	branchErr     map[string]error
-	pruneErr      error
+	t              *testing.T
+	tmp            string
+	stdout         *bytes.Buffer
+	app            *App
+	commands       []string
+	codexCount     int
+	lastCodexIdx   int
+	mu             sync.Mutex
+	execFailures   map[string]error
+	validationErr  map[string]error
+	mergeErr       map[string]error
+	worktreeAddErr map[string]error
+	removeErr      map[string]error
+	branchErr      map[string]error
+	pruneErr       error
 }
 
 func newParallelHarness(t *testing.T) (*parallelHarness, func()) {
@@ -44,16 +45,17 @@ func newParallelHarness(t *testing.T) (*parallelHarness, func()) {
 	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "quality.yaml"), "development_mode: tdd\ntest_command: test\nlint_command: none\ntypecheck_command: none\n")
 
 	h := &parallelHarness{
-		t:             t,
-		tmp:           tmp,
-		stdout:        stdout,
-		app:           app,
-		lastCodexIdx:  -1,
-		execFailures:  map[string]error{},
-		validationErr: map[string]error{},
-		mergeErr:      map[string]error{},
-		removeErr:     map[string]error{},
-		branchErr:     map[string]error{},
+		t:              t,
+		tmp:            tmp,
+		stdout:         stdout,
+		app:            app,
+		lastCodexIdx:   -1,
+		execFailures:   map[string]error{},
+		validationErr:  map[string]error{},
+		mergeErr:       map[string]error{},
+		worktreeAddErr: map[string]error{},
+		removeErr:      map[string]error{},
+		branchErr:      map[string]error{},
 	}
 	app.lookPath = func(name string) (string, error) {
 		switch name {
@@ -86,6 +88,9 @@ func (h *parallelHarness) runCmd(_ context.Context, name string, args []string, 
 		return "main", nil
 	case name == "git" && len(args) >= 5 && args[0] == "worktree" && args[1] == "add" && args[2] == "-b":
 		path := args[4]
+		if err := h.worktreeAddErr[path]; err != nil {
+			return "", err
+		}
 		if err := os.MkdirAll(path, 0o755); err != nil {
 			return "", err
 		}

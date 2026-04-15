@@ -3,6 +3,7 @@ package namba
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -147,7 +148,7 @@ func (a *App) runnerFor(cfg systemConfig) (runner, error) {
 	}
 }
 
-func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req executionRequest, validationRoot string, cfg qualityConfig) (executionResult, validationReport, error) {
+func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req executionRequest, validationRoot string, cfg qualityConfig, progress parallelProgressSink, progressWorkerName string) (executionResult, validationReport, error) {
 	selectedRunner, err := a.runnerFor(systemConfig{Runner: req.Runner})
 	if err != nil {
 		return executionResult{}, validationReport{}, err
@@ -180,6 +181,22 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		result.SessionMode = "stateful"
 	}
 
+	publishProgress := func(phase, status, summary, detail string, metadata map[string]any) error {
+		if progress == nil {
+			return nil
+		}
+		return progress.Publish(parallelProgressEventInput{
+			Source:     parallelProgressSourceLifecycle,
+			Scope:      parallelProgressScopeWorker,
+			WorkerName: progressWorkerName,
+			Phase:      phase,
+			Status:     status,
+			Summary:    summary,
+			Detail:     detail,
+			Metadata:   metadata,
+		})
+	}
+
 	preflight, capabilities, preflightErr := a.runPreflight(ctx, req)
 	if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-preflight.json"), preflight); err != nil {
 		return result, validationReport{}, err
@@ -193,13 +210,29 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-execution.json"), result); err != nil {
 			return result, validationReport{}, err
 		}
-		return result, validationReport{}, preflightErr
+		publishErr := publishProgress("failed", "preflight_failed", "Worker execution preflight failed", preflightErr.Error(), nil)
+		return result, validationReport{}, errors.Join(preflightErr, publishErr)
 	}
 
 	turnRequests := buildExecutionTurnRequests(req)
 	teamContinuationMode := "degraded-fresh-exec"
 	if codexSessionStateful(req.SessionMode) {
 		teamContinuationMode = "codex-exec-resume-last"
+	}
+
+	if err := publishProgress(
+		"running",
+		"active",
+		"Worker execution started",
+		"Execution turns are starting",
+		map[string]any{"session_id": logID},
+	); err != nil {
+		result.FinishedAt = a.now().Format(time.RFC3339)
+		result.Error = err.Error()
+		if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
+			return result, validationReport{}, writeErr
+		}
+		return result, validationReport{}, err
 	}
 
 	for _, turnReq := range turnRequests {
@@ -218,13 +251,36 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
 				return result, validationReport{}, writeErr
 			}
-			return result, validationReport{}, err
+			publishErr := publishProgress(
+				"failed",
+				"execution_failed",
+				"Worker execution failed",
+				err.Error(),
+				map[string]any{"session_id": logID},
+			)
+			return result, validationReport{}, errors.Join(err, publishErr)
 		}
 	}
 
 	var finalReport validationReport
 	maxAttempts := maxInt(req.RepairAttempts, 0) + 1
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if err := publishProgress(
+			"validating",
+			"active",
+			"Worker validation started",
+			fmt.Sprintf("Validation pipeline attempt %d is starting", attempt),
+			map[string]any{"session_id": logID, "attempt": attempt},
+		); err != nil {
+			result.Output = joinExecutionOutputs(result.Turns)
+			result.FinishedAt = a.now().Format(time.RFC3339)
+			result.Error = err.Error()
+			if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
+				return result, finalReport, writeErr
+			}
+			return result, finalReport, err
+		}
+
 		result.ValidationAttempts = attempt
 		report, validationErr := a.runValidationReport(ctx, validationRoot, cfg, req.SpecID, attempt)
 		finalReport = report
@@ -233,13 +289,23 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		}
 		if validationErr == nil {
 			result.Output = joinExecutionOutputs(result.Turns)
-			result.Succeeded = true
 			result.FinishedAt = a.now().Format(time.RFC3339)
+			result.Succeeded = true
 			if err := a.writeExecutionArtifacts(projectRoot, logID, result); err != nil {
 				return result, finalReport, err
 			}
 			if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-validation.json"), finalReport); err != nil {
 				return result, finalReport, err
+			}
+			publishErr := publishProgress(
+				"merge_pending",
+				"ready",
+				"Worker ready to merge",
+				"Execution and validation passed",
+				map[string]any{"session_id": logID, "validation_attempts": attempt},
+			)
+			if publishErr != nil {
+				return result, finalReport, publishErr
 			}
 			return result, finalReport, nil
 		}
@@ -253,7 +319,33 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-validation.json"), finalReport); err != nil {
 				return result, finalReport, err
 			}
-			return result, finalReport, validationErr
+			publishErr := publishProgress(
+				"failed",
+				"validation_failed",
+				"Worker validation failed",
+				validationFailureMessage(finalReport, validationErr),
+				map[string]any{"session_id": logID, "validation_attempts": attempt},
+			)
+			return result, finalReport, errors.Join(validationErr, publishErr)
+		}
+
+		if err := publishProgress(
+			"running",
+			"repairing",
+			"Worker repair attempt started",
+			"Validation failed and a repair attempt will run",
+			map[string]any{"session_id": logID, "attempt": attempt},
+		); err != nil {
+			result.Output = joinExecutionOutputs(result.Turns)
+			result.FinishedAt = a.now().Format(time.RFC3339)
+			result.Error = err.Error()
+			if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
+				return result, finalReport, writeErr
+			}
+			if writeErr := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-validation.json"), finalReport); writeErr != nil {
+				return result, finalReport, writeErr
+			}
+			return result, finalReport, err
 		}
 
 		repairReq := req
@@ -281,7 +373,14 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-validation.json"), finalReport); err != nil {
 				return result, finalReport, err
 			}
-			return result, finalReport, repairErr
+			publishErr := publishProgress(
+				"failed",
+				"repair_failed",
+				"Worker repair attempt failed",
+				repairErr.Error(),
+				map[string]any{"session_id": logID, "attempt": attempt},
+			)
+			return result, finalReport, errors.Join(repairErr, publishErr)
 		}
 	}
 
@@ -294,7 +393,14 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-validation.json"), finalReport); err != nil {
 		return result, finalReport, err
 	}
-	return result, finalReport, fmt.Errorf(result.Error)
+	publishErr := publishProgress(
+		"failed",
+		"validation_failed",
+		"Worker execution ended without validation success",
+		result.Error,
+		map[string]any{"session_id": logID},
+	)
+	return result, finalReport, errors.Join(fmt.Errorf(result.Error), publishErr)
 }
 
 func (a *App) writeExecutionArtifacts(projectRoot, logID string, result executionResult) error {

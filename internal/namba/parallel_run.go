@@ -30,16 +30,20 @@ type parallelWorkerResult struct {
 }
 
 type parallelRunReport struct {
-	SpecID         string                 `json:"spec_id"`
-	BaseBranch     string                 `json:"base_branch"`
-	DryRun         bool                   `json:"dry_run"`
-	CleanupPolicy  string                 `json:"cleanup_policy"`
-	MergeBlocked   bool                   `json:"merge_blocked"`
-	PruneAttempted bool                   `json:"prune_attempted"`
-	PruneError     string                 `json:"prune_error,omitempty"`
-	Workers        []parallelWorkerResult `json:"workers"`
-	StartedAt      string                 `json:"started_at"`
-	FinishedAt     string                 `json:"finished_at"`
+	SpecID            string                 `json:"spec_id"`
+	RunID             string                 `json:"run_id,omitempty"`
+	BaseBranch        string                 `json:"base_branch"`
+	DryRun            bool                   `json:"dry_run"`
+	CleanupPolicy     string                 `json:"cleanup_policy"`
+	EventLogPath      string                 `json:"event_log_path,omitempty"`
+	ProgressLogFailed bool                   `json:"progress_log_failed,omitempty"`
+	ProgressLogError  string                 `json:"progress_log_error,omitempty"`
+	MergeBlocked      bool                   `json:"merge_blocked"`
+	PruneAttempted    bool                   `json:"prune_attempted"`
+	PruneError        string                 `json:"prune_error,omitempty"`
+	Workers           []parallelWorkerResult `json:"workers"`
+	StartedAt         string                 `json:"started_at"`
+	FinishedAt        string                 `json:"finished_at"`
 }
 
 func (a *App) executeParallelRun(ctx context.Context, root string, specPkg specPackage, tasks []string, prompt string, qualityCfg qualityConfig, systemCfg systemConfig, codexCfg codexConfig, workflowCfg workflowConfig, dryRun bool) error {
