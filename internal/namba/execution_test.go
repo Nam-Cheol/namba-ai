@@ -379,6 +379,16 @@ func TestSuggestDelegationPlanRoutesSpecialists(t *testing.T) {
 		t.Fatalf("expected solo delegation budget 1, got %+v", soloPlan)
 	}
 
+	architectPlan := suggestDelegationPlan(
+		executionModeSolo,
+		"Plan the component/state split for this dashboard.",
+		"Clarify component boundaries and state ownership before editing files.",
+		"- [ ] Produce the frontend plan",
+	)
+	if len(architectPlan.SelectedRoles) != 1 || architectPlan.SelectedRoles[0] != "namba-frontend-architect" {
+		t.Fatalf("expected solo planning prompt to choose the frontend architect, got %+v", architectPlan)
+	}
+
 	designPlan := suggestDelegationPlan(
 		executionModeSolo,
 		"Redesign the landing page hero art direction and palette so it stops feeling generic.",
@@ -387,6 +397,19 @@ func TestSuggestDelegationPlanRoutesSpecialists(t *testing.T) {
 	)
 	if len(designPlan.SelectedRoles) != 1 || designPlan.SelectedRoles[0] != "namba-designer" {
 		t.Fatalf("expected solo plan to choose the designer for art-direction work, got %+v", designPlan)
+	}
+
+	milestonePlan := suggestDelegationPlan(
+		executionModeTeam,
+		"Plan the page milestone rollout for responsive browser accessibility work.",
+		"Keep the milestone focused on UI delivery sequencing.",
+		"- [ ] Ship the responsive page",
+	)
+	if strings.Contains(strings.Join(milestonePlan.DominantDomains, ","), "design") {
+		t.Fatalf("expected milestone-only prompt to avoid design routing noise, got %+v", milestonePlan)
+	}
+	if strings.Contains(strings.Join(milestonePlan.SelectedRoles, ","), "namba-designer") {
+		t.Fatalf("expected milestone-only prompt to avoid selecting the designer, got %+v", milestonePlan)
 	}
 }
 
