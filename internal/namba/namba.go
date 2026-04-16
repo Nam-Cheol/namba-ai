@@ -1605,7 +1605,7 @@ func delegationDomainConfigs() []delegationDomainConfig {
 			PrimaryRole:      "namba-frontend-implementer",
 			PlanningRole:     "namba-frontend-architect",
 			Keywords:         []string{"frontend", "ui", "component", "screen", "page", "responsive", "browser", "css", "accessibility", "a11y", "state"},
-			PlanningKeywords: []string{"component/state", "plan the component", "plan the state", "split", "component boundary", "component boundaries", "state ownership", "ownership", "file planning"},
+			PlanningKeywords: []string{"component/state split", "plan the component", "plan the state", "component boundary", "component boundaries", "state ownership", "file planning", "delivery planning"},
 		},
 		{Name: "mobile", PrimaryRole: "namba-mobile-engineer", Keywords: []string{"mobile", "ios", "android", "swift", "kotlin", "react native", "flutter", "tablet", "touch"}, ScoreBias: 2},
 		{Name: "backend", PrimaryRole: "namba-backend-implementer", Keywords: []string{"backend", "api", "endpoint", "server", "service", "controller", "handler", "webhook"}, ScoreBias: 1},

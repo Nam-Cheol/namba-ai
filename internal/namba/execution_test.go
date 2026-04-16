@@ -399,6 +399,16 @@ func TestSuggestDelegationPlanRoutesSpecialists(t *testing.T) {
 		t.Fatalf("expected solo plan to choose the designer for art-direction work, got %+v", designPlan)
 	}
 
+	implementationPlan := suggestDelegationPlan(
+		executionModeSolo,
+		"Implement split-screen dashboard state updates and browser accessibility fixes.",
+		"Wire the UI changes into the existing dashboard component.",
+		"- [ ] Ship the UI updates",
+	)
+	if len(implementationPlan.SelectedRoles) != 1 || implementationPlan.SelectedRoles[0] != "namba-frontend-implementer" {
+		t.Fatalf("expected implementation prompt to stay with the frontend implementer, got %+v", implementationPlan)
+	}
+
 	milestonePlan := suggestDelegationPlan(
 		executionModeTeam,
 		"Plan the page milestone rollout for responsive browser accessibility work.",
