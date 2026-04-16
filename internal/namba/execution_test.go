@@ -378,6 +378,16 @@ func TestSuggestDelegationPlanRoutesSpecialists(t *testing.T) {
 	if soloPlan.DelegationBudget != 1 {
 		t.Fatalf("expected solo delegation budget 1, got %+v", soloPlan)
 	}
+
+	designPlan := suggestDelegationPlan(
+		executionModeSolo,
+		"Redesign the landing page hero art direction and palette so it stops feeling generic.",
+		"Clarify the visual direction, composition, and motion intent before implementation.",
+		"- [ ] Produce the design direction",
+	)
+	if len(designPlan.SelectedRoles) != 1 || designPlan.SelectedRoles[0] != "namba-designer" {
+		t.Fatalf("expected solo plan to choose the designer for art-direction work, got %+v", designPlan)
+	}
 }
 
 func TestRunExecutesExplicitSubagentModes(t *testing.T) {

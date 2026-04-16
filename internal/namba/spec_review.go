@@ -19,6 +19,7 @@ type specReviewTemplate struct {
 	Skill        string
 	ReviewerRole string
 	Focus        string
+	Checklist    []string
 }
 
 type specReviewState struct {
@@ -49,7 +50,15 @@ func specReviewTemplates() []specReviewTemplate {
 			Title:        "Design Review",
 			Skill:        "$namba-plan-design-review",
 			ReviewerRole: "namba-designer",
-			Focus:        "Clarify interaction quality, responsive states, accessibility, and visual direction before implementation starts.",
+			Focus:        "Clarify art direction, palette discipline, anti-generic composition, purposeful motion, and visual risks before implementation starts.",
+			Checklist: []string{
+				"Art direction is clear and fits the task context.",
+				"Palette temperature and undertone logic are coherent, saturation stays restrained, and the result does not collapse into washed-out gray minimalism.",
+				"Semantic components and layout primitives match the content instead of defaulting to generic cards, border-heavy framing, or bento/grid fallback.",
+				"Motion, if proposed, has a concrete hierarchy, attention, or state-change purpose.",
+				"The most generic section is redesigned when the task is page-, screen-, or section-scale; component-scale tasks call out the risk without gratuitous scope creep.",
+				"Anti-overcorrection guardrails hold: no novelty for novelty's sake, no decorative asymmetry without payoff, and no loss of accessibility, design-system fit, or implementation realism.",
+			},
 		},
 	}
 }
@@ -84,7 +93,7 @@ func specReviewReadinessPath(specID string) string {
 }
 
 func buildSpecReviewDoc(state specReviewState) string {
-	return strings.Join([]string{
+	lines := []string{
 		fmt.Sprintf("# %s", state.Template.Title),
 		"",
 		fmt.Sprintf("- Status: %s", state.Status),
@@ -97,6 +106,15 @@ func buildSpecReviewDoc(state specReviewState) string {
 		"",
 		fmt.Sprintf("- %s", state.Template.Focus),
 		"",
+	}
+	if len(state.Template.Checklist) > 0 {
+		lines = append(lines, "## Review Checklist", "")
+		for _, item := range state.Template.Checklist {
+			lines = append(lines, "- "+item)
+		}
+		lines = append(lines, "")
+	}
+	lines = append(lines,
 		"## Findings",
 		"",
 		"- Pending.",
@@ -113,7 +131,8 @@ func buildSpecReviewDoc(state specReviewState) string {
 		"",
 		"- Pending.",
 		"",
-	}, "\n")
+	)
+	return strings.Join(lines, "\n")
 }
 
 func buildSpecReviewReadinessDoc(root, specID string, states []specReviewState) string {

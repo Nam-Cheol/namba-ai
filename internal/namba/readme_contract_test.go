@@ -44,8 +44,13 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		"`$namba-land`",
 		"`$namba-regen`",
 		"`$namba-update`",
+		"`namba-frontend-architect`",
+		"`Redesign this landing page hero so it stops looking generic`",
 	} {
 		assertContains(t, rootReadme, want, "root README")
+	}
+	if strings.Contains(rootReadme, "temperature and undertone discipline") {
+		t.Fatalf("root README should stay lightweight and not inline the full designer manifesto: %q", rootReadme)
 	}
 
 	workflowGuide := outputs[guidePath("workflow-guide", "en")]
@@ -63,6 +68,7 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		"`namba plan`, `namba harness`, and `namba fix --command plan`",
 		"`namba regen`",
 		"`namba-frontend-implementer`",
+		"`namba-frontend-architect`",
 		"`namba-mobile-engineer`",
 		"`namba-designer`",
 		"`namba-backend-implementer`",
@@ -72,8 +78,16 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		"`namba-reviewer`",
 		"`$namba-help`",
 		"`$namba-plan-review`",
+		"`Redesign the hero so it stops looking generic`",
+		"`Plan the component boundaries for this dashboard`",
+		"`Implement the approved dashboard filters`",
 	} {
 		assertContains(t, workflowGuide, want, "workflow guide")
+	}
+	for _, unwanted := range []string{"temperature and undertone discipline", "washed-out minimalism"} {
+		if strings.Contains(workflowGuide, unwanted) {
+			t.Fatalf("workflow guide should keep the role split lightweight and not contain %q: %q", unwanted, workflowGuide)
+		}
 	}
 
 	for _, lang := range []string{"ko", "ja", "zh"} {
@@ -105,6 +119,7 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 			"`namba run SPEC-XXX --parallel`",
 			"`namba fix --command plan \"issue description\"`",
 			"`namba fix --command run \"issue description\"`",
+			"`namba-frontend-architect`",
 			"`namba-reviewer`",
 			"`$namba-plan-review`",
 			"`namba pr`",

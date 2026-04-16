@@ -1588,12 +1588,12 @@ func suggestDelegationPlan(mode executionMode, specText, planText, acceptanceTex
 
 func delegationDomainConfigs() []delegationDomainConfig {
 	return []delegationDomainConfig{
-		{Name: "frontend", PrimaryRole: "namba-frontend-implementer", Keywords: []string{"frontend", "ui", "component", "screen", "page", "responsive", "browser", "css", "accessibility", "a11y"}},
+		{Name: "frontend", PrimaryRole: "namba-frontend-implementer", Keywords: []string{"frontend", "ui", "component", "screen", "page", "responsive", "browser", "css", "accessibility", "a11y", "state"}},
 		{Name: "mobile", PrimaryRole: "namba-mobile-engineer", Keywords: []string{"mobile", "ios", "android", "swift", "kotlin", "react native", "flutter", "tablet", "touch"}, ScoreBias: 2},
 		{Name: "backend", PrimaryRole: "namba-backend-implementer", Keywords: []string{"backend", "api", "endpoint", "server", "service", "controller", "handler", "webhook"}, ScoreBias: 1},
 		{Name: "data", PrimaryRole: "namba-data-engineer", Keywords: []string{"schema", "migration", "sql", "query", "etl", "warehouse", "analytics", "dataset", "batch", "pipeline"}, ScoreBias: 2},
 		{Name: "security", PrimaryRole: "namba-security-engineer", Keywords: []string{"security", "auth", "oauth", "permission", "secret", "token", "encryption", "vulnerability", "compliance", "privacy", "pii"}, ScoreBias: 2},
-		{Name: "design", PrimaryRole: "namba-designer", Keywords: []string{"design", "figma", "visual", "layout", "prototype", "typography", "spacing", "motion", "interaction"}, ScoreBias: 1},
+		{Name: "design", PrimaryRole: "namba-designer", Keywords: []string{"design", "figma", "art direction", "visual direction", "visual design", "palette", "tone", "composition", "look and feel", "redesign", "typography", "motion", "prototype", "brand"}, ScoreBias: 1},
 		{Name: "devops", PrimaryRole: "namba-devops-engineer", Keywords: []string{"deploy", "deployment", "docker", "kubernetes", "helm", "terraform", "ci", "cd", "infra", "observability", "runtime", "environment"}, ScoreBias: 2},
 		{Name: "quality", PrimaryRole: "namba-test-engineer", Keywords: []string{"test", "regression", "coverage", "qa", "e2e", "integration test", "acceptance test"}, ScoreBias: -1},
 	}

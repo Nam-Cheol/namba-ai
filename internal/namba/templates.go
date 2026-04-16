@@ -326,12 +326,23 @@ func renderPlanEngReviewCommandSkill() string {
 }
 
 func renderPlanDesignReviewCommandSkill() string {
-	return renderPlanReviewCommandSkill(
+	return renderCommandSkill(
 		"namba-plan-design-review",
 		"Command-style entry point for design review of a SPEC before implementation starts.",
-		"namba-designer",
-		"design",
-		"design",
+		[]string{
+			"Use this skill when the user explicitly says `$namba-plan-design-review` or asks for a design review on a SPEC package.",
+			"",
+			"Behavior:",
+			"- Resolve the target SPEC from an explicit `SPEC-XXX`; otherwise use the latest SPEC under `.namba/specs/`.",
+			"- Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md` before writing review notes.",
+			"- Update `.namba/specs/<SPEC>/reviews/design.md` with status, reviewer, findings, decisions, follow-ups, and recommendation.",
+			"- Prefer `namba-designer` as the review role when subagent routing is appropriate.",
+			"- Check art-direction clarity, palette temperature and undertone logic, restrained saturation, semantic component choice, anti-generic composition, meaningful motion, redesign of the most generic section when applicable, and anti-overcorrection safeguards.",
+			"- Treat card, border, and grid usage as valid when they are justified; the regression target is default reliance or meaningless fallback use, not a categorical ban.",
+			"- Reject both washed-out gray minimalism and novelty-for-novelty. Preserve accessibility, design-system fit, and implementation realism.",
+			"- Refresh `.namba/specs/<SPEC>/reviews/readiness.md` so the advisory summary reflects the latest review state.",
+			"- Keep the review advisory by default; surface missing depth or blockers clearly without silently turning the workflow into a hard gate.",
+		},
 	)
 }
 
@@ -368,7 +379,7 @@ func renderRunCommandSkill(profile initProfile) string {
 			"- For `--solo`, stay inside one runner unless one domain clearly dominates and a single specialist would materially reduce risk.",
 			"- For `--team`, prefer one specialist when one domain dominates, expand to two or three only when acceptance spans multiple domains, and keep one integrator plus final validation owner in the workspace.",
 			"- For `--team`, honor each selected role's `model` and `model_reasoning_effort` metadata from `.codex/agents/*.toml` so planner/reviewer/security roles can think harder without making every delivery role heavy.",
-			"- Route UI, responsive, mobile, and design work to frontend/mobile/designer roles; API, schema, and pipeline work to backend/data; auth, secrets, and compliance work to security; deployment and runtime work to devops.",
+			"- Route art direction, palette/tone logic, composition, motion intent, Figma critique, and generic-section redesign work to `namba-designer`; route component boundaries, state ownership, and UI delivery planning to `namba-frontend-architect`; route approved UI implementation to `namba-frontend-implementer`; route mobile-specific UI delivery to `namba-mobile-engineer`; route API, schema, and pipeline work to backend/data; route auth, secrets, and compliance work to security; route deployment and runtime work to devops.",
 			"- Treat review readiness as advisory by default: missing plan-review artifacts should be surfaced clearly, not silently block execution.",
 			"- Run validation commands from `.namba/config/sections/quality.yaml` and finish with `namba sync`. Use `namba pr` and `namba land` for the GitHub handoff and merge cycle instead of overloading `sync`.",
 			fmt.Sprintf("- Collaboration defaults: branch from `%s`, open the PR into `%s`, write the PR in %s, and request `%s` on GitHub after the PR is open.", branchBase(profile), prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
@@ -592,7 +603,8 @@ func renderCodexUsageAgentRosterSection() []string {
 		"## Namba Custom Agent Roster",
 		"",
 		"- Strategy and readiness: `namba-product-manager` shapes scope and acceptance, `namba-planner` turns a SPEC into an execution plan, and `namba-plan-reviewer` validates whether the product/engineering/design review set is coherent enough to start implementation.",
-		"- UI: `namba-frontend-architect` plans component boundaries and UI risks, `namba-frontend-implementer` ships approved UI work, `namba-mobile-engineer` handles mobile-specific constraints, and `namba-designer` clarifies visual direction and interaction intent.",
+		"- UI split: `namba-designer` owns art direction, palette/tone logic, composition, motion intent, and diagnosis of generic or bland sections; `namba-frontend-architect` owns component boundaries, state/file planning, and delivery slicing; `namba-frontend-implementer` ships approved UI work; `namba-mobile-engineer` handles mobile-specific constraints.",
+		"- Routing examples: `Redesign this landing page hero so it stops looking generic` -> `namba-designer`; `Plan the component/state split for this dashboard` -> `namba-frontend-architect`; `Implement the approved dashboard filters and responsive states` -> `namba-frontend-implementer`.",
 		"- Backend and data: `namba-backend-architect` plans service boundaries, `namba-backend-implementer` ships server-side changes, and `namba-data-engineer` owns data pipelines, transformations, migrations, and analytics-facing changes.",
 		"- Security and delivery: `namba-security-engineer` handles hardening work, `namba-test-engineer` adds targeted regression coverage, `namba-devops-engineer` handles CI/CD and runtime changes, and `namba-reviewer` checks implementation acceptance before sync.",
 		"- General delivery: `namba-implementer` remains the generalist execution agent for mixed-scope implementation slices.",
@@ -610,7 +622,7 @@ func renderCodexUsageDelegationHeuristicsSection() []string {
 		"- `--team` prefers one specialist when one domain dominates and expands to two or three only when acceptance spans multiple domains.",
 		"- Repo-managed same-workspace defaults set `.codex/config.toml [agents].max_threads = 5` when `agent_mode: multi`; worktree fan-out remains separately controlled by `.namba/config/sections/workflow.yaml`.",
 		"- Team mode honors each selected role's `model` and `model_reasoning_effort` metadata from `.codex/agents/*.toml`, keeping planner/reviewer/security roles stronger and delivery roles lighter.",
-		"- Route UI, responsive, mobile, and Figma work to frontend/mobile/designer; API, schema, and pipeline work to backend/data; auth, secrets, and compliance work to security; deployment and runtime work to devops.",
+		"- Route art direction, palette/tone logic, composition, motion intent, redesign, and Figma critique to `namba-designer`; route component, state, and delivery planning to `namba-frontend-architect`; route approved UI implementation to `namba-frontend-implementer`; route mobile-specific delivery to `namba-mobile-engineer`; route API, schema, and pipeline work to backend/data; route auth, secrets, and compliance work to security; route deployment and runtime work to devops.",
 		"- Keep the standalone runner as the integrator and final validation owner, and use `namba-reviewer` last when multiple specialists contribute.",
 	}
 }
@@ -1150,19 +1162,21 @@ func renderFrontendImplementerCustomAgent() string {
 
 func designerAgentTemplate() codexAgentTemplate {
 	roleResponsibilities := []string{
-		"Define the visual hierarchy, spacing rhythm, typography, and interaction intent for the requested change.",
-		"Align the work with design-system tokens, accessibility, and consistent component reuse.",
-		"Call out motion, affordance, and layout risks early.",
-		"Recommend the smallest design slice that can be implemented without a broader redesign.",
+		"Lead with art direction: define the visual concept, hierarchy, and composition before defaulting to components or spacing tokens.",
+		"Set palette logic with explicit temperature and undertone discipline, restrained saturation, and deliberate accent use instead of trend-chasing or washed-out minimalism.",
+		"Choose semantic components and layout primitives that fit the content; do not default to interchangeable cards, border-heavy framing, or generic bento/grid patterns as the primary identity.",
+		"Keep motion purposeful: use it only when it clarifies hierarchy, attention, or state change.",
+		"For screen-, page-, or section-scale work, identify the most generic-looking section and propose a concrete redesign; for component-scale work, call out the risk without forcing gratuitous scope creep.",
+		"Guard against overcorrection: do not flatten everything into gray minimalism, do not add novelty without payoff, and do not sacrifice accessibility, design-system fit, or implementation realism.",
 	}
 	return codexAgentTemplate{
 		roleTitle:              "Namba Designer",
-		roleUseWhen:            "Use this role when visual direction, spacing, typography, motion, or interaction intent need to be clarified before implementation.",
+		roleUseWhen:            "Use this role when art direction, palette/tone logic, composition, motion intent, or generic-looking UI surfaces need to be clarified before implementation or review.",
 		roleResponsibilities:   roleResponsibilities,
 		customAgentName:        "namba-designer",
-		customAgentDescription: "Clarify visual direction, spacing, typography, motion, and interaction intent before implementation.",
+		customAgentDescription: "Clarify art direction, palette logic, composition, motion intent, and anti-generic redesign guidance before implementation.",
 		customAgentSandboxMode: "read-only",
-		customAgentUseWhen:     "Use this custom agent when a task needs design direction before implementation starts.",
+		customAgentUseWhen:     "Use this custom agent when a task needs design direction, taste correction, or visual review before implementation starts.",
 		customAgentResponsibilities: append(
 			append([]string{}, roleResponsibilities...),
 			"Do not edit files directly.",

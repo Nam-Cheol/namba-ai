@@ -37,7 +37,8 @@
 
 - 默认的 `namba run` 会停留在 standalone runner，除非 prompt 明确显示出强烈的 specialist signal。
 - `--solo` 只会在一个 specialist 能显著降低风险时分流，`--team` 则会在 acceptance 跨多个领域时，在同一 workspace 内协调多个 specialist 和最后的 reviewer。
-- UI、responsive、mobile、design 交给 `namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer`；API、schema、pipeline 交给 `namba-backend-implementer`、`namba-data-engineer`；auth、secrets、compliance 交给 `namba-security-engineer`；deployment 和 runtime 交给 `namba-devops-engineer`。
+- art direction、palette/tone logic、composition、motion intent、Figma critique、generic section redesign 交给 `namba-designer`；component boundary、state ownership、UI delivery planning 交给 `namba-frontend-architect`；已批准的 UI 实现交给 `namba-frontend-implementer`；移动端专属 UI 交给 `namba-mobile-engineer`。API、schema、pipeline 交给 `namba-backend-implementer`、`namba-data-engineer`；auth、secrets、compliance 交给 `namba-security-engineer`；deployment 和 runtime 交给 `namba-devops-engineer`。
+- Examples: `Redesign the hero so it stops looking generic` 交给 `namba-designer`，`Plan the component boundaries for this dashboard` 交给 `namba-frontend-architect`，`Implement the approved dashboard filters` 交给 `namba-frontend-implementer`。
 - 让 standalone runner 继续担任 integrator 和 validation owner，最终 acceptance 交给 `namba-reviewer`，不要扩散成失控的 swarm。
 
 ## 评审准备度

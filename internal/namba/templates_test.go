@@ -146,18 +146,20 @@ func TestUIPlanningRoleTemplatesPreserveRoleCardAndCustomAgentContracts(t *testi
 			roleCard:    renderDesignerRoleCard(),
 			customAgent: renderDesignerCustomAgent(),
 			roleHeading: "# Namba Designer",
-			roleUseWhen: "Use this role when visual direction, spacing, typography, motion, or interaction intent need to be clarified before implementation.",
+			roleUseWhen: "Use this role when art direction, palette/tone logic, composition, motion intent, or generic-looking UI surfaces need to be clarified before implementation or review.",
 			roleResponsibilities: []string{
-				"Define the visual hierarchy, spacing rhythm, typography, and interaction intent for the requested change.",
-				"Align the work with design-system tokens, accessibility, and consistent component reuse.",
-				"Call out motion, affordance, and layout risks early.",
-				"Recommend the smallest design slice that can be implemented without a broader redesign.",
+				"Lead with art direction: define the visual concept, hierarchy, and composition before defaulting to components or spacing tokens.",
+				"Set palette logic with explicit temperature and undertone discipline, restrained saturation, and deliberate accent use instead of trend-chasing or washed-out minimalism.",
+				"Choose semantic components and layout primitives that fit the content; do not default to interchangeable cards, border-heavy framing, or generic bento/grid patterns as the primary identity.",
+				"Keep motion purposeful: use it only when it clarifies hierarchy, attention, or state change.",
+				"For screen-, page-, or section-scale work, identify the most generic-looking section and propose a concrete redesign; for component-scale work, call out the risk without forcing gratuitous scope creep.",
+				"Guard against overcorrection: do not flatten everything into gray minimalism, do not add novelty without payoff, and do not sacrifice accessibility, design-system fit, or implementation realism.",
 			},
 			agentSnippets: []string{
 				`name = "namba-designer"`,
 				`sandbox_mode = "read-only"`,
 				"You are Namba Designer.",
-				"Use this custom agent when a task needs design direction before implementation starts.",
+				"Use this custom agent when a task needs design direction, taste correction, or visual review before implementation starts.",
 				"- Do not edit files directly.",
 			},
 		},
@@ -620,6 +622,8 @@ func TestRenderCodexUsageMidSectionsPreserveAnchors(t *testing.T) {
 		"## Namba Custom Agent Roster",
 		"`namba-product-manager`",
 		"`namba-frontend-architect`",
+		"`namba-designer` owns art direction",
+		"`Plan the component/state split for this dashboard`",
 		"`namba-backend-architect`",
 		"`namba-security-engineer`",
 		"`namba-implementer`",
@@ -637,10 +641,16 @@ func TestRenderCodexUsageMidSectionsPreserveAnchors(t *testing.T) {
 		"`--team`",
 		"`.codex/config.toml [agents].max_threads = 5`",
 		"`model` and `model_reasoning_effort`",
+		"`namba-frontend-architect`",
 		"`namba-reviewer`",
 	} {
 		if !strings.Contains(delegation, want) {
 			t.Fatalf("delegation section missing %q: %q", want, delegation)
+		}
+	}
+	for _, unwanted := range []string{"temperature and undertone discipline", "washed-out minimalism"} {
+		if strings.Contains(delegation, unwanted) {
+			t.Fatalf("delegation section should stay lightweight and not contain %q: %q", unwanted, delegation)
 		}
 	}
 
@@ -654,6 +664,41 @@ func TestRenderCodexUsageMidSectionsPreserveAnchors(t *testing.T) {
 	} {
 		if !strings.Contains(planReview, want) {
 			t.Fatalf("plan-review section missing %q: %q", want, planReview)
+		}
+	}
+}
+
+func TestDesignerContractStaysDesignSpecificAndDoesNotLeakIntoSharedSurfaces(t *testing.T) {
+	t.Parallel()
+
+	designer := renderDesignerRoleCard() + "\n" + renderDesignerCustomAgent()
+	for _, want := range []string{
+		"art direction",
+		"temperature and undertone discipline",
+		"restrained saturation",
+		"generic bento/grid patterns",
+		"most generic-looking section",
+		"gray minimalism",
+	} {
+		if !strings.Contains(designer, want) {
+			t.Fatalf("designer contract missing %q: %q", want, designer)
+		}
+	}
+
+	frontendArchitect := renderFrontendArchitectRoleCard() + "\n" + renderFrontendArchitectCustomAgent()
+	frontendImplementer := renderFrontendImplementerRoleCard() + "\n" + renderFrontendImplementerCustomAgent()
+	for _, surface := range []string{frontendArchitect, frontendImplementer} {
+		for _, unwanted := range []string{"temperature and undertone discipline", "gray minimalism", "generic bento/grid patterns"} {
+			if strings.Contains(surface, unwanted) {
+				t.Fatalf("non-design surface should not contain %q: %q", unwanted, surface)
+			}
+		}
+	}
+
+	runSkill := renderRunCommandSkill(initProfile{})
+	for _, unwanted := range []string{"temperature and undertone discipline", "washed-out minimalism"} {
+		if strings.Contains(runSkill, unwanted) {
+			t.Fatalf("run skill should stay lightweight and not contain %q: %q", unwanted, runSkill)
 		}
 	}
 }

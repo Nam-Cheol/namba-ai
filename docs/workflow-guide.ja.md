@@ -37,7 +37,8 @@
 
 - 既定の `namba run` は、prompt に強い specialist signal がない限り standalone runner に留まります。
 - `--solo` は 1 人の specialist で実質的にリスクを下げられる場合だけ分岐し、`--team` は acceptance が複数ドメインにまたがるときに複数 specialist と最終 reviewer を同じ workspace 内で調整します。
-- UI、responsive、mobile、design は `namba-frontend-implementer`、`namba-mobile-engineer`、`namba-designer` に、API、schema、pipeline は `namba-backend-implementer`、`namba-data-engineer` に、auth、secrets、compliance は `namba-security-engineer` に、deployment と runtime は `namba-devops-engineer` に割り当てます。
+- art direction、palette/tone logic、composition、motion intent、Figma critique、generic section redesign は `namba-designer` に、component boundary、state ownership、UI delivery planning は `namba-frontend-architect` に、承認済み UI 実装は `namba-frontend-implementer` に、mobile 専用 UI delivery は `namba-mobile-engineer` に割り当てます。API、schema、pipeline は `namba-backend-implementer`、`namba-data-engineer` に、auth、secrets、compliance は `namba-security-engineer` に、deployment と runtime は `namba-devops-engineer` に割り当てます。
+- Examples: `Redesign the hero so it stops looking generic` は `namba-designer`、`Plan the component boundaries for this dashboard` は `namba-frontend-architect`、`Implement the approved dashboard filters` は `namba-frontend-implementer` に送ります。
 - standalone runner は integrator かつ validation owner とし、制御不能な swarm を広げる代わりに最終 acceptance は `namba-reviewer` に任せます。
 
 ## レビュー準備度

@@ -107,7 +107,8 @@ namba land
 ## Custom Agents In Codex
 
 - Strategy and readiness: `namba-product-manager` shapes scope and acceptance, `namba-planner` turns a SPEC into an execution plan, and `namba-plan-reviewer` validates whether the plan-review set is coherent enough to start implementation.
-- UI and experience: `namba-frontend-architect`, `namba-frontend-implementer`, `namba-mobile-engineer`, and `namba-designer` cover web UI, mobile execution, and visual direction.
+- UI split: `namba-designer` owns art direction, palette/tone logic, composition, motion intent, and diagnosis of generic or bland sections; `namba-frontend-architect` owns component boundaries, state/file planning, and delivery slicing; `namba-frontend-implementer` ships approved UI work; `namba-mobile-engineer` handles mobile-specific constraints.
+- Routing examples: `Redesign this landing page hero so it stops looking generic` -> `namba-designer`; `Plan the component/state split for this dashboard` -> `namba-frontend-architect`; `Implement the approved dashboard filters and responsive states` -> `namba-frontend-implementer`.
 - Backend and data: `namba-backend-architect`, `namba-backend-implementer`, and `namba-data-engineer` cover APIs, persistence, migrations, and pipelines.
 - Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, and `namba-reviewer` cover hardening, regression confidence, CI/CD, and final acceptance.
 - General delivery: `namba-implementer` remains the generalist execution agent when a task spans multiple domains but does not justify a larger specialist team.
