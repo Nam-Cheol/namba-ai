@@ -106,7 +106,8 @@ namba land
 ## Codex용 Custom Agents
 
 - Strategy and readiness: `namba-product-manager`가 범위와 acceptance를 다듬고, `namba-planner`가 SPEC를 실행 계획으로 바꾸며, `namba-plan-reviewer`가 plan-review 결과의 일관성과 readiness를 검증합니다.
-- UI and experience: `namba-frontend-architect`, `namba-frontend-implementer`, `namba-mobile-engineer`, `namba-designer`가 웹 UI, 모바일 실행, 시각 방향을 담당합니다.
+- UI split: `namba-designer`는 art direction, palette/tone logic, composition, motion intent, generic하거나 bland한 section 진단을 맡고, `namba-frontend-architect`는 component boundary와 state/file planning, delivery slicing을 맡고, `namba-frontend-implementer`는 승인된 UI 구현을 맡고, `namba-mobile-engineer`는 모바일 제약을 맡습니다.
+- Routing examples: `Redesign this landing page hero so it stops looking generic`는 `namba-designer`, `Plan the component/state split for this dashboard`는 `namba-frontend-architect`, `Implement the approved dashboard filters and responsive states`는 `namba-frontend-implementer`로 보냅니다.
 - Backend and data: `namba-backend-architect`, `namba-backend-implementer`, `namba-data-engineer`가 API, 영속성, 마이그레이션, 파이프라인을 담당합니다.
 - Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, `namba-reviewer`가 보안 강화, 회귀 신뢰도, CI/CD, 최종 acceptance를 담당합니다.
 - General delivery: `namba-implementer`는 여러 도메인을 가로지르지만 더 큰 specialist roster까지는 필요 없는 작업에서 일반 실행 에이전트로 남아 있습니다.

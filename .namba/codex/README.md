@@ -20,6 +20,25 @@
 4. Use built-in Codex subagents such as `default`, `worker`, and `explorer`, plus project-scoped custom agents under `.codex/agents/*.toml`, when multi-agent work is appropriate. The matching `.md` files remain readable mirrors.
 5. Use the plan-review skills to update `.namba/specs/<SPEC>/reviews/*.md` and keep `.namba/specs/<SPEC>/reviews/readiness.md` current when a SPEC needs product, engineering, or design critique before implementation, or use `$namba-plan-review` when you want the create-plus-review loop bundled into one Codex entry point.
 6. Use `namba project`, `namba regen`, `namba update`, `namba plan`, `namba harness`, `namba fix`, `namba run SPEC-XXX`, `namba sync`, `namba pr`, and `namba land` as workflow commands.
+## Workflow Command Semantics
+
+- `$namba-help` explains how to use NambaAI, which command to choose next, and where the authoritative docs live. It should stay read-only.
+- `$namba-create` is the preview-first creation path for repo-local skills and custom agents. Use it when the user wants `.agents/skills/*` or `.codex/agents/*` outputs directly instead of a SPEC package.
+- `namba project` refreshes current repository docs and codemaps without creating a SPEC package.
+- `namba regen` regenerates `AGENTS.md`, repo skills under `.agents/skills/`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.
+- `namba update` self-updates the installed `namba` binary from GitHub Release assets. Use `--version vX.Y.Z` for a specific release.
+- `namba plan "<description>"` creates the next feature SPEC package plus review scaffolds.
+- `namba harness "<description>"` creates the next harness-oriented SPEC package plus review scaffolds while staying inside the standard `SPEC-XXX` model.
+- `namba fix --command plan "<issue description>"` creates the next bugfix SPEC package plus review scaffolds.
+- `namba fix "<issue description>"` and `namba fix --command run "<issue description>"` are the direct-repair paths in the current workspace. They should stay read-only for help/probe flows, avoid implicit SPEC creation, and finish with validation plus `namba sync`.
+- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, codemaps, and advisory review readiness summaries.
+- `namba pr` prepares the current branch for GitHub review by syncing, validating, committing, pushing, opening or reusing the PR, and ensuring the Codex review marker is present.
+- `namba land` waits for checks when requested, merges a clean PR, and updates local `main` safely.
+- `namba release` requires a clean `main` branch and passing validators before it creates a tag. `--push` pushes both `main` and the new tag.
+- `namba run SPEC-XXX` keeps the standard standalone Codex flow when you use the CLI runner without extra mode flags.
+- `namba run SPEC-XXX --solo` requests a standalone Codex run that explicitly targets a single-subagent workflow inside one workspace.
+- `namba run SPEC-XXX --team` requests a standalone Codex run that explicitly coordinates multiple subagents inside one workspace.
+- `namba run SPEC-XXX --parallel` still refers to the standalone worktree runner path. It uses git worktrees, merges only after every worker passes execution and validation, and preserves failed worktrees and branches for inspection.
 
 ## Namba Custom Agent Roster
 
@@ -46,26 +65,6 @@
 - `$namba-plan-review` bundles SPEC creation or resolution, the three review tracks, and an aggregate validation loop when you want that whole pre-implementation pass handled through one skill.
 - `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` update those review artifacts directly in the repository.
 - `namba run`, `namba sync`, and `namba pr` surface the latest readiness summary as advisory context so review depth is visible without silently hard-blocking delivery.
-
-## Workflow Command Semantics
-
-- `$namba-help` explains how to use NambaAI, which command to choose next, and where the authoritative docs live. It should stay read-only.
-- `$namba-create` is the preview-first creation path for repo-local skills and custom agents. Use it when the user wants `.agents/skills/*` or `.codex/agents/*` outputs directly instead of a SPEC package.
-- `namba project` refreshes current repository docs and codemaps without creating a SPEC package.
-- `namba regen` regenerates `AGENTS.md`, repo skills under `.agents/skills/`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.
-- `namba update` self-updates the installed `namba` binary from GitHub Release assets. Use `--version vX.Y.Z` for a specific release.
-- `namba plan "<description>"` creates the next feature SPEC package plus review scaffolds.
-- `namba harness "<description>"` creates the next harness-oriented SPEC package plus review scaffolds while staying inside the standard `SPEC-XXX` model.
-- `namba fix --command plan "<issue description>"` creates the next bugfix SPEC package plus review scaffolds.
-- `namba fix "<issue description>"` and `namba fix --command run "<issue description>"` are the direct-repair paths in the current workspace. They should stay read-only for help/probe flows, avoid implicit SPEC creation, and finish with validation plus `namba sync`.
-- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, codemaps, and advisory review readiness summaries.
-- `namba pr` prepares the current branch for GitHub review by syncing, validating, committing, pushing, opening or reusing the PR, and ensuring the Codex review marker is present.
-- `namba land` waits for checks when requested, merges a clean PR, and updates local `main` safely.
-- `namba release` requires a clean `main` branch and passing validators before it creates a tag. `--push` pushes both `main` and the new tag.
-- `namba run SPEC-XXX` keeps the standard standalone Codex flow when you use the CLI runner without extra mode flags.
-- `namba run SPEC-XXX --solo` requests a standalone Codex run that explicitly targets a single-subagent workflow inside one workspace.
-- `namba run SPEC-XXX --team` requests a standalone Codex run that explicitly coordinates multiple subagents inside one workspace.
-- `namba run SPEC-XXX --parallel` still refers to the standalone worktree runner path. It uses git worktrees, merges only after every worker passes execution and validation, and preserves failed worktrees and branches for inspection.
 
 ## Output Contract
 

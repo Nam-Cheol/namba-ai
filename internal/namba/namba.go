@@ -1532,14 +1532,17 @@ func executionModePromptGuidance(mode executionMode) []string {
 }
 
 type delegationDomainConfig struct {
-	Name        string
-	PrimaryRole string
-	Keywords    []string
-	ScoreBias   int
+	Name             string
+	PrimaryRole      string
+	PlanningRole     string
+	Keywords         []string
+	PlanningKeywords []string
+	ScoreBias        int
 }
 
 type delegationDomainMatch struct {
 	Config        delegationDomainConfig
+	Role          string
 	Hits          []string
 	Score         int
 	WeightedScore int
@@ -1553,8 +1556,17 @@ func suggestDelegationPlan(mode executionMode, specText, planText, acceptanceTex
 		if len(hits) == 0 {
 			continue
 		}
+		role := cfg.PrimaryRole
+		if cfg.PlanningRole != "" {
+			planningHits := findKeywordHits(combined, cfg.PlanningKeywords)
+			if len(planningHits) > 0 {
+				role = cfg.PlanningRole
+				hits = uniqueStrings(append(hits, planningHits...))
+			}
+		}
 		matches = append(matches, delegationDomainMatch{
 			Config:        cfg,
+			Role:          role,
 			Hits:          hits,
 			Score:         len(hits),
 			WeightedScore: len(hits) + cfg.ScoreBias,
@@ -1588,12 +1600,18 @@ func suggestDelegationPlan(mode executionMode, specText, planText, acceptanceTex
 
 func delegationDomainConfigs() []delegationDomainConfig {
 	return []delegationDomainConfig{
-		{Name: "frontend", PrimaryRole: "namba-frontend-implementer", Keywords: []string{"frontend", "ui", "component", "screen", "page", "responsive", "browser", "css", "accessibility", "a11y"}},
+		{
+			Name:             "frontend",
+			PrimaryRole:      "namba-frontend-implementer",
+			PlanningRole:     "namba-frontend-architect",
+			Keywords:         []string{"frontend", "ui", "component", "screen", "page", "responsive", "browser", "css", "accessibility", "a11y"},
+			PlanningKeywords: []string{"component/state split", "plan the component", "plan the state", "component boundary", "component boundaries", "state ownership", "file planning", "delivery planning"},
+		},
 		{Name: "mobile", PrimaryRole: "namba-mobile-engineer", Keywords: []string{"mobile", "ios", "android", "swift", "kotlin", "react native", "flutter", "tablet", "touch"}, ScoreBias: 2},
 		{Name: "backend", PrimaryRole: "namba-backend-implementer", Keywords: []string{"backend", "api", "endpoint", "server", "service", "controller", "handler", "webhook"}, ScoreBias: 1},
 		{Name: "data", PrimaryRole: "namba-data-engineer", Keywords: []string{"schema", "migration", "sql", "query", "etl", "warehouse", "analytics", "dataset", "batch", "pipeline"}, ScoreBias: 2},
 		{Name: "security", PrimaryRole: "namba-security-engineer", Keywords: []string{"security", "auth", "oauth", "permission", "secret", "token", "encryption", "vulnerability", "compliance", "privacy", "pii"}, ScoreBias: 2},
-		{Name: "design", PrimaryRole: "namba-designer", Keywords: []string{"design", "figma", "visual", "layout", "prototype", "typography", "spacing", "motion", "interaction"}, ScoreBias: 1},
+		{Name: "design", PrimaryRole: "namba-designer", Keywords: []string{"design", "figma", "art direction", "visual direction", "visual design", "palette", "tone logic", "composition", "look and feel", "redesign", "typography", "motion", "prototype", "brand"}, ScoreBias: 1},
 		{Name: "devops", PrimaryRole: "namba-devops-engineer", Keywords: []string{"deploy", "deployment", "docker", "kubernetes", "helm", "terraform", "ci", "cd", "infra", "observability", "runtime", "environment"}, ScoreBias: 2},
 		{Name: "quality", PrimaryRole: "namba-test-engineer", Keywords: []string{"test", "regression", "coverage", "qa", "e2e", "integration test", "acceptance test"}, ScoreBias: -1},
 	}
@@ -1611,7 +1629,7 @@ func chooseDelegatedRoles(mode executionMode, matches []delegationDomainMatch) (
 				"No single specialist signal is strong enough, so stay inside one generalist runner.",
 			}
 		}
-		return []string{matches[0].Config.PrimaryRole}, 1, "", []string{
+		return []string{matches[0].Role}, 1, "", []string{
 			fmt.Sprintf("Highest-signal domain is %s via %s.", matches[0].Config.Name, quoteList(matches[0].Hits)),
 			"Delegate to one bounded specialist only if it materially reduces risk, and keep integration plus validation in the standalone runner.",
 		}
@@ -1629,7 +1647,7 @@ func chooseDelegatedRoles(mode executionMode, matches []delegationDomainMatch) (
 		roles := make([]string, 0, maxDomains+1)
 		rationale := make([]string, 0, maxDomains+2)
 		for i := 0; i < len(matches) && i < maxDomains; i++ {
-			roles = append(roles, matches[i].Config.PrimaryRole)
+			roles = append(roles, matches[i].Role)
 			rationale = append(rationale, fmt.Sprintf("%s matched %s.", matches[i].Config.Name, quoteList(matches[i].Hits)))
 		}
 		if len(matches) > 2 {

@@ -41,3 +41,22 @@ func TestRefreshAllSpecReviewReadinessRecreatesMissingFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestDesignReviewTemplateIncludesExplicitChecklist(t *testing.T) {
+	t.Parallel()
+
+	outputs := specReviewOutputs("SPEC-999")
+	designReview := outputs[specReviewPath("SPEC-999", "design")]
+	for _, want := range []string{
+		"## Review Checklist",
+		"Art direction is clear and fits the task context.",
+		"Palette temperature and undertone logic are coherent",
+		"generic cards, border-heavy framing, or bento/grid fallback",
+		"The most generic section is redesigned",
+		"no novelty for novelty's sake",
+	} {
+		if !strings.Contains(designReview, want) {
+			t.Fatalf("expected design review scaffold to contain %q, got %q", want, designReview)
+		}
+	}
+}

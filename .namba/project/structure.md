@@ -223,6 +223,7 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-028/reviews/product.md
 .namba/specs/SPEC-028/reviews/readiness.md
 .namba/specs/SPEC-028/spec.md
+.namba/specs/SPEC-029/reviews/readiness.md
 AGENTS.md
 README.ja.md
 README.ko.md
@@ -246,6 +247,7 @@ docs/workflow-guide.ja.md
 docs/workflow-guide.ko.md
 docs/workflow-guide.md
 docs/workflow-guide.zh.md
+dump.rdb
 go.mod
 install.ps1
 install.sh

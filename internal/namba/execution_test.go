@@ -378,6 +378,62 @@ func TestSuggestDelegationPlanRoutesSpecialists(t *testing.T) {
 	if soloPlan.DelegationBudget != 1 {
 		t.Fatalf("expected solo delegation budget 1, got %+v", soloPlan)
 	}
+
+	architectPlan := suggestDelegationPlan(
+		executionModeSolo,
+		"Plan the component/state split for this dashboard.",
+		"Clarify component boundaries and state ownership before editing files.",
+		"- [ ] Produce the frontend plan",
+	)
+	if len(architectPlan.SelectedRoles) != 1 || architectPlan.SelectedRoles[0] != "namba-frontend-architect" {
+		t.Fatalf("expected solo planning prompt to choose the frontend architect, got %+v", architectPlan)
+	}
+
+	designPlan := suggestDelegationPlan(
+		executionModeSolo,
+		"Redesign the landing page hero art direction and palette so it stops feeling generic.",
+		"Clarify the visual direction, composition, and motion intent before implementation.",
+		"- [ ] Produce the design direction",
+	)
+	if len(designPlan.SelectedRoles) != 1 || designPlan.SelectedRoles[0] != "namba-designer" {
+		t.Fatalf("expected solo plan to choose the designer for art-direction work, got %+v", designPlan)
+	}
+
+	implementationPlan := suggestDelegationPlan(
+		executionModeSolo,
+		"Implement split-screen dashboard state updates and browser accessibility fixes.",
+		"Wire the UI changes into the existing dashboard component.",
+		"- [ ] Ship the UI updates",
+	)
+	if len(implementationPlan.SelectedRoles) != 1 || implementationPlan.SelectedRoles[0] != "namba-frontend-implementer" {
+		t.Fatalf("expected implementation prompt to stay with the frontend implementer, got %+v", implementationPlan)
+	}
+
+	milestonePlan := suggestDelegationPlan(
+		executionModeTeam,
+		"Plan the page milestone rollout for responsive browser accessibility work.",
+		"Keep the milestone focused on UI delivery sequencing.",
+		"- [ ] Ship the responsive page",
+	)
+	if strings.Contains(strings.Join(milestonePlan.DominantDomains, ","), "design") {
+		t.Fatalf("expected milestone-only prompt to avoid design routing noise, got %+v", milestonePlan)
+	}
+	if strings.Contains(strings.Join(milestonePlan.SelectedRoles, ","), "namba-designer") {
+		t.Fatalf("expected milestone-only prompt to avoid selecting the designer, got %+v", milestonePlan)
+	}
+
+	backendStatePlan := suggestDelegationPlan(
+		executionModeTeam,
+		"Implement backend state transitions for the workflow engine.",
+		"Update the server-side state machine and controller flow.",
+		"- [ ] Ship the backend transition changes",
+	)
+	if strings.Contains(strings.Join(backendStatePlan.DominantDomains, ","), "frontend") {
+		t.Fatalf("expected backend state-transition prompt to avoid frontend routing noise, got %+v", backendStatePlan)
+	}
+	if strings.Contains(strings.Join(backendStatePlan.SelectedRoles, ","), "namba-frontend-implementer") || strings.Contains(strings.Join(backendStatePlan.SelectedRoles, ","), "namba-frontend-architect") {
+		t.Fatalf("expected backend state-transition prompt to avoid frontend specialists, got %+v", backendStatePlan)
+	}
 }
 
 func TestRunExecutesExplicitSubagentModes(t *testing.T) {

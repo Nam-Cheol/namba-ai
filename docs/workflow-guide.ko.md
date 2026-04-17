@@ -37,7 +37,8 @@
 
 - 기본 `namba run`은 prompt에 강한 specialist 신호가 없으면 standalone runner에 머뭅니다.
 - `--solo`는 위험을 실질적으로 줄일 specialist 한 명이 있을 때만 분기하고, `--team`은 acceptance가 여러 도메인에 걸칠 때 여러 specialist와 마지막 reviewer를 같은 workspace 안에서 조율합니다.
-- UI, responsive, mobile, design 작업은 `namba-frontend-implementer`, `namba-mobile-engineer`, `namba-designer`로, API, schema, pipeline 작업은 `namba-backend-implementer`, `namba-data-engineer`로, auth, secrets, compliance는 `namba-security-engineer`로, deployment와 runtime은 `namba-devops-engineer`로 보냅니다.
+- art direction, palette/tone logic, composition, motion intent, Figma critique, generic section redesign은 `namba-designer`로, component boundary, state ownership, UI delivery planning은 `namba-frontend-architect`로, 승인된 UI 구현은 `namba-frontend-implementer`로, 모바일 전용 UI 전달은 `namba-mobile-engineer`로 보냅니다. API, schema, pipeline 작업은 `namba-backend-implementer`, `namba-data-engineer`로, auth, secrets, compliance는 `namba-security-engineer`로, deployment와 runtime은 `namba-devops-engineer`로 보냅니다.
+- Examples: `Redesign the hero so it stops looking generic`는 `namba-designer`, `Plan the component boundaries for this dashboard`는 `namba-frontend-architect`, `Implement the approved dashboard filters`는 `namba-frontend-implementer`에 보냅니다.
 - standalone runner는 integrator이자 validation owner로 두고, uncontrolled swarm 대신 마지막 acceptance는 `namba-reviewer`에게 맡깁니다.
 
 ## 리뷰 준비도

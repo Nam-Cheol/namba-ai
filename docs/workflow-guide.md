@@ -37,7 +37,8 @@
 
 - Default `namba run` stays in the standalone runner unless the prompt shows a strong specialist signal.
 - `--solo` keeps the run inside one runner unless a single specialist would materially reduce risk; `--team` keeps the work in one workspace while coordinating multiple specialists plus a final reviewer when acceptance spans multiple domains.
-- Route UI, responsive, mobile, and design work to `namba-frontend-implementer`, `namba-mobile-engineer`, or `namba-designer`; API, schema, and pipeline work to `namba-backend-implementer` or `namba-data-engineer`; auth, secrets, and compliance work to `namba-security-engineer`; deployment and runtime work to `namba-devops-engineer`.
+- Route art direction, palette/tone logic, composition, motion intent, Figma critique, and generic-section redesign work to `namba-designer`; route component boundaries, state ownership, and UI delivery planning to `namba-frontend-architect`; route approved UI implementation to `namba-frontend-implementer`; route mobile-specific UI delivery to `namba-mobile-engineer`; route API, schema, and pipeline work to `namba-backend-implementer` or `namba-data-engineer`; route auth, secrets, and compliance work to `namba-security-engineer`; route deployment and runtime work to `namba-devops-engineer`.
+- Examples: `Redesign the hero so it stops looking generic` -> `namba-designer`; `Plan the component boundaries for this dashboard` -> `namba-frontend-architect`; `Implement the approved dashboard filters` -> `namba-frontend-implementer`.
 - Keep the standalone runner as integrator and validation owner; use `namba-reviewer` for the final acceptance pass rather than growing an uncontrolled swarm.
 
 ## Review readiness

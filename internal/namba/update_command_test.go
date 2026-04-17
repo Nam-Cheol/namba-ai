@@ -67,6 +67,11 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(runSkill, "`--solo`, `--team`, `--parallel`, `--dry-run`") {
 		t.Fatalf("expected run skill to describe standalone run modes, got %q", runSkill)
 	}
+	for _, want := range []string{"`namba-frontend-architect`", "generic-section redesign"} {
+		if !strings.Contains(runSkill, want) {
+			t.Fatalf("expected run skill to contain %q, got %q", want, runSkill)
+		}
+	}
 	pmReviewSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-plan-pm-review", "SKILL.md"))
 	if !strings.Contains(pmReviewSkill, "$namba-plan-pm-review") || !strings.Contains(pmReviewSkill, "reviews/product.md") || !strings.Contains(pmReviewSkill, "readiness.md") {
 		t.Fatalf("expected product review skill, got %q", pmReviewSkill)
@@ -78,6 +83,11 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	designReviewSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-plan-design-review", "SKILL.md"))
 	if !strings.Contains(designReviewSkill, "$namba-plan-design-review") || !strings.Contains(designReviewSkill, "`namba-designer`") || !strings.Contains(designReviewSkill, "readiness.md") {
 		t.Fatalf("expected design review skill, got %q", designReviewSkill)
+	}
+	for _, want := range []string{"art-direction clarity", "washed-out gray minimalism", "meaningless fallback use"} {
+		if !strings.Contains(designReviewSkill, want) {
+			t.Fatalf("expected design review skill to contain %q, got %q", want, designReviewSkill)
+		}
 	}
 	planSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-plan", "SKILL.md"))
 	if !strings.Contains(planSkill, "context7") || !strings.Contains(planSkill, "sequential-thinking") || !strings.Contains(planSkill, "playwright") || !strings.Contains(planSkill, "repo-managed MCP presets") {
@@ -218,7 +228,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-architect.toml"), snippets: []string{`name = "namba-frontend-architect"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-implementer.toml"), snippets: []string{`name = "namba-frontend-implementer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-mobile-engineer.toml"), snippets: []string{`name = "namba-mobile-engineer"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-designer.toml"), snippets: []string{`name = "namba-designer"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-designer.toml"), snippets: []string{`name = "namba-designer"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`, "art direction", "temperature and undertone discipline"}},
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-backend-architect.toml"), snippets: []string{`name = "namba-backend-architect"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-backend-implementer.toml"), snippets: []string{`name = "namba-backend-implementer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
 		{path: filepath.Join(tmp, ".codex", "agents", "namba-data-engineer.toml"), snippets: []string{`name = "namba-data-engineer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
