@@ -183,6 +183,69 @@ func TestRunRegenRemovesStaleManagedCreateArtifacts(t *testing.T) {
 	}
 }
 
+func TestRunRegenPreservesNonRegenManagedOutputs(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"plan", "regen cleanup scope"}); err != nil {
+		t.Fatalf("plan failed: %v", err)
+	}
+	if err := app.Run(context.Background(), []string{"sync"}); err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+
+	paths := []string{
+		filepath.Join(tmp, "README.md"),
+		filepath.Join(tmp, "docs", "workflow-guide.md"),
+		filepath.Join(tmp, ".namba", "project", "change-summary.md"),
+		filepath.Join(tmp, ".namba", "project", "product.md"),
+		filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews", "readiness.md"),
+	}
+	for _, path := range paths {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected managed output before regen at %s, stat err=%v", path, err)
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"regen"}); err != nil {
+		t.Fatalf("regen failed: %v", err)
+	}
+
+	for _, path := range paths {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected non-regen managed output to survive regen at %s, stat err=%v", path, err)
+		}
+	}
+
+	manifest, err := app.readManifest(tmp)
+	if err != nil {
+		t.Fatalf("read manifest after regen: %v", err)
+	}
+	for _, rel := range []string{
+		"README.md",
+		"docs/workflow-guide.md",
+		".namba/project/change-summary.md",
+		".namba/project/product.md",
+		".namba/specs/SPEC-001/reviews/readiness.md",
+	} {
+		entry, ok := findManifestEntry(manifest, rel)
+		if !ok {
+			t.Fatalf("expected manifest entry for %s to remain after regen", rel)
+		}
+		if entry.Owner != manifestOwnerManaged {
+			t.Fatalf("expected %s to stay managed after regen, owner=%q", rel, entry.Owner)
+		}
+	}
+}
+
 func TestCreateWorkflowSkillContractFixture(t *testing.T) {
 	t.Parallel()
 
