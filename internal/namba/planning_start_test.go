@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -29,6 +30,40 @@ func TestNextPlanningSpecIDScansAllActiveWorktrees(t *testing.T) {
 	}
 	if specID != "SPEC-008" {
 		t.Fatalf("expected SPEC-008, got %s", specID)
+	}
+}
+
+func TestNextPlanningSpecIDIgnoresPermissionRestrictedWorktrees(t *testing.T) {
+	t.Parallel()
+
+	if runtime.GOOS == "windows" {
+		t.Skip("permission semantics differ on windows")
+	}
+
+	sharedRoot := preparePlanningGitProject(t)
+	restrictedRoot := canonicalTempDir(t)
+	prepareAttachedPlanningWorkspace(t, sharedRoot, restrictedRoot)
+
+	writeTestFile(t, filepath.Join(sharedRoot, ".namba", "specs", "SPEC-002", "spec.md"), "# SPEC-002\n")
+	writeTestFile(t, filepath.Join(restrictedRoot, ".namba", "specs", "SPEC-009", "spec.md"), "# SPEC-009\n")
+
+	restrictedSpecsDir := filepath.Join(restrictedRoot, ".namba", "specs")
+	if err := os.Chmod(restrictedSpecsDir, 0); err != nil {
+		t.Fatalf("chmod restricted specs dir: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chmod(restrictedSpecsDir, 0o755)
+	})
+
+	specID, err := nextPlanningSpecID([]gitWorktree{
+		{Path: sharedRoot, Branch: "main"},
+		{Path: restrictedRoot, Branch: "feature/restricted"},
+	})
+	if err != nil {
+		t.Fatalf("nextPlanningSpecID failed: %v", err)
+	}
+	if specID != "SPEC-003" {
+		t.Fatalf("expected SPEC-003 when restricted worktree is skipped, got %s", specID)
 	}
 }
 

@@ -169,8 +169,18 @@ func nextPlanningSpecID(worktrees []gitWorktree) (string, error) {
 			continue
 		}
 		seen[path] = struct{}{}
+		accessible, err := isAccessiblePlanningWorkspace(path)
+		if err != nil {
+			return "", err
+		}
+		if !accessible {
+			continue
+		}
 		entries, err := os.ReadDir(filepath.Join(path, specsDir))
-		if err != nil && !os.IsNotExist(err) {
+		if err != nil {
+			if os.IsNotExist(err) || os.IsPermission(err) {
+				continue
+			}
 			return "", err
 		}
 		for _, entry := range entries {
@@ -184,6 +194,17 @@ func nextPlanningSpecID(worktrees []gitWorktree) (string, error) {
 		}
 	}
 	return fmt.Sprintf("SPEC-%03d", maxID+1), nil
+}
+
+func isAccessiblePlanningWorkspace(path string) (bool, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) || os.IsPermission(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return info.IsDir(), nil
 }
 
 func sharedWorktreeRoot(worktrees []gitWorktree, fallback string) string {
