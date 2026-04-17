@@ -885,7 +885,11 @@ func fixUsageText() string {
 		"",
 		"Usage:",
 	}
-	lines = append(lines, descriptionScaffoldUsageLines("namba fix [--command run|plan]", "issue description")...)
+	lines = append(lines,
+		"  namba fix [--command run|plan] \"<issue description>\"",
+		"  namba fix [--command run|plan] -- \"<issue description with flag-like text>\"",
+		fmt.Sprintf("  namba fix --command plan %s \"<issue description>\"", currentWorkspacePlanningFlag),
+	)
 	lines = append(lines, "", "Behavior:")
 	lines = append(lines, fixSubcommandBehaviorSummaries()...)
 	lines = append(lines, fmt.Sprintf("  Use %s with --command plan when you intentionally want to scaffold in the current workspace.", currentWorkspacePlanningFlag))

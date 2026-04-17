@@ -39,6 +39,9 @@ func TestNextPlanningSpecIDIgnoresPermissionRestrictedWorktrees(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("permission semantics differ on windows")
 	}
+	if os.Geteuid() == 0 {
+		t.Skip("permission semantics differ when tests run as root")
+	}
 
 	sharedRoot := preparePlanningGitProject(t)
 	restrictedRoot := canonicalTempDir(t)
