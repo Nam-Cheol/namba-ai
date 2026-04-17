@@ -22,6 +22,7 @@
 - `namba plan "description"`: 创建下一个功能 SPEC 包和 review artifact。
 - `namba harness "description"`: 创建面向 agent / skill / workflow / orchestration 复用的 harness-oriented SPEC 包和 review artifact。
 - `namba fix --command plan "issue description"`: 创建缺陷修复 SPEC 包和 review artifact。
+- planning 默认行为：在 shared/base workspace 中创建新的隔离 worktree，只复用已经隔离好的 `spec/...` worktree，而 `--current-workspace` 只用于明确要求就地 scaffold 的情况。
 - `namba fix "issue description"`: 在当前 workspace 启动 direct repair。
 - `namba fix --command run "issue description"`: 显式选择同一个 direct-repair 路径。
 - `namba <command> --help`、`namba <command> -h`、`namba help <command>`: 所有 top-level command 都会走 read-only help 路径，不会改变 repo state。
@@ -45,6 +46,7 @@
 
 - `namba plan`、`namba harness` 和 `namba fix --command plan` 会 seed `.namba/specs/<SPEC>/reviews/product.md`、`engineering.md`、`design.md`、`readiness.md`。
 - 在实现或 GitHub handoff 之前，使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` 保持 review artifact 最新；如果想把创建到 review loop 打包处理，就使用 `$namba-plan-review`。
+- `$namba-plan-review` 也遵循同一个 planning worktree contract：不会在 shared/base workspace 里静默 scaffold，而是先明确创建隔离 worktree 还是使用显式 override。
 - 如果 `namba regen` 或 `namba sync` 改变了生成的 instruction surface，请在继续长 repair loop 之前启动一个 fresh Codex session，以重新加载更新后的 guidance。
 - 即使 review pass 缺失，默认也只是 advisory。`namba run`、`namba sync`、`namba pr` 会展示 readiness summary，但不会悄悄变成 hard gate。
 

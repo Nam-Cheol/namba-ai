@@ -203,6 +203,7 @@ func TestFixUsageTextMatchesSubcommandBehaviorSummaries(t *testing.T) {
 	for _, want := range []string{
 		"  namba fix [--command run|plan] \"<issue description>\"",
 		"  namba fix [--command run|plan] -- \"<issue description with flag-like text>\"",
+		"  namba fix [--command run|plan] --current-workspace \"<issue description>\"",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected fix usage to contain %q, got %q", want, got)
@@ -210,7 +211,8 @@ func TestFixUsageTextMatchesSubcommandBehaviorSummaries(t *testing.T) {
 	}
 	firstExampleIndex := strings.Index(got, "  namba fix [--command run|plan] \"<issue description>\"")
 	secondExampleIndex := strings.Index(got, "  namba fix [--command run|plan] -- \"<issue description with flag-like text>\"")
-	if firstExampleIndex >= secondExampleIndex {
+	thirdExampleIndex := strings.Index(got, "  namba fix [--command run|plan] --current-workspace \"<issue description>\"")
+	if firstExampleIndex >= secondExampleIndex || secondExampleIndex >= thirdExampleIndex {
 		t.Fatalf("expected fix usage example lines to stay ordered, got %q", got)
 	}
 
@@ -225,7 +227,7 @@ func TestFixUsageTextMatchesSubcommandBehaviorSummaries(t *testing.T) {
 		}
 		lastIndex = index
 	}
-	if secondExampleIndex >= strings.Index(got, fixSubcommandDefinitions()[0].BehaviorSummary) {
+	if thirdExampleIndex >= strings.Index(got, fixSubcommandDefinitions()[0].BehaviorSummary) {
 		t.Fatalf("expected fix usage example lines to stay before behavior summaries, got %q", got)
 	}
 }

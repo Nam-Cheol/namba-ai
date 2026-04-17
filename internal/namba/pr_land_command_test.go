@@ -153,7 +153,21 @@ func TestRunPRIncludesLatestReviewReadinessInBody(t *testing.T) {
 	tmp, _, app, restore := preparePRLandProject(t)
 	defer restore()
 
-	if err := app.Run(context.Background(), []string{"plan", "add", "review", "readiness"}); err != nil {
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "git" && len(args) == 3 && args[0] == "worktree" && args[1] == "list" && args[2] == "--porcelain":
+			return renderPlanningWorktreeList(gitWorktree{Path: tmp, Branch: "main"}), nil
+		case name == "git" && len(args) >= 2 && args[0] == "branch" && args[1] == "--show-current":
+			return "main", nil
+		case name == "git" && len(args) >= 2 && args[0] == "status" && args[1] == "--porcelain":
+			return "", nil
+		default:
+			t.Fatalf("unexpected command during plan setup: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"plan", currentWorkspacePlanningFlag, "add", "review", "readiness"}); err != nil {
 		t.Fatalf("plan failed: %v", err)
 	}
 
