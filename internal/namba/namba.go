@@ -594,7 +594,7 @@ func (a *App) runProject(_ context.Context, args []string) error {
 
 	analysis := analyzeProject(root, projectCfg, qualityCfg, analysisCfg)
 	outputs := analysis.renderOutputs()
-	if _, err := a.replaceManagedOutputs(root, outputs, isProjectAnalysisManagedPath, false); err != nil {
+	if _, err := a.replaceManagedOutputs(root, outputs, isProjectAnalysisManagedPath, nil); err != nil {
 		return err
 	}
 
@@ -1400,7 +1400,7 @@ func (a *App) loadSyncContext(root string) (syncContext, error) {
 }
 
 func (a *App) materializeSyncReadme(syncCtx syncContext) error {
-	if _, err := a.replaceManagedOutputs(syncCtx.Root, buildReadmeOutputs(syncCtx.ProjectCfg, syncCtx.Profile, syncCtx.DocsCfg), isReadmeManagedPath, false); err != nil {
+	if _, err := a.replaceManagedOutputs(syncCtx.Root, buildReadmeOutputs(syncCtx.ProjectCfg, syncCtx.Profile, syncCtx.DocsCfg), isReadmeManagedPath, nil); err != nil {
 		return err
 	}
 	return nil
@@ -3342,10 +3342,10 @@ func upsertManifest(manifest Manifest, entry ManifestEntry) Manifest {
 	return manifest
 }
 
-func manifestEntryIsManaged(entry ManifestEntry, managed func(string) bool, matchOwnedManaged bool) bool {
+func manifestEntryIsManaged(entry ManifestEntry, managed func(string) bool, ownedManaged func(ManifestEntry) bool) bool {
 	if strings.TrimSpace(entry.Owner) != "" {
-		if matchOwnedManaged {
-			return entry.Owner == manifestOwnerManaged
+		if ownedManaged != nil {
+			return ownedManaged(entry)
 		}
 		return entry.Owner == manifestOwnerManaged && managed(entry.Path)
 	}

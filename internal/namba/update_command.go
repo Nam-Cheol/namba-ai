@@ -33,7 +33,7 @@ func (a *App) runRegen(_ context.Context, args []string) error {
 	if err := removeLegacyCodexSkillMirror(root); err != nil {
 		return err
 	}
-	report, err := a.replaceManagedOutputs(root, outputs, isRegenManagedPath, true)
+	report, err := a.replaceManagedOutputs(root, outputs, isRegenManagedPath, isOwnedRegenManagedPath)
 	if err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func (a *App) runRegen(_ context.Context, args []string) error {
 	return nil
 }
 
-func (a *App) replaceManagedOutputs(root string, outputs map[string]string, managed func(string) bool, matchOwnedManaged bool) (outputWriteReport, error) {
+func (a *App) replaceManagedOutputs(root string, outputs map[string]string, managed func(string) bool, ownedManaged func(ManifestEntry) bool) (outputWriteReport, error) {
 	manifest, err := a.readManifest(root)
 	if err != nil {
 		return outputWriteReport{}, err
@@ -53,7 +53,7 @@ func (a *App) replaceManagedOutputs(root string, outputs map[string]string, mana
 
 	filtered := manifest.Entries[:0]
 	for _, entry := range manifest.Entries {
-		if manifestEntryIsManaged(entry, managed, matchOwnedManaged) {
+		if manifestEntryIsManaged(entry, managed, ownedManaged) {
 			if _, keep := outputs[entry.Path]; keep {
 				filtered = append(filtered, entry)
 				continue
@@ -70,6 +70,30 @@ func (a *App) replaceManagedOutputs(root string, outputs map[string]string, mana
 		return outputWriteReport{}, err
 	}
 	return a.writeOutputs(root, outputs)
+}
+
+func isOwnedRegenManagedPath(entry ManifestEntry) bool {
+	if entry.Owner != manifestOwnerManaged {
+		return false
+	}
+
+	rel := entry.Path
+	switch {
+	case rel == "AGENTS.md":
+		return true
+	case rel == repoCodexConfigPath:
+		return true
+	case strings.HasPrefix(rel, repoSkillsDir+"/"):
+		return true
+	case strings.HasPrefix(rel, ".codex/skills/"):
+		return true
+	case strings.HasPrefix(rel, repoCodexAgentsDir+"/"):
+		return true
+	case strings.HasPrefix(rel, codexStateDir+"/"):
+		return true
+	default:
+		return false
+	}
 }
 
 func isRegenManagedPath(rel string) bool {
