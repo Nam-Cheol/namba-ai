@@ -421,6 +421,19 @@ func TestSuggestDelegationPlanRoutesSpecialists(t *testing.T) {
 	if strings.Contains(strings.Join(milestonePlan.SelectedRoles, ","), "namba-designer") {
 		t.Fatalf("expected milestone-only prompt to avoid selecting the designer, got %+v", milestonePlan)
 	}
+
+	backendStatePlan := suggestDelegationPlan(
+		executionModeTeam,
+		"Implement backend state transitions for the workflow engine.",
+		"Update the server-side state machine and controller flow.",
+		"- [ ] Ship the backend transition changes",
+	)
+	if strings.Contains(strings.Join(backendStatePlan.DominantDomains, ","), "frontend") {
+		t.Fatalf("expected backend state-transition prompt to avoid frontend routing noise, got %+v", backendStatePlan)
+	}
+	if strings.Contains(strings.Join(backendStatePlan.SelectedRoles, ","), "namba-frontend-implementer") || strings.Contains(strings.Join(backendStatePlan.SelectedRoles, ","), "namba-frontend-architect") {
+		t.Fatalf("expected backend state-transition prompt to avoid frontend specialists, got %+v", backendStatePlan)
+	}
 }
 
 func TestRunExecutesExplicitSubagentModes(t *testing.T) {
