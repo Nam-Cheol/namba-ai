@@ -185,6 +185,27 @@ func TestValidateDirectCreateHarnessRequestRejectsCoreEscalation(t *testing.T) {
 	}
 }
 
+func TestValidateHarnessEvidenceFlagsPersistedDirectRequest(t *testing.T) {
+	t.Parallel()
+
+	report := validateHarnessEvidence(t.TempDir(), "SPEC-779", harnessRequest{
+		RequestKind:      harnessRequestKindDirect,
+		DeliveryMode:     harnessDeliveryModeDirect,
+		AdaptationMode:   harnessAdaptationGenerateArtifact,
+		TouchesNambaCore: false,
+		ArtifactTargets:  []harnessArtifactTarget{harnessArtifactTargetSkill},
+	})
+	if report.Route != harnessRouteCreate {
+		t.Fatalf("expected persisted direct request to keep create route for diagnostics, got %+v", report)
+	}
+	if !containsString(report.Problems, "direct_artifact_creation must not be persisted to `harness-request.json`; keep it transient on `$namba-create` or escalate through `namba plan`") {
+		t.Fatalf("expected persisted direct request to be flagged as invalid spec state, got %+v", report.Problems)
+	}
+	if len(report.MissingEvidence) != 0 || len(report.MissingReviews) != 0 {
+		t.Fatalf("expected persisted direct request failure to come from problems, got %+v", report)
+	}
+}
+
 func TestSpec032HarnessRequestFixtureIsCanonicalAndComplete(t *testing.T) {
 	t.Parallel()
 

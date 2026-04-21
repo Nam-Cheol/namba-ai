@@ -475,6 +475,9 @@ func validateHarnessEvidence(root, specID string, req harnessRequest) harnessEvi
 		} else {
 			report.Route = route
 		}
+		if err := validatePersistedSpecHarnessRequest(normalized); err != nil {
+			report.Problems = append(report.Problems, err.Error())
+		}
 	}
 
 	for _, evidence := range requiredEvidence {
@@ -493,6 +496,13 @@ func validateHarnessEvidence(root, specID string, req harnessRequest) harnessEvi
 		}
 	}
 	return report
+}
+
+func validatePersistedSpecHarnessRequest(req harnessRequest) error {
+	if req.RequestKind == harnessRequestKindDirect {
+		return fmt.Errorf("direct_artifact_creation must not be persisted to `%s`; keep it transient on `%s` or escalate through `namba plan`", harnessRequestFileName, harnessRouteCreate)
+	}
+	return nil
 }
 
 func inspectSpecHarnessRequest(root, specID string) (harnessValidationResult, bool) {

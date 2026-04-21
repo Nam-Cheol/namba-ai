@@ -105,3 +105,57 @@ func TestRefreshSpecReviewReadinessKeepsLegacyEvidenceAnchors(t *testing.T) {
 		t.Fatalf("expected legacy readiness to stay off typed harness sidecar plumbing, got %q", readiness)
 	}
 }
+
+func TestRefreshSpecReviewReadinessFlagsPersistedDirectHarnessRequest(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	specID := "SPEC-100"
+	specDir := filepath.Join(tmp, ".namba", "specs", specID)
+	reviewsDir := filepath.Join(specDir, "reviews")
+	if err := os.MkdirAll(reviewsDir, 0o755); err != nil {
+		t.Fatalf("mkdir reviews dir: %v", err)
+	}
+	for _, template := range specReviewTemplates() {
+		writeTestFile(t, filepath.Join(reviewsDir, template.Slug+".md"), strings.Join([]string{
+			"# " + template.Title,
+			"",
+			"- Status: clear",
+			"- Last Reviewed: 2026-04-21",
+			"- Reviewer: test",
+			"",
+		}, "\n"))
+	}
+	body, err := marshalHarnessRequest(harnessRequest{
+		RequestKind:      harnessRequestKindDirect,
+		DeliveryMode:     harnessDeliveryModeDirect,
+		AdaptationMode:   harnessAdaptationGenerateArtifact,
+		TouchesNambaCore: false,
+		ArtifactTargets:  []harnessArtifactTarget{harnessArtifactTargetSkill},
+	})
+	if err != nil {
+		t.Fatalf("marshal harness request: %v", err)
+	}
+	writeTestFile(t, filepath.Join(specDir, harnessRequestFileName), body)
+
+	advisory, err := app.refreshSpecReviewReadiness(tmp, specID)
+	if err != nil {
+		t.Fatalf("refreshSpecReviewReadiness failed: %v", err)
+	}
+	if !strings.Contains(advisory, "problems=direct_artifact_creation must not be persisted") {
+		t.Fatalf("expected harness advisory to include persisted direct-request problem, got %q", advisory)
+	}
+
+	readiness := mustReadFile(t, filepath.Join(reviewsDir, "readiness.md"))
+	for _, want := range []string{
+		"Advisory status: follow up on harness=",
+		"Route: `$namba-create`",
+		"Problems: direct_artifact_creation must not be persisted to `harness-request.json`; keep it transient on `$namba-create` or escalate through `namba plan`",
+	} {
+		if !strings.Contains(readiness, want) {
+			t.Fatalf("expected readiness to contain %q, got %q", want, readiness)
+		}
+	}
+}
