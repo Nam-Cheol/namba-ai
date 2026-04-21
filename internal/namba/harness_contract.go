@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 type harnessRequestKind string
@@ -331,7 +332,7 @@ func inferCoreHarnessPlanRequest(description string) (harnessRequest, bool) {
 }
 
 func isCoreHarnessPlanDescription(description string) bool {
-	text := strings.ToLower(strings.TrimSpace(description))
+	text := strings.TrimSpace(description)
 	if text == "" {
 		return false
 	}
@@ -370,33 +371,19 @@ func isCoreHarnessPlanDescription(description string) bool {
 	if explicitPlatform && contractSignals {
 		return true
 	}
-
-	if strings.Contains(text, "harness") && containsAnyNormalizedToken(text,
-		"classifier",
-		"classification",
-		"route",
-		"routing",
-		"validator",
-		"readiness",
-		"namba plan",
-		"namba harness",
-		"$namba-create",
-	) {
-		return true
-	}
 	return false
 }
 
 func inferCoreHarnessArtifactTargets(description string) []harnessArtifactTarget {
-	text := strings.ToLower(description)
+	text := strings.TrimSpace(description)
 	targets := []harnessArtifactTarget{harnessArtifactTargetWorkflow}
 	if containsAnyNormalizedToken(text, "validator", "readiness", "classifier", "classification") {
 		targets = append(targets, harnessArtifactTargetValidator)
 	}
-	if containsAnyNormalizedToken(text, "skill", "$namba-create", "artifact") {
+	if containsAnyNormalizedToken(text, "skill", "skills", "$namba-create", "artifact", "artifacts") {
 		targets = append(targets, harnessArtifactTargetSkill)
 	}
-	if containsAnyNormalizedToken(text, "agent") {
+	if containsAnyNormalizedToken(text, "agent", "agents") {
 		targets = append(targets, harnessArtifactTargetAgent)
 	}
 	if containsAnyNormalizedToken(text, "doc", "docs", "readme", "guide", "help", "contract") {
@@ -406,7 +393,7 @@ func inferCoreHarnessArtifactTargets(description string) []harnessArtifactTarget
 }
 
 func inferCoreHarnessRequiredEvidence(description string) []harnessEvidence {
-	text := strings.ToLower(description)
+	text := strings.TrimSpace(description)
 	evidence := []harnessEvidence{
 		harnessEvidenceContract,
 		harnessEvidenceBaseline,
@@ -415,11 +402,20 @@ func inferCoreHarnessRequiredEvidence(description string) []harnessEvidence {
 	if containsAnyNormalizedToken(text,
 		"$namba-create",
 		"artifact",
+		"artifacts",
 		"skill",
+		"skills",
 		"agent",
-		"direct",
+		"agents",
+		"direct artifact",
+		"direct route",
 		"compose",
+		"composed",
+		"composition",
 		"adapt",
+		"adapted",
+		"adapting",
+		"adaptation",
 		"domain harness",
 	) {
 		evidence = append(evidence, harnessEvidenceHarnessMap)
@@ -830,10 +826,35 @@ func harnessReviewSortKey(value harnessReview) int {
 }
 
 func containsAnyNormalizedToken(text string, tokens ...string) bool {
+	normalizedText := normalizePhraseMatch(text)
+	if normalizedText == "" {
+		return false
+	}
+	paddedText := " " + normalizedText + " "
 	for _, token := range tokens {
-		if strings.Contains(text, strings.ToLower(strings.TrimSpace(token))) {
+		normalizedToken := normalizePhraseMatch(token)
+		if normalizedToken == "" {
+			continue
+		}
+		if strings.Contains(paddedText, " "+normalizedToken+" ") {
 			return true
 		}
 	}
 	return false
+}
+
+func normalizePhraseMatch(text string) string {
+	var builder strings.Builder
+	lastWasSpace := true
+	for _, r := range text {
+		switch {
+		case unicode.IsLetter(r) || unicode.IsDigit(r):
+			builder.WriteRune(unicode.ToLower(r))
+			lastWasSpace = false
+		case !lastWasSpace:
+			builder.WriteByte(' ')
+			lastWasSpace = true
+		}
+	}
+	return strings.TrimSpace(builder.String())
 }

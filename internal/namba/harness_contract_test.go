@@ -82,6 +82,14 @@ func TestInferCoreHarnessPlanRequestSkipsCodexArtifactPlans(t *testing.T) {
 	}
 }
 
+func TestInferCoreHarnessPlanRequestRequiresNambaContext(t *testing.T) {
+	t.Parallel()
+
+	if req, ok := inferCoreHarnessPlanRequest("add test harness validator for payment"); ok || !reflect.DeepEqual(req, harnessRequest{}) {
+		t.Fatalf("expected non-Namba harness work to avoid core harness classification, got ok=%v req=%+v", ok, req)
+	}
+}
+
 func TestHarnessRequestTransportRoundTripUsesSpecSidecar(t *testing.T) {
 	t.Parallel()
 
@@ -284,6 +292,24 @@ func TestLoadHarnessRequestRejectsUnknownEnumLiterals(t *testing.T) {
 				t.Fatalf("expected loadHarnessRequest to fail with %q, got loaded=%+v err=%v", tc.wantErr, loaded, err)
 			}
 		})
+	}
+}
+
+func TestInferCoreHarnessRequiredEvidenceDoesNotTreatDirectoryAsDirectSignal(t *testing.T) {
+	t.Parallel()
+
+	evidence := inferCoreHarnessRequiredEvidence("update Namba harness directory layout")
+	if hasHarnessEvidence(evidence, harnessEvidenceHarnessMap) {
+		t.Fatalf("expected directory wording to avoid harness-map evidence, got %+v", evidence)
+	}
+}
+
+func TestInferCoreHarnessRequiredEvidenceFlagsDirectArtifactBoundary(t *testing.T) {
+	t.Parallel()
+
+	evidence := inferCoreHarnessRequiredEvidence("document Namba harness direct artifact boundary for $namba-create")
+	if !hasHarnessEvidence(evidence, harnessEvidenceHarnessMap) {
+		t.Fatalf("expected direct artifact boundary to require harness-map evidence, got %+v", evidence)
 	}
 }
 

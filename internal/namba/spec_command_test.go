@@ -359,6 +359,27 @@ func TestRunPlanDoesNotWriteHarnessSidecarForCodexArtifactPlan(t *testing.T) {
 	}
 }
 
+func TestRunPlanDoesNotWriteHarnessSidecarForNonNambaHarnessWork(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"plan", "add", "test", "harness", "validator", "for", "payment"}); err != nil {
+		t.Fatalf("plan failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(tmp, ".namba", "specs", "SPEC-001", harnessRequestFileName)); !os.IsNotExist(err) {
+		t.Fatalf("expected non-Namba harness plan to avoid harness sidecar, stat err=%v", err)
+	}
+}
+
 func TestLoadSpecPackageScaffoldContextLoadsNextSpecAndConfigs(t *testing.T) {
 	t.Parallel()
 
