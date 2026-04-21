@@ -77,7 +77,7 @@ func (a *App) resolvePlanningStart(ctx context.Context, currentRoot string, opti
 	}
 	baseBranch := branchBase(profile)
 	specPrefix := specBranchPrefix(profile)
-	sharedRoot := sharedWorktreeRoot(worktrees, currentRoot)
+	sharedRoot := sharedWorktreeRoot(worktrees, currentRoot, baseBranch)
 	targetBranch := specPrefix + specID + "-" + slug
 	targetPath := filepath.Join(sharedRoot, worktreesDir, strings.ToLower(specID+"-"+slug))
 
@@ -207,17 +207,38 @@ func isAccessiblePlanningWorkspace(path string) (bool, error) {
 	return info.IsDir(), nil
 }
 
-func sharedWorktreeRoot(worktrees []gitWorktree, fallback string) string {
+func sharedWorktreeRoot(worktrees []gitWorktree, fallback, baseBranch string) string {
 	for _, worktree := range worktrees {
 		info, err := os.Stat(filepath.Join(worktree.Path, ".git"))
 		if err == nil && info.IsDir() {
 			return filepath.Clean(worktree.Path)
 		}
 	}
-	if len(worktrees) > 0 {
-		return filepath.Clean(worktrees[0].Path)
+
+	for _, worktree := range worktrees {
+		if worktree.Branch != baseBranch {
+			continue
+		}
+		if accessiblePlanningPath(worktree.Path) {
+			return filepath.Clean(worktree.Path)
+		}
+	}
+
+	if accessiblePlanningPath(fallback) {
+		return filepath.Clean(fallback)
+	}
+
+	for _, worktree := range worktrees {
+		if accessiblePlanningPath(worktree.Path) {
+			return filepath.Clean(worktree.Path)
+		}
 	}
 	return filepath.Clean(fallback)
+}
+
+func accessiblePlanningPath(path string) bool {
+	accessible, err := isAccessiblePlanningWorkspace(path)
+	return err == nil && accessible
 }
 
 func containsPlanningWorktreePath(worktrees []gitWorktree, path string) bool {

@@ -70,6 +70,39 @@ func TestNextPlanningSpecIDIgnoresPermissionRestrictedWorktrees(t *testing.T) {
 	}
 }
 
+func TestSharedWorktreeRootPrefersAccessibleBaseBranchWithoutDotGitDir(t *testing.T) {
+	t.Parallel()
+
+	missingRoot := filepath.Join(t.TempDir(), "missing")
+	baseRoot := canonicalTempDir(t)
+	currentRoot := canonicalTempDir(t)
+
+	root := sharedWorktreeRoot([]gitWorktree{
+		{Path: missingRoot, Branch: "main"},
+		{Path: baseRoot, Branch: "main"},
+		{Path: currentRoot, Branch: "spec/SPEC-031-existing"},
+	}, currentRoot, "main")
+
+	if root != filepath.Clean(baseRoot) {
+		t.Fatalf("expected accessible base branch root %s, got %s", baseRoot, root)
+	}
+}
+
+func TestSharedWorktreeRootFallsBackToCurrentWorkspaceWhenListedRootsAreMissing(t *testing.T) {
+	t.Parallel()
+
+	missingRoot := filepath.Join(t.TempDir(), "missing")
+	currentRoot := canonicalTempDir(t)
+
+	root := sharedWorktreeRoot([]gitWorktree{
+		{Path: missingRoot, Branch: "main"},
+	}, currentRoot, "main")
+
+	if root != filepath.Clean(currentRoot) {
+		t.Fatalf("expected current workspace fallback %s, got %s", currentRoot, root)
+	}
+}
+
 func TestRunPlanCreatesIsolatedWorkspaceFromSharedRoot(t *testing.T) {
 	t.Parallel()
 
