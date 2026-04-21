@@ -164,6 +164,15 @@ func validateHarnessRequest(req harnessRequest) error {
 	if len(req.ArtifactTargets) == 0 {
 		return fmt.Errorf("artifact_targets must not be empty")
 	}
+	if err := validateHarnessArtifactTargets(req.ArtifactTargets); err != nil {
+		return err
+	}
+	if err := validateHarnessEvidenceLiterals(req.RequiredEvidence); err != nil {
+		return err
+	}
+	if err := validateHarnessReviewLiterals(req.RequiredReviews); err != nil {
+		return err
+	}
 	if req.RequestKind == harnessRequestKindCore && !req.TouchesNambaCore {
 		return fmt.Errorf("core_harness_change requires touches_namba_core=true")
 	}
@@ -329,13 +338,15 @@ func isCoreHarnessPlanDescription(description string) bool {
 
 	explicitPlatform := containsAnyNormalizedToken(text,
 		"namba",
-		"codex",
 		".namba",
 		"built-in",
 		"builtin",
 		"command-entry",
 		"core harness",
 		"core contract",
+		"namba plan",
+		"namba harness",
+		"$namba-create",
 	)
 	contractSignals := containsAnyNormalizedToken(text,
 		"harness",
@@ -345,13 +356,16 @@ func isCoreHarnessPlanDescription(description string) bool {
 		"readiness",
 		"classifier",
 		"classification",
-		"review",
 		"workflow",
 		"orchestration",
-		"skill",
-		"agent",
-		"execution",
-		"command",
+		"built-in",
+		"builtin",
+		"command-entry",
+		"core harness",
+		"core contract",
+		"namba plan",
+		"namba harness",
+		"$namba-create",
 	)
 	if explicitPlatform && contractSignals {
 		return true
@@ -656,6 +670,33 @@ func normalizeHarnessReviews(values []harnessReview) []harnessReview {
 		return harnessReviewSortKey(normalized[i]) < harnessReviewSortKey(normalized[j])
 	})
 	return normalized
+}
+
+func validateHarnessArtifactTargets(values []harnessArtifactTarget) error {
+	for _, value := range values {
+		if _, ok := harnessArtifactTargetOrder[value]; !ok {
+			return fmt.Errorf("unknown harness artifact target %q", value)
+		}
+	}
+	return nil
+}
+
+func validateHarnessEvidenceLiterals(values []harnessEvidence) error {
+	for _, value := range values {
+		if _, ok := harnessEvidenceOrder[value]; !ok {
+			return fmt.Errorf("unknown harness evidence %q", value)
+		}
+	}
+	return nil
+}
+
+func validateHarnessReviewLiterals(values []harnessReview) error {
+	for _, value := range values {
+		if _, ok := harnessReviewOrder[value]; !ok {
+			return fmt.Errorf("unknown harness review %q", value)
+		}
+	}
+	return nil
 }
 
 func harnessRequestKindSet() map[harnessRequestKind]struct{} {

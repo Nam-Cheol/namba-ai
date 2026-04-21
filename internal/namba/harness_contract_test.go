@@ -74,6 +74,14 @@ func TestInferCoreHarnessPlanRequestSkipsRegularFeaturePlans(t *testing.T) {
 	}
 }
 
+func TestInferCoreHarnessPlanRequestSkipsCodexArtifactPlans(t *testing.T) {
+	t.Parallel()
+
+	if req, ok := inferCoreHarnessPlanRequest("build codex agent for customer support"); ok || !reflect.DeepEqual(req, harnessRequest{}) {
+		t.Fatalf("expected codex artifact plan to avoid core harness classification, got ok=%v req=%+v", ok, req)
+	}
+}
+
 func TestHarnessRequestTransportRoundTripUsesSpecSidecar(t *testing.T) {
 	t.Parallel()
 
@@ -203,6 +211,79 @@ func TestValidateHarnessEvidenceFlagsPersistedDirectRequest(t *testing.T) {
 	}
 	if len(report.MissingEvidence) != 0 || len(report.MissingReviews) != 0 {
 		t.Fatalf("expected persisted direct request failure to come from problems, got %+v", report)
+	}
+}
+
+func TestLoadHarnessRequestRejectsUnknownEnumLiterals(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		body    string
+		wantErr string
+	}{
+		{
+			name: "artifact target",
+			body: `{
+  "request_kind": "domain_harness_change",
+  "delivery_mode": "spec",
+  "adaptation_mode": "extend_domain",
+  "base_contract_ref": "",
+  "touches_namba_core": false,
+  "artifact_targets": ["workfow"],
+  "required_evidence": ["contract", "baseline", "eval-plan"],
+  "required_reviews": ["product", "engineering", "design"]
+}`,
+			wantErr: `unknown harness artifact target "workfow"`,
+		},
+		{
+			name: "evidence",
+			body: `{
+  "request_kind": "domain_harness_change",
+  "delivery_mode": "spec",
+  "adaptation_mode": "extend_domain",
+  "base_contract_ref": "",
+  "touches_namba_core": false,
+  "artifact_targets": ["workflow"],
+  "required_evidence": ["contract", "baseline", "eval-pln"],
+  "required_reviews": ["product", "engineering", "design"]
+}`,
+			wantErr: `unknown harness evidence "eval-pln"`,
+		},
+		{
+			name: "review",
+			body: `{
+  "request_kind": "domain_harness_change",
+  "delivery_mode": "spec",
+  "adaptation_mode": "extend_domain",
+  "base_contract_ref": "",
+  "touches_namba_core": false,
+  "artifact_targets": ["workflow"],
+  "required_evidence": ["contract", "baseline", "eval-plan"],
+  "required_reviews": ["product", "engineering", "desgin"]
+}`,
+			wantErr: `unknown harness review "desgin"`,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tmp := t.TempDir()
+			specID := "SPEC-780"
+			specDir := filepath.Join(tmp, ".namba", "specs", specID)
+			if err := os.MkdirAll(specDir, 0o755); err != nil {
+				t.Fatalf("mkdir spec dir: %v", err)
+			}
+			writeTestFile(t, filepath.Join(specDir, harnessRequestFileName), tc.body)
+
+			loaded, err := loadHarnessRequest(tmp, specID)
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("expected loadHarnessRequest to fail with %q, got loaded=%+v err=%v", tc.wantErr, loaded, err)
+			}
+		})
 	}
 }
 
