@@ -1225,6 +1225,11 @@ func buildSpecPackageScaffoldOutputs(scaffoldCtx specPackageScaffoldContext) map
 		filepath.ToSlash(filepath.Join(specsDir, scaffoldCtx.SpecID, "plan.md")):       buildSpecPlanDoc(scaffoldCtx.Kind, scaffoldCtx.SpecID),
 		filepath.ToSlash(filepath.Join(specsDir, scaffoldCtx.SpecID, "acceptance.md")): buildSpecAcceptanceDoc(scaffoldCtx.Kind, scaffoldCtx.Description, scaffoldCtx.QualityCfg.DevelopmentMode),
 	}
+	if req := inferredPlanningHarnessRequest(scaffoldCtx.Kind, scaffoldCtx.Description); req != nil {
+		if body, err := marshalHarnessRequest(*req); err == nil {
+			outputs[specHarnessRequestPath(scaffoldCtx.SpecID)] = body
+		}
+	}
 	for rel, body := range specReviewOutputs(scaffoldCtx.SpecID) {
 		outputs[rel] = body
 	}
@@ -3029,7 +3034,7 @@ func changeSummaryLatestReviewReadinessSection(root, latestSpec string) []string
 		"## Latest Review Readiness",
 		"",
 		fmt.Sprintf("- Latest readiness artifact: `%s`", specReviewReadinessPath(latestSpec)),
-		fmt.Sprintf("- Advisory summary: %s", specReviewAdvisorySummary(root, latestSpec)),
+		fmt.Sprintf("- Advisory summary: %s", specReadinessAdvisorySummary(root, latestSpec)),
 	}
 }
 

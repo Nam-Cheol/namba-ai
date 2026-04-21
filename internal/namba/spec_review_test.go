@@ -60,3 +60,48 @@ func TestDesignReviewTemplateIncludesExplicitChecklist(t *testing.T) {
 		}
 	}
 }
+
+func TestRefreshSpecReviewReadinessKeepsLegacyEvidenceAnchors(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	specDir := filepath.Join(tmp, ".namba", "specs", "SPEC-099")
+	reviewsDir := filepath.Join(specDir, "reviews")
+	if err := os.MkdirAll(reviewsDir, 0o755); err != nil {
+		t.Fatalf("mkdir reviews dir: %v", err)
+	}
+	writeTestFile(t, filepath.Join(specDir, "contract.md"), "# Contract\n")
+	writeTestFile(t, filepath.Join(specDir, "baseline.md"), "# Baseline\n")
+	writeTestFile(t, filepath.Join(specDir, "extraction-map.md"), "# Extraction Map\n")
+	for rel, body := range specReviewOutputs("SPEC-099") {
+		if !strings.HasPrefix(rel, filepath.ToSlash(filepath.Join(specsDir, "SPEC-099", specReviewsDirName, ""))) || strings.HasSuffix(rel, specReviewReadinessFileName) {
+			continue
+		}
+		writeTestFile(t, filepath.Join(tmp, filepath.FromSlash(rel)), body)
+	}
+
+	advisory, err := app.refreshSpecReviewReadiness(tmp, "SPEC-099")
+	if err != nil {
+		t.Fatalf("refreshSpecReviewReadiness failed: %v", err)
+	}
+	if advisory != "product=pending, engineering=pending, design=pending" {
+		t.Fatalf("unexpected advisory summary: %q", advisory)
+	}
+
+	readiness := mustReadFile(t, filepath.Join(reviewsDir, "readiness.md"))
+	for _, want := range []string{
+		"## Phase-1 Evidence",
+		"Runtime contract anchor: `.namba/specs/SPEC-099/contract.md`",
+		"Baseline evidence: `.namba/specs/SPEC-099/baseline.md`",
+		"Extraction map: `.namba/specs/SPEC-099/extraction-map.md`",
+	} {
+		if !strings.Contains(readiness, want) {
+			t.Fatalf("expected legacy readiness to contain %q, got %q", want, readiness)
+		}
+	}
+	if strings.Contains(readiness, "harness-request.json") {
+		t.Fatalf("expected legacy readiness to stay off typed harness sidecar plumbing, got %q", readiness)
+	}
+}

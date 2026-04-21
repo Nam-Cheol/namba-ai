@@ -22,16 +22,17 @@ const (
 )
 
 type createRequest struct {
-	Target               createTarget `json:"target"`
-	Name                 string       `json:"name"`
-	Description          string       `json:"description"`
-	Instructions         string       `json:"instructions"`
-	SandboxMode          string       `json:"sandbox_mode,omitempty"`
-	Model                string       `json:"model,omitempty"`
-	ModelReasoningEffort string       `json:"model_reasoning_effort,omitempty"`
-	PreviewDigest        string       `json:"preview_digest,omitempty"`
-	Confirmed            bool         `json:"confirmed,omitempty"`
-	AllowOverwrite       bool         `json:"allow_overwrite,omitempty"`
+	Target               createTarget    `json:"target"`
+	Name                 string          `json:"name"`
+	Description          string          `json:"description"`
+	Instructions         string          `json:"instructions"`
+	SandboxMode          string          `json:"sandbox_mode,omitempty"`
+	Model                string          `json:"model,omitempty"`
+	ModelReasoningEffort string          `json:"model_reasoning_effort,omitempty"`
+	HarnessRequest       *HarnessRequest `json:"harness_request,omitempty"`
+	PreviewDigest        string          `json:"preview_digest,omitempty"`
+	Confirmed            bool            `json:"confirmed,omitempty"`
+	AllowOverwrite       bool            `json:"allow_overwrite,omitempty"`
 }
 
 type createPreview struct {
@@ -42,12 +43,14 @@ type createPreview struct {
 	OverwriteImpact  createOverwriteImpact       `json:"overwrite_impact"`
 	ValidationPlan   []string                    `json:"validation_plan"`
 	SessionRefresh   createSessionRefreshPreview `json:"session_refresh"`
+	HarnessRequest   *HarnessRequest             `json:"harness_request,omitempty"`
 	PreviewDigest    string                      `json:"preview_digest"`
 }
 
 type createApplyResult struct {
-	Preview      createPreview `json:"preview"`
-	WrittenPaths []string      `json:"written_paths"`
+	Preview        createPreview   `json:"preview"`
+	WrittenPaths   []string        `json:"written_paths"`
+	HarnessRequest *HarnessRequest `json:"harness_request,omitempty"`
 }
 
 type createOverwriteImpact struct {
@@ -79,6 +82,7 @@ type createPreviewDigestPayload struct {
 	OverwriteImpact  createOverwriteImpact       `json:"overwrite_impact"`
 	ValidationPlan   []string                    `json:"validation_plan"`
 	SessionRefresh   createSessionRefreshPreview `json:"session_refresh"`
+	HarnessRequest   *HarnessRequest             `json:"harness_request,omitempty"`
 	Writes           []createWrite               `json:"writes"`
 }
 
@@ -183,8 +187,9 @@ func (a *App) applyCreate(root string, req createRequest) (createApplyResult, er
 	}
 
 	return createApplyResult{
-		Preview:      plan.Preview,
-		WrittenPaths: append([]string(nil), plan.Preview.ExactOutputPaths...),
+		Preview:        plan.Preview,
+		WrittenPaths:   append([]string(nil), plan.Preview.ExactOutputPaths...),
+		HarnessRequest: cloneHarnessRequest(plan.Preview.HarnessRequest),
 	}, nil
 }
 
@@ -202,6 +207,10 @@ func (a *App) buildCreatePlan(root string, req createRequest) (createPlan, error
 	description := normalizeCreateDescription(req.Description, target, slug)
 	instructions := normalizeCreateInstructions(req.Instructions, target, slug)
 	if err := validateCreateInstructionSafety(description, instructions); err != nil {
+		return createPlan{}, err
+	}
+	harnessReq, err := validateCreateHarnessRequest(req.HarnessRequest, target)
+	if err != nil {
 		return createPlan{}, err
 	}
 
@@ -226,6 +235,7 @@ func (a *App) buildCreatePlan(root string, req createRequest) (createPlan, error
 		Slug:             slug,
 		ExactOutputPaths: append([]string(nil), outputPaths...),
 		ValidationPlan:   createValidationPlan(qualityCfg),
+		HarnessRequest:   cloneHarnessRequest(harnessReq),
 		OverwriteImpact: createOverwriteImpact{
 			Required: len(overwritePaths) > 0,
 			Paths:    append([]string(nil), overwritePaths...),
@@ -635,7 +645,7 @@ func sessionRefreshNoticeReason() string {
 
 func computeCreatePreviewDigest(preview createPreview, writes []createWrite) (string, error) {
 	payload := createPreviewDigestPayload{
-		Version:          "create-preview-v1",
+		Version:          "create-preview-v2",
 		Target:           preview.Target,
 		Name:             preview.Name,
 		Slug:             preview.Slug,
@@ -649,13 +659,25 @@ func computeCreatePreviewDigest(preview createPreview, writes []createWrite) (st
 			Required: preview.SessionRefresh.Required,
 			Reason:   preview.SessionRefresh.Reason,
 		},
-		Writes: append([]createWrite(nil), writes...),
+		HarnessRequest: cloneHarnessRequest(preview.HarnessRequest),
+		Writes:         append([]createWrite(nil), writes...),
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return "", fmt.Errorf("marshal create preview digest: %w", err)
 	}
 	return checksum(string(data)), nil
+}
+
+func cloneHarnessRequest(req *HarnessRequest) *HarnessRequest {
+	if req == nil {
+		return nil
+	}
+	copyReq := *req
+	copyReq.ArtifactTargets = append([]harnessArtifactTarget(nil), req.ArtifactTargets...)
+	copyReq.RequiredEvidence = append([]harnessEvidence(nil), req.RequiredEvidence...)
+	copyReq.RequiredReviews = append([]harnessReview(nil), req.RequiredReviews...)
+	return &copyReq
 }
 
 func (a *App) applyCreateWrites(root string, writes []createWrite) error {

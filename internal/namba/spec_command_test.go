@@ -273,6 +273,69 @@ func TestRunHarnessCreatesHarnessSpec(t *testing.T) {
 	if !strings.Contains(readiness, "Cleared reviews: 0/3") {
 		t.Fatalf("unexpected harness review readiness scaffold: %q", readiness)
 	}
+
+	harnessRequest := mustReadFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", harnessRequestFileName))
+	for _, want := range []string{
+		`"request_kind": "domain_harness_change"`,
+		`"delivery_mode": "spec"`,
+		`"adaptation_mode": "extend_domain"`,
+	} {
+		if !strings.Contains(harnessRequest, want) {
+			t.Fatalf("expected harness request scaffold to contain %q, got %q", want, harnessRequest)
+		}
+	}
+}
+
+func TestRunPlanAutoClassifiesCoreHarnessChange(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"plan", "tighten", "Namba", "harness", "classification", "and", "readiness", "validator"}); err != nil {
+		t.Fatalf("plan failed: %v", err)
+	}
+
+	harnessRequest := mustReadFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", harnessRequestFileName))
+	for _, want := range []string{
+		`"request_kind": "core_harness_change"`,
+		`"delivery_mode": "spec"`,
+		`"adaptation_mode": "modify_core"`,
+		`"base_contract_ref": "namba-core-harness"`,
+		`"touches_namba_core": true`,
+		`"validator"`,
+	} {
+		if !strings.Contains(harnessRequest, want) {
+			t.Fatalf("expected plan scaffold to auto-classify core harness change with %q, got %q", want, harnessRequest)
+		}
+	}
+}
+
+func TestRunPlanDoesNotWriteHarnessSidecarForRegularFeatureWork(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"plan", "add", "dashboard", "filters"}); err != nil {
+		t.Fatalf("plan failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(tmp, ".namba", "specs", "SPEC-001", harnessRequestFileName)); !os.IsNotExist(err) {
+		t.Fatalf("expected regular feature plan to avoid harness sidecar, stat err=%v", err)
+	}
 }
 
 func TestLoadSpecPackageScaffoldContextLoadsNextSpecAndConfigs(t *testing.T) {
@@ -330,6 +393,7 @@ func TestBuildSpecPackageScaffoldOutputsIncludesCoreAndReviewArtifacts(t *testin
 		filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "spec.md")),
 		filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "plan.md")),
 		filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "acceptance.md")),
+		filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", harnessRequestFileName)),
 		filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "reviews", "product.md")),
 		filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "reviews", "engineering.md")),
 		filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "reviews", "design.md")),
@@ -348,6 +412,39 @@ func TestBuildSpecPackageScaffoldOutputsIncludesCoreAndReviewArtifacts(t *testin
 	}
 	if !strings.Contains(outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "reviews", "readiness.md"))], "Cleared reviews: 0/3") {
 		t.Fatalf("expected readiness scaffold content, got %q", outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", "reviews", "readiness.md"))])
+	}
+	if !strings.Contains(outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", harnessRequestFileName))], `"request_kind": "domain_harness_change"`) {
+		t.Fatalf("expected harness request sidecar scaffold, got %q", outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-003", harnessRequestFileName))])
+	}
+}
+
+func TestBuildSpecPackageScaffoldOutputsAutoClassifiesCoreHarnessPlan(t *testing.T) {
+	scaffoldCtx := specPackageScaffoldContext{
+		Root:        "/repo",
+		Kind:        "plan",
+		Description: "tighten Namba harness classification and readiness validator",
+		SpecID:      "SPEC-004",
+		ProjectCfg: projectConfig{
+			Name:        "namba-ai",
+			ProjectType: "existing",
+			Language:    "go",
+		},
+		QualityCfg: qualityConfig{DevelopmentMode: "tdd"},
+	}
+
+	outputs := buildSpecPackageScaffoldOutputs(scaffoldCtx)
+	body, ok := outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-004", harnessRequestFileName))]
+	if !ok {
+		t.Fatalf("expected plan scaffold to include harness request sidecar, got %+v", outputs)
+	}
+	for _, want := range []string{
+		`"request_kind": "core_harness_change"`,
+		`"delivery_mode": "spec"`,
+		`"adaptation_mode": "modify_core"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("expected core harness plan sidecar to contain %q, got %q", want, body)
+		}
 	}
 }
 
@@ -411,6 +508,23 @@ func TestBuildSpecAcceptanceDocRoutesByKind(t *testing.T) {
 	for _, want := range []string{"The requested behavior described below is implemented", "Tests covering the new behavior are present"} {
 		if !strings.Contains(featureAcceptance, want) {
 			t.Fatalf("expected feature acceptance doc to contain %q, got %q", want, featureAcceptance)
+		}
+	}
+}
+
+func TestHarnessAcceptanceDocLocksCanonicalRouteBoundary(t *testing.T) {
+	t.Parallel()
+
+	got := buildHarnessAcceptanceDoc("design reusable agent/skill system", "prod")
+	for _, want := range []string{
+		"`namba harness \"<description>\"` creates the next sequential `SPEC-XXX` package with a harness-oriented scaffold.",
+		"`namba plan \"<description>\"` keeps its current default feature-planning behavior.",
+		"`namba harness --help` is read-only and does not create or mutate `.namba/specs/<SPEC>`.",
+		"The generated scaffold stays on the existing `.namba/specs/<SPEC>` artifact model and does not invent a second planning package type.",
+		"The generated scaffold excludes Claude-only primitives such as `.claude/*`, `TeamCreate`, `SendMessage`, `TaskCreate`, and a mandatory `model: \"opus\"` requirement.",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected harness acceptance doc to contain %q, got %q", want, got)
 		}
 	}
 }
