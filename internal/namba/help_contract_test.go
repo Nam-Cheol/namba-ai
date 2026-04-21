@@ -369,21 +369,27 @@ func TestDescriptionScaffoldUsageTextPreservesPlanAndHarnessShape(t *testing.T) 
 		got          string
 		commandLine1 string
 		commandLine2 string
+		commandLine3 string
 		behaviorLine string
+		safetyLine   string
 	}{
 		{
 			name:         "plan",
 			got:          planUsageText(),
 			commandLine1: "  namba plan \"<description>\"",
 			commandLine2: "  namba plan -- \"<description with flag-like text>\"",
+			commandLine3: "  namba plan --current-workspace \"<description>\"",
 			behaviorLine: "  Create the next feature SPEC package under .namba/specs/ and seed review artifacts.",
+			safetyLine:   "  Safe by default: resolve or create an isolated worktree/branch unless you explicitly pass --current-workspace.",
 		},
 		{
 			name:         "harness",
 			got:          harnessUsageText(),
 			commandLine1: "  namba harness \"<description>\"",
 			commandLine2: "  namba harness -- \"<description with flag-like text>\"",
+			commandLine3: "  namba harness --current-workspace \"<description>\"",
 			behaviorLine: "  Create the next harness-oriented SPEC package under .namba/specs/ and seed review artifacts.",
+			safetyLine:   "  Safe by default: resolve or create an isolated worktree/branch unless you explicitly pass --current-workspace.",
 		},
 	}
 
@@ -391,7 +397,7 @@ func TestDescriptionScaffoldUsageTextPreservesPlanAndHarnessShape(t *testing.T) 
 		if !strings.Contains(tc.got, "Usage:\n") || !strings.Contains(tc.got, "\n\nBehavior:\n") {
 			t.Fatalf("%s usage text missing section shape: %q", tc.name, tc.got)
 		}
-		for _, want := range []string{tc.commandLine1, tc.commandLine2, tc.behaviorLine} {
+		for _, want := range []string{tc.commandLine1, tc.commandLine2, tc.commandLine3, tc.behaviorLine, tc.safetyLine} {
 			if !strings.Contains(tc.got, want) {
 				t.Fatalf("%s usage text missing %q in %q", tc.name, want, tc.got)
 			}

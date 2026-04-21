@@ -43,7 +43,8 @@
 ## Namba Custom Agent Roster
 
 - Strategy and readiness: `namba-product-manager` shapes scope and acceptance, `namba-planner` turns a SPEC into an execution plan, and `namba-plan-reviewer` validates whether the product/engineering/design review set is coherent enough to start implementation.
-- UI: `namba-frontend-architect` plans component boundaries and UI risks, `namba-frontend-implementer` ships approved UI work, `namba-mobile-engineer` handles mobile-specific constraints, and `namba-designer` clarifies visual direction and interaction intent.
+- UI split: `namba-designer` owns art direction, palette/tone logic, composition, motion intent, and diagnosis of generic or bland sections; `namba-frontend-architect` owns component boundaries, state/file planning, and delivery slicing; `namba-frontend-implementer` ships approved UI work; `namba-mobile-engineer` handles mobile-specific constraints.
+- Routing examples: `Redesign this landing page hero so it stops looking generic` -> `namba-designer`; `Plan the component/state split for this dashboard` -> `namba-frontend-architect`; `Implement the approved dashboard filters and responsive states` -> `namba-frontend-implementer`.
 - Backend and data: `namba-backend-architect` plans service boundaries, `namba-backend-implementer` ships server-side changes, and `namba-data-engineer` owns data pipelines, transformations, migrations, and analytics-facing changes.
 - Security and delivery: `namba-security-engineer` handles hardening work, `namba-test-engineer` adds targeted regression coverage, `namba-devops-engineer` handles CI/CD and runtime changes, and `namba-reviewer` checks implementation acceptance before sync.
 - General delivery: `namba-implementer` remains the generalist execution agent for mixed-scope implementation slices.
@@ -56,7 +57,7 @@
 - `--team` prefers one specialist when one domain dominates and expands to two or three only when acceptance spans multiple domains.
 - Repo-managed same-workspace defaults set `.codex/config.toml [agents].max_threads = 5` when `agent_mode: multi`; worktree fan-out remains separately controlled by `.namba/config/sections/workflow.yaml`.
 - Team mode honors each selected role's `model` and `model_reasoning_effort` metadata from `.codex/agents/*.toml`, keeping planner/reviewer/security roles stronger and delivery roles lighter.
-- Route UI, responsive, mobile, and Figma work to frontend/mobile/designer; API, schema, and pipeline work to backend/data; auth, secrets, and compliance work to security; deployment and runtime work to devops.
+- Route art direction, palette/tone logic, composition, motion intent, redesign, and Figma critique to `namba-designer`; route component, state, and delivery planning to `namba-frontend-architect`; route approved UI implementation to `namba-frontend-implementer`; route mobile-specific delivery to `namba-mobile-engineer`; route API, schema, and pipeline work to backend/data; route auth, secrets, and compliance work to security; route deployment and runtime work to devops.
 - Keep the standalone runner as the integrator and final validation owner, and use `namba-reviewer` last when multiple specialists contribute.
 
 ## Plan Review Readiness

@@ -126,7 +126,7 @@ type worktreeSubcommandDefinition struct {
 type fixSubcommandDefinition struct {
 	Name            string
 	BehaviorSummary string
-	Run             func(*App, context.Context, string, string) error
+	Run             func(*App, context.Context, string, fixInvocation) error
 }
 
 type topLevelInvocation struct {
@@ -611,7 +611,7 @@ func (a *App) runProject(_ context.Context, args []string) error {
 	return nil
 }
 
-func (a *App) runPlan(_ context.Context, args []string) error {
+func (a *App) runPlan(ctx context.Context, args []string) error {
 	options, err := parseDescriptionCommandArgs("plan", "description", args)
 	if err != nil {
 		return commandUsageError("plan", err)
@@ -619,10 +619,10 @@ func (a *App) runPlan(_ context.Context, args []string) error {
 	if options.help {
 		return a.printPlanUsage()
 	}
-	return a.createSpecPackage("plan", options.description)
+	return a.createSpecPackage(ctx, "plan", options.description, options.currentWorkspace)
 }
 
-func (a *App) runHarness(_ context.Context, args []string) error {
+func (a *App) runHarness(ctx context.Context, args []string) error {
 	options, err := parseDescriptionCommandArgs("harness", "description", args)
 	if err != nil {
 		return commandUsageError("harness", err)
@@ -630,7 +630,7 @@ func (a *App) runHarness(_ context.Context, args []string) error {
 	if options.help {
 		return a.printHarnessUsage()
 	}
-	return a.createSpecPackage("harness", options.description)
+	return a.createSpecPackage(ctx, "harness", options.description, options.currentWorkspace)
 }
 
 func (a *App) runFix(ctx context.Context, args []string) error {
@@ -651,32 +651,52 @@ func (a *App) runFix(ctx context.Context, args []string) error {
 	if !ok {
 		return fmt.Errorf("invalid fix command %q", options.command)
 	}
-	return subcommand.Run(a, ctx, root, options.description)
+	return subcommand.Run(a, ctx, root, options)
 }
 
-func (a *App) createSpecPackage(kind, description string) error {
-	scaffoldCtx, err := a.loadSpecPackageScaffoldContext(kind, description)
+func (a *App) createSpecPackage(ctx context.Context, kind, description string, currentWorkspace bool) error {
+	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
 	}
-	outputs := buildSpecPackageScaffoldOutputs(scaffoldCtx)
-	if err := a.materializeSpecPackageScaffoldOutputs(scaffoldCtx, outputs); err != nil {
+
+	start, err := a.resolvePlanningStart(ctx, root, planningStartOptions{
+		Kind:             kind,
+		Description:      description,
+		CurrentWorkspace: currentWorkspace,
+	})
+	if err != nil {
+		if start.SpecID != "" {
+			return errors.New(formatPlanningStartSummary(start))
+		}
 		return err
 	}
 
+	scaffoldCtx, err := a.loadResolvedSpecPackageScaffoldContext(start.Root, kind, description, start.SpecID)
+	if err != nil {
+		return wrapPlanningScaffoldFailure(start, err)
+	}
+	outputs := buildSpecPackageScaffoldOutputs(scaffoldCtx)
+	if err := a.materializeSpecPackageScaffoldOutputs(scaffoldCtx, outputs); err != nil {
+		return wrapPlanningScaffoldFailure(start, err)
+	}
+
+	fmt.Fprint(a.stdout, formatPlanningStartSummary(start))
 	fmt.Fprintf(a.stdout, "Created %s\n", scaffoldCtx.SpecID)
 	return nil
 }
 
 type planInvocation struct {
-	help        bool
-	description string
+	help             bool
+	currentWorkspace bool
+	description      string
 }
 
 type fixInvocation struct {
-	help        bool
-	command     string
-	description string
+	help             bool
+	currentWorkspace bool
+	command          string
+	description      string
 }
 
 func parsePlanArgs(args []string) (planInvocation, error) {
@@ -687,6 +707,7 @@ func parseDescriptionCommandArgs(command, field string, args []string) (planInvo
 	if len(args) == 0 {
 		return planInvocation{}, fmt.Errorf("%s requires a %s", command, field)
 	}
+	invocation := planInvocation{}
 	descriptionParts := make([]string, 0, len(args))
 	afterDelimiter := false
 	for _, arg := range args {
@@ -699,6 +720,8 @@ func parseDescriptionCommandArgs(command, field string, args []string) (planInvo
 			afterDelimiter = true
 		case "--help", "-h":
 			return planInvocation{help: true}, nil
+		case currentWorkspacePlanningFlag:
+			invocation.currentWorkspace = true
 		default:
 			if isStandaloneFlagToken(arg) {
 				return planInvocation{}, fmt.Errorf("unknown flag %q", arg)
@@ -710,7 +733,8 @@ func parseDescriptionCommandArgs(command, field string, args []string) (planInvo
 	if description == "" {
 		return planInvocation{}, fmt.Errorf("%s requires a %s", command, field)
 	}
-	return planInvocation{description: description}, nil
+	invocation.description = description
+	return invocation, nil
 }
 
 func parseFixArgs(args []string) (fixInvocation, error) {
@@ -732,6 +756,8 @@ func parseFixArgs(args []string) (fixInvocation, error) {
 			afterDelimiter = true
 		case "--help", "-h":
 			return fixInvocation{help: true}, nil
+		case currentWorkspacePlanningFlag:
+			invocation.currentWorkspace = true
 		case "--command":
 			if i+1 >= len(args) {
 				return fixInvocation{}, errors.New("fix --command requires a value of run or plan")
@@ -755,6 +781,9 @@ func parseFixArgs(args []string) (fixInvocation, error) {
 	invocation.description = strings.TrimSpace(strings.Join(descriptionParts, " "))
 	if invocation.description == "" {
 		return fixInvocation{}, errors.New("fix requires an issue description")
+	}
+	if invocation.currentWorkspace && invocation.command != "plan" {
+		return fixInvocation{}, fmt.Errorf("%s is only valid with --command plan", currentWorkspacePlanningFlag)
 	}
 	return invocation, nil
 }
@@ -783,12 +812,12 @@ func (a *App) resolveFixSubcommand(name string) (fixSubcommandDefinition, bool) 
 	return fixSubcommandDefinition{}, false
 }
 
-func (a *App) runFixPlanSubcommand(_ context.Context, _ string, description string) error {
-	return a.createSpecPackage("fix", description)
+func (a *App) runFixPlanSubcommand(ctx context.Context, _ string, options fixInvocation) error {
+	return a.createSpecPackage(ctx, "fix", options.description, options.currentWorkspace)
 }
 
-func (a *App) runFixRunSubcommand(ctx context.Context, root, description string) error {
-	return a.executeDirectFix(ctx, root, description)
+func (a *App) runFixRunSubcommand(ctx context.Context, root string, options fixInvocation) error {
+	return a.executeDirectFix(ctx, root, options.description)
 }
 
 func isStandaloneFlagToken(arg string) bool {
@@ -815,28 +844,38 @@ func (a *App) printFixUsage() error {
 }
 
 func planUsageText() string {
-	return descriptionScaffoldUsageText("plan", "  Create the next feature SPEC package under .namba/specs/ and seed review artifacts.")
+	return descriptionScaffoldUsageText(
+		"plan",
+		"  Create the next feature SPEC package under .namba/specs/ and seed review artifacts.",
+		fmt.Sprintf("  Safe by default: resolve or create an isolated worktree/branch unless you explicitly pass %s.", currentWorkspacePlanningFlag),
+	)
 }
 
 func harnessUsageText() string {
-	return descriptionScaffoldUsageText("harness", "  Create the next harness-oriented SPEC package under .namba/specs/ and seed review artifacts.")
+	return descriptionScaffoldUsageText(
+		"harness",
+		"  Create the next harness-oriented SPEC package under .namba/specs/ and seed review artifacts.",
+		fmt.Sprintf("  Safe by default: resolve or create an isolated worktree/branch unless you explicitly pass %s.", currentWorkspacePlanningFlag),
+	)
 }
 
-func descriptionScaffoldUsageText(command, behaviorLine string) string {
+func descriptionScaffoldUsageText(command string, behaviorLines ...string) string {
 	lines := []string{
 		fmt.Sprintf("namba %s", command),
 		"",
 		"Usage:",
 	}
-	lines = append(lines, flagLikeTextUsageLines("namba "+command, "description")...)
-	lines = append(lines, "", "Behavior:", behaviorLine)
+	lines = append(lines, descriptionScaffoldUsageLines("namba "+command, "description")...)
+	lines = append(lines, "", "Behavior:")
+	lines = append(lines, behaviorLines...)
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func flagLikeTextUsageLines(invocation, subject string) []string {
+func descriptionScaffoldUsageLines(invocation, subject string) []string {
 	return []string{
 		fmt.Sprintf("  %s \"<%s>\"", invocation, subject),
 		fmt.Sprintf("  %s -- \"<%s with flag-like text>\"", invocation, subject),
+		fmt.Sprintf("  %s %s \"<%s>\"", invocation, currentWorkspacePlanningFlag, subject),
 	}
 }
 
@@ -846,9 +885,14 @@ func fixUsageText() string {
 		"",
 		"Usage:",
 	}
-	lines = append(lines, flagLikeTextUsageLines("namba fix [--command run|plan]", "issue description")...)
+	lines = append(lines,
+		"  namba fix [--command run|plan] \"<issue description>\"",
+		"  namba fix [--command run|plan] -- \"<issue description with flag-like text>\"",
+		fmt.Sprintf("  namba fix --command plan %s \"<issue description>\"", currentWorkspacePlanningFlag),
+	)
 	lines = append(lines, "", "Behavior:")
 	lines = append(lines, fixSubcommandBehaviorSummaries()...)
+	lines = append(lines, fmt.Sprintf("  Use %s with --command plan when you intentionally want to scaffold in the current workspace.", currentWorkspacePlanningFlag))
 	return strings.Join(lines, "\n") + "\n"
 }
 
@@ -1155,12 +1199,16 @@ func (a *App) loadSpecPackageScaffoldContext(kind, description string) (specPack
 	if err != nil {
 		return specPackageScaffoldContext{}, err
 	}
-	projectCfg, _ := a.loadProjectConfig(root)
-	qualityCfg, _ := a.loadQualityConfig(root)
 	specID, err := nextSpecID(filepath.Join(root, specsDir))
 	if err != nil {
 		return specPackageScaffoldContext{}, err
 	}
+	return a.loadResolvedSpecPackageScaffoldContext(root, kind, description, specID)
+}
+
+func (a *App) loadResolvedSpecPackageScaffoldContext(root, kind, description, specID string) (specPackageScaffoldContext, error) {
+	projectCfg, _ := a.loadProjectConfig(root)
+	qualityCfg, _ := a.loadQualityConfig(root)
 	return specPackageScaffoldContext{
 		Root:        root,
 		Kind:        kind,
