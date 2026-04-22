@@ -80,6 +80,7 @@ type executionEvidenceOptions struct {
 	SpecID               string
 	ExecutionMode        executionMode
 	Status               string
+	ValidationAttempts   int
 	GeneratedAt          time.Time
 	FinalizedBy          string
 	Request              executionEvidenceRefInput
@@ -111,15 +112,16 @@ func (a *App) writeExecutionEvidenceManifest(projectRoot string, options executi
 	return writeJSONFile(filepath.Join(projectRoot, filepath.FromSlash(executionEvidenceManifestPath(manifest.LogID))), manifest)
 }
 
-func (a *App) writeRunExecutionEvidence(projectRoot, logID string, req executionRequest, status string) error {
+func (a *App) writeRunExecutionEvidence(projectRoot, logID string, req executionRequest, status string, validationAttempts int) error {
 	return a.writeExecutionEvidenceManifest(projectRoot, executionEvidenceOptions{
-		ProjectRoot:   projectRoot,
-		LogID:         logID,
-		SpecID:        req.SpecID,
-		ExecutionMode: req.Mode,
-		Status:        status,
-		GeneratedAt:   a.now(),
-		FinalizedBy:   "executeRun",
+		ProjectRoot:        projectRoot,
+		LogID:              logID,
+		SpecID:             req.SpecID,
+		ExecutionMode:      req.Mode,
+		Status:             status,
+		ValidationAttempts: validationAttempts,
+		GeneratedAt:        a.now(),
+		FinalizedBy:        "executeRun",
 	})
 }
 
@@ -194,7 +196,7 @@ func buildExecutionEvidenceManifest(projectRoot string, options executionEvidenc
 	}
 
 	runtimeSignalBundles := append([]executionEvidenceSignalBundle(nil), options.RuntimeSignalBundles...)
-	if validationAttempts := executionEvidenceValidationAttempts(root, logID); len(validationAttempts.Paths) > 0 {
+	if validationAttempts := executionEvidenceValidationAttempts(root, logID, options.ValidationAttempts); len(validationAttempts.Paths) > 0 {
 		runtimeSignalBundles = append(runtimeSignalBundles, validationAttempts)
 	}
 
@@ -341,20 +343,17 @@ func normalizeExecutionEvidenceExtension(root string, ext executionEvidenceExten
 	return ext
 }
 
-func executionEvidenceValidationAttempts(root, logID string) executionEvidenceSignalBundle {
-	pattern := filepath.Join(root, logsDir, "runs", strings.TrimSpace(logID)+"-validation-attempt-*.json")
-	matches, err := filepath.Glob(pattern)
-	if err != nil || len(matches) == 0 {
+func executionEvidenceValidationAttempts(root, logID string, attempts int) executionEvidenceSignalBundle {
+	if attempts <= 0 {
 		return executionEvidenceSignalBundle{}
 	}
 
-	paths := make([]string, 0, len(matches))
-	for _, match := range matches {
-		rel, relErr := filepath.Rel(root, match)
-		if relErr != nil {
-			continue
+	paths := make([]string, 0, attempts)
+	for attempt := 1; attempt <= attempts; attempt++ {
+		rel := filepath.ToSlash(filepath.Join(logsDir, "runs", fmt.Sprintf("%s-validation-attempt-%d.json", strings.TrimSpace(logID), attempt)))
+		if executionEvidencePathExists(root, rel) {
+			paths = append(paths, rel)
 		}
-		paths = append(paths, filepath.ToSlash(rel))
 	}
 	if len(paths) == 0 {
 		return executionEvidenceSignalBundle{}

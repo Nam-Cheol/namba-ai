@@ -72,6 +72,48 @@ func TestRunWritesExecutionEvidenceManifestOnSuccess(t *testing.T) {
 	}
 }
 
+func TestBuildExecutionEvidenceManifestExcludesStaleValidationAttempts(t *testing.T) {
+	tmp := t.TempDir()
+	writeTestFile(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-validation-attempt-1.json"), "{}")
+	writeTestFile(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-validation-attempt-2.json"), "{}")
+
+	manifest, err := buildExecutionEvidenceManifest(tmp, executionEvidenceOptions{
+		ProjectRoot:        tmp,
+		LogID:              "spec-001",
+		SpecID:             "SPEC-001",
+		ExecutionMode:      executionModeDefault,
+		Status:             "completed",
+		ValidationAttempts: 1,
+	})
+	if err != nil {
+		t.Fatalf("buildExecutionEvidenceManifest failed: %v", err)
+	}
+	if len(manifest.Extensions.Runtime.SignalBundles) != 1 {
+		t.Fatalf("expected one validation-attempt bundle, got %+v", manifest.Extensions.Runtime.SignalBundles)
+	}
+	if paths := manifest.Extensions.Runtime.SignalBundles[0].Paths; len(paths) != 1 || paths[0] != ".namba/logs/runs/spec-001-validation-attempt-1.json" {
+		t.Fatalf("expected only current-run validation attempt path, got %+v", manifest.Extensions.Runtime.SignalBundles[0])
+	}
+
+	manifest, err = buildExecutionEvidenceManifest(tmp, executionEvidenceOptions{
+		ProjectRoot:        tmp,
+		LogID:              "spec-001",
+		SpecID:             "SPEC-001",
+		ExecutionMode:      executionModeDefault,
+		Status:             "execution_failed",
+		ValidationAttempts: 0,
+	})
+	if err != nil {
+		t.Fatalf("buildExecutionEvidenceManifest failed without validation attempts: %v", err)
+	}
+	if len(manifest.Extensions.Runtime.SignalBundles) != 0 {
+		t.Fatalf("expected stale validation attempts to be ignored when the current run never validated, got %+v", manifest.Extensions.Runtime.SignalBundles)
+	}
+	if manifest.Extensions.Runtime.State != executionEvidenceStateNotApplicable {
+		t.Fatalf("expected runtime extension to stay not_applicable without current-run attempts, got %+v", manifest.Extensions.Runtime)
+	}
+}
+
 func TestExecuteRunWritesProgressFailureEvidenceWhenFinalPublishFails(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
