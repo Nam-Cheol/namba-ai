@@ -1,0 +1,29 @@
+# Acceptance
+
+- [ ] A typed execution-evidence manifest exists for runtime paths that already emit structured run artifacts.
+- [ ] The manifest persists under `.namba/logs/runs/` and indexes existing artifacts instead of duplicating their full payloads.
+- [ ] The base manifest includes, at minimum:
+  - stable run/spec identity
+  - generation timestamp
+  - artifact references for request, preflight, execution, and validation
+  - explicit per-artifact state such as `present`, `missing`, or `not_applicable`
+- [ ] Parallel runs can reference the existing `SPEC-028` progress JSONL artifact from the new manifest without redefining the `SPEC-028` event schema.
+- [ ] Browser evidence is represented as an optional extension:
+  - absent or `not_applicable` when browser verification is out of scope
+  - present with typed references when browser artifacts exist
+- [ ] Selected runtime/observability evidence is represented through typed references to existing structured artifacts or declared signal bundles rather than vague free-form log text.
+- [ ] Pre-implementation readiness and post-run execution evidence remain explicitly separate surfaces:
+  - current advisory readiness semantics stay intact
+  - `reviews/readiness.md` remains plan-only
+  - the new execution-proof layer is surfaced separately through at least one explicit operator-facing consumer path such as `namba sync` or a sync-generated summary
+  - the new execution-evidence layer does not silently become a hard execution gate
+- [ ] `SPEC-032` route classification, `harness-request.json`, and plan-side harness evidence requirements remain unchanged by this slice.
+- [ ] Manifest emission remains reliable on important failure paths, including:
+  - preflight failure
+  - execution failure before validation
+  - validation failure after retries
+- [ ] Optional browser/runtime extensions are limited to typed, repo-owned artifact references or explicit signal bundles with clear `present` vs `not_applicable` semantics.
+- [ ] Legacy SPECs and older run artifacts remain compatible when the execution-evidence manifest is absent.
+- [ ] Generated docs or stable guidance that mention the new contract stay aligned with the implemented semantics.
+- [ ] Regression tests cover manifest generation, optional-extension behavior, parallel linkage, and legacy compatibility.
+- [ ] Validation commands pass.

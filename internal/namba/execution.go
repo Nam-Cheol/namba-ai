@@ -210,6 +210,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-execution.json"), result); err != nil {
 			return result, validationReport{}, err
 		}
+		if err := a.writeRunExecutionEvidence(projectRoot, logID, req, "preflight_failed"); err != nil {
+			return result, validationReport{}, err
+		}
 		publishErr := publishProgress("failed", "preflight_failed", "Worker execution preflight failed", preflightErr.Error(), nil)
 		return result, validationReport{}, errors.Join(preflightErr, publishErr)
 	}
@@ -232,6 +235,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
 			return result, validationReport{}, writeErr
 		}
+		if writeErr := a.writeRunExecutionEvidence(projectRoot, logID, req, "progress_log_failed"); writeErr != nil {
+			return result, validationReport{}, writeErr
+		}
 		return result, validationReport{}, err
 	}
 
@@ -249,6 +255,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			result.FinishedAt = a.now().Format(time.RFC3339)
 			result.Error = err.Error()
 			if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
+				return result, validationReport{}, writeErr
+			}
+			if writeErr := a.writeRunExecutionEvidence(projectRoot, logID, req, "execution_failed"); writeErr != nil {
 				return result, validationReport{}, writeErr
 			}
 			publishErr := publishProgress(
@@ -278,6 +287,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
 				return result, finalReport, writeErr
 			}
+			if writeErr := a.writeRunExecutionEvidence(projectRoot, logID, req, "progress_log_failed"); writeErr != nil {
+				return result, finalReport, writeErr
+			}
 			return result, finalReport, err
 		}
 
@@ -295,6 +307,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 				return result, finalReport, err
 			}
 			if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-validation.json"), finalReport); err != nil {
+				return result, finalReport, err
+			}
+			if err := a.writeRunExecutionEvidence(projectRoot, logID, req, "completed"); err != nil {
 				return result, finalReport, err
 			}
 			publishErr := publishProgress(
@@ -317,6 +332,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 				return result, finalReport, err
 			}
 			if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-validation.json"), finalReport); err != nil {
+				return result, finalReport, err
+			}
+			if err := a.writeRunExecutionEvidence(projectRoot, logID, req, "validation_failed"); err != nil {
 				return result, finalReport, err
 			}
 			publishErr := publishProgress(
@@ -343,6 +361,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 				return result, finalReport, writeErr
 			}
 			if writeErr := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-validation.json"), finalReport); writeErr != nil {
+				return result, finalReport, writeErr
+			}
+			if writeErr := a.writeRunExecutionEvidence(projectRoot, logID, req, "progress_log_failed"); writeErr != nil {
 				return result, finalReport, writeErr
 			}
 			return result, finalReport, err
@@ -373,6 +394,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-validation.json"), finalReport); err != nil {
 				return result, finalReport, err
 			}
+			if err := a.writeRunExecutionEvidence(projectRoot, logID, req, "repair_failed"); err != nil {
+				return result, finalReport, err
+			}
 			publishErr := publishProgress(
 				"failed",
 				"repair_failed",
@@ -391,6 +415,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		return result, finalReport, err
 	}
 	if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-validation.json"), finalReport); err != nil {
+		return result, finalReport, err
+	}
+	if err := a.writeRunExecutionEvidence(projectRoot, logID, req, "validation_failed"); err != nil {
 		return result, finalReport, err
 	}
 	publishErr := publishProgress(

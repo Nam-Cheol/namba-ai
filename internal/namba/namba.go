@@ -2973,6 +2973,10 @@ func buildChangeSummaryDoc(root string, projectCfg projectConfig, latestSpec str
 		lines = append(lines, "")
 		lines = append(lines, readinessLines...)
 	}
+	if proofLines := changeSummaryLatestExecutionProofSection(root); len(proofLines) > 0 {
+		lines = append(lines, "")
+		lines = append(lines, proofLines...)
+	}
 	return strings.Join(lines, "\n") + "\n"
 }
 
@@ -3042,6 +3046,7 @@ func buildPRChecklistDoc(root, latestSpec string, profile initProfile) string {
 	lines := prChecklistHeaderLines()
 	lines = append(lines, prChecklistCoreItems(profile)...)
 	lines = append(lines, prChecklistLatestReviewReadinessItem(root, latestSpec)...)
+	lines = append(lines, prChecklistLatestExecutionProofItem(root)...)
 	return strings.Join(lines, "\n") + "\n"
 }
 
