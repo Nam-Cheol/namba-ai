@@ -201,7 +201,10 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		progressPath = progress.Path()
 	}
 	writeRunEvidence := func(status string, validationAttempts int) error {
-		return a.writeRunExecutionEvidence(projectRoot, logID, req, status, validationAttempts, progressPath)
+		return a.writeRunExecutionEvidence(projectRoot, logID, req, status, validationAttempts, progressPath, false)
+	}
+	writeRunEvidenceWithProgressFailure := func(status string, validationAttempts int) error {
+		return a.writeRunExecutionEvidence(projectRoot, logID, req, status, validationAttempts, progressPath, true)
 	}
 
 	preflight, capabilities, preflightErr := a.runPreflight(ctx, req)
@@ -221,6 +224,11 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			return result, validationReport{}, err
 		}
 		publishErr := publishProgress("failed", "preflight_failed", "Worker execution preflight failed", preflightErr.Error(), nil)
+		if publishErr != nil {
+			if err := writeRunEvidenceWithProgressFailure("preflight_failed", 0); err != nil {
+				return result, validationReport{}, errors.Join(preflightErr, publishErr, err)
+			}
+		}
 		return result, validationReport{}, errors.Join(preflightErr, publishErr)
 	}
 
@@ -274,6 +282,11 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 				err.Error(),
 				map[string]any{"session_id": logID},
 			)
+			if publishErr != nil {
+				if writeErr := writeRunEvidenceWithProgressFailure("execution_failed", 0); writeErr != nil {
+					return result, validationReport{}, errors.Join(err, publishErr, writeErr)
+				}
+			}
 			return result, validationReport{}, errors.Join(err, publishErr)
 		}
 	}
@@ -354,6 +367,11 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 				validationFailureMessage(finalReport, validationErr),
 				map[string]any{"session_id": logID, "validation_attempts": attempt},
 			)
+			if publishErr != nil {
+				if err := writeRunEvidenceWithProgressFailure("validation_failed", attempt); err != nil {
+					return result, finalReport, errors.Join(validationErr, publishErr, err)
+				}
+			}
 			return result, finalReport, errors.Join(validationErr, publishErr)
 		}
 
@@ -414,6 +432,11 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 				repairErr.Error(),
 				map[string]any{"session_id": logID, "attempt": attempt},
 			)
+			if publishErr != nil {
+				if err := writeRunEvidenceWithProgressFailure("repair_failed", attempt); err != nil {
+					return result, finalReport, errors.Join(repairErr, publishErr, err)
+				}
+			}
 			return result, finalReport, errors.Join(repairErr, publishErr)
 		}
 	}
@@ -437,6 +460,11 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		result.Error,
 		map[string]any{"session_id": logID},
 	)
+	if publishErr != nil {
+		if err := writeRunEvidenceWithProgressFailure("validation_failed", result.ValidationAttempts); err != nil {
+			return result, finalReport, errors.Join(fmt.Errorf(result.Error), publishErr, err)
+		}
+	}
 	return result, finalReport, errors.Join(fmt.Errorf(result.Error), publishErr)
 }
 

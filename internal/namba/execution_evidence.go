@@ -114,7 +114,7 @@ func (a *App) writeExecutionEvidenceManifest(projectRoot string, options executi
 	return writeJSONFile(filepath.Join(projectRoot, filepath.FromSlash(executionEvidenceManifestPath(manifest.LogID))), manifest)
 }
 
-func (a *App) writeRunExecutionEvidence(projectRoot, logID string, req executionRequest, status string, validationAttempts int, progressPath string) error {
+func (a *App) writeRunExecutionEvidence(projectRoot, logID string, req executionRequest, status string, validationAttempts int, progressPath string, progressLogFailed bool) error {
 	progress := executionEvidenceRefInput{
 		Kind:          "progress",
 		NotApplicable: true,
@@ -136,7 +136,7 @@ func (a *App) writeRunExecutionEvidence(projectRoot, logID string, req execution
 		ExecutionMode:      req.Mode,
 		Status:             status,
 		ValidationAttempts: validationAttempts,
-		ProgressLogFailed:  strings.TrimSpace(status) == "progress_log_failed",
+		ProgressLogFailed:  progressLogFailed,
 		GeneratedAt:        a.now(),
 		FinalizedBy:        "executeRun",
 		Progress:           progress,

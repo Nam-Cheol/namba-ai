@@ -270,6 +270,75 @@ func TestExecuteRunPreservesPreviousValidationAttemptsWhenRetryPublishFails(t *t
 	}
 }
 
+func TestExecuteRunExecutionFailureRecordsProgressFailureSeparately(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		switch name {
+		case "codex", "git":
+			return name, nil
+		default:
+			return "", errors.New("missing dependency")
+		}
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			return "partial output", errors.New("runner failed")
+		case isShellCommand(name):
+			t.Fatal("validators should not run after runner failure")
+			return "", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	req := app.newExecutionRequest(
+		"SPEC-001",
+		tmp,
+		"prompt",
+		executionModeParallel,
+		suggestDelegationPlan(executionModeParallel, "prompt", "", ""),
+		systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"},
+		codexConfig{},
+	)
+
+	progress := &stubParallelProgressSink{
+		path: filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-progress.events.jsonl"),
+		failMatch: func(input parallelProgressEventInput, publishCount int) bool {
+			return input.Phase == "failed" && input.Status == "execution_failed"
+		},
+		failPublishErr: errors.New("append denied"),
+	}
+
+	result, report, err := app.executeRun(
+		context.Background(),
+		tmp,
+		"spec-001",
+		req,
+		tmp,
+		qualityConfig{TestCommand: "none", LintCommand: "none", TypecheckCommand: "none"},
+		progress,
+		"spec-001-p1",
+	)
+	if err == nil || !strings.Contains(err.Error(), "runner failed") || !strings.Contains(err.Error(), "append denied") {
+		t.Fatalf("expected runner failure plus progress publish failure, got err=%v result=%+v report=%+v", err, result, report)
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-evidence.json"))
+	if manifest.Status != "execution_failed" {
+		t.Fatalf("expected execution_failed evidence status to remain primary, got %+v", manifest)
+	}
+	if manifest.Finalization.ProgressLogFailed != true {
+		t.Fatalf("expected finalization to record progress log failure separately, got %+v", manifest.Finalization)
+	}
+	if manifest.Progress.Path != ".namba/logs/runs/spec-001-progress.events.jsonl" || manifest.Progress.State != executionEvidenceStateMissing {
+		t.Fatalf("expected progress reference to be preserved on execution failure, got %+v", manifest.Progress)
+	}
+}
+
 func TestRunWritesExecutionEvidenceManifestOnPreflightFailure(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
