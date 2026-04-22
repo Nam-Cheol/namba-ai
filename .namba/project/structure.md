@@ -238,6 +238,18 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-031/reviews/product.md
 .namba/specs/SPEC-031/reviews/readiness.md
 .namba/specs/SPEC-031/spec.md
+.namba/specs/SPEC-032/acceptance.md
+.namba/specs/SPEC-032/baseline.md
+.namba/specs/SPEC-032/contract.md
+.namba/specs/SPEC-032/eval-plan.md
+.namba/specs/SPEC-032/harness-map.md
+.namba/specs/SPEC-032/harness-request.json
+.namba/specs/SPEC-032/plan.md
+.namba/specs/SPEC-032/reviews/design.md
+.namba/specs/SPEC-032/reviews/engineering.md
+.namba/specs/SPEC-032/reviews/product.md
+.namba/specs/SPEC-032/reviews/readiness.md
+.namba/specs/SPEC-032/spec.md
 AGENTS.md
 README.ja.md
 README.ko.md
@@ -261,6 +273,7 @@ docs/workflow-guide.ja.md
 docs/workflow-guide.ko.md
 docs/workflow-guide.md
 docs/workflow-guide.zh.md
+dump.rdb
 go.mod
 install.ps1
 install.sh
@@ -276,6 +289,8 @@ internal/namba/create_workflow_test.go
 internal/namba/execution.go
 internal/namba/execution_smoke_test.go
 internal/namba/execution_test.go
+internal/namba/harness_contract.go
+internal/namba/harness_contract_test.go
 internal/namba/help_contract_test.go
 internal/namba/init_scan.go
 internal/namba/init_scan_test.go

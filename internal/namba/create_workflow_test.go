@@ -723,6 +723,133 @@ func TestApplyCreateWritesAgentPair(t *testing.T) {
 	}
 }
 
+func TestCreateWorkflowCarriesTypedHarnessRequestAndRejectsPlanScopedRequests(t *testing.T) {
+	t.Parallel()
+
+	tmp, app := prepareCreateProject(t)
+
+	t.Run("direct artifact request survives preview and apply", func(t *testing.T) {
+		req := createRequest{
+			Target:       createTargetSkill,
+			Name:         "Insight Builder",
+			Description:  "Create repo-local creation helpers.",
+			Instructions: "Use this artifact to keep creation flows explicit and safe.",
+			HarnessRequest: &HarnessRequest{
+				RequestKind:      harnessRequestKindDirect,
+				DeliveryMode:     harnessDeliveryModeDirect,
+				AdaptationMode:   harnessAdaptationGenerateArtifact,
+				TouchesNambaCore: false,
+				ArtifactTargets:  []harnessArtifactTarget{harnessArtifactTargetSkill},
+			},
+		}
+
+		preview, err := app.previewCreate(tmp, req)
+		if err != nil {
+			t.Fatalf("preview create: %v", err)
+		}
+		if preview.HarnessRequest == nil || preview.HarnessRequest.RequestKind != harnessRequestKindDirect {
+			t.Fatalf("expected preview to retain harness request, got %+v", preview.HarnessRequest)
+		}
+
+		req.PreviewDigest = preview.PreviewDigest
+		req.Confirmed = true
+		result, err := app.applyCreate(tmp, req)
+		if err != nil {
+			t.Fatalf("apply create: %v", err)
+		}
+		if result.HarnessRequest == nil || result.HarnessRequest.RequestKind != harnessRequestKindDirect {
+			t.Fatalf("expected apply result to retain harness request, got %+v", result.HarnessRequest)
+		}
+	})
+
+	t.Run("core harness change is rejected from direct create", func(t *testing.T) {
+		_, err := app.previewCreate(tmp, createRequest{
+			Target:       createTargetSkill,
+			Name:         "Insight Builder",
+			Description:  "Create repo-local creation helpers.",
+			Instructions: "Use this artifact to keep creation flows explicit and safe.",
+			HarnessRequest: &HarnessRequest{
+				RequestKind:      harnessRequestKindCore,
+				DeliveryMode:     harnessDeliveryModeSpec,
+				AdaptationMode:   harnessAdaptationModifyCore,
+				BaseContractRef:  "namba-core-harness",
+				TouchesNambaCore: true,
+				ArtifactTargets:  []harnessArtifactTarget{harnessArtifactTargetSkill},
+				RequiredEvidence: []harnessEvidence{harnessEvidenceContract, harnessEvidenceBaseline, harnessEvidenceEvalPlan},
+				RequiredReviews:  []harnessReview{harnessReviewProduct, harnessReviewEngineering, harnessReviewDesign},
+			},
+		})
+		if err == nil || !strings.Contains(err.Error(), "route through `$namba-create`, not `namba plan`") {
+			t.Fatalf("expected plan-scoped harness request to be rejected, got %v", err)
+		}
+	})
+}
+
+func TestInternalCreateAdapterUsesTransientJSONTransportWithoutSPECScaffold(t *testing.T) {
+	t.Parallel()
+
+	tmp, app := prepareCreateProject(t)
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	req := createRequest{
+		Target:       createTargetBoth,
+		Name:         "Insight Builder",
+		Description:  "Create repo-local creation helpers.",
+		Instructions: "Use this artifact to keep creation flows explicit and safe.",
+	}
+
+	app.stdin = strings.NewReader(mustMarshalJSON(t, req))
+	previewStdout := &bytes.Buffer{}
+	app.stdout = previewStdout
+	if err := app.Run(context.Background(), []string{internalCreateCommandName, "preview"}); err != nil {
+		t.Fatalf("internal preview failed: %v", err)
+	}
+
+	var preview createPreview
+	if err := json.Unmarshal(previewStdout.Bytes(), &preview); err != nil {
+		t.Fatalf("unmarshal preview json: %v", err)
+	}
+	if preview.Target != createTargetBoth || preview.Slug != "insight-builder" {
+		t.Fatalf("unexpected preview payload: %+v", preview)
+	}
+	if strings.TrimSpace(preview.PreviewDigest) == "" {
+		t.Fatalf("expected preview digest, got %+v", preview)
+	}
+
+	app.stdin = strings.NewReader(mustMarshalJSON(t, createRequest{
+		Target:         req.Target,
+		Name:           req.Name,
+		Description:    req.Description,
+		Instructions:   req.Instructions,
+		PreviewDigest:  preview.PreviewDigest,
+		Confirmed:      true,
+		AllowOverwrite: true,
+	}))
+	applyStdout := &bytes.Buffer{}
+	app.stdout = applyStdout
+	if err := app.Run(context.Background(), []string{internalCreateCommandName, "apply"}); err != nil {
+		t.Fatalf("internal apply failed: %v", err)
+	}
+
+	var result createApplyResult
+	if err := json.Unmarshal(applyStdout.Bytes(), &result); err != nil {
+		t.Fatalf("unmarshal apply json: %v", err)
+	}
+	wantPaths := []string{".agents/skills/insight-builder/SKILL.md", ".codex/agents/insight-builder.toml", ".codex/agents/insight-builder.md"}
+	if strings.Join(result.WrittenPaths, "\n") != strings.Join(wantPaths, "\n") {
+		t.Fatalf("unexpected written paths: %+v", result.WrittenPaths)
+	}
+	if _, err := os.Stat(filepath.Join(tmp, ".namba", "specs", "SPEC-001")); !os.IsNotExist(err) {
+		t.Fatalf("expected direct create to stay outside SPEC scaffolding, stat err=%v", err)
+	}
+	for _, rel := range wantPaths {
+		if _, err := os.Stat(filepath.Join(tmp, filepath.FromSlash(rel))); err != nil {
+			t.Fatalf("expected created artifact %s, stat err=%v", rel, err)
+		}
+	}
+}
+
 func TestRenderUserAgentTOMLEscapesUserFields(t *testing.T) {
 	t.Parallel()
 

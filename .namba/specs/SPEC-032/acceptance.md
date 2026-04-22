@@ -1,0 +1,24 @@
+# Acceptance
+
+- [ ] A single typed harness request model exists and includes, at minimum, `request_kind`, `delivery_mode`, `adaptation_mode`, `base_contract_ref`, `touches_namba_core`, `artifact_targets`, `required_evidence`, and `required_reviews`.
+- [ ] V1 uses one shared JSON transport for that model:
+  - SPEC routes persist `.namba/specs/<SPEC>/harness-request.json`
+  - direct routes carry the same model through the existing create preview/apply JSON flow without inventing a fake SPEC package
+- [ ] The decision contract produces non-overlapping route outcomes for at least these three classes:
+  - `core_harness_change` -> `namba plan`
+  - `domain_harness_change` -> `namba harness`
+  - `direct_artifact_creation` -> `$namba-create`
+- [ ] The implementation explicitly handles "existing core harness modification" versus "new domain harness addition or adaptation" versus "artifact direct creation" without falling back to prose-only classification.
+- [ ] Harness-classified work requires `contract.md`, `baseline.md`, and `eval-plan.md`, and requires `harness-map.md` whenever a domain harness adapts or composes an existing harness, or when the route boundary with direct artifact creation needs explicit documentation.
+- [ ] The review and validation contract is actionable rather than advisory-only:
+  - missing required evidence is detectably surfaced by the harness-evidence validator hook used by readiness refresh and `namba sync`
+  - classifier and route-selection outcomes are regression-testable
+  - review readiness remains compatible with the current `.namba/specs/<SPEC>/reviews/` model
+  - legacy SPECs without `harness-request.json` keep their current readiness behavior
+- [ ] The change preserves the current planning, worktree, review, and runtime contracts:
+  - no second planning package type is introduced
+  - `namba run` mode semantics are not unnecessarily redesigned
+  - direct artifact creation cannot silently change Namba's core harness contract
+- [ ] The operator-facing decision contract includes enough plain-language guidance and canonical examples that a user can determine the correct entrypoint without relying only on reviewer interpretation.
+- [ ] Validation commands pass.
+- [ ] Tests or validator coverage exist for classification, evidence completeness, direct-route escalation, legacy readiness compatibility, and route-boundary preservation.

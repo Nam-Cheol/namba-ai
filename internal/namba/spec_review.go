@@ -171,10 +171,21 @@ func buildSpecReviewReadinessDoc(root, specID string, states []specReviewState) 
 		"",
 		fmt.Sprintf("- Cleared reviews: %d/%d", clearCount, len(states)),
 	)
+	if harness := specHarnessAdvisorySummary(root, specID); harness != "" {
+		blockers = append(blockers, "harness="+harness)
+	}
 	if len(blockers) == 0 {
 		lines = append(lines, "- Advisory status: all current review tracks are marked clear.")
 	} else {
 		lines = append(lines, fmt.Sprintf("- Advisory status: follow up on %s before execution or GitHub handoff if the risk profile justifies it.", strings.Join(blockers, ", ")))
+	}
+	if harnessLines := buildHarnessReadinessLines(root, specID); len(harnessLines) > 0 {
+		lines = append(lines,
+			"",
+			"## Harness Advisory",
+			"",
+		)
+		lines = append(lines, harnessLines...)
 	}
 	if evidence := specReadinessEvidencePaths(root, specID); len(evidence) > 0 {
 		lines = append(lines,
@@ -198,6 +209,76 @@ func buildSpecReviewReadinessDoc(root, specID string, states []specReviewState) 
 	return strings.Join(lines, "\n")
 }
 
+func buildHarnessReadinessLines(root, specID string) []string {
+	req, err := loadHarnessRequest(root, specID)
+	if err != nil {
+		return []string{fmt.Sprintf("- Harness request: invalid (%s)", err.Error())}
+	}
+	if req == nil {
+		return nil
+	}
+
+	report := validateHarnessEvidence(root, specID, *req)
+	lines := []string{
+		fmt.Sprintf("- Route: `%s`", report.Route),
+		fmt.Sprintf("- Request kind: `%s`", report.Request.RequestKind),
+		fmt.Sprintf("- Delivery mode: `%s`", report.Request.DeliveryMode),
+		fmt.Sprintf("- Adaptation mode: `%s`", report.Request.AdaptationMode),
+		fmt.Sprintf("- Base contract ref: `%s`", fallbackOrValue(report.Request.BaseContractRef, "none")),
+		fmt.Sprintf("- Touches Namba core: `%t`", report.Request.TouchesNambaCore),
+		fmt.Sprintf("- Required evidence: `%s`", strings.Join(report.RequiredEvidence, ", ")),
+	}
+	if len(report.MissingEvidence) == 0 {
+		lines = append(lines, "- Evidence status: complete")
+	} else {
+		lines = append(lines, fmt.Sprintf("- Missing evidence: `%s`", strings.Join(report.MissingEvidence, "`, `")))
+	}
+	lines = append(lines, fmt.Sprintf("- Required reviews: `%s`", strings.Join(report.RequiredReviews, ", ")))
+	if len(report.MissingReviews) == 0 {
+		lines = append(lines, "- Review artifact status: complete")
+	} else {
+		lines = append(lines, fmt.Sprintf("- Missing review artifacts: `%s`", strings.Join(report.MissingReviews, "`, `")))
+	}
+	if len(report.Problems) > 0 {
+		lines = append(lines, fmt.Sprintf("- Problems: %s", strings.Join(report.Problems, "; ")))
+	}
+	return lines
+}
+
+func specHarnessAdvisorySummary(root, specID string) string {
+	req, err := loadHarnessRequest(root, specID)
+	if err != nil {
+		return fmt.Sprintf("harness request invalid: %s", err.Error())
+	}
+	if req == nil {
+		return ""
+	}
+	report := validateHarnessEvidence(root, specID, *req)
+	if len(report.MissingEvidence) == 0 && len(report.MissingReviews) == 0 && len(report.Problems) == 0 {
+		return ""
+	}
+	parts := []string{fmt.Sprintf("route=%s", report.Route)}
+	if len(report.MissingEvidence) > 0 {
+		parts = append(parts, fmt.Sprintf("missing evidence=%s", strings.Join(report.MissingEvidence, ",")))
+	} else {
+		parts = append(parts, "evidence=complete")
+	}
+	if len(report.MissingReviews) > 0 {
+		parts = append(parts, fmt.Sprintf("missing review artifacts=%s", strings.Join(report.MissingReviews, ",")))
+	}
+	if len(report.Problems) > 0 {
+		parts = append(parts, fmt.Sprintf("problems=%s", strings.Join(report.Problems, ",")))
+	}
+	return strings.Join(parts, ", ")
+}
+
+func fallbackOrValue(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
+}
+
 func specReadinessEvidencePaths(root, specID string) []string {
 	if strings.TrimSpace(root) == "" {
 		return nil
@@ -210,6 +291,9 @@ func specReadinessEvidencePaths(root, specID string) []string {
 	candidates := []evidenceFile{
 		{label: "Runtime contract anchor", path: filepath.Join(specsDir, specID, "contract.md")},
 		{label: "Baseline evidence", path: filepath.Join(specsDir, specID, "baseline.md")},
+		{label: "Harness request", path: filepath.Join(specsDir, specID, harnessRequestFileName)},
+		{label: "Eval plan", path: filepath.Join(specsDir, specID, "eval-plan.md")},
+		{label: "Harness map", path: filepath.Join(specsDir, specID, "harness-map.md")},
 		{label: "Extraction map", path: filepath.Join(specsDir, specID, "extraction-map.md")},
 	}
 
@@ -222,6 +306,17 @@ func specReadinessEvidencePaths(root, specID string) []string {
 		lines = append(lines, fmt.Sprintf("%s: `%s`", candidate.label, filepath.ToSlash(candidate.path)))
 	}
 	return lines
+}
+
+func specReadinessAdvisorySummary(root, specID string) string {
+	parts := make([]string, 0, 2)
+	if review := specReviewAdvisorySummary(root, specID); review != "" {
+		parts = append(parts, review)
+	}
+	if harness := specHarnessAdvisorySummary(root, specID); harness != "" {
+		parts = append(parts, harness)
+	}
+	return strings.Join(parts, "; ")
 }
 
 func isClearReviewStatus(status string) bool {
@@ -313,7 +408,7 @@ func (a *App) refreshSpecReviewReadiness(root, specID string) (string, error) {
 	if _, err := a.writeOutputs(root, outputs); err != nil {
 		return "", err
 	}
-	return specReviewAdvisorySummary(root, specID), nil
+	return specReadinessAdvisorySummary(root, specID), nil
 }
 
 func (a *App) refreshAllSpecReviewReadiness(root string) error {

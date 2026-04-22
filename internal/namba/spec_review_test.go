@@ -60,3 +60,102 @@ func TestDesignReviewTemplateIncludesExplicitChecklist(t *testing.T) {
 		}
 	}
 }
+
+func TestRefreshSpecReviewReadinessKeepsLegacyEvidenceAnchors(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	specDir := filepath.Join(tmp, ".namba", "specs", "SPEC-099")
+	reviewsDir := filepath.Join(specDir, "reviews")
+	if err := os.MkdirAll(reviewsDir, 0o755); err != nil {
+		t.Fatalf("mkdir reviews dir: %v", err)
+	}
+	writeTestFile(t, filepath.Join(specDir, "contract.md"), "# Contract\n")
+	writeTestFile(t, filepath.Join(specDir, "baseline.md"), "# Baseline\n")
+	writeTestFile(t, filepath.Join(specDir, "extraction-map.md"), "# Extraction Map\n")
+	for rel, body := range specReviewOutputs("SPEC-099") {
+		if !strings.HasPrefix(rel, filepath.ToSlash(filepath.Join(specsDir, "SPEC-099", specReviewsDirName, ""))) || strings.HasSuffix(rel, specReviewReadinessFileName) {
+			continue
+		}
+		writeTestFile(t, filepath.Join(tmp, filepath.FromSlash(rel)), body)
+	}
+
+	advisory, err := app.refreshSpecReviewReadiness(tmp, "SPEC-099")
+	if err != nil {
+		t.Fatalf("refreshSpecReviewReadiness failed: %v", err)
+	}
+	if advisory != "product=pending, engineering=pending, design=pending" {
+		t.Fatalf("unexpected advisory summary: %q", advisory)
+	}
+
+	readiness := mustReadFile(t, filepath.Join(reviewsDir, "readiness.md"))
+	for _, want := range []string{
+		"## Phase-1 Evidence",
+		"Runtime contract anchor: `.namba/specs/SPEC-099/contract.md`",
+		"Baseline evidence: `.namba/specs/SPEC-099/baseline.md`",
+		"Extraction map: `.namba/specs/SPEC-099/extraction-map.md`",
+	} {
+		if !strings.Contains(readiness, want) {
+			t.Fatalf("expected legacy readiness to contain %q, got %q", want, readiness)
+		}
+	}
+	if strings.Contains(readiness, "harness-request.json") {
+		t.Fatalf("expected legacy readiness to stay off typed harness sidecar plumbing, got %q", readiness)
+	}
+}
+
+func TestRefreshSpecReviewReadinessFlagsPersistedDirectHarnessRequest(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	specID := "SPEC-100"
+	specDir := filepath.Join(tmp, ".namba", "specs", specID)
+	reviewsDir := filepath.Join(specDir, "reviews")
+	if err := os.MkdirAll(reviewsDir, 0o755); err != nil {
+		t.Fatalf("mkdir reviews dir: %v", err)
+	}
+	for _, template := range specReviewTemplates() {
+		writeTestFile(t, filepath.Join(reviewsDir, template.Slug+".md"), strings.Join([]string{
+			"# " + template.Title,
+			"",
+			"- Status: clear",
+			"- Last Reviewed: 2026-04-21",
+			"- Reviewer: test",
+			"",
+		}, "\n"))
+	}
+	body, err := marshalHarnessRequest(harnessRequest{
+		RequestKind:      harnessRequestKindDirect,
+		DeliveryMode:     harnessDeliveryModeDirect,
+		AdaptationMode:   harnessAdaptationGenerateArtifact,
+		TouchesNambaCore: false,
+		ArtifactTargets:  []harnessArtifactTarget{harnessArtifactTargetSkill},
+	})
+	if err != nil {
+		t.Fatalf("marshal harness request: %v", err)
+	}
+	writeTestFile(t, filepath.Join(specDir, harnessRequestFileName), body)
+
+	advisory, err := app.refreshSpecReviewReadiness(tmp, specID)
+	if err != nil {
+		t.Fatalf("refreshSpecReviewReadiness failed: %v", err)
+	}
+	if !strings.Contains(advisory, "problems=direct_artifact_creation must not be persisted") {
+		t.Fatalf("expected harness advisory to include persisted direct-request problem, got %q", advisory)
+	}
+
+	readiness := mustReadFile(t, filepath.Join(reviewsDir, "readiness.md"))
+	for _, want := range []string{
+		"Advisory status: follow up on harness=",
+		"Route: `$namba-create`",
+		"Problems: direct_artifact_creation must not be persisted to `harness-request.json`; keep it transient on `$namba-create` or escalate through `namba plan`",
+	} {
+		if !strings.Contains(readiness, want) {
+			t.Fatalf("expected readiness to contain %q, got %q", want, readiness)
+		}
+	}
+}
