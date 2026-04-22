@@ -287,7 +287,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
 				return result, finalReport, writeErr
 			}
-			if writeErr := a.writeRunExecutionEvidence(projectRoot, logID, req, "progress_log_failed", 0); writeErr != nil {
+			if writeErr := a.writeRunExecutionEvidence(projectRoot, logID, req, "progress_log_failed", result.ValidationAttempts); writeErr != nil {
 				return result, finalReport, writeErr
 			}
 			return result, finalReport, err

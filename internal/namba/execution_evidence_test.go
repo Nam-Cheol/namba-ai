@@ -175,6 +175,89 @@ func TestExecuteRunWritesProgressFailureEvidenceWhenFinalPublishFails(t *testing
 	}
 }
 
+func TestExecuteRunPreservesPreviousValidationAttemptsWhenRetryPublishFails(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		switch name {
+		case "codex", "git":
+			return name, nil
+		default:
+			return "", errors.New("missing dependency")
+		}
+	}
+
+	validationCalls := 0
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			return "runner output", nil
+		case isShellCommand(name):
+			validationCalls++
+			if validationCalls == 1 {
+				return "validation failed", errors.New("lint failed")
+			}
+			t.Fatalf("validation should not start a second attempt after publish failure: %s %v", name, args)
+			return "", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	req := app.newExecutionRequest(
+		"SPEC-001",
+		tmp,
+		"prompt",
+		executionModeParallel,
+		suggestDelegationPlan(executionModeParallel, "prompt", "", ""),
+		systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"},
+		codexConfig{},
+	)
+	req.RepairAttempts = 1
+
+	progress := &stubParallelProgressSink{
+		path: filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-progress.events.jsonl"),
+		failMatch: func(input parallelProgressEventInput, publishCount int) bool {
+			if input.Phase != "validating" {
+				return false
+			}
+			attempt, _ := input.Metadata["attempt"].(int)
+			return attempt == 2
+		},
+		failPublishErr: errors.New("append denied"),
+	}
+
+	result, report, err := app.executeRun(
+		context.Background(),
+		tmp,
+		"spec-001",
+		req,
+		tmp,
+		qualityConfig{TestCommand: "none", LintCommand: "lint", TypecheckCommand: "none"},
+		progress,
+		"spec-001-p1",
+	)
+	if err == nil || !strings.Contains(err.Error(), "append denied") {
+		t.Fatalf("expected retry publish failure, got err=%v result=%+v report=%+v", err, result, report)
+	}
+	if validationCalls != 1 {
+		t.Fatalf("expected exactly one completed validation attempt before publish failure, got %d", validationCalls)
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-evidence.json"))
+	if manifest.Status != "progress_log_failed" {
+		t.Fatalf("expected progress_log_failed evidence after retry publish failure, got %+v", manifest)
+	}
+	if len(manifest.Extensions.Runtime.SignalBundles) != 1 {
+		t.Fatalf("expected validation-attempt bundle to remain present, got %+v", manifest.Extensions.Runtime.SignalBundles)
+	}
+	if paths := manifest.Extensions.Runtime.SignalBundles[0].Paths; len(paths) != 1 || paths[0] != ".namba/logs/runs/spec-001-validation-attempt-1.json" {
+		t.Fatalf("expected first validation attempt to remain in evidence bundle, got %+v", manifest.Extensions.Runtime.SignalBundles[0])
+	}
+}
+
 func TestRunWritesExecutionEvidenceManifestOnPreflightFailure(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
