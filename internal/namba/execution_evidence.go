@@ -44,9 +44,10 @@ type executionEvidenceExtensions struct {
 }
 
 type executionEvidenceFinalization struct {
-	FinalizedAt  string `json:"finalized_at"`
-	FinalizedBy  string `json:"finalized_by"`
-	FailurePhase string `json:"failure_phase,omitempty"`
+	FinalizedAt       string `json:"finalized_at"`
+	FinalizedBy       string `json:"finalized_by"`
+	FailurePhase      string `json:"failure_phase,omitempty"`
+	ProgressLogFailed bool   `json:"progress_log_failed,omitempty"`
 }
 
 type executionEvidenceManifest struct {
@@ -81,6 +82,7 @@ type executionEvidenceOptions struct {
 	ExecutionMode        executionMode
 	Status               string
 	ValidationAttempts   int
+	ProgressLogFailed    bool
 	GeneratedAt          time.Time
 	FinalizedBy          string
 	Request              executionEvidenceRefInput
@@ -112,7 +114,21 @@ func (a *App) writeExecutionEvidenceManifest(projectRoot string, options executi
 	return writeJSONFile(filepath.Join(projectRoot, filepath.FromSlash(executionEvidenceManifestPath(manifest.LogID))), manifest)
 }
 
-func (a *App) writeRunExecutionEvidence(projectRoot, logID string, req executionRequest, status string, validationAttempts int) error {
+func (a *App) writeRunExecutionEvidence(projectRoot, logID string, req executionRequest, status string, validationAttempts int, progressPath string) error {
+	progress := executionEvidenceRefInput{
+		Kind:          "progress",
+		NotApplicable: true,
+	}
+	if relPath := firstNonBlank(
+		executionEvidenceRelativePath(projectRoot, progressPath),
+		relativeParallelProgressLogPath(req.SpecID),
+	); normalizeExecutionMode(req.Mode) == executionModeParallel && relPath != "" {
+		progress = executionEvidenceRefInput{
+			Kind: "progress",
+			Path: relPath,
+		}
+	}
+
 	return a.writeExecutionEvidenceManifest(projectRoot, executionEvidenceOptions{
 		ProjectRoot:        projectRoot,
 		LogID:              logID,
@@ -120,22 +136,25 @@ func (a *App) writeRunExecutionEvidence(projectRoot, logID string, req execution
 		ExecutionMode:      req.Mode,
 		Status:             status,
 		ValidationAttempts: validationAttempts,
+		ProgressLogFailed:  strings.TrimSpace(status) == "progress_log_failed",
 		GeneratedAt:        a.now(),
 		FinalizedBy:        "executeRun",
+		Progress:           progress,
 	})
 }
 
-func (a *App) writeParallelExecutionEvidence(root, specID, runID, status string, dryRun bool) error {
+func (a *App) writeParallelExecutionEvidence(root, specID, runID, status string, dryRun, progressLogFailed bool) error {
 	logID := strings.ToLower(strings.TrimSpace(specID)) + "-parallel"
 	return a.writeExecutionEvidenceManifest(root, executionEvidenceOptions{
-		ProjectRoot:   root,
-		LogID:         logID,
-		RunID:         runID,
-		SpecID:        specID,
-		ExecutionMode: executionModeParallel,
-		Status:        status,
-		GeneratedAt:   a.now(),
-		FinalizedBy:   "parallelRunLifecycle.finishRun",
+		ProjectRoot:       root,
+		LogID:             logID,
+		RunID:             runID,
+		SpecID:            specID,
+		ExecutionMode:     executionModeParallel,
+		Status:            status,
+		ProgressLogFailed: progressLogFailed,
+		GeneratedAt:       a.now(),
+		FinalizedBy:       "parallelRunLifecycle.finishRun",
 		Request: executionEvidenceRefInput{
 			Kind:          "request",
 			NotApplicable: true,
@@ -223,9 +242,10 @@ func buildExecutionEvidenceManifest(projectRoot string, options executionEvidenc
 		Advisory:      true,
 		Status:        status,
 		Finalization: executionEvidenceFinalization{
-			FinalizedAt:  options.GeneratedAt.Format(time.RFC3339),
-			FinalizedBy:  firstNonBlank(strings.TrimSpace(options.FinalizedBy), "namba"),
-			FailurePhase: executionEvidenceFailurePhase(status),
+			FinalizedAt:       options.GeneratedAt.Format(time.RFC3339),
+			FinalizedBy:       firstNonBlank(strings.TrimSpace(options.FinalizedBy), "namba"),
+			FailurePhase:      executionEvidenceFailurePhase(status),
+			ProgressLogFailed: options.ProgressLogFailed || status == "progress_log_failed",
 		},
 		Request:    resolveExecutionEvidenceRef(root, requestInput),
 		Preflight:  resolveExecutionEvidenceRef(root, preflightInput),
@@ -237,6 +257,23 @@ func buildExecutionEvidenceManifest(projectRoot string, options executionEvidenc
 			Runtime: runtime,
 		},
 	}, nil
+}
+
+func executionEvidenceRelativePath(root, path string) string {
+	root = strings.TrimSpace(root)
+	path = strings.TrimSpace(path)
+	if root == "" || path == "" {
+		return ""
+	}
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return ""
+	}
+	normalized := filepath.ToSlash(strings.TrimSpace(rel))
+	if normalized == "." || normalized == "" || normalized == ".." || strings.HasPrefix(normalized, "../") {
+		return ""
+	}
+	return normalized
 }
 
 func inferExecutionEvidenceStatus(request, preflight, execution, validation executionEvidenceRefInput) string {

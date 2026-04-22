@@ -170,6 +170,12 @@ func TestExecuteRunWritesProgressFailureEvidenceWhenFinalPublishFails(t *testing
 	if manifest.Status != "progress_log_failed" {
 		t.Fatalf("expected progress_log_failed evidence after final publish failure, got %+v", manifest)
 	}
+	if manifest.Finalization.ProgressLogFailed != true {
+		t.Fatalf("expected finalization to mark progress log failure, got %+v", manifest.Finalization)
+	}
+	if manifest.Progress.Path != ".namba/logs/runs/spec-001-progress.events.jsonl" || manifest.Progress.State != executionEvidenceStateMissing {
+		t.Fatalf("expected progress reference to point at shared progress log path, got %+v", manifest.Progress)
+	}
 	if manifest.Validation.State != executionEvidenceStatePresent {
 		t.Fatalf("expected validation artifact to remain present, got %+v", manifest.Validation)
 	}
@@ -249,6 +255,12 @@ func TestExecuteRunPreservesPreviousValidationAttemptsWhenRetryPublishFails(t *t
 	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-evidence.json"))
 	if manifest.Status != "progress_log_failed" {
 		t.Fatalf("expected progress_log_failed evidence after retry publish failure, got %+v", manifest)
+	}
+	if manifest.Finalization.ProgressLogFailed != true {
+		t.Fatalf("expected finalization to mark progress log failure, got %+v", manifest.Finalization)
+	}
+	if manifest.Progress.Path != ".namba/logs/runs/spec-001-progress.events.jsonl" || manifest.Progress.State != executionEvidenceStateMissing {
+		t.Fatalf("expected progress reference to point at shared progress log path, got %+v", manifest.Progress)
 	}
 	if len(manifest.Extensions.Runtime.SignalBundles) != 1 {
 		t.Fatalf("expected validation-attempt bundle to remain present, got %+v", manifest.Extensions.Runtime.SignalBundles)
@@ -429,7 +441,7 @@ func TestRunParallelPreflightFailureWritesExecutionEvidenceManifest(t *testing.T
 	}
 }
 
-func TestRunParallelCloseFailureWritesProgressFailureExecutionEvidence(t *testing.T) {
+func TestRunParallelCloseFailurePreservesCompletedStatusInExecutionEvidence(t *testing.T) {
 	h, restore := newParallelHarness(t)
 	defer restore()
 
@@ -457,11 +469,54 @@ func TestRunParallelCloseFailureWritesProgressFailureExecutionEvidence(t *testin
 	}
 
 	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(h.tmp, ".namba", "logs", "runs", "spec-003-parallel-evidence.json"))
-	if manifest.Status != "progress_log_failed" {
-		t.Fatalf("expected progress_log_failed parallel evidence after close failure, got %+v", manifest)
+	if manifest.Status != "completed" {
+		t.Fatalf("expected completed parallel evidence after close failure, got %+v", manifest)
+	}
+	if manifest.Finalization.ProgressLogFailed != true {
+		t.Fatalf("expected finalization to preserve progress log failure separately, got %+v", manifest.Finalization)
 	}
 	if manifest.Execution.State != executionEvidenceStatePresent {
 		t.Fatalf("expected aggregate execution artifact to remain present, got %+v", manifest.Execution)
+	}
+}
+
+func TestRunParallelMergeFailureCloseFailurePreservesMergeFailedExecutionEvidence(t *testing.T) {
+	h, restore := newParallelHarness(t)
+	defer restore()
+
+	h.mergeErr["namba/spec-003-p2"] = errors.New("merge conflict")
+	h.app.newParallelProgressSink = func(cfg parallelProgressSinkConfig) (parallelProgressSink, error) {
+		return &stubParallelProgressSink{
+			path:     cfg.Path,
+			closeErr: errors.New("close denied"),
+		}, nil
+	}
+
+	err := h.app.runParallel(
+		context.Background(),
+		h.tmp,
+		specPackage{ID: "SPEC-003"},
+		[]string{"one", "two", "three"},
+		"prompt",
+		qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"},
+		systemConfig{Runner: "codex"},
+		codexConfig{},
+		workflowConfig{MaxParallelWorkers: 3},
+		false,
+	)
+	if err == nil || !strings.Contains(err.Error(), "merge conflict") || !strings.Contains(err.Error(), "close denied") {
+		t.Fatalf("expected merge and close failures to surface together, got %v", err)
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(h.tmp, ".namba", "logs", "runs", "spec-003-parallel-evidence.json"))
+	if manifest.Status != "merge_failed" {
+		t.Fatalf("expected merge_failed parallel evidence after merge+close failure, got %+v", manifest)
+	}
+	if manifest.Finalization.ProgressLogFailed != true {
+		t.Fatalf("expected finalization to preserve progress log failure separately, got %+v", manifest.Finalization)
+	}
+	if manifest.Progress.Path != ".namba/logs/runs/spec-003-parallel.events.jsonl" || manifest.Progress.State != executionEvidenceStateMissing {
+		t.Fatalf("expected progress reference to keep the shared event log path, got %+v", manifest.Progress)
 	}
 }
 
