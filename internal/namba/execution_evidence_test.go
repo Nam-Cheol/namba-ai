@@ -72,6 +72,67 @@ func TestRunWritesExecutionEvidenceManifestOnSuccess(t *testing.T) {
 	}
 }
 
+func TestExecuteRunWritesProgressFailureEvidenceWhenFinalPublishFails(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		switch name {
+		case "codex", "git":
+			return name, nil
+		default:
+			return "", errors.New("missing dependency")
+		}
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if isCodexExec(name, args) {
+			return "runner output", nil
+		}
+		t.Fatalf("unexpected command: %s %v", name, args)
+		return "", nil
+	}
+
+	req := app.newExecutionRequest(
+		"SPEC-001",
+		tmp,
+		"prompt",
+		executionModeParallel,
+		suggestDelegationPlan(executionModeParallel, "prompt", "", ""),
+		systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"},
+		codexConfig{},
+	)
+
+	progress := &stubParallelProgressSink{
+		path: filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-progress.events.jsonl"),
+		failMatch: func(input parallelProgressEventInput, publishCount int) bool {
+			return input.Phase == "merge_pending"
+		},
+		failPublishErr: errors.New("append denied"),
+	}
+
+	result, report, err := app.executeRun(
+		context.Background(),
+		tmp,
+		"spec-001",
+		req,
+		tmp,
+		qualityConfig{TestCommand: "none", LintCommand: "none", TypecheckCommand: "none"},
+		progress,
+		"spec-001-p1",
+	)
+	if err == nil || !strings.Contains(err.Error(), "append denied") {
+		t.Fatalf("expected final publish failure, got err=%v result=%+v report=%+v", err, result, report)
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-evidence.json"))
+	if manifest.Status != "progress_log_failed" {
+		t.Fatalf("expected progress_log_failed evidence after final publish failure, got %+v", manifest)
+	}
+	if manifest.Validation.State != executionEvidenceStatePresent {
+		t.Fatalf("expected validation artifact to remain present, got %+v", manifest.Validation)
+	}
+}
+
 func TestRunWritesExecutionEvidenceManifestOnPreflightFailure(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
@@ -240,6 +301,42 @@ func TestRunParallelPreflightFailureWritesExecutionEvidenceManifest(t *testing.T
 	}
 	if manifest.Preflight.State != executionEvidenceStatePresent || manifest.Execution.State != executionEvidenceStatePresent || manifest.Progress.State != executionEvidenceStatePresent {
 		t.Fatalf("expected aggregate parallel evidence on preflight failure, got %+v", manifest)
+	}
+}
+
+func TestRunParallelCloseFailureWritesProgressFailureExecutionEvidence(t *testing.T) {
+	h, restore := newParallelHarness(t)
+	defer restore()
+
+	h.app.newParallelProgressSink = func(cfg parallelProgressSinkConfig) (parallelProgressSink, error) {
+		return &stubParallelProgressSink{
+			path:     cfg.Path,
+			closeErr: errors.New("close denied"),
+		}, nil
+	}
+
+	err := h.app.runParallel(
+		context.Background(),
+		h.tmp,
+		specPackage{ID: "SPEC-003"},
+		[]string{"one", "two", "three"},
+		"prompt",
+		qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"},
+		systemConfig{Runner: "codex"},
+		codexConfig{},
+		workflowConfig{MaxParallelWorkers: 3},
+		false,
+	)
+	if err == nil || !strings.Contains(err.Error(), "close denied") {
+		t.Fatalf("expected close failure to surface, got %v", err)
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(h.tmp, ".namba", "logs", "runs", "spec-003-parallel-evidence.json"))
+	if manifest.Status != "progress_log_failed" {
+		t.Fatalf("expected progress_log_failed parallel evidence after close failure, got %+v", manifest)
+	}
+	if manifest.Execution.State != executionEvidenceStatePresent {
+		t.Fatalf("expected aggregate execution artifact to remain present, got %+v", manifest.Execution)
 	}
 }
 

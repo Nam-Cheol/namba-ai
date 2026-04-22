@@ -802,10 +802,14 @@ func (l *parallelRunLifecycle) progressFailure() error {
 func (l *parallelRunLifecycle) finishRun(report parallelRunReport, runErr error, phase, status, summary, detail string, metadata map[string]any) error {
 	publishErr := l.publishRunEvent(phase, status, summary, detail, metadata)
 	closeErr := l.closeProgress()
+	evidenceStatus := status
+	if publishErr != nil || closeErr != nil {
+		evidenceStatus = "progress_log_failed"
+	}
 	if err := l.writeFinishedReport(report); err != nil {
 		return errors.Join(runErr, publishErr, closeErr, err)
 	}
-	if err := l.app.writeParallelExecutionEvidence(l.root, l.specPkg.ID, l.plan.RunID, status, l.dryRun); err != nil {
+	if err := l.app.writeParallelExecutionEvidence(l.root, l.specPkg.ID, l.plan.RunID, evidenceStatus, l.dryRun); err != nil {
 		return errors.Join(runErr, publishErr, closeErr, err)
 	}
 	return errors.Join(runErr, publishErr, closeErr)

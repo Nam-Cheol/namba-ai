@@ -309,9 +309,6 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-validation.json"), finalReport); err != nil {
 				return result, finalReport, err
 			}
-			if err := a.writeRunExecutionEvidence(projectRoot, logID, req, "completed"); err != nil {
-				return result, finalReport, err
-			}
 			publishErr := publishProgress(
 				"merge_pending",
 				"ready",
@@ -320,7 +317,13 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 				map[string]any{"session_id": logID, "validation_attempts": attempt},
 			)
 			if publishErr != nil {
+				if err := a.writeRunExecutionEvidence(projectRoot, logID, req, "progress_log_failed"); err != nil {
+					return result, finalReport, errors.Join(publishErr, err)
+				}
 				return result, finalReport, publishErr
+			}
+			if err := a.writeRunExecutionEvidence(projectRoot, logID, req, "completed"); err != nil {
+				return result, finalReport, err
 			}
 			return result, finalReport, nil
 		}
