@@ -11,4 +11,4 @@
 - [ ] SPEC artifacts reviewed
 - [ ] Validation commands passed
 - [ ] Diff reviewed
-- [ ] Latest SPEC review readiness checked: `.namba/specs/SPEC-032/reviews/readiness.md`
+- [ ] Latest SPEC review readiness checked: `.namba/specs/SPEC-033/reviews/readiness.md`

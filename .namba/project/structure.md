@@ -250,6 +250,18 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-032/reviews/product.md
 .namba/specs/SPEC-032/reviews/readiness.md
 .namba/specs/SPEC-032/spec.md
+.namba/specs/SPEC-033/acceptance.md
+.namba/specs/SPEC-033/baseline.md
+.namba/specs/SPEC-033/contract.md
+.namba/specs/SPEC-033/eval-plan.md
+.namba/specs/SPEC-033/harness-map.md
+.namba/specs/SPEC-033/harness-request.json
+.namba/specs/SPEC-033/plan.md
+.namba/specs/SPEC-033/reviews/design.md
+.namba/specs/SPEC-033/reviews/engineering.md
+.namba/specs/SPEC-033/reviews/product.md
+.namba/specs/SPEC-033/reviews/readiness.md
+.namba/specs/SPEC-033/spec.md
 AGENTS.md
 README.ja.md
 README.ko.md
@@ -287,6 +299,8 @@ internal/namba/create_adapter.go
 internal/namba/create_engine.go
 internal/namba/create_workflow_test.go
 internal/namba/execution.go
+internal/namba/execution_evidence.go
+internal/namba/execution_evidence_test.go
 internal/namba/execution_smoke_test.go
 internal/namba/execution_test.go
 internal/namba/harness_contract.go
