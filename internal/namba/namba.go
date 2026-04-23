@@ -847,7 +847,7 @@ func planUsageText() string {
 	return descriptionScaffoldUsageText(
 		"plan",
 		"  Create the next feature SPEC package under .namba/specs/ and seed review artifacts.",
-		fmt.Sprintf("  Safe by default: resolve or create an isolated worktree/branch unless you explicitly pass %s.", currentWorkspacePlanningFlag),
+		fmt.Sprintf("  Safe by default: create and switch to a dedicated SPEC branch in the current workspace unless you explicitly pass %s.", currentWorkspacePlanningFlag),
 	)
 }
 
@@ -855,7 +855,7 @@ func harnessUsageText() string {
 	return descriptionScaffoldUsageText(
 		"harness",
 		"  Create the next harness-oriented SPEC package under .namba/specs/ and seed review artifacts.",
-		fmt.Sprintf("  Safe by default: resolve or create an isolated worktree/branch unless you explicitly pass %s.", currentWorkspacePlanningFlag),
+		fmt.Sprintf("  Safe by default: create and switch to a dedicated SPEC branch in the current workspace unless you explicitly pass %s.", currentWorkspacePlanningFlag),
 	)
 }
 
@@ -892,7 +892,7 @@ func fixUsageText() string {
 	)
 	lines = append(lines, "", "Behavior:")
 	lines = append(lines, fixSubcommandBehaviorSummaries()...)
-	lines = append(lines, fmt.Sprintf("  Use %s with --command plan when you intentionally want to scaffold in the current workspace.", currentWorkspacePlanningFlag))
+	lines = append(lines, fmt.Sprintf("  Use %s with --command plan when you intentionally want to scaffold on the current branch without creating a dedicated SPEC branch.", currentWorkspacePlanningFlag))
 	return strings.Join(lines, "\n") + "\n"
 }
 

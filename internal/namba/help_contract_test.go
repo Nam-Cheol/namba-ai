@@ -380,7 +380,7 @@ func TestDescriptionScaffoldUsageTextPreservesPlanAndHarnessShape(t *testing.T) 
 			commandLine2: "  namba plan -- \"<description with flag-like text>\"",
 			commandLine3: "  namba plan --current-workspace \"<description>\"",
 			behaviorLine: "  Create the next feature SPEC package under .namba/specs/ and seed review artifacts.",
-			safetyLine:   "  Safe by default: resolve or create an isolated worktree/branch unless you explicitly pass --current-workspace.",
+			safetyLine:   "  Safe by default: create and switch to a dedicated SPEC branch in the current workspace unless you explicitly pass --current-workspace.",
 		},
 		{
 			name:         "harness",
@@ -389,7 +389,7 @@ func TestDescriptionScaffoldUsageTextPreservesPlanAndHarnessShape(t *testing.T) 
 			commandLine2: "  namba harness -- \"<description with flag-like text>\"",
 			commandLine3: "  namba harness --current-workspace \"<description>\"",
 			behaviorLine: "  Create the next harness-oriented SPEC package under .namba/specs/ and seed review artifacts.",
-			safetyLine:   "  Safe by default: resolve or create an isolated worktree/branch unless you explicitly pass --current-workspace.",
+			safetyLine:   "  Safe by default: create and switch to a dedicated SPEC branch in the current workspace unless you explicitly pass --current-workspace.",
 		},
 	}
 

@@ -11,11 +11,11 @@ Command mapping:
 - `namba project`: refresh repository docs and codemaps.
 - `namba regen`: regenerate AGENTS, repo-local skills, command-entry skills, Codex custom agents, readable role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.
 - `namba update [--version vX.Y.Z]`: self-update the installed `namba` binary from GitHub Release assets.
-- `namba plan "<description>"`: create the next feature SPEC package under `.namba/specs/` after the safe-by-default planning worktree preflight resolves where that scaffold should live.
+- `namba plan "<description>"`: create the next feature SPEC package under `.namba/specs/`, and when branch-per-work is enabled create or switch to the dedicated `spec/...` branch in the current workspace.
 - `$namba-plan-review`: create or resolve a SPEC, run the three plan-review tracks in parallel when possible, and drive the advisory readiness loop before implementation starts.
-- `namba harness "<description>"`: create the next harness-oriented SPEC package under `.namba/specs/` through the same safe-by-default planning worktree preflight for reusable agent, skill, workflow, or orchestration work.
+- `namba harness "<description>"`: create the next harness-oriented SPEC package under `.namba/specs/` through the same dedicated-branch planning contract for reusable agent, skill, workflow, or orchestration work.
 - `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: update product, engineering, or design review artifacts under `.namba/specs/<SPEC>/reviews/` and refresh advisory readiness.
-- `namba fix --command plan "<issue description>"`: create the next bugfix SPEC package under `.namba/specs/` through the same planning worktree preflight.
+- `namba fix --command plan "<issue description>"`: create the next bugfix SPEC package under `.namba/specs/` through the same dedicated-branch planning contract.
 - `namba fix "<issue description>"` or `namba fix --command run "<issue description>"`: perform direct repair in the current workspace without creating a SPEC package.
 - `namba run SPEC-XXX`: execute the SPEC in the current Codex session. Read `spec.md`, `plan.md`, and `acceptance.md`, implement directly, validate, and sync artifacts.
 - `namba run SPEC-XXX --solo|--team|--parallel`: use the standalone CLI runner when you need explicit single-subagent, multi-subagent, or worktree-parallel execution semantics.

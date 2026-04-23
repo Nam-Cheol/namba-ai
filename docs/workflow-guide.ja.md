@@ -22,7 +22,7 @@
 - `namba plan "description"`: 次の機能 SPEC パッケージと review artifact を作成します。
 - `namba harness "description"`: agent / skill / workflow / orchestration 再利用向けの harness-oriented SPEC パッケージと review artifact を作成します。
 - `namba fix --command plan "issue description"`: バグ修正 SPEC パッケージと review artifact を作成します。
-- planning の既定動作: shared/base workspace では新しい隔離 worktree を作成し、すでに隔離された `spec/...` worktree だけを再利用し、現在の workspace に直接 scaffold したい場合だけ `--current-workspace` を明示します。
+- planning の既定動作: 現在の workspace で専用 `spec/...` branch を作成または checkout して scaffold します。`--current-workspace` は新しい SPEC branch を作らず現在の branch に直接 scaffold したい場合だけ使い、worktree は一時的な `namba run SPEC-XXX --parallel` 実行にだけ使います。
 - `namba fix "issue description"`: 現在の workspace で direct repair を始めます。
 - `namba fix --command run "issue description"`: 同じ direct-repair path を明示的に選びます。
 - `namba <command> --help`、`namba <command> -h`、`namba help <command>`: すべての top-level command で read-only の help に入り、repo state を変更しません。
@@ -46,7 +46,7 @@
 
 - `namba plan`、`namba harness`、`namba fix --command plan` は `.namba/specs/<SPEC>/reviews/product.md`、`engineering.md`、`design.md`、`readiness.md` を seed します。
 - 実装または GitHub handoff の前に `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` で review artifact を最新に保ち、作成から review loop までまとめたい場合は `$namba-plan-review` を使ってください。
-- `$namba-plan-review` も同じ planning worktree contract を引き継ぎます。shared/base workspace に黙って scaffold せず、隔離 worktree の作成または明示的 override を先に示します。
+- `$namba-plan-review` も同じ planning branch contract を引き継ぎます。既定では現在の workspace で専用 `spec/...` branch を作成または checkout し、`--current-workspace` だけを例外にし、planning 段階では worktree を作りません。
 - `namba regen` または `namba sync` が生成された instruction surface を変えた場合は、長い repair loop を続ける前に fresh Codex session を開始して更新済み guidance を読み直してください。
 - review pass が欠けていても既定では advisory のままです。`namba run`、`namba sync`、`namba pr` は readiness summary を表示しますが、黙って hard gate にはしません。
 

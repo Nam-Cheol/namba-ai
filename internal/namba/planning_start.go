@@ -18,13 +18,13 @@ type planningStartOptions struct {
 }
 
 type planningStartResolution struct {
-	Root                  string
-	SpecID                string
-	Branch                string
-	WorktreePath          string
-	WorkspaceAction       string
-	NextStep              string
-	CreatedIsolatedTarget bool
+	Root            string
+	SpecID          string
+	Branch          string
+	WorkspacePath   string
+	WorkspaceAction string
+	NextStep        string
+	CreatedBranch   bool
 }
 
 func (a *App) resolvePlanningStart(ctx context.Context, currentRoot string, options planningStartOptions) (planningStartResolution, error) {
@@ -36,10 +36,10 @@ func (a *App) resolvePlanningStart(ctx context.Context, currentRoot string, opti
 		return planningStartResolution{
 			Root:            currentRoot,
 			SpecID:          specID,
-			Branch:          "n/a (git worktree isolation unavailable)",
-			WorktreePath:    currentRoot,
+			Branch:          "n/a (git branch automation unavailable)",
+			WorkspacePath:   currentRoot,
 			WorkspaceAction: "scaffolded in current workspace",
-			NextStep:        "continue in the current workspace; git worktree isolation is unavailable here.",
+			NextStep:        "continue in the current workspace; git branch automation is unavailable here.",
 		}, nil
 	}
 
@@ -56,7 +56,7 @@ func (a *App) resolvePlanningStart(ctx context.Context, currentRoot string, opti
 			Root:            currentRoot,
 			SpecID:          specID,
 			Branch:          "n/a (branch-per-work disabled)",
-			WorktreePath:    currentRoot,
+			WorkspacePath:   currentRoot,
 			WorkspaceAction: "scaffolded in current workspace",
 			NextStep:        "continue in the current workspace; branch-per-work is disabled in git strategy.",
 		}, nil
@@ -77,9 +77,7 @@ func (a *App) resolvePlanningStart(ctx context.Context, currentRoot string, opti
 	}
 	baseBranch := branchBase(profile)
 	specPrefix := specBranchPrefix(profile)
-	sharedRoot := sharedWorktreeRoot(worktrees, currentRoot, baseBranch)
 	targetBranch := specPrefix + specID + "-" + slug
-	targetPath := filepath.Join(sharedRoot, worktreesDir, strings.ToLower(specID+"-"+slug))
 
 	currentBranch, err := a.currentBranch(ctx, currentRoot)
 	if err != nil {
@@ -95,57 +93,63 @@ func (a *App) resolvePlanningStart(ctx context.Context, currentRoot string, opti
 			Root:            currentRoot,
 			SpecID:          specID,
 			Branch:          currentBranch,
-			WorktreePath:    currentRoot,
+			WorkspacePath:   currentRoot,
 			WorkspaceAction: "explicit current-workspace override",
-			NextStep:        fmt.Sprintf("continue in the current workspace; %s was used intentionally.", currentWorkspacePlanningFlag),
-		}, nil
-	}
-
-	currentIsShared := samePlanningPath(currentRoot, sharedRoot)
-	currentIsDedicated := !currentIsShared &&
-		containsPlanningWorktreePath(worktrees, currentRoot) &&
-		!dirty &&
-		currentBranch != baseBranch &&
-		strings.HasPrefix(currentBranch, specPrefix)
-	if currentIsDedicated {
-		return planningStartResolution{
-			Root:            currentRoot,
-			SpecID:          specID,
-			Branch:          currentBranch,
-			WorktreePath:    currentRoot,
-			WorkspaceAction: "reused current isolated workspace",
-			NextStep:        "continue in the current workspace.",
+			NextStep:        fmt.Sprintf("continue in the current workspace on branch %s; %s was used intentionally.", firstNonBlank(currentBranch, "HEAD"), currentWorkspacePlanningFlag),
 		}, nil
 	}
 
 	if dirty {
-		action := "refused due to dirty ambiguous workspace"
-		nextStep := fmt.Sprintf("clean or commit existing changes, or rerun with %s if this workspace is the intended scaffold target.", currentWorkspacePlanningFlag)
-		if currentIsShared || currentBranch == baseBranch {
-			action = "refused due to dirty shared/base workspace"
-			nextStep = fmt.Sprintf("clean or commit the shared workspace first, or rerun with %s only if in-place scaffolding is intentional.", currentWorkspacePlanningFlag)
-		}
 		return planningStartResolution{
 			Root:            currentRoot,
 			SpecID:          specID,
 			Branch:          currentBranch,
-			WorktreePath:    currentRoot,
-			WorkspaceAction: action,
-			NextStep:        nextStep,
+			WorkspacePath:   currentRoot,
+			WorkspaceAction: "refused due to dirty workspace",
+			NextStep:        fmt.Sprintf("clean or commit existing changes, or rerun with %s only if you intentionally want to scaffold on the current branch without creating a dedicated SPEC branch.", currentWorkspacePlanningFlag),
 		}, fmt.Errorf("unsafe planning context")
 	}
 
-	if _, err := a.runBinary(ctx, "git", []string{"worktree", "add", "-b", targetBranch, targetPath, baseBranch}, sharedRoot); err != nil {
-		return planningStartResolution{}, fmt.Errorf("create isolated worktree %s on %s from %s: %w", targetPath, targetBranch, baseBranch, err)
+	if currentBranch == targetBranch {
+		return planningStartResolution{
+			Root:            currentRoot,
+			SpecID:          specID,
+			Branch:          currentBranch,
+			WorkspacePath:   currentRoot,
+			WorkspaceAction: "reused current SPEC branch",
+			NextStep:        fmt.Sprintf("continue in the current workspace on branch %s.", currentBranch),
+		}, nil
+	}
+
+	exists, err := a.localBranchExists(ctx, currentRoot, targetBranch)
+	if err != nil {
+		return planningStartResolution{}, err
+	}
+	if exists {
+		if _, err := a.runBinary(ctx, "git", []string{"checkout", targetBranch}, currentRoot); err != nil {
+			return planningStartResolution{}, fmt.Errorf("checkout existing SPEC branch %s: %w", targetBranch, err)
+		}
+		return planningStartResolution{
+			Root:            currentRoot,
+			SpecID:          specID,
+			Branch:          targetBranch,
+			WorkspacePath:   currentRoot,
+			WorkspaceAction: "checked out existing SPEC branch in current workspace",
+			NextStep:        fmt.Sprintf("continue in the current workspace on branch %s.", targetBranch),
+		}, nil
+	}
+
+	if _, err := a.runBinary(ctx, "git", []string{"checkout", "-b", targetBranch, baseBranch}, currentRoot); err != nil {
+		return planningStartResolution{}, fmt.Errorf("create SPEC branch %s from %s: %w", targetBranch, baseBranch, err)
 	}
 	return planningStartResolution{
-		Root:                  targetPath,
-		SpecID:                specID,
-		Branch:                targetBranch,
-		WorktreePath:          targetPath,
-		WorkspaceAction:       "created isolated workspace",
-		NextStep:              fmt.Sprintf("cd %s", targetPath),
-		CreatedIsolatedTarget: true,
+		Root:            currentRoot,
+		SpecID:          specID,
+		Branch:          targetBranch,
+		WorkspacePath:   currentRoot,
+		WorkspaceAction: "created dedicated SPEC branch in current workspace",
+		NextStep:        fmt.Sprintf("continue in the current workspace on branch %s.", targetBranch),
+		CreatedBranch:   true,
 	}, nil
 }
 
@@ -207,61 +211,12 @@ func isAccessiblePlanningWorkspace(path string) (bool, error) {
 	return info.IsDir(), nil
 }
 
-func sharedWorktreeRoot(worktrees []gitWorktree, fallback, baseBranch string) string {
-	for _, worktree := range worktrees {
-		info, err := os.Stat(filepath.Join(worktree.Path, ".git"))
-		if err == nil && info.IsDir() {
-			return filepath.Clean(worktree.Path)
-		}
+func (a *App) localBranchExists(ctx context.Context, root, branch string) (bool, error) {
+	out, err := a.runBinary(ctx, "git", []string{"branch", "--list", branch}, root)
+	if err != nil {
+		return false, fmt.Errorf("check existing branch %s: %w", branch, err)
 	}
-
-	for _, worktree := range worktrees {
-		if worktree.Branch != baseBranch {
-			continue
-		}
-		if accessiblePlanningPath(worktree.Path) {
-			return filepath.Clean(worktree.Path)
-		}
-	}
-
-	if accessiblePlanningPath(fallback) {
-		return filepath.Clean(fallback)
-	}
-
-	for _, worktree := range worktrees {
-		if accessiblePlanningPath(worktree.Path) {
-			return filepath.Clean(worktree.Path)
-		}
-	}
-	return filepath.Clean(fallback)
-}
-
-func accessiblePlanningPath(path string) bool {
-	accessible, err := isAccessiblePlanningWorkspace(path)
-	return err == nil && accessible
-}
-
-func containsPlanningWorktreePath(worktrees []gitWorktree, path string) bool {
-	for _, worktree := range worktrees {
-		if samePlanningPath(worktree.Path, path) {
-			return true
-		}
-	}
-	return false
-}
-
-func samePlanningPath(left, right string) bool {
-	return normalizePlanningPath(left) == normalizePlanningPath(right)
-}
-
-func normalizePlanningPath(path string) string {
-	if resolved, err := filepath.EvalSymlinks(path); err == nil && resolved != "" {
-		return filepath.Clean(resolved)
-	}
-	if abs, err := filepath.Abs(path); err == nil && abs != "" {
-		return filepath.Clean(abs)
-	}
-	return filepath.Clean(path)
+	return strings.TrimSpace(out) != "", nil
 }
 
 func formatPlanningStartSummary(start planningStartResolution) string {
@@ -270,15 +225,15 @@ func formatPlanningStartSummary(start planningStartResolution) string {
 		fmt.Sprintf("- SPEC: %s", start.SpecID),
 		fmt.Sprintf("- Workspace action: %s", start.WorkspaceAction),
 		fmt.Sprintf("- Branch: %s", firstNonBlank(start.Branch, "n/a")),
-		fmt.Sprintf("- Worktree: %s", firstNonBlank(start.WorktreePath, start.Root)),
+		fmt.Sprintf("- Workspace: %s", firstNonBlank(start.WorkspacePath, start.Root)),
 		fmt.Sprintf("- Next step: %s", start.NextStep),
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
 
 func wrapPlanningScaffoldFailure(start planningStartResolution, err error) error {
-	if !start.CreatedIsolatedTarget {
+	if !start.CreatedBranch {
 		return err
 	}
-	return fmt.Errorf("%sscaffolding failed after creating the isolated workspace; resume in %s or remove it manually if you do not want to keep it: %w", formatPlanningStartSummary(start), start.Root, err)
+	return fmt.Errorf("%sscaffolding failed after creating the SPEC branch; continue in the current workspace on %s or delete the branch manually if you do not want to keep it: %w", formatPlanningStartSummary(start), start.Branch, err)
 }
