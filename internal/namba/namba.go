@@ -1429,6 +1429,11 @@ func (a *App) runSync(_ context.Context, args []string) error {
 	readmeOutputs := buildReadmeOutputs(syncCtx.ProjectCfg, syncCtx.Profile, syncCtx.DocsCfg)
 	analysis := analyzeProject(root, syncCtx.ProjectCfg, qualityCfg, analysisCfg)
 	projectOutputs := analysis.renderOutputs()
+	readinessBatch, err := buildSpecReviewReadinessBatch(root)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	syncCtx.Support = a.buildSyncSupportContext(root, syncCtx.LatestSpec, readinessBatch.Advisories)
 
 	session, err := a.beginManagedOutputSession(root)
 	if err != nil {
@@ -1453,14 +1458,9 @@ func (a *App) runSync(_ context.Context, args []string) error {
 		return errors.New("project analysis quality gate failed")
 	}
 
-	readinessBatch, err := buildSpecReviewReadinessBatch(root)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
 	if err := session.replaceManagedOutputs(readinessBatch.Outputs, isSpecReviewReadinessManagedPath, nil); err != nil {
 		return err
 	}
-	syncCtx.Support = a.buildSyncSupportContext(root, syncCtx.LatestSpec, readinessBatch.Advisories)
 	if err := session.replaceManagedOutputs(buildSyncProjectSupportOutputs(syncCtx), isSyncProjectSupportManagedPath, nil); err != nil {
 		return err
 	}

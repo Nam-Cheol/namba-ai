@@ -298,6 +298,45 @@ func TestWriteSyncProjectSupportDocsUsesOneManifestSession(t *testing.T) {
 	}
 }
 
+func TestSyncDoesNotMutateOutputsWhenReadinessBatchFails(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"sync"}); err != nil {
+		t.Fatalf("baseline sync failed: %v", err)
+	}
+
+	structurePath := filepath.Join(tmp, ".namba", "project", "structure.md")
+	manifestPath := filepath.Join(tmp, ".namba", "manifest.json")
+	beforeStructure := mustReadFile(t, structurePath)
+	beforeManifest := mustReadFile(t, manifestPath)
+
+	specsDirPath := filepath.Join(tmp, ".namba", "specs")
+	if err := os.Rename(specsDirPath, specsDirPath+"-backup"); err != nil {
+		t.Fatalf("rename specs dir: %v", err)
+	}
+	if err := os.WriteFile(specsDirPath, []byte("broken"), 0o644); err != nil {
+		t.Fatalf("write broken specs path: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, "internal", "spec034"), 0o755); err != nil {
+		t.Fatalf("mkdir new source dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "internal", "spec034", "service.go"), []byte("package spec034\n"), 0o644); err != nil {
+		t.Fatalf("write new source file: %v", err)
+	}
+
+	if err := app.Run(context.Background(), []string{"sync"}); err == nil {
+		t.Fatal("expected sync to fail when .namba/specs is not a directory")
+	}
+
+	if got := mustReadFile(t, structurePath); got != beforeStructure {
+		t.Fatalf("expected structure doc to stay unchanged on readiness batch failure")
+	}
+	if got := mustReadFile(t, manifestPath); got != beforeManifest {
+		t.Fatalf("expected manifest to stay unchanged on readiness batch failure")
+	}
+}
+
 func TestMaterializeSyncProjectSupportOutputsWritesProvidedDocs(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
