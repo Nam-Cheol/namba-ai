@@ -337,6 +337,39 @@ func TestSyncDoesNotMutateOutputsWhenReadinessBatchFails(t *testing.T) {
 	}
 }
 
+func TestSyncSupportDocsDoNotReferenceRemovedLatestReadiness(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"sync"}); err != nil {
+		t.Fatalf("baseline sync failed: %v", err)
+	}
+
+	reviewsDir := filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews")
+	if err := os.RemoveAll(reviewsDir); err != nil {
+		t.Fatalf("remove reviews dir: %v", err)
+	}
+
+	if err := app.Run(context.Background(), []string{"sync"}); err != nil {
+		t.Fatalf("sync after review removal failed: %v", err)
+	}
+
+	readinessPath := filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews", "readiness.md")
+	if _, err := os.Stat(readinessPath); !os.IsNotExist(err) {
+		t.Fatalf("expected readiness artifact to be removed, stat err=%v", err)
+	}
+
+	changeSummary := mustReadFile(t, filepath.Join(tmp, ".namba", "project", "change-summary.md"))
+	if strings.Contains(changeSummary, "## Latest Review Readiness") || strings.Contains(changeSummary, specReviewReadinessPath("SPEC-001")) {
+		t.Fatalf("expected change summary to drop removed readiness reference, got %q", changeSummary)
+	}
+
+	prChecklist := mustReadFile(t, filepath.Join(tmp, ".namba", "project", "pr-checklist.md"))
+	if strings.Contains(prChecklist, "Latest SPEC review readiness checked") || strings.Contains(prChecklist, specReviewReadinessPath("SPEC-001")) {
+		t.Fatalf("expected pr checklist to drop removed readiness reference, got %q", prChecklist)
+	}
+}
+
 func TestMaterializeSyncProjectSupportOutputsWritesProvidedDocs(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

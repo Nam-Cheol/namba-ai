@@ -21,9 +21,11 @@ func (a *App) buildSyncSupportContext(root, latestSpec string, readinessAdvisori
 	}
 	if support.LatestSpec != "none" {
 		support.LatestReadinessPath = specReviewReadinessPath(support.LatestSpec)
-		if advisory, ok := readinessAdvisories[support.LatestSpec]; ok {
-			support.HasLatestReadiness = true
-			support.LatestReadinessSummary = advisory
+		if readinessAdvisories != nil {
+			if advisory, ok := readinessAdvisories[support.LatestSpec]; ok {
+				support.HasLatestReadiness = true
+				support.LatestReadinessSummary = advisory
+			}
 		} else if specReviewReadinessExists(root, support.LatestSpec) {
 			support.HasLatestReadiness = true
 			states := loadSpecReviewStatesWithReadFile(a.readFile, filepath.Join(root, specsDir, support.LatestSpec))
