@@ -22,7 +22,7 @@
 - `namba plan "description"`: create the next feature SPEC package and review artifacts.
 - `namba harness "description"`: create the next harness-oriented SPEC package and review artifacts for reusable agent, skill, workflow, or orchestration work.
 - `namba fix --command plan "issue description"`: create a bugfix SPEC package plus review artifacts.
-- Planning defaults: create from the shared/base workspace into a new isolated worktree, reuse only an already isolated `spec/...` worktree, and reserve `--current-workspace` for intentional in-place scaffolding.
+- Planning defaults: create or switch to a dedicated `spec/...` branch in the current workspace, reserve `--current-workspace` for intentional current-branch scaffolding, and keep worktrees for temporary `namba run SPEC-XXX --parallel` execution only.
 - `namba fix "issue description"`: direct repair in the current workspace.
 - `namba fix --command run "issue description"`: explicit form of the same direct-repair path.
 - `namba <command> --help`, `namba <command> -h`, and `namba help <command>`: read-only help flows for every top-level command; they must not mutate repository state.
@@ -46,7 +46,7 @@
 
 - `namba plan`, `namba harness`, and `namba fix --command plan` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.
 - Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` to keep those artifacts current before implementation or PR handoff, or use `$namba-plan-review` when you want one skill to handle SPEC creation plus the parallel review loop.
-- `$namba-plan-review` inherits the same planning worktree contract instead of scaffolding into whichever workspace happens to be open; shared/base entry creates or directs you into an isolated worktree unless you choose the explicit override.
+- `$namba-plan-review` inherits the same planning branch contract: by default it creates or switches to the dedicated `spec/...` branch in the current workspace, treats `--current-workspace` as the only explicit escape hatch, and does not create planning worktrees.
 - If `namba regen` or `namba sync` changes generated instruction surfaces, start a fresh Codex session so the updated guidance is loaded before continuing a long repair loop.
 - Missing review passes stay advisory by default: `namba run`, `namba sync`, and `namba pr` surface the current readiness summary without silently hard-blocking delivery.
 

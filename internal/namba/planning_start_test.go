@@ -70,77 +70,86 @@ func TestNextPlanningSpecIDIgnoresPermissionRestrictedWorktrees(t *testing.T) {
 	}
 }
 
-func TestSharedWorktreeRootPrefersAccessibleBaseBranchWithoutDotGitDir(t *testing.T) {
+func TestNextPlanningSpecIDIncludesDetachedLocalBranches(t *testing.T) {
 	t.Parallel()
 
-	missingRoot := filepath.Join(t.TempDir(), "missing")
-	baseRoot := canonicalTempDir(t)
-	currentRoot := canonicalTempDir(t)
+	root := preparePlanningGitProject(t)
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
 
-	root := sharedWorktreeRoot([]gitWorktree{
-		{Path: missingRoot, Branch: "main"},
-		{Path: baseRoot, Branch: "main"},
-		{Path: currentRoot, Branch: "spec/SPEC-031-existing"},
-	}, currentRoot, "main")
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if name != "git" {
+			t.Fatalf("unexpected command: %s %v", name, args)
+		}
+		if dir != root {
+			t.Fatalf("expected workdir %s, got %s", root, dir)
+		}
 
-	if root != filepath.Clean(baseRoot) {
-		t.Fatalf("expected accessible base branch root %s, got %s", baseRoot, root)
+		switch strings.Join(args, " ") {
+		case "for-each-ref --format=%(refname:short) refs/heads":
+			return "main\nspec/SPEC-007-existing", nil
+		case "ls-tree -r --name-only --full-tree main .namba/specs":
+			return ".namba/specs/.gitkeep", nil
+		case "ls-tree -r --name-only --full-tree spec/SPEC-007-existing .namba/specs":
+			return ".namba/specs/SPEC-007/spec.md", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	specID, err := app.nextPlanningSpecID(context.Background(), root, []gitWorktree{
+		{Path: root, Branch: "main"},
+	})
+	if err != nil {
+		t.Fatalf("nextPlanningSpecID failed: %v", err)
+	}
+	if specID != "SPEC-008" {
+		t.Fatalf("expected SPEC-008, got %s", specID)
 	}
 }
 
-func TestSharedWorktreeRootFallsBackToCurrentWorkspaceWhenListedRootsAreMissing(t *testing.T) {
+func TestRunPlanCreatesDedicatedSpecBranchInCurrentWorkspace(t *testing.T) {
 	t.Parallel()
 
-	missingRoot := filepath.Join(t.TempDir(), "missing")
-	currentRoot := canonicalTempDir(t)
-
-	root := sharedWorktreeRoot([]gitWorktree{
-		{Path: missingRoot, Branch: "main"},
-	}, currentRoot, "main")
-
-	if root != filepath.Clean(currentRoot) {
-		t.Fatalf("expected current workspace fallback %s, got %s", currentRoot, root)
-	}
-}
-
-func TestRunPlanCreatesIsolatedWorkspaceFromSharedRoot(t *testing.T) {
-	t.Parallel()
-
-	sharedRoot := preparePlanningGitProject(t)
-	targetPath := filepath.Join(sharedRoot, worktreesDir, "spec-001-ship-safer-planning-flow")
+	root := preparePlanningGitProject(t)
 	stdout := &bytes.Buffer{}
 	app := NewApp(stdout, &bytes.Buffer{})
 
-	restore := chdirExecution(t, sharedRoot)
+	restore := chdirExecution(t, root)
 	defer restore()
 
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 		switch {
 		case name == "git" && strings.Join(args, " ") == "worktree list --porcelain":
 			return renderPlanningWorktreeList(
-				gitWorktree{Path: sharedRoot, Branch: "main"},
+				gitWorktree{Path: root, Branch: "main"},
 			), nil
+		case name == "git" && strings.Join(args, " ") == "for-each-ref --format=%(refname:short) refs/heads":
+			return "main", nil
+		case name == "git" && strings.Join(args, " ") == "ls-tree -r --name-only --full-tree main .namba/specs":
+			return ".namba/specs/.gitkeep", nil
 		case name == "git" && strings.Join(args, " ") == "branch --show-current":
-			if dir != sharedRoot {
-				t.Fatalf("expected branch lookup in %s, got %s", sharedRoot, dir)
+			if dir != root {
+				t.Fatalf("expected branch lookup in %s, got %s", root, dir)
 			}
 			return "main", nil
 		case name == "git" && strings.Join(args, " ") == "status --porcelain":
-			if dir != sharedRoot {
-				t.Fatalf("expected status lookup in %s, got %s", sharedRoot, dir)
+			if dir != root {
+				t.Fatalf("expected status lookup in %s, got %s", root, dir)
 			}
 			return "", nil
-		case name == "git" && len(args) == 6 && args[0] == "worktree" && args[1] == "add" && args[2] == "-b":
-			if dir != sharedRoot {
-				t.Fatalf("expected worktree add from %s, got %s", sharedRoot, dir)
+		case name == "git" && strings.Join(args, " ") == "branch --list spec/SPEC-001-ship-safer-planning-flow":
+			return "", nil
+		case name == "git" && len(args) == 4 && args[0] == "checkout" && args[1] == "-b":
+			if dir != root {
+				t.Fatalf("expected checkout in %s, got %s", root, dir)
 			}
-			if args[3] != "spec/SPEC-001-ship-safer-planning-flow" {
+			if args[2] != "spec/SPEC-001-ship-safer-planning-flow" {
 				t.Fatalf("unexpected branch: %v", args)
 			}
-			if args[4] != targetPath || args[5] != "main" {
-				t.Fatalf("unexpected worktree add args: %v", args)
+			if args[3] != "main" {
+				t.Fatalf("unexpected checkout args: %v", args)
 			}
-			prepareAttachedPlanningWorkspace(t, sharedRoot, targetPath)
 			return "", nil
 		default:
 			t.Fatalf("unexpected command: %s %v dir=%s", name, args, dir)
@@ -152,19 +161,16 @@ func TestRunPlanCreatesIsolatedWorkspaceFromSharedRoot(t *testing.T) {
 		t.Fatalf("plan failed: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(sharedRoot, ".namba", "specs", "SPEC-001")); !os.IsNotExist(err) {
-		t.Fatalf("expected shared workspace to stay untouched, stat err=%v", err)
-	}
-	if _, err := os.Stat(filepath.Join(targetPath, ".namba", "specs", "SPEC-001", "spec.md")); err != nil {
-		t.Fatalf("expected isolated workspace spec scaffold, stat err=%v", err)
+	if _, err := os.Stat(filepath.Join(root, ".namba", "specs", "SPEC-001", "spec.md")); err != nil {
+		t.Fatalf("expected current workspace spec scaffold, stat err=%v", err)
 	}
 
 	got := stdout.String()
 	for _, want := range []string{
-		"Workspace action: created isolated workspace",
+		"Workspace action: created dedicated SPEC branch in current workspace",
 		"Branch: spec/SPEC-001-ship-safer-planning-flow",
-		"Worktree: " + targetPath,
-		"Next step: cd " + targetPath,
+		"Workspace: " + root,
+		"Next step: continue in the current workspace on branch spec/SPEC-001-ship-safer-planning-flow.",
 		"Created SPEC-001",
 	} {
 		if !strings.Contains(got, want) {
@@ -173,38 +179,38 @@ func TestRunPlanCreatesIsolatedWorkspaceFromSharedRoot(t *testing.T) {
 	}
 }
 
-func TestRunPlanReusesCurrentDedicatedWorkspace(t *testing.T) {
+func TestRunPlanReusesCurrentMatchingSpecBranch(t *testing.T) {
 	t.Parallel()
 
-	sharedRoot := preparePlanningGitProject(t)
-	currentRoot := filepath.Join(sharedRoot, worktreesDir, "spec-099-existing")
-	prepareAttachedPlanningWorkspace(t, sharedRoot, currentRoot)
-
+	root := preparePlanningGitProject(t)
 	stdout := &bytes.Buffer{}
 	app := NewApp(stdout, &bytes.Buffer{})
 
-	restore := chdirExecution(t, currentRoot)
+	restore := chdirExecution(t, root)
 	defer restore()
 
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 		switch {
 		case name == "git" && strings.Join(args, " ") == "worktree list --porcelain":
 			return renderPlanningWorktreeList(
-				gitWorktree{Path: sharedRoot, Branch: "main"},
-				gitWorktree{Path: currentRoot, Branch: "spec/SPEC-099-existing"},
+				gitWorktree{Path: root, Branch: "spec/SPEC-001-tighten-reuse-behavior"},
 			), nil
+		case name == "git" && strings.Join(args, " ") == "for-each-ref --format=%(refname:short) refs/heads":
+			return "spec/SPEC-001-tighten-reuse-behavior", nil
+		case name == "git" && strings.Join(args, " ") == "ls-tree -r --name-only --full-tree spec/SPEC-001-tighten-reuse-behavior .namba/specs":
+			return "", nil
 		case name == "git" && strings.Join(args, " ") == "branch --show-current":
-			if dir != currentRoot {
-				t.Fatalf("expected branch lookup in %s, got %s", currentRoot, dir)
+			if dir != root {
+				t.Fatalf("expected branch lookup in %s, got %s", root, dir)
 			}
-			return "spec/SPEC-099-existing", nil
+			return "spec/SPEC-001-tighten-reuse-behavior", nil
 		case name == "git" && strings.Join(args, " ") == "status --porcelain":
-			if dir != currentRoot {
-				t.Fatalf("expected status lookup in %s, got %s", currentRoot, dir)
+			if dir != root {
+				t.Fatalf("expected status lookup in %s, got %s", root, dir)
 			}
 			return "", nil
-		case name == "git" && len(args) > 1 && args[0] == "worktree" && args[1] == "add":
-			t.Fatal("did not expect nested worktree creation")
+		case name == "git" && len(args) > 1 && args[0] == "checkout":
+			t.Fatal("did not expect branch checkout when already on the target SPEC branch")
 			return "", nil
 		default:
 			t.Fatalf("unexpected command: %s %v dir=%s", name, args, dir)
@@ -216,41 +222,38 @@ func TestRunPlanReusesCurrentDedicatedWorkspace(t *testing.T) {
 		t.Fatalf("plan failed: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(currentRoot, ".namba", "specs", "SPEC-001", "spec.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, ".namba", "specs", "SPEC-001", "spec.md")); err != nil {
 		t.Fatalf("expected scaffold in current workspace, stat err=%v", err)
 	}
-	if _, err := os.Stat(filepath.Join(sharedRoot, ".namba", "specs", "SPEC-001")); !os.IsNotExist(err) {
-		t.Fatalf("expected shared root to remain untouched, stat err=%v", err)
-	}
-	if got := stdout.String(); !strings.Contains(got, "Workspace action: reused current isolated workspace") {
+	if got := stdout.String(); !strings.Contains(got, "Workspace action: reused current SPEC branch") {
 		t.Fatalf("expected reuse summary, got %q", got)
 	}
 }
 
-func TestRunPlanRefusesDirtyAmbiguousWorkspace(t *testing.T) {
+func TestRunPlanRefusesDirtyWorkspaceBeforeBranchSwitch(t *testing.T) {
 	t.Parallel()
 
-	sharedRoot := preparePlanningGitProject(t)
-	currentRoot := canonicalTempDir(t)
-	prepareAttachedPlanningWorkspace(t, sharedRoot, currentRoot)
-
+	root := preparePlanningGitProject(t)
 	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
-	restore := chdirExecution(t, currentRoot)
+	restore := chdirExecution(t, root)
 	defer restore()
 
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 		switch {
 		case name == "git" && strings.Join(args, " ") == "worktree list --porcelain":
 			return renderPlanningWorktreeList(
-				gitWorktree{Path: sharedRoot, Branch: "main"},
-				gitWorktree{Path: currentRoot, Branch: "feature/other-work"},
+				gitWorktree{Path: root, Branch: "feature/other-work"},
 			), nil
+		case name == "git" && strings.Join(args, " ") == "for-each-ref --format=%(refname:short) refs/heads":
+			return "feature/other-work", nil
+		case name == "git" && strings.Join(args, " ") == "ls-tree -r --name-only --full-tree feature/other-work .namba/specs":
+			return "", nil
 		case name == "git" && strings.Join(args, " ") == "branch --show-current":
 			return "feature/other-work", nil
 		case name == "git" && strings.Join(args, " ") == "status --porcelain":
 			return " M README.md", nil
-		case name == "git" && len(args) > 1 && args[0] == "worktree" && args[1] == "add":
-			t.Fatal("did not expect worktree creation for dirty ambiguous workspace")
+		case name == "git" && len(args) > 1 && args[0] == "checkout":
+			t.Fatal("did not expect branch switch for dirty workspace")
 			return "", nil
 		default:
 			t.Fatalf("unexpected command: %s %v dir=%s", name, args, dir)
@@ -260,10 +263,10 @@ func TestRunPlanRefusesDirtyAmbiguousWorkspace(t *testing.T) {
 
 	err := app.Run(context.Background(), []string{"plan", "unsafe dirty context"})
 	if err == nil {
-		t.Fatal("expected plan to refuse dirty ambiguous workspace")
+		t.Fatal("expected plan to refuse dirty workspace")
 	}
 	for _, want := range []string{
-		"Workspace action: refused due to dirty ambiguous workspace",
+		"Workspace action: refused due to dirty workspace",
 		"Branch: feature/other-work",
 		currentWorkspacePlanningFlag,
 	} {
@@ -292,12 +295,18 @@ func TestRunPlanCurrentWorkspaceOverrideAllowsDirtyWorkspace(t *testing.T) {
 				gitWorktree{Path: sharedRoot, Branch: "main"},
 				gitWorktree{Path: currentRoot, Branch: "feature/other-work"},
 			), nil
+		case name == "git" && strings.Join(args, " ") == "for-each-ref --format=%(refname:short) refs/heads":
+			return "main\nfeature/other-work", nil
+		case name == "git" && strings.Join(args, " ") == "ls-tree -r --name-only --full-tree main .namba/specs":
+			return ".namba/specs/.gitkeep", nil
+		case name == "git" && strings.Join(args, " ") == "ls-tree -r --name-only --full-tree feature/other-work .namba/specs":
+			return "", nil
 		case name == "git" && strings.Join(args, " ") == "branch --show-current":
 			return "feature/other-work", nil
 		case name == "git" && strings.Join(args, " ") == "status --porcelain":
 			return " M README.md", nil
-		case name == "git" && len(args) > 1 && args[0] == "worktree" && args[1] == "add":
-			t.Fatal("did not expect worktree creation when override is explicit")
+		case name == "git" && len(args) > 1 && args[0] == "checkout":
+			t.Fatal("did not expect branch creation when override is explicit")
 			return "", nil
 		default:
 			t.Fatalf("unexpected command: %s %v dir=%s", name, args, dir)
@@ -317,27 +326,31 @@ func TestRunPlanCurrentWorkspaceOverrideAllowsDirtyWorkspace(t *testing.T) {
 	}
 }
 
-func TestRunPlanPreservesCreatedWorktreeWhenScaffoldFails(t *testing.T) {
+func TestRunPlanPreservesCreatedBranchWhenScaffoldFails(t *testing.T) {
 	t.Parallel()
 
-	sharedRoot := preparePlanningGitProject(t)
-	targetPath := filepath.Join(sharedRoot, worktreesDir, "spec-001-fail-after-add")
+	root := preparePlanningGitProject(t)
 	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
-	restore := chdirExecution(t, sharedRoot)
+	restore := chdirExecution(t, root)
 	defer restore()
 
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 		switch {
 		case name == "git" && strings.Join(args, " ") == "worktree list --porcelain":
 			return renderPlanningWorktreeList(
-				gitWorktree{Path: sharedRoot, Branch: "main"},
+				gitWorktree{Path: root, Branch: "main"},
 			), nil
+		case name == "git" && strings.Join(args, " ") == "for-each-ref --format=%(refname:short) refs/heads":
+			return "main", nil
+		case name == "git" && strings.Join(args, " ") == "ls-tree -r --name-only --full-tree main .namba/specs":
+			return ".namba/specs/.gitkeep", nil
 		case name == "git" && strings.Join(args, " ") == "branch --show-current":
 			return "main", nil
 		case name == "git" && strings.Join(args, " ") == "status --porcelain":
 			return "", nil
-		case name == "git" && len(args) == 6 && args[0] == "worktree" && args[1] == "add" && args[2] == "-b":
-			prepareAttachedPlanningWorkspace(t, sharedRoot, targetPath)
+		case name == "git" && strings.Join(args, " ") == "branch --list spec/SPEC-001-fail-after-add":
+			return "", nil
+		case name == "git" && len(args) == 4 && args[0] == "checkout" && args[1] == "-b":
 			return "", nil
 		default:
 			t.Fatalf("unexpected command: %s %v dir=%s", name, args, dir)
@@ -353,15 +366,12 @@ func TestRunPlanPreservesCreatedWorktreeWhenScaffoldFails(t *testing.T) {
 
 	err := app.Run(context.Background(), []string{"plan", "fail after add"})
 	if err == nil {
-		t.Fatal("expected plan to fail after worktree creation")
-	}
-	if _, statErr := os.Stat(targetPath); statErr != nil {
-		t.Fatalf("expected created worktree to remain for inspection, stat err=%v", statErr)
+		t.Fatal("expected plan to fail after branch creation")
 	}
 	for _, want := range []string{
-		"Workspace action: created isolated workspace",
-		"scaffolding failed after creating the isolated workspace",
-		targetPath,
+		"Workspace action: created dedicated SPEC branch in current workspace",
+		"scaffolding failed after creating the SPEC branch",
+		"spec/SPEC-001-fail-after-add",
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("expected error to contain %q, got %v", want, err)
