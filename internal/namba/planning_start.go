@@ -66,7 +66,7 @@ func (a *App) resolvePlanningStart(ctx context.Context, currentRoot string, opti
 	if err != nil {
 		return planningStartResolution{}, err
 	}
-	specID, err := nextPlanningSpecID(worktrees)
+	specID, err := a.nextPlanningSpecID(ctx, currentRoot, worktrees)
 	if err != nil {
 		return planningStartResolution{}, err
 	}
@@ -161,7 +161,35 @@ func (a *App) planningWorktrees(ctx context.Context, root string) ([]gitWorktree
 	return parseGitWorktrees(out), nil
 }
 
+func (a *App) nextPlanningSpecID(ctx context.Context, root string, worktrees []gitWorktree) (string, error) {
+	maxID, err := maxPlanningSpecIDFromWorktrees(worktrees)
+	if err != nil {
+		return "", err
+	}
+
+	branches, err := a.localBranches(ctx, root)
+	if err != nil {
+		return "", err
+	}
+	branchMaxID, err := a.maxPlanningSpecIDFromBranches(ctx, root, branches)
+	if err != nil {
+		return "", err
+	}
+	if branchMaxID > maxID {
+		maxID = branchMaxID
+	}
+	return fmt.Sprintf("SPEC-%03d", maxID+1), nil
+}
+
 func nextPlanningSpecID(worktrees []gitWorktree) (string, error) {
+	maxID, err := maxPlanningSpecIDFromWorktrees(worktrees)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("SPEC-%03d", maxID+1), nil
+}
+
+func maxPlanningSpecIDFromWorktrees(worktrees []gitWorktree) (int, error) {
 	maxID := 0
 	seen := map[string]struct{}{}
 	for _, worktree := range worktrees {
@@ -175,7 +203,7 @@ func nextPlanningSpecID(worktrees []gitWorktree) (string, error) {
 		seen[path] = struct{}{}
 		accessible, err := isAccessiblePlanningWorkspace(path)
 		if err != nil {
-			return "", err
+			return 0, err
 		}
 		if !accessible {
 			continue
@@ -185,7 +213,7 @@ func nextPlanningSpecID(worktrees []gitWorktree) (string, error) {
 			if os.IsNotExist(err) || os.IsPermission(err) {
 				continue
 			}
-			return "", err
+			return 0, err
 		}
 		for _, entry := range entries {
 			if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "SPEC-") {
@@ -197,7 +225,7 @@ func nextPlanningSpecID(worktrees []gitWorktree) (string, error) {
 			}
 		}
 	}
-	return fmt.Sprintf("SPEC-%03d", maxID+1), nil
+	return maxID, nil
 }
 
 func isAccessiblePlanningWorkspace(path string) (bool, error) {
@@ -217,6 +245,70 @@ func (a *App) localBranchExists(ctx context.Context, root, branch string) (bool,
 		return false, fmt.Errorf("check existing branch %s: %w", branch, err)
 	}
 	return strings.TrimSpace(out) != "", nil
+}
+
+func (a *App) localBranches(ctx context.Context, root string) ([]string, error) {
+	out, err := a.runBinary(ctx, "git", []string{"for-each-ref", "--format=%(refname:short)", "refs/heads"}, root)
+	if err != nil {
+		return nil, fmt.Errorf("list local branches: %w", err)
+	}
+	if strings.TrimSpace(out) == "" {
+		return nil, nil
+	}
+	return strings.Split(out, "\n"), nil
+}
+
+func (a *App) maxPlanningSpecIDFromBranches(ctx context.Context, root string, branches []string) (int, error) {
+	maxID := 0
+	seen := map[string]struct{}{}
+	for _, branch := range branches {
+		branch = strings.TrimSpace(branch)
+		if branch == "" {
+			continue
+		}
+		if _, ok := seen[branch]; ok {
+			continue
+		}
+		seen[branch] = struct{}{}
+
+		out, err := a.runBinary(ctx, "git", []string{"ls-tree", "-r", "--name-only", "--full-tree", branch, specsDir}, root)
+		if err != nil {
+			return 0, fmt.Errorf("inspect specs on branch %s: %w", branch, err)
+		}
+		branchMaxID := maxPlanningSpecIDFromTreePaths(out)
+		if branchMaxID > maxID {
+			maxID = branchMaxID
+		}
+	}
+	return maxID, nil
+}
+
+func maxPlanningSpecIDFromTreePaths(out string) int {
+	maxID := 0
+	for _, line := range strings.Split(out, "\n") {
+		name := planningSpecNameFromTreePath(line)
+		if !strings.HasPrefix(name, "SPEC-") {
+			continue
+		}
+		n, err := strconv.Atoi(strings.TrimPrefix(name, "SPEC-"))
+		if err == nil && n > maxID {
+			maxID = n
+		}
+	}
+	return maxID
+}
+
+func planningSpecNameFromTreePath(path string) string {
+	path = strings.TrimSpace(path)
+	if !strings.HasPrefix(path, specsDir+"/") {
+		return ""
+	}
+	rest := strings.TrimPrefix(path, specsDir+"/")
+	parts := strings.SplitN(rest, "/", 2)
+	if len(parts) == 0 {
+		return ""
+	}
+	return parts[0]
 }
 
 func formatPlanningStartSummary(start planningStartResolution) string {

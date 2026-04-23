@@ -157,6 +157,10 @@ func TestRunPRIncludesLatestReviewReadinessInBody(t *testing.T) {
 		switch {
 		case name == "git" && len(args) == 3 && args[0] == "worktree" && args[1] == "list" && args[2] == "--porcelain":
 			return renderPlanningWorktreeList(gitWorktree{Path: tmp, Branch: "main"}), nil
+		case name == "git" && len(args) == 3 && args[0] == "for-each-ref" && args[1] == "--format=%(refname:short)" && args[2] == "refs/heads":
+			return "main", nil
+		case name == "git" && len(args) == 6 && args[0] == "ls-tree" && args[1] == "-r" && args[2] == "--name-only" && args[3] == "--full-tree" && args[4] == "main" && args[5] == ".namba/specs":
+			return ".namba/specs/.gitkeep", nil
 		case name == "git" && len(args) >= 2 && args[0] == "branch" && args[1] == "--show-current":
 			return "main", nil
 		case name == "git" && len(args) >= 2 && args[0] == "status" && args[1] == "--porcelain":
