@@ -46,30 +46,14 @@ func (a *App) runRegen(_ context.Context, args []string) error {
 }
 
 func (a *App) replaceManagedOutputs(root string, outputs map[string]string, managed func(string) bool, ownedManaged func(ManifestEntry) bool) (outputWriteReport, error) {
-	manifest, err := a.readManifest(root)
+	session, err := a.beginManagedOutputSession(root)
 	if err != nil {
 		return outputWriteReport{}, err
 	}
-
-	filtered := manifest.Entries[:0]
-	for _, entry := range manifest.Entries {
-		if manifestEntryIsManaged(entry, managed, ownedManaged) {
-			if _, keep := outputs[entry.Path]; keep {
-				filtered = append(filtered, entry)
-				continue
-			}
-			if err := os.RemoveAll(filepath.Join(root, filepath.FromSlash(entry.Path))); err != nil && !errors.Is(err, os.ErrNotExist) {
-				return outputWriteReport{}, fmt.Errorf("remove obsolete generated file %s: %w", entry.Path, err)
-			}
-			continue
-		}
-		filtered = append(filtered, entry)
-	}
-	manifest.Entries = filtered
-	if err := a.writeManifest(root, manifest); err != nil {
+	if err := session.replaceManagedOutputs(outputs, managed, ownedManaged); err != nil {
 		return outputWriteReport{}, err
 	}
-	return a.writeOutputs(root, outputs)
+	return session.commit()
 }
 
 func isOwnedRegenManagedPath(entry ManifestEntry) bool {

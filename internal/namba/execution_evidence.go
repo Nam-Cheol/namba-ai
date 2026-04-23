@@ -458,6 +458,10 @@ func latestExecutionEvidence(root string) (executionEvidenceManifest, string, bo
 	return latestExecutionEvidenceMatching(root, func(executionEvidenceManifest) bool { return true })
 }
 
+func (a *App) latestExecutionEvidence(root string) (executionEvidenceManifest, string, bool) {
+	return latestExecutionEvidenceMatchingWithReadFile(root, a.readFile, func(executionEvidenceManifest) bool { return true })
+}
+
 func latestExecutionEvidenceForSpec(root, specID string) (executionEvidenceManifest, string, bool) {
 	if strings.TrimSpace(specID) == "" || normalizedLatestSpec(specID) == "none" {
 		return executionEvidenceManifest{}, "", false
@@ -468,6 +472,10 @@ func latestExecutionEvidenceForSpec(root, specID string) (executionEvidenceManif
 }
 
 func latestExecutionEvidenceMatching(root string, match func(executionEvidenceManifest) bool) (executionEvidenceManifest, string, bool) {
+	return latestExecutionEvidenceMatchingWithReadFile(root, os.ReadFile, match)
+}
+
+func latestExecutionEvidenceMatchingWithReadFile(root string, readFile func(string) ([]byte, error), match func(executionEvidenceManifest) bool) (executionEvidenceManifest, string, bool) {
 	matches, err := filepath.Glob(filepath.Join(root, logsDir, "runs", "*-evidence.json"))
 	if err != nil || len(matches) == 0 {
 		return executionEvidenceManifest{}, "", false
@@ -480,7 +488,7 @@ func latestExecutionEvidenceMatching(root string, match func(executionEvidenceMa
 		latestTime time.Time
 	)
 	for _, candidatePath := range matches {
-		data, readErr := os.ReadFile(candidatePath)
+		data, readErr := readFile(candidatePath)
 		if readErr != nil {
 			continue
 		}

@@ -1142,6 +1142,7 @@ type syncContext struct {
 	LatestSpec string
 	Profile    initProfile
 	DocsCfg    docsConfig
+	Support    syncSupportContext
 }
 
 func parseRunExecuteOptions(args []string) (runExecuteOptions, error) {
@@ -1405,7 +1406,7 @@ func (a *App) dispatchRunExecution(ctx context.Context, options runExecuteOption
 	return nil
 }
 
-func (a *App) runSync(ctx context.Context, args []string) error {
+func (a *App) runSync(_ context.Context, args []string) error {
 	if handled, err := a.handleNoArgTopLevelCommand("sync", args); handled {
 		return err
 	}
@@ -1419,13 +1420,51 @@ func (a *App) runSync(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := a.materializeSyncReadme(syncCtx); err != nil {
+	qualityCfg, _ := a.loadQualityConfig(root)
+	analysisCfg, err := a.loadAnalysisConfig(root)
+	if err != nil {
 		return err
 	}
-	if err := a.refreshSyncProjectArtifacts(ctx, syncCtx); err != nil {
+
+	readmeOutputs := buildReadmeOutputs(syncCtx.ProjectCfg, syncCtx.Profile, syncCtx.DocsCfg)
+	analysis := analyzeProject(root, syncCtx.ProjectCfg, qualityCfg, analysisCfg)
+	projectOutputs := analysis.renderOutputs()
+
+	session, err := a.beginManagedOutputSession(root)
+	if err != nil {
 		return err
 	}
-	if err := a.writeSyncProjectSupportDocs(syncCtx); err != nil {
+	if err := session.replaceManagedOutputs(readmeOutputs, isReadmeManagedPath, nil); err != nil {
+		return err
+	}
+	if err := session.replaceManagedOutputs(projectOutputs, isProjectAnalysisManagedPath, nil); err != nil {
+		return err
+	}
+	for _, warning := range analysis.Quality.Warnings {
+		fmt.Fprintf(a.stdout, "Project analysis warning: %s\n", warning)
+	}
+	if len(analysis.Quality.Errors) > 0 {
+		if _, err := session.commit(); err != nil {
+			return err
+		}
+		for _, item := range analysis.Quality.Errors {
+			fmt.Fprintf(a.stdout, "Project analysis error: %s\n", item)
+		}
+		return errors.New("project analysis quality gate failed")
+	}
+
+	readinessBatch, err := buildSpecReviewReadinessBatch(root)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err := session.replaceManagedOutputs(readinessBatch.Outputs, isSpecReviewReadinessManagedPath, nil); err != nil {
+		return err
+	}
+	syncCtx.Support = a.buildSyncSupportContext(root, syncCtx.LatestSpec, readinessBatch.Advisories)
+	if err := session.replaceManagedOutputs(buildSyncProjectSupportOutputs(syncCtx), isSyncProjectSupportManagedPath, nil); err != nil {
+		return err
+	}
+	if _, err := session.commit(); err != nil {
 		return err
 	}
 	fmt.Fprintln(a.stdout, "Synced NambaAI artifacts.")
@@ -1443,12 +1482,14 @@ func (a *App) loadSyncContext(root string) (syncContext, error) {
 	if err != nil {
 		return syncContext{}, err
 	}
+	support := a.buildSyncSupportContext(root, latestSpec, nil)
 	return syncContext{
 		Root:       root,
 		ProjectCfg: projectCfg,
 		LatestSpec: latestSpec,
 		Profile:    profile,
 		DocsCfg:    docsCfg,
+		Support:    support,
 	}, nil
 }
 
@@ -1479,8 +1520,8 @@ func (a *App) writeSyncProjectSupportDocs(syncCtx syncContext) error {
 
 func buildSyncProjectSupportOutputs(syncCtx syncContext) map[string]string {
 	return map[string]string{
-		filepath.ToSlash(filepath.Join(projectDir, "change-summary.md")):    buildChangeSummaryDoc(syncCtx.Root, syncCtx.ProjectCfg, syncCtx.LatestSpec, syncCtx.Profile),
-		filepath.ToSlash(filepath.Join(projectDir, "pr-checklist.md")):      buildPRChecklistDoc(syncCtx.Root, syncCtx.LatestSpec, syncCtx.Profile),
+		filepath.ToSlash(filepath.Join(projectDir, "change-summary.md")):    buildChangeSummaryDocWithSupport(syncCtx.ProjectCfg, syncCtx.Profile, syncCtx.Support),
+		filepath.ToSlash(filepath.Join(projectDir, "pr-checklist.md")):      buildPRChecklistDocWithSupport(syncCtx.Profile, syncCtx.Support),
 		filepath.ToSlash(filepath.Join(projectDir, "release-notes.md")):     buildReleaseNotesDoc(syncCtx.ProjectCfg, syncCtx.LatestSpec, syncCtx.Profile),
 		filepath.ToSlash(filepath.Join(projectDir, "release-checklist.md")): buildReleaseChecklistDoc(),
 	}
@@ -1940,46 +1981,14 @@ func (a *App) requireProjectRoot() (string, error) {
 }
 
 func (a *App) writeOutputs(root string, outputs map[string]string) (outputWriteReport, error) {
-	manifest, _ := a.readManifest(root)
-	now := a.now().Format(time.RFC3339)
-	changed := false
-	report := outputWriteReport{}
-	for rel, content := range outputs {
-		abs := filepath.Join(root, filepath.FromSlash(rel))
-		wrote, err := writeFileIfChanged(abs, content)
-		if err != nil {
-			return report, err
-		}
-		entry := ManifestEntry{
-			Path:     rel,
-			Kind:     manifestKind(rel),
-			Owner:    manifestOwnerManaged,
-			Checksum: checksum(content),
-		}
-		if existing, ok := findManifestEntry(manifest, rel); ok && !wrote &&
-			existing.Kind == entry.Kind &&
-			existing.Owner == entry.Owner &&
-			existing.Checksum == entry.Checksum {
-			continue
-		}
-		entry.UpdatedAt = now
-		manifest = upsertManifest(manifest, entry)
-		report.ChangedPaths = append(report.ChangedPaths, rel)
-		if isInstructionSurfacePath(rel) {
-			report.InstructionSurfacePaths = append(report.InstructionSurfacePaths, rel)
-		}
-		changed = true
+	session, err := a.beginManagedOutputSession(root)
+	if err != nil {
+		return outputWriteReport{}, err
 	}
-	if !changed {
-		return report, nil
+	if err := session.writeOutputs(outputs); err != nil {
+		return outputWriteReport{}, err
 	}
-	if err := a.writeManifest(root, manifest); err != nil {
-		return report, err
-	}
-	if err := a.writeSessionRefreshNotice(root, report); err != nil {
-		return report, err
-	}
-	return report, nil
+	return session.commit()
 }
 
 func (a *App) writeManifest(root string, manifest Manifest) error {

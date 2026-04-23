@@ -262,6 +262,13 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-033/reviews/product.md
 .namba/specs/SPEC-033/reviews/readiness.md
 .namba/specs/SPEC-033/spec.md
+.namba/specs/SPEC-034/acceptance.md
+.namba/specs/SPEC-034/plan.md
+.namba/specs/SPEC-034/reviews/design.md
+.namba/specs/SPEC-034/reviews/engineering.md
+.namba/specs/SPEC-034/reviews/product.md
+.namba/specs/SPEC-034/reviews/readiness.md
+.namba/specs/SPEC-034/spec.md
 AGENTS.md
 README.ja.md
 README.ko.md
@@ -310,6 +317,7 @@ internal/namba/init_scan.go
 internal/namba/init_scan_test.go
 internal/namba/init_wizard_test.go
 internal/namba/namba.go
+internal/namba/output_session.go
 internal/namba/parallel_lifecycle.go
 internal/namba/parallel_progress.go
 internal/namba/parallel_progress_test.go
@@ -322,6 +330,7 @@ internal/namba/planning_start_test.go
 internal/namba/pr_land_command.go
 internal/namba/pr_land_command_test.go
 internal/namba/project_analysis.go
+internal/namba/project_analysis_index.go
 internal/namba/project_analysis_inventory_test.go
 internal/namba/readme.go
 internal/namba/readme_contract_test.go
@@ -339,6 +348,7 @@ internal/namba/spec027_phase1_test.go
 internal/namba/spec_command_test.go
 internal/namba/spec_review.go
 internal/namba/spec_review_test.go
+internal/namba/sync_support.go
 internal/namba/sync_test.go
 internal/namba/templates.go
 internal/namba/templates_test.go

@@ -311,3 +311,86 @@ func TestEvaluateAnalysisHeuristicsSeparatesConflictsFromQualityWarnings(t *test
 		t.Fatalf("expected no quality errors, got %+v", heuristics.Quality.Errors)
 	}
 }
+
+func TestAnalysisInventoryLookupContractUsesNormalizedPaths(t *testing.T) {
+	t.Parallel()
+
+	root := canonicalTempDir(t)
+	writeSpec027TestFile(t, filepath.Join(root, "README.md"), "Root summary\n")
+	writeSpec027TestFile(t, filepath.Join(root, "go.mod"), "module example.com/spec027\n\ngo 1.22\n")
+	writeSpec027TestFile(t, filepath.Join(root, "cmd", "app", "main.go"), "package main\n\nfunc main() {}\n")
+	writeSpec027TestFile(t, filepath.Join(root, "services", "api", "main.go"), "package main\n\nfunc main() {}\n")
+	writeSpec027TestFile(t, filepath.Join(root, "frontend", "package.json"), `{"name":"frontend","dependencies":{"react":"18.3.1"}}`)
+	writeSpec027TestFile(t, filepath.Join(root, ".namba", "project", "product.md"), "# generated\n")
+
+	inventory := buildAnalysisInventory(root, defaultAnalysisConfig())
+	if !analysisFileExists(inventory.Files, "go.mod") {
+		t.Fatal("expected analysis inventory to include go.mod by normalized path")
+	}
+	if analysisFileExists(inventory.Files, ".namba/project/product.md") {
+		t.Fatalf("expected analysis inventory to exclude generated project outputs, got %+v", inventory.Files)
+	}
+	if got, want := preferredEvidence(inventory.Files, "go.mod", "package.json"), []string{"go.mod", "frontend/package.json"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("preferred evidence = %#v, want %#v", got, want)
+	}
+	if got, want := suffixEvidence(inventory.Files, ".go"), []string{"cmd/app/main.go", "services/api/main.go"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("suffix evidence = %#v, want %#v", got, want)
+	}
+
+	rootFiles := filesForSystem(inventory.Files, ".", inventory.SystemRoots)
+	for _, blocked := range []string{"frontend/package.json", "services/api/main.go"} {
+		for _, file := range rootFiles {
+			if file.Path == blocked {
+				t.Fatalf("expected root system scope to exclude nested system file %q, got %+v", blocked, rootFiles)
+			}
+		}
+	}
+}
+
+func TestAnalysisIndexCachesRepeatedReads(t *testing.T) {
+	t.Parallel()
+
+	root := canonicalTempDir(t)
+	writeSpec027TestFile(t, filepath.Join(root, "README.md"), "Root summary\n")
+	writeSpec027TestFile(t, filepath.Join(root, "go.mod"), "module example.com/spec027\n\ngo 1.22\n")
+	writeSpec027TestFile(t, filepath.Join(root, "cmd", "app", "main.go"), "package main\n\nfunc main() {}\n")
+	writeSpec027TestFile(t, filepath.Join(root, "frontend", "package.json"), `{"name":"frontend","dependencies":{"react":"18.3.1"}}`)
+
+	inventory := buildAnalysisInventory(root, defaultAnalysisConfig())
+	index := buildAnalysisIndex(root, inventory.Files)
+
+	summary, evidence := analysisReadSystemSummary(index, ".")
+	if summary == "" || !reflect.DeepEqual(evidence, []string{"README.md"}) {
+		t.Fatalf("expected root README summary from cached index, got summary=%q evidence=%#v", summary, evidence)
+	}
+	if got, want := len(index.textLoaded), 1; got != want {
+		t.Fatalf("expected one cached text read after README summary, got %d", got)
+	}
+	summary, evidence = analysisReadSystemSummary(index, ".")
+	if summary == "" || !reflect.DeepEqual(evidence, []string{"README.md"}) {
+		t.Fatalf("expected repeated README summary lookup to stay stable, got summary=%q evidence=%#v", summary, evidence)
+	}
+	if got, want := len(index.textLoaded), 1; got != want {
+		t.Fatalf("expected cached README summary lookup not to increase text reads, got %d", got)
+	}
+
+	module := analysisReadGoModule("go.mod", index)
+	if module != "example.com/spec027" {
+		t.Fatalf("expected go module lookup from cached index, got %q", module)
+	}
+	if got, want := len(index.textLoaded), 2; got != want {
+		t.Fatalf("expected go.mod lookup to add one cached read, got %d", got)
+	}
+	module = analysisReadGoModule("go.mod", index)
+	if module != "example.com/spec027" {
+		t.Fatalf("expected repeated go.mod lookup to stay stable, got %q", module)
+	}
+	if got, want := len(index.textLoaded), 2; got != want {
+		t.Fatalf("expected repeated go.mod lookup not to increase text reads, got %d", got)
+	}
+
+	bootstrap := analysisFirstFileContaining(index, inventory.Files, "createRoot(")
+	if bootstrap != "" {
+		t.Fatalf("expected createRoot lookup to be absent in the minimal fixture, got %q", bootstrap)
+	}
+}
