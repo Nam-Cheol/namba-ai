@@ -1,8 +1,11 @@
 package namba
 
 import (
+	"bytes"
 	"context"
+	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -61,6 +64,48 @@ func TestRefreshSyncProjectArtifactsRefreshesAnalysisAndReadiness(t *testing.T) 
 	readiness := mustReadFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews", "readiness.md"))
 	if !strings.Contains(readiness, "Advisory status:") {
 		t.Fatalf("expected readiness summary after refresh, got %q", readiness)
+	}
+}
+
+func TestRefreshAllSpecReviewReadinessBatchesManifestWrites(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	for _, specID := range []string{"SPEC-001", "SPEC-002"} {
+		reviewsDir := filepath.Join(tmp, ".namba", "specs", specID, "reviews")
+		if err := os.MkdirAll(reviewsDir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", reviewsDir, err)
+		}
+		for rel, body := range specReviewOutputs(specID) {
+			if strings.HasSuffix(rel, specReviewReadinessFileName) {
+				continue
+			}
+			writeTestFile(t, filepath.Join(tmp, filepath.FromSlash(rel)), body)
+		}
+	}
+
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	manifestWrites := 0
+	app.writeManifestOverride = func(root string, manifest Manifest) error {
+		if root != tmp {
+			t.Fatalf("expected manifest write root %q, got %q", tmp, root)
+		}
+		manifestWrites++
+		return nil
+	}
+
+	if err := app.refreshAllSpecReviewReadiness(tmp); err != nil {
+		t.Fatalf("refreshAllSpecReviewReadiness failed: %v", err)
+	}
+	if manifestWrites != 1 {
+		t.Fatalf("expected one manifest session for batched readiness refresh, got %d", manifestWrites)
+	}
+
+	for _, specID := range []string{"SPEC-001", "SPEC-002"} {
+		readiness := mustReadFile(t, filepath.Join(tmp, ".namba", "specs", specID, "reviews", "readiness.md"))
+		if !strings.Contains(readiness, "Advisory status:") {
+			t.Fatalf("expected refreshed readiness for %s, got %q", specID, readiness)
+		}
 	}
 }
 
@@ -127,6 +172,201 @@ func TestBuildSyncProjectSupportOutputsIncludesManagedDocSet(t *testing.T) {
 	}
 	if !strings.Contains(outputs[filepath.ToSlash(filepath.Join(projectDir, "release-checklist.md"))], "`checksums.txt`") {
 		t.Fatalf("expected release-checklist output to include published asset checklist, got %q", outputs[filepath.ToSlash(filepath.Join(projectDir, "release-checklist.md"))])
+	}
+}
+
+func TestWriteOutputsBatchesMultipleReadinessFilesInOneManifestSession(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	var (
+		manifestWrites int
+		manifest       Manifest
+	)
+	app.writeManifestOverride = func(root string, m Manifest) error {
+		if root != tmp {
+			t.Fatalf("expected manifest write root %q, got %q", tmp, root)
+		}
+		manifestWrites++
+		manifest = m
+		return nil
+	}
+
+	outputs := map[string]string{
+		specReviewReadinessPath("SPEC-001"): "# Review Readiness\n\nSPEC: SPEC-001\n",
+		specReviewReadinessPath("SPEC-002"): "# Review Readiness\n\nSPEC: SPEC-002\n",
+	}
+	report, err := app.writeOutputs(tmp, outputs)
+	if err != nil {
+		t.Fatalf("writeOutputs failed: %v", err)
+	}
+	if manifestWrites != 1 {
+		t.Fatalf("expected one manifest session for batched readiness outputs, got %d", manifestWrites)
+	}
+	if len(report.ChangedPaths) != 2 {
+		t.Fatalf("expected two changed readiness paths, got %+v", report.ChangedPaths)
+	}
+	wantEntries := map[string]bool{
+		specReviewReadinessPath("SPEC-001"): true,
+		specReviewReadinessPath("SPEC-002"): true,
+	}
+	if len(manifest.Entries) != len(wantEntries) {
+		t.Fatalf("expected %d manifest entries, got %+v", len(wantEntries), manifest.Entries)
+	}
+	for _, entry := range manifest.Entries {
+		if !wantEntries[entry.Path] {
+			t.Fatalf("unexpected manifest entry path %q, got %+v", entry.Path, manifest.Entries)
+		}
+		if entry.Owner != manifestOwnerManaged {
+			t.Fatalf("expected managed owner on manifest entry, got %+v", entry)
+		}
+		delete(wantEntries, entry.Path)
+	}
+	if len(wantEntries) != 0 {
+		t.Fatalf("missing manifest entries for batched readiness outputs: %+v", wantEntries)
+	}
+}
+
+func TestWriteOutputsRecoversFromMalformedManifest(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	if err := app.mkdirAll(filepath.Join(tmp, nambaDir), 0o755); err != nil {
+		t.Fatalf("mkdir .namba: %v", err)
+	}
+	if err := app.writeFile(filepath.Join(tmp, manifestPath), []byte("{not-json"), 0o644); err != nil {
+		t.Fatalf("write malformed manifest: %v", err)
+	}
+
+	outputs := map[string]string{
+		filepath.ToSlash(filepath.Join(projectDir, "change-summary.md")): "summary",
+	}
+	report, err := app.writeOutputs(tmp, outputs)
+	if err != nil {
+		t.Fatalf("writeOutputs failed: %v", err)
+	}
+	if got, want := report.ChangedPaths, []string{filepath.ToSlash(filepath.Join(projectDir, "change-summary.md"))}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changed paths = %#v, want %#v", got, want)
+	}
+	if got := mustReadFile(t, filepath.Join(tmp, ".namba", "project", "change-summary.md")); got != "summary" {
+		t.Fatalf("expected materialized output after manifest recovery, got %q", got)
+	}
+
+	manifest, err := app.readManifest(tmp)
+	if err != nil {
+		t.Fatalf("read healed manifest: %v", err)
+	}
+	if got, want := len(manifest.Entries), 1; got != want {
+		t.Fatalf("manifest entry count = %d, want %d; manifest=%+v", got, want, manifest)
+	}
+	if manifest.Entries[0].Path != filepath.ToSlash(filepath.Join(projectDir, "change-summary.md")) {
+		t.Fatalf("unexpected healed manifest entry: %+v", manifest.Entries[0])
+	}
+}
+
+func TestWriteSyncProjectSupportDocsUsesOneManifestSession(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	syncCtx, err := app.loadSyncContext(tmp)
+	if err != nil {
+		t.Fatalf("loadSyncContext failed: %v", err)
+	}
+
+	manifestWrites := 0
+	app.writeManifestOverride = func(root string, manifest Manifest) error {
+		if root != tmp {
+			t.Fatalf("expected manifest write root %q, got %q", tmp, root)
+		}
+		manifestWrites++
+		return nil
+	}
+
+	outputs := buildSyncProjectSupportOutputs(syncCtx)
+	if len(outputs) != 4 {
+		t.Fatalf("expected four staged support outputs, got %d: %+v", len(outputs), outputs)
+	}
+	if err := app.writeSyncProjectSupportDocs(syncCtx); err != nil {
+		t.Fatalf("writeSyncProjectSupportDocs failed: %v", err)
+	}
+	if manifestWrites != 1 {
+		t.Fatalf("expected one manifest session for sync support docs, got %d", manifestWrites)
+	}
+}
+
+func TestSyncDoesNotMutateOutputsWhenReadinessBatchFails(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"sync"}); err != nil {
+		t.Fatalf("baseline sync failed: %v", err)
+	}
+
+	structurePath := filepath.Join(tmp, ".namba", "project", "structure.md")
+	manifestPath := filepath.Join(tmp, ".namba", "manifest.json")
+	beforeStructure := mustReadFile(t, structurePath)
+	beforeManifest := mustReadFile(t, manifestPath)
+
+	specsDirPath := filepath.Join(tmp, ".namba", "specs")
+	if err := os.Rename(specsDirPath, specsDirPath+"-backup"); err != nil {
+		t.Fatalf("rename specs dir: %v", err)
+	}
+	if err := os.WriteFile(specsDirPath, []byte("broken"), 0o644); err != nil {
+		t.Fatalf("write broken specs path: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, "internal", "spec034"), 0o755); err != nil {
+		t.Fatalf("mkdir new source dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "internal", "spec034", "service.go"), []byte("package spec034\n"), 0o644); err != nil {
+		t.Fatalf("write new source file: %v", err)
+	}
+
+	if err := app.Run(context.Background(), []string{"sync"}); err == nil {
+		t.Fatal("expected sync to fail when .namba/specs is not a directory")
+	}
+
+	if got := mustReadFile(t, structurePath); got != beforeStructure {
+		t.Fatalf("expected structure doc to stay unchanged on readiness batch failure")
+	}
+	if got := mustReadFile(t, manifestPath); got != beforeManifest {
+		t.Fatalf("expected manifest to stay unchanged on readiness batch failure")
+	}
+}
+
+func TestSyncSupportDocsDoNotReferenceRemovedLatestReadiness(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"sync"}); err != nil {
+		t.Fatalf("baseline sync failed: %v", err)
+	}
+
+	reviewsDir := filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews")
+	if err := os.RemoveAll(reviewsDir); err != nil {
+		t.Fatalf("remove reviews dir: %v", err)
+	}
+
+	if err := app.Run(context.Background(), []string{"sync"}); err != nil {
+		t.Fatalf("sync after review removal failed: %v", err)
+	}
+
+	readinessPath := filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews", "readiness.md")
+	if _, err := os.Stat(readinessPath); !os.IsNotExist(err) {
+		t.Fatalf("expected readiness artifact to be removed, stat err=%v", err)
+	}
+
+	changeSummary := mustReadFile(t, filepath.Join(tmp, ".namba", "project", "change-summary.md"))
+	if strings.Contains(changeSummary, "## Latest Review Readiness") || strings.Contains(changeSummary, specReviewReadinessPath("SPEC-001")) {
+		t.Fatalf("expected change summary to drop removed readiness reference, got %q", changeSummary)
+	}
+
+	prChecklist := mustReadFile(t, filepath.Join(tmp, ".namba", "project", "pr-checklist.md"))
+	if strings.Contains(prChecklist, "Latest SPEC review readiness checked") || strings.Contains(prChecklist, specReviewReadinessPath("SPEC-001")) {
+		t.Fatalf("expected pr checklist to drop removed readiness reference, got %q", prChecklist)
 	}
 }
 

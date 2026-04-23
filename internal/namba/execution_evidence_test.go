@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRunWritesExecutionEvidenceManifestOnSuccess(t *testing.T) {
@@ -753,6 +754,104 @@ func TestSyncOutputsSurfaceExecutionProofSeparatelyFromReadiness(t *testing.T) {
 	prChecklist := mustReadFile(t, filepath.Join(tmp, ".namba", "project", "pr-checklist.md"))
 	if !strings.Contains(prChecklist, "Latest SPEC review readiness checked") || !strings.Contains(prChecklist, "Latest execution proof checked") {
 		t.Fatalf("expected PR checklist to include readiness and execution-proof items, got %q", prChecklist)
+	}
+}
+
+func TestLatestExecutionProofBuildersAgreeOnArtifactSelection(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+
+	olderManifest, err := buildExecutionEvidenceManifest(tmp, executionEvidenceOptions{
+		ProjectRoot:   tmp,
+		LogID:         "spec-000",
+		SpecID:        "SPEC-000",
+		ExecutionMode: executionModeDefault,
+		Status:        "completed",
+		GeneratedAt:   time.Date(2026, 4, 20, 8, 0, 0, 0, time.UTC),
+		FinalizedBy:   "test",
+		Request: executionEvidenceRefInput{
+			Kind:          "request",
+			NotApplicable: true,
+		},
+		Preflight: executionEvidenceRefInput{
+			Kind:          "preflight",
+			NotApplicable: true,
+		},
+		Execution: executionEvidenceRefInput{
+			Kind:          "execution",
+			NotApplicable: true,
+		},
+		Validation: executionEvidenceRefInput{
+			Kind:          "validation",
+			NotApplicable: true,
+		},
+		Progress: executionEvidenceRefInput{
+			Kind:          "progress",
+			NotApplicable: true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("build older execution evidence manifest: %v", err)
+	}
+	newerManifest, err := buildExecutionEvidenceManifest(tmp, executionEvidenceOptions{
+		ProjectRoot:   tmp,
+		LogID:         "spec-001",
+		SpecID:        "SPEC-001",
+		ExecutionMode: executionModeDefault,
+		Status:        "completed",
+		GeneratedAt:   time.Date(2026, 4, 21, 8, 0, 0, 0, time.UTC),
+		FinalizedBy:   "test",
+		Request: executionEvidenceRefInput{
+			Kind:          "request",
+			NotApplicable: true,
+		},
+		Preflight: executionEvidenceRefInput{
+			Kind:          "preflight",
+			NotApplicable: true,
+		},
+		Execution: executionEvidenceRefInput{
+			Kind:          "execution",
+			NotApplicable: true,
+		},
+		Validation: executionEvidenceRefInput{
+			Kind:          "validation",
+			NotApplicable: true,
+		},
+		Progress: executionEvidenceRefInput{
+			Kind:          "progress",
+			NotApplicable: true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("build newer execution evidence manifest: %v", err)
+	}
+
+	writeExecutionEvidenceFixture(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-000-evidence.json"), olderManifest)
+	writeExecutionEvidenceFixture(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-evidence.json"), newerManifest)
+
+	changeSummary := strings.Join(changeSummaryLatestExecutionProofSection(tmp), "\n")
+	prChecklist := strings.Join(prChecklistLatestExecutionProofItem(tmp), "\n")
+
+	for _, want := range []string{
+		"spec-001-evidence.json",
+		"Proof target: `SPEC-001`",
+		"Execution proof status: `completed`",
+	} {
+		if !strings.Contains(changeSummary, want) {
+			t.Fatalf("expected change summary to contain %q, got %q", want, changeSummary)
+		}
+	}
+	for _, want := range []string{
+		"spec-001-evidence.json",
+		"target `SPEC-001`",
+	} {
+		if !strings.Contains(prChecklist, want) {
+			t.Fatalf("expected PR checklist to contain %q, got %q", want, prChecklist)
+		}
+	}
+	if strings.Contains(changeSummary, "spec-000-evidence.json") || strings.Contains(prChecklist, "spec-000-evidence.json") {
+		t.Fatalf("expected both support builders to keep the latest execution proof selection aligned, got summary=%q checklist=%q", changeSummary, prChecklist)
 	}
 }
 

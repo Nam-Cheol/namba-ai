@@ -183,15 +183,16 @@ func (a *App) loadAnalysisConfig(root string) (analysisConfig, error) {
 
 func analyzeProject(root string, projectCfg projectConfig, qualityCfg qualityConfig, cfg analysisConfig) projectAnalysis {
 	inventory := buildAnalysisInventory(root, cfg)
-	readmePath := firstExisting(root, "README.md", "README.txt")
+	index := buildAnalysisIndex(root, inventory.Files)
+	readmePath := index.firstExisting("README.md", "README.txt")
 	readmeBody := ""
 	if readmePath != "" {
-		if data, err := os.ReadFile(filepath.Join(root, readmePath)); err == nil {
-			readmeBody = string(data)
+		if data, ok := index.readText(readmePath); ok {
+			readmeBody = data
 		}
 	}
 
-	systems := detectSystems(root, inventory)
+	systems := detectSystems(root, inventory, index)
 	heuristics := evaluateAnalysisHeuristics(analysisHeuristicInputs{
 		Config:     cfg,
 		Project:    projectCfg,
@@ -213,7 +214,7 @@ func analyzeProject(root string, projectCfg projectConfig, qualityCfg qualityCon
 		StructureDoc: renderAnalysisStructure(inventory.Files),
 	}
 	analysis.EntryDoc = renderEntryPointsDoc(analysis.Systems)
-	analysis.DepsDoc = renderDependenciesDoc(root, analysis.Systems)
+	analysis.DepsDoc = renderDependenciesDoc(index, analysis.Systems)
 	analysis.FlowDoc = renderDataFlowDoc(analysis.Systems, qualityCfg)
 	analysis.OverviewDoc = renderOverviewDoc(analysis)
 	analysis.Quality = heuristics.Quality
@@ -351,17 +352,17 @@ func classifyAnalysisFile(rel string) string {
 	}
 }
 
-func detectSystems(root string, inventory analysisInventory) []analysisSystem {
+func detectSystems(root string, inventory analysisInventory, index analysisIndex) []analysisSystem {
 	var systems []analysisSystem
 	for _, systemRoot := range inventory.SystemRoots {
-		system := buildAnalysisSystem(root, systemRoot, inventory.SystemRoots, inventory.Files)
+		system := buildAnalysisSystem(root, systemRoot, inventory.SystemRoots, inventory.Files, index)
 		if totalSystemFindings(system) == 0 {
 			continue
 		}
 		systems = append(systems, system)
 	}
 	if len(systems) == 0 {
-		systems = append(systems, buildAnalysisSystem(root, ".", inventory.SystemRoots, inventory.Files))
+		systems = append(systems, buildAnalysisSystem(root, ".", inventory.SystemRoots, inventory.Files, index))
 	}
 	sort.Slice(systems, func(i, j int) bool { return systems[i].Root < systems[j].Root })
 	assignUniqueSystemSlugs(systems)
@@ -462,7 +463,7 @@ func hasSignalFile(base string) bool {
 	}
 }
 
-func buildAnalysisSystem(root, systemRoot string, allRoots []string, files []analysisFile) analysisSystem {
+func buildAnalysisSystem(root, systemRoot string, allRoots []string, files []analysisFile, index analysisIndex) analysisSystem {
 	name := "workspace"
 	if systemRoot != "." {
 		name = filepath.Base(systemRoot)
@@ -475,8 +476,8 @@ func buildAnalysisSystem(root, systemRoot string, allRoots []string, files []ana
 		Root: systemRoot,
 		Kind: kind,
 	}
-	system.Purpose = buildPurposeFindings(root, systemRoot, kind, systemFiles)
-	system.EntryPoints = buildEntryPointFindings(root, systemRoot, kind)
+	system.Purpose = buildPurposeFindings(root, systemRoot, kind, systemFiles, index)
+	system.EntryPoints = buildEntryPointFindings(root, systemRoot, kind, systemFiles, index)
 	system.Modules = buildModuleFindings(systemRoot, systemFiles)
 	system.DataState = buildDataStateFindings(systemRoot, systemFiles)
 	system.AuthIntegrations = buildAuthIntegrationFindings(systemRoot, systemFiles)
@@ -535,8 +536,8 @@ func belongsToNestedSystem(path string, roots []string) bool {
 	return false
 }
 
-func buildPurposeFindings(root, systemRoot, kind string, files []analysisFile) []analysisFinding {
-	if summary, evidence := readSystemSummary(root, systemRoot, files); summary != "" {
+func buildPurposeFindings(root, systemRoot, kind string, files []analysisFile, index analysisIndex) []analysisFinding {
+	if summary, evidence := analysisReadSystemSummary(index, systemRoot); summary != "" {
 		return []analysisFinding{newFinding(summary, confidenceForEvidence(evidence), evidence)}
 	}
 	switch kind {
@@ -544,7 +545,7 @@ func buildPurposeFindings(root, systemRoot, kind string, files []analysisFile) [
 		evidence := preferredEvidence(files, "package.json", "src/main.tsx", "src/main.jsx")
 		return []analysisFinding{newFinding("A browser-facing frontend is present with a dedicated package manifest and client bootstrap.", "high", evidence)}
 	case "backend", "go-service":
-		entryPoints := systemEntryPointPaths(root, systemRoot, kind)
+		entryPoints := analysisSystemEntryPointPaths(root, systemRoot, kind, files, index)
 		evidence := append(preferredEvidence(files, "go.mod"), entryPoints...)
 		return []analysisFinding{newFinding(fmt.Sprintf("A Go-based service surface is present under `%s`.", displaySystemRoot(systemRoot)), confidenceForEvidence(evidence), evidence)}
 	case "infra":
@@ -562,21 +563,8 @@ func buildPurposeFindings(root, systemRoot, kind string, files []analysisFile) [
 	}
 }
 
-func buildEntryPointFindings(root, systemRoot, kind string) []analysisFinding {
-	var bullets []string
-	subroot := systemAbsRoot(root, systemRoot)
-	switch kind {
-	case "frontend":
-		bullets = buildNodeEntryPoints(subroot)
-	case "backend", "go-service":
-		bullets = buildGoEntryPoints(subroot)
-	case "python-service":
-		bullets = buildPythonEntryPoints(subroot)
-	default:
-		if exists(filepath.Join(subroot, "package.json")) {
-			bullets = buildNodeEntryPoints(subroot)
-		}
-	}
+func buildEntryPointFindings(root, systemRoot, kind string, files []analysisFile, index analysisIndex) []analysisFinding {
+	bullets := analysisBuildEntryPointBullets(root, systemRoot, kind, files, index)
 	if len(bullets) == 0 {
 		return []analysisFinding{newFinding("No conventional application entry point was detected automatically; this may be a library, workspace root, or thin infrastructure slice.", "low", fallbackSystemEvidence(systemRoot))}
 	}
@@ -1147,11 +1135,11 @@ func renderEntryPointsDoc(systems []analysisSystem) string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func renderDependenciesDoc(root string, systems []analysisSystem) string {
+func renderDependenciesDoc(index analysisIndex, systems []analysisSystem) string {
 	lines := []string{"# Dependencies", ""}
 	for _, system := range systems {
 		lines = append(lines, fmt.Sprintf("## %s", system.Name), "")
-		deps := systemDependencies(root, system)
+		deps := analysisSystemDependencies(index, system)
 		if len(deps) == 0 {
 			lines = append(lines, "- No dependency manifest was detected automatically.", "")
 			continue
@@ -1210,26 +1198,6 @@ func renderAnalysisStructure(files []analysisFile) string {
 	}
 	lines = append(lines, "```", "")
 	return strings.Join(lines, "\n")
-}
-
-func systemDependencies(root string, system analysisSystem) []string {
-	subroot := systemAbsRoot(root, system.Root)
-	switch system.Kind {
-	case "frontend":
-		return buildNodeDependencies(subroot)
-	case "backend", "go-service":
-		return buildStaticDependenciesBullets(subroot, projectConfig{Language: "go"})
-	case "python-service":
-		return buildStaticDependenciesBullets(subroot, projectConfig{Language: "python"})
-	default:
-		if exists(filepath.Join(subroot, "package.json")) {
-			return buildNodeDependencies(subroot)
-		}
-		if exists(filepath.Join(subroot, "go.mod")) {
-			return buildStaticDependenciesBullets(subroot, projectConfig{Language: "go"})
-		}
-		return nil
-	}
 }
 
 func buildStaticDependenciesBullets(root string, cfg projectConfig) []string {

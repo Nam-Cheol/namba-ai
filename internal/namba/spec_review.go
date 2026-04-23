@@ -29,6 +29,11 @@ type specReviewState struct {
 	Reviewer     string
 }
 
+type specReviewReadinessBatch struct {
+	Outputs    map[string]string
+	Advisories map[string]string
+}
+
 func specReviewTemplates() []specReviewTemplate {
 	return []specReviewTemplate{
 		{
@@ -309,8 +314,16 @@ func specReadinessEvidencePaths(root, specID string) []string {
 }
 
 func specReadinessAdvisorySummary(root, specID string) string {
+	states := []specReviewState(nil)
+	if specReviewReadinessExists(root, specID) || exists(filepath.Join(root, specsDir, specID, specReviewsDirName)) {
+		states = loadSpecReviewStates(filepath.Join(root, specsDir, specID))
+	}
+	return specReadinessAdvisorySummaryFromStates(root, specID, states)
+}
+
+func specReadinessAdvisorySummaryFromStates(root, specID string, states []specReviewState) string {
 	parts := make([]string, 0, 2)
-	if review := specReviewAdvisorySummary(root, specID); review != "" {
+	if review := specReviewAdvisorySummaryFromStates(states); review != "" {
 		parts = append(parts, review)
 	}
 	if harness := specHarnessAdvisorySummary(root, specID); harness != "" {
@@ -329,10 +342,14 @@ func isClearReviewStatus(status string) bool {
 }
 
 func loadSpecReviewStates(specPath string) []specReviewState {
+	return loadSpecReviewStatesWithReadFile(os.ReadFile, specPath)
+}
+
+func loadSpecReviewStatesWithReadFile(readFile func(string) ([]byte, error), specPath string) []specReviewState {
 	states := make([]specReviewState, 0, len(specReviewTemplates()))
 	for _, template := range specReviewTemplates() {
 		state := defaultSpecReviewState(template)
-		body, err := os.ReadFile(filepath.Join(specPath, specReviewsDirName, template.Slug+".md"))
+		body, err := readFile(filepath.Join(specPath, specReviewsDirName, template.Slug+".md"))
 		if err != nil {
 			if os.IsNotExist(err) {
 				state.Status = "missing"
@@ -382,6 +399,10 @@ func specReviewAdvisorySummary(root, specID string) string {
 		return ""
 	}
 	states := loadSpecReviewStates(filepath.Join(root, specsDir, specID))
+	return specReviewAdvisorySummaryFromStates(states)
+}
+
+func specReviewAdvisorySummaryFromStates(states []specReviewState) string {
 	var pending []string
 	for _, state := range states {
 		if !isClearReviewStatus(state.Status) {
@@ -395,37 +416,68 @@ func specReviewAdvisorySummary(root, specID string) string {
 }
 
 func (a *App) refreshSpecReviewReadiness(root, specID string) (string, error) {
-	if strings.TrimSpace(specID) == "" {
+	outputs, advisory, ok := buildSpecReviewReadinessOutput(root, specID)
+	if !ok {
 		return "", nil
 	}
+	if _, err := a.writeOutputs(root, outputs); err != nil {
+		return "", err
+	}
+	return advisory, nil
+}
+
+func (a *App) refreshAllSpecReviewReadiness(root string) error {
+	batch, err := buildSpecReviewReadinessBatch(root)
+	if err != nil {
+		return nil
+	}
+	if len(batch.Outputs) == 0 {
+		return nil
+	}
+	_, err = a.writeOutputs(root, batch.Outputs)
+	return err
+}
+
+func buildSpecReviewReadinessOutput(root, specID string) (map[string]string, string, bool) {
+	if strings.TrimSpace(specID) == "" {
+		return nil, "", false
+	}
 	if !exists(filepath.Join(root, specsDir, specID, specReviewsDirName)) {
-		return "", nil
+		return nil, "", false
 	}
 	states := loadSpecReviewStates(filepath.Join(root, specsDir, specID))
 	outputs := map[string]string{
 		specReviewReadinessPath(specID): buildSpecReviewReadinessDoc(root, specID, states),
 	}
-	if _, err := a.writeOutputs(root, outputs); err != nil {
-		return "", err
-	}
-	return specReadinessAdvisorySummary(root, specID), nil
+	return outputs, specReadinessAdvisorySummaryFromStates(root, specID, states), true
 }
 
-func (a *App) refreshAllSpecReviewReadiness(root string) error {
+func buildSpecReviewReadinessBatch(root string) (specReviewReadinessBatch, error) {
 	entries, err := os.ReadDir(filepath.Join(root, specsDir))
 	if err != nil {
-		return nil
+		return specReviewReadinessBatch{}, err
+	}
+
+	batch := specReviewReadinessBatch{
+		Outputs:    map[string]string{},
+		Advisories: map[string]string{},
 	}
 	for _, entry := range entries {
 		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "SPEC-") {
 			continue
 		}
-		if !exists(filepath.Join(root, specsDir, entry.Name(), specReviewsDirName)) {
+		outputs, advisory, ok := buildSpecReviewReadinessOutput(root, entry.Name())
+		if !ok {
 			continue
 		}
-		if _, err := a.refreshSpecReviewReadiness(root, entry.Name()); err != nil {
-			return err
+		for path, body := range outputs {
+			batch.Outputs[path] = body
 		}
+		batch.Advisories[entry.Name()] = advisory
 	}
-	return nil
+	return batch, nil
+}
+
+func isSpecReviewReadinessManagedPath(rel string) bool {
+	return strings.HasPrefix(rel, filepath.ToSlash(specsDir)+"/") && strings.HasSuffix(rel, "/"+specReviewsDirName+"/"+specReviewReadinessFileName)
 }

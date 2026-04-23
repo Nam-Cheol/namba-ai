@@ -1,0 +1,37 @@
+# Acceptance
+
+- [ ] `namba project` uses one authoritative analysis inventory per invocation, and project-analysis helpers reuse that inventory or an index derived from it instead of launching avoidable secondary repository walks.
+- [ ] Within one project-analysis run, repeated reads of the same small source file such as README, `go.mod`, `package.json`, or entry modules are memoized or otherwise avoided without loading the whole repository into memory.
+- [ ] The analysis-side index contract is explicit enough to implement and test:
+  - normalized path membership
+  - candidate lookup by exact path / basename / system-root scope
+  - bounded lazy text reads only for eligible lightweight files already present in inventory
+- [ ] Analysis outputs remain semantically aligned with the current repository facts:
+  - system detection still works
+  - evidence ordering remains deterministic
+  - conflict handling and quality warnings/errors still reflect the same source-priority contract unless an explicit bug fix in this SPEC says otherwise
+- [ ] `namba sync` stages README refresh, project-analysis docs, spec review readiness files, and support docs before mutation, and the sync-owned write path keeps one manifest session for the command even if it uses a deliberately small fixed batch count.
+- [ ] Refreshing review readiness across multiple SPEC packages no longer calls the full `writeOutputs(...)` plus manifest-write path once per SPEC when the outputs can be staged together safely.
+- [ ] Cleanup authority remains explicit after batching:
+  - README-managed stale cleanup still works
+  - project-analysis-managed stale cleanup still works
+  - readiness/support docs are written from explicit staged outputs rather than rediscovered per-SPEC writes
+- [ ] Sync-generated support docs reuse precomputed latest SPEC / readiness / execution-proof context instead of rescanning the same artifact set per document builder.
+- [ ] No-op sync stability remains intact:
+  - unchanged managed outputs keep identical content
+  - unchanged managed outputs keep modification times
+  - stale managed docs are still removed when the source set shrinks
+- [ ] Existing performance fixtures remain covered:
+  - `BenchmarkSpec027ProjectCommand`
+  - `BenchmarkSpec027SyncCommand`
+  - any new measurement added by this SPEC focuses on reduced or flat allocations / filesystem touches instead of brittle absolute wall-clock thresholds
+- [ ] Regression tests cover at least:
+  - project-analysis inventory or cache reuse
+  - deterministic evidence for reduced repeated reads within one analysis invocation
+  - sync batching across multiple readiness outputs
+  - deterministic evidence for reduced manifest writes or manifest-session churn during sync
+  - deterministic evidence that shared support-doc context is discovered once per sync invocation
+  - no-op sync stability after the refactor
+  - compatibility with current manifest ownership and cleanup behavior
+- [ ] Final validation or implementation notes identify which workspace pattern improved (`many SPECs`, `large inventory`, or both) and show the removed redundant work, not only benchmark names.
+- [ ] Validation commands pass.
