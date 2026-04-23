@@ -269,6 +269,13 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-034/reviews/product.md
 .namba/specs/SPEC-034/reviews/readiness.md
 .namba/specs/SPEC-034/spec.md
+.namba/specs/SPEC-035/acceptance.md
+.namba/specs/SPEC-035/plan.md
+.namba/specs/SPEC-035/reviews/design.md
+.namba/specs/SPEC-035/reviews/engineering.md
+.namba/specs/SPEC-035/reviews/product.md
+.namba/specs/SPEC-035/reviews/readiness.md
+.namba/specs/SPEC-035/spec.md
 AGENTS.md
 README.ja.md
 README.ko.md
@@ -298,6 +305,8 @@ install.ps1
 install.sh
 internal/namba/agent_runtime.go
 internal/namba/codex.go
+internal/namba/codex_access.go
+internal/namba/codex_access_command_test.go
 internal/namba/codex_capability.go
 internal/namba/codex_mcp.go
 internal/namba/console_other.go

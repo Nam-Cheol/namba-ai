@@ -54,6 +54,16 @@ func TestHelpFlowsAreReadOnlyAndCommandSpecific(t *testing.T) {
 			want:      []string{"namba regen", "Usage:"},
 		},
 		{
+			name: "codex --help",
+			args: []string{"codex", "--help"},
+			want: []string{"namba codex", "Usage:"},
+		},
+		{
+			name: "codex access --help",
+			args: []string{"codex", "access", "--help"},
+			want: []string{"namba codex access", "Usage:"},
+		},
+		{
 			name: "update --help",
 			args: []string{"update", "--help"},
 			want: []string{"namba update", "Usage:"},

@@ -19,6 +19,7 @@
 - `$namba-help`: read-only guidance on how to use NambaAI, which command or skill to choose next, and where the authoritative docs live.
 - `$namba-create`: use the preview-first creation flow when you need a repo-local skill or a project-scoped custom agent directly. Choose `namba plan` or `namba harness` instead when the outcome should be a SPEC package.
 - `namba project`: refresh current repository docs and codemaps without creating a SPEC package.
+- `namba codex access`: inspect the current repo-owned Codex access defaults, and change approval_policy / sandbox_mode only when explicit flags are provided.
 - `namba plan "description"`: create the next feature SPEC package and review artifacts.
 - `namba harness "description"`: create the next harness-oriented SPEC package and review artifacts for reusable agent, skill, workflow, or orchestration work.
 - `namba fix --command plan "issue description"`: create a bugfix SPEC package plus review artifacts.

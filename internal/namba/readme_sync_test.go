@@ -30,7 +30,7 @@ func TestRunSyncWritesRunModeDocs(t *testing.T) {
 	}
 
 	workflowGuide := mustReadFile(t, filepath.Join(tmp, "docs", "workflow-guide.md"))
-	for _, want := range []string{"## Run modes", "## Role routing", "## Review readiness", "## Planning commands", "## PR and merge flow", "`$namba-help`", "`namba project`: refresh current repository docs and codemaps without creating a SPEC package.", "`namba harness \"description\"`: create the next harness-oriented SPEC package", "`namba run SPEC-XXX --solo`: a single runner in one workspace.", "`namba run SPEC-XXX --team`: same-workspace multi-agent execution.", "`namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.", "`namba fix \"issue description\"`: direct repair in the current workspace.", "`namba fix --command plan \"issue description\"`: create a bugfix SPEC package plus review artifacts.", "`namba plan`, `namba harness`, and `namba fix --command plan` seed", "fresh Codex session", "`namba-mobile-engineer`", "`namba-security-engineer`", "`$namba-plan-review`", "`$namba-plan-pm-review`"} {
+	for _, want := range []string{"## Run modes", "## Role routing", "## Review readiness", "## Planning commands", "## PR and merge flow", "`$namba-help`", "`namba project`: refresh current repository docs and codemaps without creating a SPEC package.", "`namba codex access`", "`namba harness \"description\"`: create the next harness-oriented SPEC package", "`namba run SPEC-XXX --solo`: a single runner in one workspace.", "`namba run SPEC-XXX --team`: same-workspace multi-agent execution.", "`namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.", "`namba fix \"issue description\"`: direct repair in the current workspace.", "`namba fix --command plan \"issue description\"`: create a bugfix SPEC package plus review artifacts.", "`namba plan`, `namba harness`, and `namba fix --command plan` seed", "fresh Codex session", "`namba-mobile-engineer`", "`namba-security-engineer`", "`$namba-plan-review`", "`$namba-plan-pm-review`"} {
 		if !strings.Contains(workflowGuide, want) {
 			t.Fatalf("expected workflow guide to contain %q, got %q", want, workflowGuide)
 		}
@@ -39,7 +39,7 @@ func TestRunSyncWritesRunModeDocs(t *testing.T) {
 
 func TestRenderNambaCLIWorkflowGuideIncludesRoleRouting(t *testing.T) {
 	guide := renderReadmeGuide("en", "workflow-guide", projectConfig{}, initProfile{}, docsConfig{ReadmeProfile: readmeProfileNambaCLI})
-	for _, want := range []string{"## Role routing", "## Planning commands", "## PR and merge flow", "`$namba-help`", "`namba harness \"description\"`: create the next harness-oriented SPEC package", "`namba run SPEC-XXX --team`: same-workspace multi-agent execution.", "`namba run SPEC-XXX --solo`: a single runner in one workspace.", "`namba fix --command plan \"issue description\"`: create a bugfix SPEC package plus review artifacts.", "`namba-mobile-engineer`", "`namba-security-engineer`", "`namba-reviewer`", "`$namba-plan-review`", "fresh Codex session"} {
+	for _, want := range []string{"## Role routing", "## Planning commands", "## PR and merge flow", "`$namba-help`", "`namba codex access`", "`namba harness \"description\"`: create the next harness-oriented SPEC package", "`namba run SPEC-XXX --team`: same-workspace multi-agent execution.", "`namba run SPEC-XXX --solo`: a single runner in one workspace.", "`namba fix --command plan \"issue description\"`: create a bugfix SPEC package plus review artifacts.", "`namba-mobile-engineer`", "`namba-security-engineer`", "`namba-reviewer`", "`$namba-plan-review`", "fresh Codex session"} {
 		if !strings.Contains(guide, want) {
 			t.Fatalf("expected namba-cli workflow guide to contain %q, got %q", want, guide)
 		}
@@ -155,6 +155,7 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 			tc.gettingStartedUninstall,
 			"`namba update`",
 			"`namba update --version vX.Y.Z`",
+			"`namba codex access`",
 			"`NAMBA_INSTALL_DIR`",
 			"namba pr",
 			"namba land",
@@ -170,6 +171,7 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 		for _, want := range []string{
 			tc.workflowModesHeading,
 			tc.workflowReviewHeading,
+			"`namba codex access`",
 			"`namba harness",
 			"`$namba-help`",
 			"`$namba-plan-review`",
@@ -248,7 +250,7 @@ func TestRenderNambaCLIGettingStartedSectionHelpersPreserveLocalizedAnchors(t *t
 		}
 
 		bootstrap := strings.Join(renderNambaCLIGettingStartedBootstrapSection(tc.lang), "\n")
-		for _, want := range []string{tc.bootstrapHeading, "mkdir my-project", "namba init ."} {
+		for _, want := range []string{tc.bootstrapHeading, "mkdir my-project", "namba init .", "namba codex access"} {
 			if !strings.Contains(bootstrap, want) {
 				t.Fatalf("%s bootstrap section missing %q: %q", tc.lang, want, bootstrap)
 			}
@@ -353,7 +355,7 @@ func TestRenderManagedProjectGettingStartedSectionHelpersPreserveLocalizedAnchor
 		}
 
 		workPackage := strings.Join(renderManagedProjectGettingStartedWorkPackageSection(tc.lang), "\n")
-		for _, want := range []string{tc.workHeading, "namba plan", "namba harness", "namba fix --command plan", "namba fix --command run"} {
+		for _, want := range []string{tc.workHeading, "namba plan", "namba harness", "namba fix --command plan", "namba fix --command run", "namba codex access"} {
 			if !strings.Contains(workPackage, want) {
 				t.Fatalf("%s work-package section missing %q: %q", tc.lang, want, workPackage)
 			}
