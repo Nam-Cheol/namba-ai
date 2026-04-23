@@ -288,6 +288,7 @@ func publicTopLevelCommandDefinitions() []topLevelCommandDefinition {
 		{Name: "project", UsageSummary: "  namba project", UsageText: projectUsageText, Run: (*App).runProject},
 		{Name: "update", UsageSummary: "  namba update [--version vX.Y.Z]", UsageText: updateUsageText, Run: (*App).runUpdate},
 		{Name: "regen", UsageSummary: "  namba regen", UsageText: regenUsageText, Run: (*App).runRegen},
+		{Name: "codex", UsageSummary: "  namba codex access [--approval-policy POLICY --sandbox-mode MODE]", UsageText: codexUsageText, Run: (*App).runCodex},
 		{Name: "plan", UsageSummary: "  namba plan \"<description>\"", UsageText: planUsageText, Run: (*App).runPlan},
 		{Name: "harness", UsageSummary: "  namba harness \"<description>\"", UsageText: harnessUsageText, Run: (*App).runHarness},
 		{Name: "fix", UsageSummary: "  namba fix [--command run|plan] \"<issue description>\"", UsageText: fixUsageText, Run: (*App).runFix},
@@ -370,11 +371,19 @@ func commandUsageError(command string, err error) error {
 }
 
 func initUsageText() string {
-	return singleUsageLineCommandUsageText(
-		"init",
+	lines := []string{
+		"namba init",
+		"",
+		"Usage:",
 		"  namba init [path] [--yes] [--name NAME] [--mode tdd|ddd] [--project-type new|existing]",
+		"  namba init [path] [--human-language LANG] [--approval-policy POLICY] [--sandbox-mode MODE]",
+		"",
+		"Behavior:",
 		"  Initialize the NambaAI scaffold, config, and repo-local Codex assets in the target directory.",
-	)
+		"  The wizard leads with Codex access presets and previews the resulting approval_policy / sandbox_mode pair.",
+		"  After bootstrap, use `namba codex access` from the project root to inspect or change repo-owned Codex access defaults.",
+	}
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func doctorUsageText() string {
@@ -3624,20 +3633,10 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 		},
 		profile.StatusLinePreset,
 	)
-	profile.ApprovalPolicy = promptSelect(
-		a.stdin,
-		a.stdout,
-		"\u2705 approval_policy",
-		approvalPolicyOptions(),
-		approvalPolicy(profile),
-	)
-	profile.SandboxMode = promptSelect(
-		a.stdin,
-		a.stdout,
-		"\U0001f512 sandbox_mode",
-		sandboxModeOptions(),
-		sandboxMode(profile),
-	)
+	profile, err := a.promptCodexAccess(reader, profile)
+	if err != nil {
+		return initProfile{}, err
+	}
 	profile.GitMode = promptSelect(
 		a.stdin,
 		a.stdout,
@@ -4059,11 +4058,8 @@ func validateInitProfile(profile initProfile) error {
 	if profile.PRLanguage != "" && !containsValue([]string{"en", "ko", "ja", "zh"}, profile.PRLanguage) {
 		return fmt.Errorf("PR language %q is not supported", profile.PRLanguage)
 	}
-	if !isAllowedApprovalPolicy(normalizeApprovalPolicy(profile.ApprovalPolicy)) {
-		return fmt.Errorf("approval policy %q is not supported", profile.ApprovalPolicy)
-	}
-	if !isAllowedSandboxMode(normalizeSandboxMode(profile.SandboxMode)) {
-		return fmt.Errorf("sandbox mode %q is not supported", profile.SandboxMode)
+	if err := validateCodexAccessPair(profile.ApprovalPolicy, profile.SandboxMode); err != nil {
+		return err
 	}
 	for field, value := range map[string]string{
 		"branch base":          profile.BranchBase,

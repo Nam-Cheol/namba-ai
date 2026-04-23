@@ -34,7 +34,8 @@ cd my-project
 namba init .
 ```
 
-wizard 会统一工作语言、approval_policy、sandbox_mode、PR 语言以及 Codex agent mode。
+wizard 会统一工作语言、Codex access preset、PR 语言以及 Codex agent mode，并预览结果中的 approval_policy / sandbox_mode。
+- 初始化之后，可以用 `namba codex access` 查看或修改当前的 access 默认值。
 
 ## 5. 运行基础 Codex 流程
 

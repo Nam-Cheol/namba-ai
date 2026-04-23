@@ -727,7 +727,7 @@ func TestRenderCodexUsageFrontSectionsPreserveAnchors(t *testing.T) {
 		"WSL workspace",
 		"Codex loads `AGENTS.md` and repo skills.",
 		"`default`, `worker`, and `explorer`",
-		"`namba project`, `namba regen`, `namba update`, `namba plan`, `namba harness`, `namba fix`, `namba run SPEC-XXX`, `namba sync`, `namba pr`, and `namba land`",
+		"`namba project`, `namba regen`, `namba update`, `namba codex access`, `namba plan`, `namba harness`, `namba fix`, `namba run SPEC-XXX`, `namba sync`, `namba pr`, and `namba land`",
 	} {
 		if !strings.Contains(howCodexUses, want) {
 			t.Fatalf("how-codex-uses section missing %q: %q", want, howCodexUses)
@@ -743,6 +743,7 @@ func TestRenderCodexUsageWorkflowCommandSemanticsSectionPreservesAnchors(t *test
 		"## Workflow Command Semantics",
 		"`$namba-help` explains how to use NambaAI",
 		"`$namba-create` is the preview-first creation path",
+		"`namba codex access` inspects the current repo-owned Codex access defaults",
 		"`namba fix --command plan \"<issue description>\"` creates the next bugfix SPEC package plus review scaffolds.",
 		"`namba run SPEC-XXX --parallel` still refers to the standalone worktree runner path.",
 	} {
@@ -859,6 +860,7 @@ func TestRenderNambaSkillSectionsPreserveAnchors(t *testing.T) {
 		"Command mapping:",
 		"`$namba-help`",
 		"`$namba-create`",
+		"`namba codex access`",
 		"`$namba-plan-review`",
 		"`namba run SPEC-XXX --solo|--team|--parallel`",
 		"`namba doctor`",
@@ -877,6 +879,7 @@ func TestRenderNambaSkillSectionsPreserveAnchors(t *testing.T) {
 		"Execution rules:",
 		"Treat `.namba/` as the source of truth.",
 		"Prefer repo-local skills in `.agents/skills/`.",
+		"`project`, `regen`, `update`, `codex access`, `plan`",
 		"`--solo`, `--team`, `--parallel`, or `--dry-run`",
 		"Prepare PRs against `release`, write the title/body in Korean, and request GitHub Codex review with `@codex review`",
 	} {

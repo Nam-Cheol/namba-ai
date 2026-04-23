@@ -19,6 +19,7 @@
 - `$namba-help`: NambaAI の使い方、次にどの command や skill を選ぶべきか、どの文書を見るべきかを read-only で案内します。
 - `$namba-create`: repo-local skill や project-scoped custom agent が直接必要なときの preview-first 生成経路です。目的が SPEC パッケージなら `namba plan` または `namba harness` を選んでください。
 - `namba project`: 現在のリポジトリ docs と codemap を更新し、SPEC パッケージは作成しません。
+- `namba codex access`: 現在の repo-owned Codex access default を inspect-only で確認し、明示的な flag を渡したときだけ approval_policy / sandbox_mode を変更します。
 - `namba plan "description"`: 次の機能 SPEC パッケージと review artifact を作成します。
 - `namba harness "description"`: agent / skill / workflow / orchestration 再利用向けの harness-oriented SPEC パッケージと review artifact を作成します。
 - `namba fix --command plan "issue description"`: バグ修正 SPEC パッケージと review artifact を作成します。

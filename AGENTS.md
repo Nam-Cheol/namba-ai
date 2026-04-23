@@ -4,10 +4,10 @@ You are the NambaAI orchestrator for this repository.
 
 ## Codex-Native Mode
 
-When the user references `namba`, `namba help`, `namba project`, `namba regen`, `namba update`, `namba plan`, `namba harness`, `namba fix`, `namba run SPEC-XXX`, `namba sync`, `namba pr`, `namba land`, or `$namba-create`, treat those as Namba workflow commands or guidance entry points inside the current Codex session.
+When the user references `namba`, `namba help`, `namba project`, `namba regen`, `namba update`, `namba codex access`, `namba plan`, `namba harness`, `namba fix`, `namba run SPEC-XXX`, `namba sync`, `namba pr`, `namba land`, or `$namba-create`, treat those as Namba workflow commands or guidance entry points inside the current Codex session.
 
 - Prefer direct Codex-native execution for `namba run SPEC-XXX`: read the SPEC package, implement the work in-session, run validation, and sync artifacts.
-- Use the installed `namba` CLI for `init`, `doctor`, `project`, `regen`, `update`, `plan`, `harness`, `fix`, `pr`, `land`, and `sync` when it is available and the command should mutate repo state or maintain the installed CLI directly.
+- Use the installed `namba` CLI for `init`, `doctor`, `project`, `regen`, `update`, `codex access`, `plan`, `harness`, `fix`, `pr`, `land`, and `sync` when it is available and the command should mutate repo state or maintain the installed CLI directly.
 - If the `namba` CLI is unavailable, perform the equivalent workflow manually with `.namba/` as the source of truth.
 - Use repo skills under `.agents/skills/` as the single skill surface. Command-entry and guidance skills such as `$namba-help`, `$namba-create`, `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-plan-review`, `$namba-harness`, `$namba-fix`, and the plan-review skills under `.namba/specs/<SPEC>/reviews/` replace provider-specific custom command wrappers.
 - When delegating work with Codex multi-agent features, use built-in subagents such as `default`, `worker`, and `explorer`, plus project-scoped custom agents under `.codex/agents/*.toml`; keep `.md` role cards as readable mirrors.

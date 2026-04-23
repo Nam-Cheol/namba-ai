@@ -444,7 +444,8 @@ func renderNambaCLIGettingStartedBootstrapSection(lang string) []string {
 			"namba init .",
 			"```",
 			"",
-			"wizard는 작업 언어, approval_policy, sandbox_mode, PR 언어, Codex agent mode를 함께 정렬합니다.",
+			"wizard는 작업 언어, Codex access preset, PR 언어, Codex agent mode를 함께 정렬하고 결과 approval_policy / sandbox_mode를 미리 보여줍니다.",
+			"- 초기화 뒤에는 `namba codex access`로 현재 access 기본값을 확인하거나 바꿀 수 있습니다.",
 			"",
 		}
 	case "ja":
@@ -457,7 +458,8 @@ func renderNambaCLIGettingStartedBootstrapSection(lang string) []string {
 			"namba init .",
 			"```",
 			"",
-			"wizard は作業言語、approval_policy、sandbox_mode、PR 言語、Codex agent mode をまとめてそろえます。",
+			"wizard は作業言語、Codex access preset、PR 言語、Codex agent mode をまとめてそろえ、結果の approval_policy / sandbox_mode を事前表示します。",
+			"- 初期化後は `namba codex access` で現在の access default を確認または変更できます。",
 			"",
 		}
 	case "zh":
@@ -470,7 +472,8 @@ func renderNambaCLIGettingStartedBootstrapSection(lang string) []string {
 			"namba init .",
 			"```",
 			"",
-			"wizard 会统一工作语言、approval_policy、sandbox_mode、PR 语言以及 Codex agent mode。",
+			"wizard 会统一工作语言、Codex access preset、PR 语言以及 Codex agent mode，并预览结果中的 approval_policy / sandbox_mode。",
+			"- 初始化之后，可以用 `namba codex access` 查看或修改当前的 access 默认值。",
 			"",
 		}
 	default:
@@ -483,7 +486,8 @@ func renderNambaCLIGettingStartedBootstrapSection(lang string) []string {
 			"namba init .",
 			"```",
 			"",
-			"The wizard aligns working language, approval_policy, sandbox_mode, PR language, and Codex agent mode.",
+			"The wizard aligns working language, the Codex access preset, PR language, and Codex agent mode, then previews the resulting approval_policy / sandbox_mode pair.",
+			"- After bootstrap, use `namba codex access` to inspect or change the current access defaults.",
 			"",
 		}
 	}
@@ -1846,6 +1850,7 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- `$namba-help`: NambaAI 사용법, 다음에 어떤 명령이나 skill을 선택할지, 어디 문서를 봐야 하는지 read-only로 안내합니다.",
 			"- `$namba-create`: repo-local skill이나 project-scoped custom agent가 직접 필요할 때 preview-first 생성 경로를 제공합니다. SPEC 패키지가 목적이면 `namba plan` 또는 `namba harness`를 고르세요.",
 			"- `namba project`: 현재 저장소 문서와 codemap을 새로 고치며 SPEC 패키지를 만들지 않습니다.",
+			"- `namba codex access`: 현재 repo-owned Codex access 기본값을 inspect-only로 확인하고, 명시적 flag를 줄 때만 approval_policy / sandbox_mode를 변경합니다.",
 			"- `namba plan \"description\"`: 다음 기능 SPEC 패키지와 review artifact를 만듭니다.",
 			"- `namba harness \"description\"`: agent, skill, workflow, orchestration 재사용을 위한 harness-oriented SPEC 패키지와 review artifact를 만듭니다.",
 			"- `namba fix --command plan \"issue description\"`: 버그 수정 SPEC 패키지와 review artifact를 만듭니다.",
@@ -1892,6 +1897,7 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- `$namba-help`: NambaAI の使い方、次にどの command や skill を選ぶべきか、どの文書を見るべきかを read-only で案内します。",
 			"- `$namba-create`: repo-local skill や project-scoped custom agent が直接必要なときの preview-first 生成経路です。目的が SPEC パッケージなら `namba plan` または `namba harness` を選んでください。",
 			"- `namba project`: 現在のリポジトリ docs と codemap を更新し、SPEC パッケージは作成しません。",
+			"- `namba codex access`: 現在の repo-owned Codex access default を inspect-only で確認し、明示的な flag を渡したときだけ approval_policy / sandbox_mode を変更します。",
 			"- `namba plan \"description\"`: 次の機能 SPEC パッケージと review artifact を作成します。",
 			"- `namba harness \"description\"`: agent / skill / workflow / orchestration 再利用向けの harness-oriented SPEC パッケージと review artifact を作成します。",
 			"- `namba fix --command plan \"issue description\"`: バグ修正 SPEC パッケージと review artifact を作成します。",
@@ -1938,6 +1944,7 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- `$namba-help`: 以 read-only 方式说明如何使用 NambaAI、下一步该选哪个命令或 skill、以及应该看哪些文档。",
 			"- `$namba-create`: 当你直接需要 repo-local skill 或 project-scoped custom agent 时，使用这个 preview-first 创建路径。如果目标是 SPEC 包，请选择 `namba plan` 或 `namba harness`。",
 			"- `namba project`: 刷新当前仓库文档和 codemap，不会创建 SPEC 包。",
+			"- `namba codex access`: 以 inspect-only 方式查看当前 repo-owned Codex access 默认值，只有传入明确 flag 时才会修改 approval_policy / sandbox_mode。",
 			"- `namba plan \"description\"`: 创建下一个功能 SPEC 包和 review artifact。",
 			"- `namba harness \"description\"`: 创建面向 agent / skill / workflow / orchestration 复用的 harness-oriented SPEC 包和 review artifact。",
 			"- `namba fix --command plan \"issue description\"`: 创建缺陷修复 SPEC 包和 review artifact。",
@@ -1984,6 +1991,7 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- `$namba-help`: read-only guidance on how to use NambaAI, which command or skill to choose next, and where the authoritative docs live.",
 			"- `$namba-create`: use the preview-first creation flow when you need a repo-local skill or a project-scoped custom agent directly. Choose `namba plan` or `namba harness` instead when the outcome should be a SPEC package.",
 			"- `namba project`: refresh current repository docs and codemaps without creating a SPEC package.",
+			"- `namba codex access`: inspect the current repo-owned Codex access defaults, and change approval_policy / sandbox_mode only when explicit flags are provided.",
 			"- `namba plan \"description\"`: create the next feature SPEC package and review artifacts.",
 			"- `namba harness \"description\"`: create the next harness-oriented SPEC package and review artifacts for reusable agent, skill, workflow, or orchestration work.",
 			"- `namba fix --command plan \"issue description\"`: create a bugfix SPEC package plus review artifacts.",
@@ -2109,6 +2117,7 @@ func renderManagedProjectGettingStartedWorkPackageSection(lang string) []string 
 		return []string{
 			"## 3. 작업 패키지 만들기",
 			"",
+			"- 현재 repo-owned Codex access 기본값 확인/변경: `namba codex access`",
 			"- 기능 요청: `namba plan \"description\"`",
 			"- harness 요청: `namba harness \"description\"`",
 			"- 버그 수정 SPEC 계획: `namba fix --command plan \"issue description\"`",
@@ -2119,6 +2128,7 @@ func renderManagedProjectGettingStartedWorkPackageSection(lang string) []string 
 		return []string{
 			"## 3. 作業パッケージを作る",
 			"",
+			"- 現在の repo-owned Codex access default の確認 / 変更: `namba codex access`",
 			"- 機能要求: `namba plan \"description\"`",
 			"- harness 要求: `namba harness \"description\"`",
 			"- バグ修正 SPEC の計画: `namba fix --command plan \"issue description\"`",
@@ -2129,6 +2139,7 @@ func renderManagedProjectGettingStartedWorkPackageSection(lang string) []string 
 		return []string{
 			"## 3. 创建工作包",
 			"",
+			"- 查看或修改当前 repo-owned Codex access 默认值：`namba codex access`",
 			"- 功能请求: `namba plan \"description\"`",
 			"- harness 请求: `namba harness \"description\"`",
 			"- 规划缺陷修复 SPEC: `namba fix --command plan \"issue description\"`",
@@ -2139,6 +2150,7 @@ func renderManagedProjectGettingStartedWorkPackageSection(lang string) []string 
 		return []string{
 			"## 3. Create a work package",
 			"",
+			"- Inspect or change the current repo-owned Codex access defaults: `namba codex access`",
 			"- Feature request: `namba plan \"description\"`",
 			"- Harness request: `namba harness \"description\"`",
 			"- Bugfix SPEC planning: `namba fix --command plan \"issue description\"`",
@@ -2593,6 +2605,7 @@ func renderManagedProjectWorkflowGuidePlanAndFixSection(lang string) []string {
 			"",
 			"- `$namba-help`: NambaAI 사용법, 다음 명령/skill 선택, 참고 문서를 read-only로 안내합니다.",
 			"- `namba project`: 현재 저장소 문서와 codemap을 새로 고치며 SPEC 패키지를 만들지 않습니다.",
+			"- `namba codex access`: 현재 repo-owned Codex access 기본값을 확인하고, 명시적 flag를 줄 때만 approval_policy / sandbox_mode를 바꿉니다.",
 			"- `namba plan \"description\"`: 다음 기능 SPEC 패키지와 review artifact를 만듭니다.",
 			"- `namba harness \"description\"`: agent, skill, workflow, orchestration 재사용을 위한 harness-oriented SPEC 패키지와 review artifact를 만듭니다.",
 			"- `namba fix --command plan \"issue description\"`: 버그 수정 SPEC 패키지와 review artifact를 만듭니다.",
@@ -2608,6 +2621,7 @@ func renderManagedProjectWorkflowGuidePlanAndFixSection(lang string) []string {
 			"",
 			"- `$namba-help`: NambaAI の使い方、次の command / skill 選択、参照ドキュメントを read-only で案内します。",
 			"- `namba project`: 現在のリポジトリ docs と codemap を更新し、SPEC パッケージは作成しません。",
+			"- `namba codex access`: 現在の repo-owned Codex access default を確認し、明示的な flag を渡したときだけ approval_policy / sandbox_mode を変更します。",
 			"- `namba plan \"description\"`: 次の機能 SPEC パッケージと review artifact を作成します。",
 			"- `namba harness \"description\"`: agent / skill / workflow / orchestration 再利用向けの harness-oriented SPEC パッケージと review artifact を作成します。",
 			"- `namba fix --command plan \"issue description\"`: バグ修正 SPEC パッケージと review artifact を作成します。",
@@ -2623,6 +2637,7 @@ func renderManagedProjectWorkflowGuidePlanAndFixSection(lang string) []string {
 			"",
 			"- `$namba-help`: 以 read-only 方式说明 NambaAI 的用法、下一步该选哪个命令或 skill，以及参考文档。",
 			"- `namba project`: 刷新当前仓库文档和 codemap，不会创建 SPEC 包。",
+			"- `namba codex access`: 查看当前 repo-owned Codex access 默认值，只有传入明确 flag 时才会修改 approval_policy / sandbox_mode。",
 			"- `namba plan \"description\"`: 创建下一个功能 SPEC 包和 review artifact。",
 			"- `namba harness \"description\"`: 创建面向 agent / skill / workflow / orchestration 复用的 harness-oriented SPEC 包和 review artifact。",
 			"- `namba fix --command plan \"issue description\"`: 创建缺陷修复 SPEC 包和 review artifact。",
@@ -2637,6 +2652,7 @@ func renderManagedProjectWorkflowGuidePlanAndFixSection(lang string) []string {
 			"## `namba plan` and `namba fix`",
 			"",
 			"- `namba project`: refresh current repository docs and codemaps without creating a SPEC package.",
+			"- `namba codex access`: inspect the current repo-owned Codex access defaults and change approval_policy / sandbox_mode only when explicit flags are provided.",
 			"- `namba plan \"description\"`: create the next feature SPEC package and review artifacts.",
 			"- `namba harness \"description\"`: create the next harness-oriented SPEC package and review artifacts for reusable agent, skill, workflow, or orchestration work.",
 			"- `namba fix --command plan \"issue description\"`: create a bugfix SPEC package plus review artifacts.",
@@ -2656,6 +2672,7 @@ func renderManagedProjectWorkflowGuidePlanningCommandsSection() []string {
 		"- `$namba-help`: read-only guidance on how to use NambaAI, which command or skill to choose next, and where the authoritative docs live.",
 		"- `$namba-create`: use the preview-first creation flow when you need repo-local skills or project-scoped custom agents directly instead of another SPEC package.",
 		"- `namba project`: refresh current repository docs and codemaps before choosing work.",
+		"- `namba codex access`: inspect the current repo-owned Codex access defaults and mutate them only when explicit approval_policy / sandbox_mode flags are present.",
 		"- `namba plan`: create the next feature SPEC package.",
 		"- `namba harness`: create the next harness-oriented SPEC package for reusable agent, skill, workflow, or orchestration work.",
 		"- `namba fix --command plan`: create a reviewable bugfix SPEC package.",

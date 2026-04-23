@@ -34,7 +34,8 @@ cd my-project
 namba init .
 ```
 
-wizard는 작업 언어, approval_policy, sandbox_mode, PR 언어, Codex agent mode를 함께 정렬합니다.
+wizard는 작업 언어, Codex access preset, PR 언어, Codex agent mode를 함께 정렬하고 결과 approval_policy / sandbox_mode를 미리 보여줍니다.
+- 초기화 뒤에는 `namba codex access`로 현재 access 기본값을 확인하거나 바꿀 수 있습니다.
 
 ## 5. 기본 Codex 흐름 실행
 

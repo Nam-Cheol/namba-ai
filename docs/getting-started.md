@@ -34,7 +34,8 @@ cd my-project
 namba init .
 ```
 
-The wizard aligns working language, approval_policy, sandbox_mode, PR language, and Codex agent mode.
+The wizard aligns working language, the Codex access preset, PR language, and Codex agent mode, then previews the resulting approval_policy / sandbox_mode pair.
+- After bootstrap, use `namba codex access` to inspect or change the current access defaults.
 
 ## 5. Run the basic Codex flow
 
