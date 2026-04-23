@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -225,6 +226,45 @@ func TestWriteOutputsBatchesMultipleReadinessFilesInOneManifestSession(t *testin
 	}
 	if len(wantEntries) != 0 {
 		t.Fatalf("missing manifest entries for batched readiness outputs: %+v", wantEntries)
+	}
+}
+
+func TestWriteOutputsRecoversFromMalformedManifest(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	if err := app.mkdirAll(filepath.Join(tmp, nambaDir), 0o755); err != nil {
+		t.Fatalf("mkdir .namba: %v", err)
+	}
+	if err := app.writeFile(filepath.Join(tmp, manifestPath), []byte("{not-json"), 0o644); err != nil {
+		t.Fatalf("write malformed manifest: %v", err)
+	}
+
+	outputs := map[string]string{
+		filepath.ToSlash(filepath.Join(projectDir, "change-summary.md")): "summary",
+	}
+	report, err := app.writeOutputs(tmp, outputs)
+	if err != nil {
+		t.Fatalf("writeOutputs failed: %v", err)
+	}
+	if got, want := report.ChangedPaths, []string{filepath.ToSlash(filepath.Join(projectDir, "change-summary.md"))}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("changed paths = %#v, want %#v", got, want)
+	}
+	if got := mustReadFile(t, filepath.Join(tmp, ".namba", "project", "change-summary.md")); got != "summary" {
+		t.Fatalf("expected materialized output after manifest recovery, got %q", got)
+	}
+
+	manifest, err := app.readManifest(tmp)
+	if err != nil {
+		t.Fatalf("read healed manifest: %v", err)
+	}
+	if got, want := len(manifest.Entries), 1; got != want {
+		t.Fatalf("manifest entry count = %d, want %d; manifest=%+v", got, want, manifest)
+	}
+	if manifest.Entries[0].Path != filepath.ToSlash(filepath.Join(projectDir, "change-summary.md")) {
+		t.Fatalf("unexpected healed manifest entry: %+v", manifest.Entries[0])
 	}
 }
 

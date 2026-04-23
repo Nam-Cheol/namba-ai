@@ -1,6 +1,7 @@
 package namba
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -19,9 +20,20 @@ type managedOutputSession struct {
 }
 
 func (a *App) beginManagedOutputSession(root string) (*managedOutputSession, error) {
+	return a.beginManagedOutputSessionWithOptions(root, false)
+}
+
+func (a *App) beginManagedOutputSessionAllowMalformedManifest(root string) (*managedOutputSession, error) {
+	return a.beginManagedOutputSessionWithOptions(root, true)
+}
+
+func (a *App) beginManagedOutputSessionWithOptions(root string, allowMalformedManifest bool) (*managedOutputSession, error) {
 	manifest, err := a.readManifest(root)
 	if err != nil {
-		return nil, err
+		if !allowMalformedManifest || !isRecoverableManifestError(err) {
+			return nil, err
+		}
+		manifest = Manifest{}
 	}
 	return &managedOutputSession{
 		app:      a,
@@ -29,6 +41,15 @@ func (a *App) beginManagedOutputSession(root string) (*managedOutputSession, err
 		manifest: manifest,
 		now:      a.now().Format(time.RFC3339),
 	}, nil
+}
+
+func isRecoverableManifestError(err error) bool {
+	var syntaxErr *json.SyntaxError
+	if errors.As(err, &syntaxErr) {
+		return true
+	}
+	var typeErr *json.UnmarshalTypeError
+	return errors.As(err, &typeErr)
 }
 
 func (s *managedOutputSession) replaceManagedOutputs(outputs map[string]string, managed func(string) bool, ownedManaged func(ManifestEntry) bool) error {

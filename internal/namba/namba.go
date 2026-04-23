@@ -1981,7 +1981,7 @@ func (a *App) requireProjectRoot() (string, error) {
 }
 
 func (a *App) writeOutputs(root string, outputs map[string]string) (outputWriteReport, error) {
-	session, err := a.beginManagedOutputSession(root)
+	session, err := a.beginManagedOutputSessionAllowMalformedManifest(root)
 	if err != nil {
 		return outputWriteReport{}, err
 	}
