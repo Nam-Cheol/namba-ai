@@ -1235,6 +1235,9 @@ func buildSpecPackageScaffoldOutputs(scaffoldCtx specPackageScaffoldContext) map
 		filepath.ToSlash(filepath.Join(specsDir, scaffoldCtx.SpecID, "plan.md")):       buildSpecPlanDoc(scaffoldCtx.Kind, scaffoldCtx.SpecID),
 		filepath.ToSlash(filepath.Join(specsDir, scaffoldCtx.SpecID, "acceptance.md")): buildSpecAcceptanceDoc(scaffoldCtx.Kind, scaffoldCtx.Description, scaffoldCtx.QualityCfg.DevelopmentMode),
 	}
+	if body, ok := buildFrontendBriefDoc(scaffoldCtx.Kind, scaffoldCtx.Description); ok {
+		outputs[filepath.ToSlash(filepath.Join(specsDir, scaffoldCtx.SpecID, frontendBriefFileName))] = body
+	}
 	if req := inferredPlanningHarnessRequest(scaffoldCtx.Kind, scaffoldCtx.Description); req != nil {
 		if body, err := marshalHarnessRequest(*req); err == nil {
 			outputs[specHarnessRequestPath(scaffoldCtx.SpecID)] = body
@@ -1332,6 +1335,17 @@ func (a *App) loadRunExecutionContext(root string, options runExecuteOptions) (r
 	readinessAdvisory, err := a.refreshSpecReviewReadiness(root, specPkg.ID)
 	if err != nil {
 		return runExecutionContext{}, err
+	}
+	if frontend := loadFrontendBriefReport(root, specPkg.ID); frontend.Exists {
+		if !frontend.Valid {
+			return runExecutionContext{}, frontendGateExecutionError(specPkg.ID, frontend)
+		}
+		if frontend.Header.TaskClassification == frontendTaskClassificationMajor {
+			frontendReady := frontend.Header.FrontendGateStatus == frontendGateStatusApproved && frontend.EvidenceStatus == frontendEvidenceStatusComplete && len(frontend.Mismatches) == 0
+			if !frontendReady {
+				return runExecutionContext{}, frontendGateExecutionError(specPkg.ID, frontend)
+			}
+		}
 	}
 	runtimeCfg, err := a.loadExecutionRuntimeConfig(root)
 	if err != nil {
@@ -1583,6 +1597,17 @@ func (a *App) buildExecutionPrompt(root string, specPkg specPackage, qualityCfg 
 		"## Acceptance",
 		string(acceptanceBytes),
 	)
+	if frontendBriefExists := exists(filepath.Join(specPkg.Path, frontendBriefFileName)); frontendBriefExists {
+		frontendBytes, err := os.ReadFile(filepath.Join(specPkg.Path, frontendBriefFileName))
+		if err != nil {
+			return "", nil, delegationPlan{}, err
+		}
+		promptLines = append(promptLines,
+			"",
+			"## Frontend Brief",
+			string(frontendBytes),
+		)
+	}
 	if specReviewReadinessExists(root, specPkg.ID) {
 		readinessBytes, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(specReviewReadinessPath(specPkg.ID))))
 		if err != nil {

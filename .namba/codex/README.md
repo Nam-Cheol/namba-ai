@@ -36,7 +36,7 @@
 - `namba pr` prepares the current branch for GitHub review by syncing, validating, committing, pushing, opening or reusing the PR, and ensuring the Codex review marker is present.
 - `namba land` waits for checks when requested, merges a clean PR, and updates local `main` safely.
 - `namba release` requires a clean `main` branch and passing validators before it creates a tag. `--push` pushes both `main` and the new tag.
-- `namba run SPEC-XXX` keeps the standard standalone Codex flow when you use the CLI runner without extra mode flags.
+- `namba run SPEC-XXX` keeps the standard standalone Codex flow when you use the CLI runner without extra mode flags, but explicit `frontend-major` work now reads `frontend-brief.md` as a canonical gate before coding.
 - `namba run SPEC-XXX --solo` requests a standalone Codex run that explicitly targets a single-subagent workflow inside one workspace.
 - `namba run SPEC-XXX --team` requests a standalone Codex run that explicitly coordinates multiple subagents inside one workspace.
 - `namba run SPEC-XXX --parallel` still refers to the standalone worktree runner path. It uses git worktrees, merges only after every worker passes execution and validation, and preserves failed worktrees and branches for inspection.
@@ -44,7 +44,7 @@
 ## Namba Custom Agent Roster
 
 - Strategy and readiness: `namba-product-manager` shapes scope and acceptance, `namba-planner` turns a SPEC into an execution plan, and `namba-plan-reviewer` validates whether the product/engineering/design review set is coherent enough to start implementation.
-- UI split: `namba-designer` owns art direction, palette/tone logic, composition, motion intent, and diagnosis of generic or bland sections; `namba-frontend-architect` owns component boundaries, state/file planning, and delivery slicing; `namba-frontend-implementer` ships approved UI work; `namba-mobile-engineer` handles mobile-specific constraints.
+- UI split: `namba-designer` owns art direction plus reference collection and synthesis, `namba-frontend-architect` plans hierarchy and state only after the frontend gate is satisfied, `namba-frontend-implementer` ships approved UI work only after synthesis plus design clearance, and `namba-mobile-engineer` handles mobile-specific constraints.
 - Routing examples: `Redesign this landing page hero so it stops looking generic` -> `namba-designer`; `Plan the component/state split for this dashboard` -> `namba-frontend-architect`; `Implement the approved dashboard filters and responsive states` -> `namba-frontend-implementer`.
 - Backend and data: `namba-backend-architect` plans service boundaries, `namba-backend-implementer` ships server-side changes, and `namba-data-engineer` owns data pipelines, transformations, migrations, and analytics-facing changes.
 - Security and delivery: `namba-security-engineer` handles hardening work, `namba-test-engineer` adds targeted regression coverage, `namba-devops-engineer` handles CI/CD and runtime changes, and `namba-reviewer` checks implementation acceptance before sync.
@@ -58,15 +58,16 @@
 - `--team` prefers one specialist when one domain dominates and expands to two or three only when acceptance spans multiple domains.
 - Repo-managed same-workspace defaults set `.codex/config.toml [agents].max_threads = 5` when `agent_mode: multi`; worktree fan-out remains separately controlled by `.namba/config/sections/workflow.yaml`.
 - Team mode honors each selected role's `model` and `model_reasoning_effort` metadata from `.codex/agents/*.toml`, keeping planner/reviewer/security roles stronger and delivery roles lighter.
-- Route art direction, palette/tone logic, composition, motion intent, redesign, and Figma critique to `namba-designer`; route component, state, and delivery planning to `namba-frontend-architect`; route approved UI implementation to `namba-frontend-implementer`; route mobile-specific delivery to `namba-mobile-engineer`; route API, schema, and pipeline work to backend/data; route auth, secrets, and compliance work to security; route deployment and runtime work to devops.
+- Route art direction plus reference synthesis to `namba-designer`; route component, state, and delivery planning only after the frontend gate is satisfied to `namba-frontend-architect`; route approved UI implementation only after synthesis plus design clearance to `namba-frontend-implementer`; route mobile-specific delivery to `namba-mobile-engineer`; route API, schema, and pipeline work to backend/data; route auth, secrets, and compliance work to security; route deployment and runtime work to devops.
 - Keep the standalone runner as the integrator and final validation owner, and use `namba-reviewer` last when multiple specialists contribute.
 
 ## Plan Review Readiness
 
 - `namba plan`, `namba harness`, and `namba fix --command plan` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.
+- Frontend-touching planning also seeds `.namba/specs/<SPEC>/frontend-brief.md`, and explicit `frontend-major` work uses that brief as the canonical gate contract.
 - `$namba-plan-review` bundles SPEC creation or resolution, the three review tracks, and an aggregate validation loop when you want that whole pre-implementation pass handled through one skill.
 - `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` update those review artifacts directly in the repository.
-- `namba run`, `namba sync`, and `namba pr` surface the latest readiness summary as advisory context so review depth is visible without silently hard-blocking delivery.
+- `namba run`, `namba sync`, and `namba pr` surface the latest readiness summary as advisory context for non-frontend and `frontend-minor` work, while explicit `frontend-major` runs can block on missing, insufficient, invalid, or mismatched frontend evidence.
 
 ## Output Contract
 

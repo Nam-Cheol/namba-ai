@@ -106,7 +106,7 @@ namba land
 ## Codex 自定义 Agents
 
 - Strategy and readiness: `namba-product-manager` 负责收敛范围和 acceptance，`namba-planner` 把 SPEC 转成执行计划，`namba-plan-reviewer` 负责校验 plan-review 结果的一致性与 readiness。
-- UI split: `namba-designer` 负责 art direction、palette/tone logic、composition、motion intent，以及 generic 或 bland section 的诊断；`namba-frontend-architect` 负责 component boundary、state/file planning 和 delivery slicing；`namba-frontend-implementer` 负责已批准的 UI 实现；`namba-mobile-engineer` 负责移动端约束。
+- UI split: `namba-designer` 负责包含 reference 收集与 synthesis 的 art direction；`namba-frontend-architect` 在 frontend gate 满足后负责 hierarchy 与 state/file planning；`namba-frontend-implementer` 只负责 synthesis 与 design clearance 之后的已批准 UI 实现；`namba-mobile-engineer` 负责移动端约束。
 - Routing examples: `Redesign this landing page hero so it stops looking generic` 交给 `namba-designer`，`Plan the component/state split for this dashboard` 交给 `namba-frontend-architect`，`Implement the approved dashboard filters and responsive states` 交给 `namba-frontend-implementer`。
 - Backend and data: `namba-backend-architect`、`namba-backend-implementer`、`namba-data-engineer` 负责 API、persistence、migration 和 pipeline。
 - Security and delivery: `namba-security-engineer`、`namba-test-engineer`、`namba-devops-engineer`、`namba-reviewer` 负责 hardening、regression confidence、CI/CD 和 final acceptance。

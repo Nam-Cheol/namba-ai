@@ -822,6 +822,123 @@ func TestDispatchRunExecutionDryRunSkipsRunnerAndPrintsPromptPath(t *testing.T) 
 	}
 }
 
+func TestRunBlocksFrontendMajorWhenFrontendSynthesisIsIncomplete(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: Dashboard restructure.",
+		"Frontend Gate Status: needs-research",
+		"Problem Gate: complete",
+		"Reference Gate: missing",
+		"Critique Gate: missing",
+		"Decision Gate: missing",
+		"Prototype Gate: missing",
+		"Prototype Evidence: n/a",
+	}, "\n"))
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		t.Fatalf("runner/validators should not execute for blocked frontend-major run: %s %v", name, args)
+		return "", nil
+	}
+
+	err := app.Run(context.Background(), []string{"run", "SPEC-001"})
+	if err == nil {
+		t.Fatal("expected frontend synthesis block")
+	}
+	if !strings.Contains(err.Error(), "blocked for frontend synthesis") {
+		t.Fatalf("expected frontend block message, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "Reference Gate") || !strings.Contains(err.Error(), "split this work into separate SPECs or explicit phases") {
+		t.Fatalf("expected remediation guidance in block message, got %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-execution.json")); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("expected no execution artifact for blocked run, got stat err=%v", statErr)
+	}
+}
+
+func TestRunAllowsFrontendMinorExecutionAndEmbedsFrontendBriefInPrompt(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-minor",
+		"Classification Rationale: Existing settings spacing fix.",
+		"Frontend Gate Status: not-applicable",
+		"Problem Gate: not-applicable",
+		"Reference Gate: not-applicable",
+		"Critique Gate: not-applicable",
+		"Decision Gate: not-applicable",
+		"Prototype Gate: not-applicable",
+		"Prototype Evidence: n/a",
+	}, "\n"))
+
+	var promptArg string
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			promptArg = args[len(args)-1]
+			return "runner output", nil
+		case isShellCommand(name):
+			return "validation ok", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"run", "SPEC-001"}); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+	if !strings.Contains(promptArg, "## Frontend Brief") || !strings.Contains(promptArg, "Task Classification: frontend-minor") {
+		t.Fatalf("expected prompt to embed frontend brief, got %q", promptArg)
+	}
+}
+
+func TestLoadRunExecutionContextRejectsInvalidFrontendBriefContract(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: New landing page.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: missing",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+	}, "\n"))
+
+	_, err := app.loadRunExecutionContext(tmp, runExecuteOptions{specID: "SPEC-001", mode: executionModeDefault})
+	if err == nil {
+		t.Fatal("expected invalid frontend brief contract error")
+	}
+	if !strings.Contains(err.Error(), "invalid frontend brief contract") {
+		t.Fatalf("expected invalid-contract error, got %v", err)
+	}
+}
+
 func TestRunUsesConfiguredApprovalAndSandbox(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

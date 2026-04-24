@@ -112,6 +112,17 @@ func buildSpecReviewDoc(state specReviewState) string {
 		fmt.Sprintf("- %s", state.Template.Focus),
 		"",
 	}
+	if state.Template.Slug == "design" {
+		lines = append(lines,
+			"- Evidence Status: pending",
+			"- Gate Decision: pending",
+			"- Approved Direction: pending",
+			"- Banned Patterns: pending",
+			"- Open Questions: pending",
+			"- Unresolved Questions: pending",
+			"",
+		)
+	}
 	if len(state.Template.Checklist) > 0 {
 		lines = append(lines, "## Review Checklist", "")
 		for _, item := range state.Template.Checklist {
@@ -169,6 +180,14 @@ func buildSpecReviewReadinessDoc(root, specID string, states []specReviewState) 
 		} else {
 			blockers = append(blockers, fmt.Sprintf("%s=%s", state.Template.Slug, state.Status))
 		}
+	}
+	if frontendLines := frontendGateReadinessLines(root, specID); len(frontendLines) > 0 {
+		lines = append(lines,
+			"",
+			"## Frontend Gate",
+			"",
+		)
+		lines = append(lines, frontendLines...)
 	}
 	lines = append(lines,
 		"",
@@ -328,6 +347,9 @@ func specReadinessAdvisorySummaryFromStates(root, specID string, states []specRe
 	}
 	if harness := specHarnessAdvisorySummary(root, specID); harness != "" {
 		parts = append(parts, harness)
+	}
+	if frontend := frontendGateAdvisorySummary(root, specID); frontend != "" {
+		parts = append(parts, frontend)
 	}
 	return strings.Join(parts, "; ")
 }

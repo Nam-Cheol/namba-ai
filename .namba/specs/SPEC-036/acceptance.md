@@ -1,0 +1,19 @@
+# Acceptance
+
+- [ ] Frontend work is classified as `frontend-major` or `frontend-minor`, and only `frontend-major` enters the full reference-synthesis gate.
+- [ ] New frontend-touching planning scaffolds create `.namba/specs/<SPEC>/frontend-brief.md`, and that artifact is the canonical source for persisted task classification, classification rationale, and per-gate status.
+- [ ] `frontend-brief.md` exposes parseable fixed-label fields for `Task Classification`, `Classification Rationale`, `Frontend Gate Status`, and each of the five gate states, with values that distinguish `missing`, `insufficient`, and `not-applicable`.
+- [ ] `frontend-brief.md` contains the required decision inputs for frontend-major work: problem statement, user goal, target user, success metric, why now, scope boundary, at least three references, adopt/avoid/why for each reference, UX metaphor, section roles, hierarchy, reference synthesis, anti-generic bans, typography and density intent, depth budget, open decisions, and prototype evidence.
+- [ ] `frontend-minor` work uses the same artifact to make classification and rationale visible without forcing the full five-gate evidence burden.
+- [ ] `reviews/design.md` supports `Evidence Status`, `Gate Decision`, `Approved Direction`, `Banned Patterns`, and question tracking suitable for `approved`, `blocked`, and `needs-research` outcomes.
+- [ ] `reviews/readiness.md` keeps the existing advisory review summary while adding a separate frontend gate summary for SPECs that use `frontend-brief.md`, and it reports `missing`, `insufficient`, invalid-contract, and mismatch states distinctly.
+- [ ] `namba run SPEC-XXX` blocks implementation when the persisted classification is explicitly `frontend-major` and required frontend evidence is missing, insufficient, or contradictory, and it returns a clear research-first routing message instead of silently proceeding.
+- [ ] If `frontend-brief.md` exists but the required fixed-label contract is malformed or contradictory, `namba run` returns an explicit contract error instead of inferring state from prose.
+- [ ] Blocked frontend output tells the operator exactly what to do next, including when to gather references, improve critique quality, add prototype evidence, reconcile conflicting artifacts, or split mixed work into separate SPECs/phases.
+- [ ] The Prototype Gate accepts low-fidelity but reviewable evidence in v1, such as a wireframe, annotated layout, interaction-flow sketch, or equivalent structure that makes hierarchy and interaction direction concrete.
+- [ ] `frontend-minor` and non-frontend work keep the lightweight/advisory flow, and historical SPECs are not broken solely because they lack the new frontend artifact.
+- [ ] Historical SPECs default to non-blocking behavior unless they are explicitly classified as `frontend-major`; the runner does not guess frontend gate applicability from narrative prose.
+- [ ] User-provided or repo-local references can satisfy the reference requirement when external research is constrained, but weak synthesis still counts as `insufficient`.
+- [ ] Generated role cards, command skills, README/workflow guidance, and synced docs all describe the new research-before-implementation contract consistently.
+- [ ] Regression tests cover planning, `frontend-minor` persistence, malformed-header parsing, cross-artifact mismatch handling, blocked-run remediation guidance, rule-enforcement examples, and backwards compatibility.
+- [ ] Validation commands pass.
