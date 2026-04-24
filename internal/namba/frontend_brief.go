@@ -171,7 +171,7 @@ func hasOnlyBackendAmbiguousMajorHits(hits []string) bool {
 func hasOnlyBackendAmbiguousTouchHits(hits []string) bool {
 	for _, hit := range hits {
 		switch hit {
-		case "dashboard", "settings", "form", "component":
+		case "dashboard", "settings", "form", "component", "page":
 		default:
 			return false
 		}
