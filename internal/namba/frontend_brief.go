@@ -122,6 +122,9 @@ func inferFrontendTaskClassification(kind, description string) (string, string, 
 	if len(majorHits) == 0 && len(minorHits) == 0 && !hasExplicitFrontendTouchSignal(touchHits) {
 		return "", "", false
 	}
+	if isBackendOnlyAmbiguousFrontendReference(text, touchHits, majorHits, minorHits) {
+		return "", "", false
+	}
 
 	if isFixOnlyFrontendMinor(kind, majorHits, minorHits) {
 		return frontendTaskClassificationMinor, fmt.Sprintf("Matched lightweight frontend fix signals: %s.", quoteList(minorHits)), true
@@ -136,6 +139,41 @@ func inferFrontendTaskClassification(kind, description string) (string, string, 
 		return frontendTaskClassificationMinor, "Frontend-touching fix work defaults to `frontend-minor` when no major redesign signal is present.", true
 	}
 	return frontendTaskClassificationMajor, "Frontend-touching feature work defaults to `frontend-major` unless the change is clearly minor.", true
+}
+
+func isBackendOnlyAmbiguousFrontendReference(text string, touchHits, majorHits, minorHits []string) bool {
+	if len(minorHits) > 0 || !hasBackendImplementationSignal(text) {
+		return false
+	}
+	for _, hit := range majorHits {
+		if hit != "dashboard" {
+			return false
+		}
+	}
+	for _, hit := range touchHits {
+		switch hit {
+		case "dashboard", "settings", "form", "component":
+		default:
+			return false
+		}
+	}
+	return len(touchHits) > 0 || len(majorHits) > 0
+}
+
+func hasBackendImplementationSignal(text string) bool {
+	return len(findFrontendKeywordHits(text, []string{
+		"api",
+		"endpoint",
+		"backend",
+		"server",
+		"service",
+		"database",
+		"storage",
+		"schema",
+		"handler",
+		"resolver",
+		"migration",
+	})) > 0
 }
 
 func hasExplicitFrontendTouchSignal(hits []string) bool {

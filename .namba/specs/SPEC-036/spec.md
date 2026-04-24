@@ -56,7 +56,7 @@ The result is predictable drift toward generic UI output: bootstrap/card overuse
   - Copy replacement without hierarchy or layout change
 - If classification is ambiguous, treat the `frontend-major` tie-break rule as authoritative when the request changes hierarchy, visual language, or the shape of a primary workflow.
 - Fix-only requests with lightweight maintenance signals such as spacing, alignment, button, copy, or existing-component work stay `frontend-minor` even when they mention a broad surface such as dashboard, unless they also include a structural redesign signal.
-- Broad nouns such as settings, form, or component do not classify work as frontend-touching by themselves; they need an explicit UI/screen/layout signal or a major/minor frontend signal so backend/API work is not blocked by frontend synthesis.
+- Broad nouns such as dashboard, settings, form, or component do not classify work as frontend-touching by themselves when paired only with backend/API/storage signals; they need an explicit UI/screen/layout signal or a major/minor frontend signal so backend/API work is not blocked by frontend synthesis.
 - For new SPECs that touch frontend scope, `frontend-brief.md` must persist `Task Classification` plus a short `Classification Rationale`; `namba run` must not infer major/minor status from freeform prose at execution time.
 
 ## Canonical Gate Contract
