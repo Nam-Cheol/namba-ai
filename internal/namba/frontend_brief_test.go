@@ -111,3 +111,18 @@ func TestInferFrontendTaskClassificationMatchesUIAtBoundaries(t *testing.T) {
 		})
 	}
 }
+
+func TestInferFrontendTaskClassificationIgnoresBackendOnlyAmbiguousTouchKeywords(t *testing.T) {
+	t.Parallel()
+
+	for _, description := range []string{
+		"add settings API endpoint",
+		"add form submission API",
+		"refactor auth component service",
+	} {
+		classification, rationale, ok := inferFrontendTaskClassification("plan", description)
+		if ok {
+			t.Fatalf("expected backend-only description %q to avoid frontend classification, got classification=%q rationale=%q", description, classification, rationale)
+		}
+	}
+}

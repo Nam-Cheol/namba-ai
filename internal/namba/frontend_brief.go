@@ -119,6 +119,9 @@ func inferFrontendTaskClassification(kind, description string) (string, string, 
 	if len(touchHits) == 0 && len(majorHits) == 0 && len(minorHits) == 0 {
 		return "", "", false
 	}
+	if len(majorHits) == 0 && len(minorHits) == 0 && !hasExplicitFrontendTouchSignal(touchHits) {
+		return "", "", false
+	}
 
 	if isFixOnlyFrontendMinor(kind, majorHits, minorHits) {
 		return frontendTaskClassificationMinor, fmt.Sprintf("Matched lightweight frontend fix signals: %s.", quoteList(minorHits)), true
@@ -133,6 +136,41 @@ func inferFrontendTaskClassification(kind, description string) (string, string, 
 		return frontendTaskClassificationMinor, "Frontend-touching fix work defaults to `frontend-minor` when no major redesign signal is present.", true
 	}
 	return frontendTaskClassificationMajor, "Frontend-touching feature work defaults to `frontend-major` unless the change is clearly minor.", true
+}
+
+func hasExplicitFrontendTouchSignal(hits []string) bool {
+	explicit := map[string]bool{
+		"ui":            true,
+		"screen":        true,
+		"page":          true,
+		"dashboard":     true,
+		"landing":       true,
+		"hero":          true,
+		"layout":        true,
+		"responsive":    true,
+		"browser":       true,
+		"css":           true,
+		"typography":    true,
+		"spacing":       true,
+		"alignment":     true,
+		"button":        true,
+		"navigation":    true,
+		"sidebar":       true,
+		"header":        true,
+		"footer":        true,
+		"modal":         true,
+		"dialog":        true,
+		"visual":        true,
+		"section":       true,
+		"a11y":          true,
+		"accessibility": true,
+	}
+	for _, hit := range hits {
+		if explicit[hit] {
+			return true
+		}
+	}
+	return false
 }
 
 func isFixOnlyFrontendMinor(kind string, majorHits, minorHits []string) bool {
