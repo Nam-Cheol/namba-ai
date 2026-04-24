@@ -1235,15 +1235,17 @@ func buildSpecPackageScaffoldOutputs(scaffoldCtx specPackageScaffoldContext) map
 		filepath.ToSlash(filepath.Join(specsDir, scaffoldCtx.SpecID, "plan.md")):       buildSpecPlanDoc(scaffoldCtx.Kind, scaffoldCtx.SpecID),
 		filepath.ToSlash(filepath.Join(specsDir, scaffoldCtx.SpecID, "acceptance.md")): buildSpecAcceptanceDoc(scaffoldCtx.Kind, scaffoldCtx.Description, scaffoldCtx.QualityCfg.DevelopmentMode),
 	}
+	frontendBriefBody := ""
 	if body, ok := buildFrontendBriefDoc(scaffoldCtx.Kind, scaffoldCtx.Description); ok {
 		outputs[filepath.ToSlash(filepath.Join(specsDir, scaffoldCtx.SpecID, frontendBriefFileName))] = body
+		frontendBriefBody = body
 	}
 	if req := inferredPlanningHarnessRequest(scaffoldCtx.Kind, scaffoldCtx.Description); req != nil {
 		if body, err := marshalHarnessRequest(*req); err == nil {
 			outputs[specHarnessRequestPath(scaffoldCtx.SpecID)] = body
 		}
 	}
-	for rel, body := range specReviewOutputs(scaffoldCtx.SpecID) {
+	for rel, body := range specReviewOutputsWithFrontendBrief(scaffoldCtx.SpecID, frontendBriefBody) {
 		outputs[rel] = body
 	}
 	return outputs

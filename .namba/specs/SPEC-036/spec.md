@@ -64,7 +64,7 @@ The result is predictable drift toward generic UI output: bootstrap/card overuse
 - `frontend-brief.md` is the canonical source of truth for new frontend-touching classification and for `frontend-major` evidence and gate state.
 - New frontend-touching SPECs always get `frontend-brief.md`. `frontend-minor` work keeps the artifact lightweight by recording classification, classification rationale, current pattern, intended change, and `not-applicable` gate fields instead of the full research burden.
 - `reviews/design.md` and `reviews/readiness.md` summarize and evaluate that state, but they do not redefine it independently.
-- `reviews/readiness.md` must fold frontend gate advisory state into its summary blocker line so missing, insufficient, invalid, or mismatched frontend gates cannot appear alongside an all-clear summary.
+- `reviews/readiness.md` must include frontend gate state in the initial planning scaffold and fold frontend gate advisory state into its summary blocker line so missing, insufficient, invalid, or mismatched frontend gates cannot appear alongside an all-clear summary.
 - The top block of `frontend-brief.md` must remain machine-readable through fixed labels so template/render/parser code can evolve without guessing from prose.
 - v1 required fixed-label fields:
   - `Task Classification: frontend-major | frontend-minor`
@@ -123,6 +123,7 @@ The result is predictable drift toward generic UI output: bootstrap/card overuse
 - `blocked` or `needs-research` means work routes back into synthesis instead of UI implementation.
 - If `reviews/design.md` disagrees with the canonical gate state in `frontend-brief.md`, treat the Decision Gate as unresolved until the artifacts are reconciled.
 - For `frontend-major`, `Gate Decision: approved` and `Evidence Status: complete` are not enough by themselves; `Approved Direction`, `Banned Patterns`, `Open Questions`, and `Unresolved Questions` must be resolved from their scaffolded `pending` placeholders before execution can proceed.
+- Those decision detail fields may use inline values or indented Markdown continuation lines; populated continuation bullets must not be treated as `pending`.
 - For `frontend-major`, frontend architecture planning and frontend implementation stay blocked until the Decision Gate is `approved` and the other four gates are at least `complete`.
 
 ### Prototype Gate

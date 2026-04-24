@@ -774,6 +774,10 @@ func isPendingDesignReviewField(value string) bool {
 
 func frontendGateReadinessLines(root, specID string) []string {
 	report := loadFrontendBriefReport(root, specID)
+	return frontendGateReadinessLinesFromReport(report, specID)
+}
+
+func frontendGateReadinessLinesFromReport(report frontendBriefReport, specID string) []string {
 	if !report.Exists {
 		return nil
 	}
@@ -823,6 +827,10 @@ func frontendGateReadinessLines(root, specID string) []string {
 
 func frontendGateAdvisorySummary(root, specID string) string {
 	report := loadFrontendBriefReport(root, specID)
+	return frontendGateAdvisorySummaryFromReport(report)
+}
+
+func frontendGateAdvisorySummaryFromReport(report frontendBriefReport) string {
 	if !report.Exists {
 		return ""
 	}

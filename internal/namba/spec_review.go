@@ -69,6 +69,10 @@ func specReviewTemplates() []specReviewTemplate {
 }
 
 func specReviewOutputs(specID string) map[string]string {
+	return specReviewOutputsWithFrontendBrief(specID, "")
+}
+
+func specReviewOutputsWithFrontendBrief(specID, frontendBriefBody string) map[string]string {
 	outputs := make(map[string]string)
 	states := make([]specReviewState, 0, len(specReviewTemplates()))
 	for _, template := range specReviewTemplates() {
@@ -76,7 +80,7 @@ func specReviewOutputs(specID string) map[string]string {
 		states = append(states, state)
 		outputs[specReviewPath(specID, template.Slug)] = buildSpecReviewDoc(state)
 	}
-	outputs[specReviewReadinessPath(specID)] = buildSpecReviewReadinessDoc("", specID, states)
+	outputs[specReviewReadinessPath(specID)] = buildSpecReviewReadinessDocWithFrontendBrief("", specID, states, frontendBriefBody, outputs[specReviewPath(specID, "design")])
 	return outputs
 }
 
@@ -154,10 +158,15 @@ func buildSpecReviewDoc(state specReviewState) string {
 }
 
 func buildSpecReviewReadinessDoc(root, specID string, states []specReviewState) string {
+	return buildSpecReviewReadinessDocWithFrontendBrief(root, specID, states, "", "")
+}
+
+func buildSpecReviewReadinessDocWithFrontendBrief(root, specID string, states []specReviewState, frontendBriefBody, designReviewBody string) string {
 	var (
 		clearCount int
 		blockers   []string
 	)
+	frontendReport, hasFrontendReport := frontendBriefReportFromBodies(specID, frontendBriefBody, designReviewBody)
 	lines := []string{
 		"# Review Readiness",
 		"",
@@ -183,7 +192,11 @@ func buildSpecReviewReadinessDoc(root, specID string, states []specReviewState) 
 			blockers = append(blockers, fmt.Sprintf("%s=%s", state.Template.Slug, state.Status))
 		}
 	}
-	if frontendLines := frontendGateReadinessLines(root, specID); len(frontendLines) > 0 {
+	frontendLines := frontendGateReadinessLines(root, specID)
+	if len(frontendLines) == 0 && hasFrontendReport {
+		frontendLines = frontendGateReadinessLinesFromReport(frontendReport, specID)
+	}
+	if len(frontendLines) > 0 {
 		lines = append(lines,
 			"",
 			"## Frontend Gate",
@@ -197,7 +210,11 @@ func buildSpecReviewReadinessDoc(root, specID string, states []specReviewState) 
 		"",
 		fmt.Sprintf("- Cleared reviews: %d/%d", clearCount, len(states)),
 	)
-	if frontend := frontendGateAdvisorySummary(root, specID); frontend != "" && !isClearFrontendGateAdvisory(frontend) {
+	frontend := frontendGateAdvisorySummary(root, specID)
+	if frontend == "" && hasFrontendReport {
+		frontend = frontendGateAdvisorySummaryFromReport(frontendReport)
+	}
+	if frontend != "" && !isClearFrontendGateAdvisory(frontend) {
 		blockers = append(blockers, frontend)
 	}
 	if harness := specHarnessAdvisorySummary(root, specID); harness != "" {
@@ -236,6 +253,20 @@ func buildSpecReviewReadinessDoc(root, specID string, states []specReviewState) 
 		"",
 	)
 	return strings.Join(lines, "\n")
+}
+
+func frontendBriefReportFromBodies(specID, frontendBriefBody, designReviewBody string) (frontendBriefReport, bool) {
+	if strings.TrimSpace(frontendBriefBody) == "" {
+		return frontendBriefReport{}, false
+	}
+	report := parseFrontendBrief(frontendBriefBody)
+	report.Exists = true
+	report.Path = frontendBriefPath(specID)
+	if strings.TrimSpace(designReviewBody) != "" {
+		compareFrontendBriefAndDesignReview(&report, designReviewBody)
+		report.Mismatches = uniqueStrings(report.Mismatches)
+	}
+	return report, true
 }
 
 func buildHarnessReadinessLines(root, specID string) []string {
@@ -410,17 +441,39 @@ func loadSpecReviewStatesWithReadFile(readFile func(string) ([]byte, error), spe
 }
 
 func parseSpecReviewField(text, prefix, fallback string) string {
-	for _, line := range strings.Split(text, "\n") {
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, prefix) {
 			value := strings.TrimSpace(strings.TrimPrefix(trimmed, prefix))
 			if value != "" {
 				return value
 			}
+			if continuation := parseSpecReviewFieldContinuation(lines[i+1:]); continuation != "" {
+				return continuation
+			}
 			return fallback
 		}
 	}
 	return fallback
+}
+
+func parseSpecReviewFieldContinuation(lines []string) string {
+	var values []string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			if len(values) == 0 {
+				continue
+			}
+			break
+		}
+		if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
+			break
+		}
+		values = append(values, trimmed)
+	}
+	return strings.Join(values, "\n")
 }
 
 func specReviewReadinessExists(root, specID string) bool {

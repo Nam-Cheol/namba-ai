@@ -523,6 +523,21 @@ func TestBuildSpecPackageScaffoldOutputsAddsFrontendBriefForFrontendMajorWork(t 
 			t.Fatalf("expected frontend-major brief to contain %q, got %q", want, body)
 		}
 	}
+
+	readiness, ok := outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-005", "reviews", "readiness.md"))]
+	if !ok {
+		t.Fatalf("expected readiness scaffold, got %+v", outputs)
+	}
+	for _, want := range []string{
+		"## Frontend Gate",
+		"Task Classification: `frontend-major`",
+		"Advisory status: follow up on",
+		"frontend=",
+	} {
+		if !strings.Contains(readiness, want) {
+			t.Fatalf("expected initial readiness to contain %q, got %q", want, readiness)
+		}
+	}
 }
 
 func TestBuildSpecPackageScaffoldOutputsAddsFrontendBriefForFrontendMinorFixes(t *testing.T) {

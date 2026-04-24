@@ -97,6 +97,46 @@ func TestParseFrontendBriefRejectsBlankFixedLabelValues(t *testing.T) {
 	}
 }
 
+func TestCompareFrontendBriefAndDesignReviewAcceptsMultilineDecisionFields(t *testing.T) {
+	t.Parallel()
+
+	report := parseFrontendBrief(strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: Major dashboard restructure.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+	}, "\n"))
+	if !report.Valid {
+		t.Fatalf("expected valid report before design review comparison, got %+v", report)
+	}
+
+	compareFrontendBriefAndDesignReview(&report, strings.Join([]string{
+		"# Design Review",
+		"",
+		"- Evidence Status: complete",
+		"- Gate Decision: approved",
+		"- Approved Direction:",
+		"  - Use the focused dashboard table direction.",
+		"- Banned Patterns:",
+		"  - Avoid generic card grids.",
+		"- Open Questions:",
+		"  - none",
+		"- Unresolved Questions:",
+		"  - none",
+	}, "\n"))
+
+	if len(report.Mismatches) > 0 {
+		t.Fatalf("expected multiline decision fields to satisfy design review contract, got %+v", report.Mismatches)
+	}
+}
+
 func TestInferFrontendTaskClassificationMatchesUIAtBoundaries(t *testing.T) {
 	t.Parallel()
 
