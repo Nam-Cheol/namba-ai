@@ -260,6 +260,12 @@ func TestInferFrontendTaskClassificationMatchesUIAtBoundaries(t *testing.T) {
 			description:        "fix dashboard filters not loading",
 			wantClassification: frontendTaskClassificationMinor,
 		},
+		{
+			name:               "explicit frontend token",
+			kind:               "plan",
+			description:        "frontend component refactor",
+			wantClassification: frontendTaskClassificationMajor,
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			classification, _, ok := inferFrontendTaskClassification(tt.kind, tt.description)

@@ -540,6 +540,30 @@ func TestBuildSpecPackageScaffoldOutputsAddsFrontendBriefForFrontendMajorWork(t 
 	}
 }
 
+func TestBuildSpecPackageScaffoldOutputsAddsFrontendBriefForExplicitFrontendWork(t *testing.T) {
+	scaffoldCtx := specPackageScaffoldContext{
+		Root:        "/repo",
+		Kind:        "plan",
+		Description: "frontend component refactor",
+		SpecID:      "SPEC-007",
+		ProjectCfg: projectConfig{
+			Name:        "namba-ai",
+			ProjectType: "existing",
+			Language:    "go",
+		},
+		QualityCfg: qualityConfig{DevelopmentMode: "tdd"},
+	}
+
+	outputs := buildSpecPackageScaffoldOutputs(scaffoldCtx)
+	body, ok := outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-007", frontendBriefFileName))]
+	if !ok {
+		t.Fatalf("expected frontend brief scaffold for explicit frontend wording, got %+v", outputs)
+	}
+	if !strings.Contains(body, "Task Classification: frontend-major") {
+		t.Fatalf("expected explicit frontend work to scaffold frontend-major brief, got %q", body)
+	}
+}
+
 func TestBuildSpecPackageScaffoldOutputsAddsFrontendBriefForFrontendMinorFixes(t *testing.T) {
 	scaffoldCtx := specPackageScaffoldContext{
 		Root:        "/repo",

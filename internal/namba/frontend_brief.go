@@ -208,6 +208,8 @@ func hasBackendImplementationSignal(text string) bool {
 
 func hasExplicitFrontendTouchSignal(hits []string) bool {
 	explicit := map[string]bool{
+		"frontend":      true,
+		"front end":     true,
 		"ui":            true,
 		"screen":        true,
 		"page":          true,
@@ -264,6 +266,8 @@ func isStructuralFrontendMajorHit(hit string) bool {
 
 func frontendTouchKeywords() []string {
 	return []string{
+		"frontend",
+		"front end",
 		"ui",
 		"screen",
 		"page",
