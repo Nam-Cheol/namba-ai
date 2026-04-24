@@ -126,10 +126,14 @@ func TestRefreshSpecReviewReadinessIncludesFrontendGateMismatchSummary(t *testin
 		"Evidence Status: `missing`",
 		"Cross-artifact mismatches:",
 		"Gate decision mismatch",
+		"Advisory status: follow up on frontend=blocked",
 	} {
 		if !strings.Contains(readiness, want) {
 			t.Fatalf("expected readiness to contain %q, got %q", want, readiness)
 		}
+	}
+	if strings.Contains(readiness, "Advisory status: all current review tracks are marked clear.") {
+		t.Fatalf("expected frontend blocker to prevent all-clear readiness summary, got %q", readiness)
 	}
 }
 

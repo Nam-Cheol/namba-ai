@@ -242,16 +242,24 @@ func hasExplicitFrontendTouchSignal(hits []string) bool {
 }
 
 func isFixOnlyFrontendMinor(kind string, majorHits, minorHits []string) bool {
-	if strings.TrimSpace(kind) != "fix" || len(minorHits) == 0 {
+	if strings.TrimSpace(kind) != "fix" {
 		return false
 	}
 	for _, hit := range majorHits {
-		switch hit {
-		case "landing page", "redesign", "restructure", "new screen", "new page", "new section", "primary workflow", "interaction model", "visual tone", "hierarchy":
+		if isStructuralFrontendMajorHit(hit) {
 			return false
 		}
 	}
-	return true
+	return len(majorHits) > 0 || len(minorHits) > 0
+}
+
+func isStructuralFrontendMajorHit(hit string) bool {
+	switch hit {
+	case "landing page", "redesign", "restructure", "new screen", "new page", "new section", "primary workflow", "interaction model", "visual tone", "hierarchy":
+		return true
+	default:
+		return false
+	}
 }
 
 func frontendTouchKeywords() []string {

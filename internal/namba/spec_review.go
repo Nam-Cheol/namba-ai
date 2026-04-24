@@ -197,6 +197,9 @@ func buildSpecReviewReadinessDoc(root, specID string, states []specReviewState) 
 		"",
 		fmt.Sprintf("- Cleared reviews: %d/%d", clearCount, len(states)),
 	)
+	if frontend := frontendGateAdvisorySummary(root, specID); frontend != "" && !isClearFrontendGateAdvisory(frontend) {
+		blockers = append(blockers, frontend)
+	}
 	if harness := specHarnessAdvisorySummary(root, specID); harness != "" {
 		blockers = append(blockers, "harness="+harness)
 	}
@@ -359,6 +362,15 @@ func specReadinessAdvisorySummaryFromStates(root, specID string, states []specRe
 func isClearReviewStatus(status string) bool {
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "clear", "cleared", "approved", "pass", "passed":
+		return true
+	default:
+		return false
+	}
+}
+
+func isClearFrontendGateAdvisory(summary string) bool {
+	switch strings.ToLower(strings.TrimSpace(summary)) {
+	case "frontend=approved", "frontend=not-applicable":
 		return true
 	default:
 		return false

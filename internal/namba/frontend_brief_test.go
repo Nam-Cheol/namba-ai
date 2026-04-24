@@ -124,6 +124,12 @@ func TestInferFrontendTaskClassificationMatchesUIAtBoundaries(t *testing.T) {
 			description:        "fix button spacing on dashboard",
 			wantClassification: frontendTaskClassificationMinor,
 		},
+		{
+			name:               "dashboard-only bugfix",
+			kind:               "fix",
+			description:        "fix dashboard filters not loading",
+			wantClassification: frontendTaskClassificationMinor,
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			classification, _, ok := inferFrontendTaskClassification(tt.kind, tt.description)
