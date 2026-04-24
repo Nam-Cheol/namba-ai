@@ -768,8 +768,51 @@ func appendPendingDesignReviewDecisionFieldMismatches(report *frontendBriefRepor
 }
 
 func isPendingDesignReviewField(value string) bool {
-	normalized := normalizeFrontendBriefEnum(value)
+	normalized := normalizeDesignReviewPendingField(value)
 	return normalized == "" || normalized == "pending"
+}
+
+func normalizeDesignReviewPendingField(value string) string {
+	sawValue := false
+	for _, line := range strings.Split(value, "\n") {
+		normalized := normalizeDesignReviewPendingLine(line)
+		if normalized == "" {
+			continue
+		}
+		sawValue = true
+		if normalized != "pending" {
+			return normalized
+		}
+	}
+	if !sawValue {
+		return ""
+	}
+	return "pending"
+}
+
+func normalizeDesignReviewPendingLine(line string) string {
+	value := normalizeFrontendBriefEnum(line)
+	value = trimMarkdownListMarker(value)
+	value = strings.Trim(value, " \t\r\n.:;!?`\"'()[]")
+	return strings.TrimSpace(value)
+}
+
+func trimMarkdownListMarker(value string) string {
+	value = strings.TrimSpace(value)
+	for _, marker := range []string{"- ", "* ", "+ "} {
+		if strings.HasPrefix(value, marker) {
+			return strings.TrimSpace(strings.TrimPrefix(value, marker))
+		}
+	}
+	for i := 0; i < len(value); i++ {
+		if value[i] < '0' || value[i] > '9' {
+			if i > 0 && i+1 < len(value) && (value[i] == '.' || value[i] == ')') && value[i+1] == ' ' {
+				return strings.TrimSpace(value[i+2:])
+			}
+			break
+		}
+	}
+	return value
 }
 
 func frontendGateReadinessLines(root, specID string) []string {

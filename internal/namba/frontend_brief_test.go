@@ -137,6 +137,54 @@ func TestCompareFrontendBriefAndDesignReviewAcceptsMultilineDecisionFields(t *te
 	}
 }
 
+func TestCompareFrontendBriefAndDesignReviewBlocksPendingMarkdownMarkers(t *testing.T) {
+	t.Parallel()
+
+	report := parseFrontendBrief(strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: Major dashboard restructure.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+	}, "\n"))
+	if !report.Valid {
+		t.Fatalf("expected valid report before design review comparison, got %+v", report)
+	}
+
+	compareFrontendBriefAndDesignReview(&report, strings.Join([]string{
+		"# Design Review",
+		"",
+		"- Evidence Status: complete",
+		"- Gate Decision: approved",
+		"- Approved Direction:",
+		"  - pending",
+		"- Banned Patterns: Pending.",
+		"- Open Questions:",
+		"  - Pending.",
+		"- Unresolved Questions: none",
+	}, "\n"))
+
+	mismatches := strings.Join(report.Mismatches, "\n")
+	for _, want := range []string{
+		"Design review approved direction is pending",
+		"Design review banned patterns are pending",
+		"Design review open questions are pending",
+	} {
+		if !strings.Contains(mismatches, want) {
+			t.Fatalf("expected %q mismatch, got %+v", want, report.Mismatches)
+		}
+	}
+	if strings.Contains(mismatches, "Design review unresolved questions are pending") {
+		t.Fatalf("expected non-pending unresolved questions field to pass, got %+v", report.Mismatches)
+	}
+}
+
 func TestInferFrontendTaskClassificationMatchesUIAtBoundaries(t *testing.T) {
 	t.Parallel()
 
