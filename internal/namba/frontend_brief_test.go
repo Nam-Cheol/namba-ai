@@ -185,6 +185,48 @@ func TestCompareFrontendBriefAndDesignReviewBlocksPendingMarkdownMarkers(t *test
 	}
 }
 
+func TestFrontendGateRemediationIncludesStatusOnlyMajorBlocks(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		status string
+		want   string
+	}{
+		{
+			status: frontendGateStatusBlocked,
+			want:   "Resolve the blocked frontend decision",
+		},
+		{
+			status: frontendGateStatusNeedsResearch,
+			want:   "Complete the requested frontend research",
+		},
+	} {
+		t.Run(tt.status, func(t *testing.T) {
+			report := parseFrontendBrief(strings.Join([]string{
+				"# Frontend Brief",
+				"",
+				"Task Classification: frontend-major",
+				"Classification Rationale: Major dashboard restructure.",
+				"Frontend Gate Status: " + tt.status,
+				"Problem Gate: complete",
+				"Reference Gate: complete",
+				"Critique Gate: complete",
+				"Decision Gate: complete",
+				"Prototype Gate: complete",
+				"Prototype Evidence: wireframe",
+			}, "\n"))
+			if !report.Valid {
+				t.Fatalf("expected valid report, got %+v", report)
+			}
+
+			steps := strings.Join(frontendGateRemediation(report), "\n")
+			if !strings.Contains(steps, tt.want) {
+				t.Fatalf("expected remediation to contain %q, got %q", tt.want, steps)
+			}
+		})
+	}
+}
+
 func TestInferFrontendTaskClassificationMatchesUIAtBoundaries(t *testing.T) {
 	t.Parallel()
 

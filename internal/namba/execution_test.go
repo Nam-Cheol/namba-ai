@@ -866,6 +866,51 @@ func TestRunBlocksFrontendMajorWhenFrontendSynthesisIsIncomplete(t *testing.T) {
 	}
 }
 
+func TestLoadRunExecutionContextBlocksFrontendMajorWithStatusRemediation(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: New dashboard hierarchy.",
+		"Frontend Gate Status: blocked",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+	}, "\n"))
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews", "design.md"), strings.Join([]string{
+		"# Design Review",
+		"",
+		"- Status: blocked",
+		"- Evidence Status: complete",
+		"- Gate Decision: blocked",
+		"- Approved Direction: Focused dashboard table direction is not yet accepted.",
+		"- Banned Patterns: Avoid generic card grids.",
+		"- Open Questions: Resolve review concerns before implementation.",
+		"- Unresolved Questions: Blocked pending design owner approval.",
+		"",
+	}, "\n"))
+
+	_, err := app.loadRunExecutionContext(tmp, runExecuteOptions{specID: "SPEC-001", mode: executionModeDefault})
+	if err == nil {
+		t.Fatal("expected blocked frontend-major execution")
+	}
+	for _, want := range []string{
+		"blocked for frontend synthesis",
+		"Frontend Gate Status: `blocked`",
+		"Resolve the blocked frontend decision",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("expected blocked run error to contain %q, got %v", want, err)
+		}
+	}
+}
+
 func TestRunAllowsFrontendMinorExecutionAndEmbedsFrontendBriefInPrompt(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

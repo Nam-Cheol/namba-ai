@@ -121,6 +121,7 @@ The result is predictable drift toward generic UI output: bootstrap/card overuse
   - `Keep / Fix / Quick Wins`
 - `approved` means architecture and implementation may proceed.
 - `blocked` or `needs-research` means work routes back into synthesis instead of UI implementation.
+- A `frontend-major` run blocked solely by `Frontend Gate Status: blocked` or `needs-research` must still emit concrete remediation that points back to design review, frontend-brief synthesis, and the approval transition.
 - If `reviews/design.md` disagrees with the canonical gate state in `frontend-brief.md`, treat the Decision Gate as unresolved until the artifacts are reconciled.
 - For `frontend-major`, `Gate Decision: approved` and `Evidence Status: complete` are not enough by themselves; `Approved Direction`, `Banned Patterns`, `Open Questions`, and `Unresolved Questions` must be resolved from their scaffolded `pending` placeholders before execution can proceed.
 - Those decision detail fields may use inline values or indented Markdown continuation lines; populated continuation bullets must not be treated as `pending`, while placeholder variants such as `- pending` or `Pending.` must still block execution.

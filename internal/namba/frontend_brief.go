@@ -966,6 +966,12 @@ func frontendGateRemediation(report frontendBriefReport) []string {
 	appendIf(hasInsufficient("Decision Gate"), "Tighten the approved direction and banned-pattern guidance so implementation scope is explicit.")
 	appendIf(hasMissing("Prototype Gate"), "Add reviewable prototype evidence such as a wireframe, annotated layout, or equivalent artifact.")
 	appendIf(hasInsufficient("Prototype Gate"), "Replace weak prototype evidence with a clearer structure or interaction artifact.")
+	switch report.Header.FrontendGateStatus {
+	case frontendGateStatusBlocked:
+		steps = append(steps, "Resolve the blocked frontend decision in `reviews/design.md`, update `frontend-brief.md` with the accepted direction and banned patterns, then mark the frontend gate approved only after design review clears.")
+	case frontendGateStatusNeedsResearch:
+		steps = append(steps, "Complete the requested frontend research in `frontend-brief.md`, refresh reference, critique, and decision evidence, then rerun design review before implementation.")
+	}
 	if len(report.Mismatches) > 0 {
 		steps = append(steps, "Reconcile `frontend-brief.md` with `reviews/design.md` so the canonical gate state and summaries agree.")
 	}
