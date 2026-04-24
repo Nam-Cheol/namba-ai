@@ -896,6 +896,10 @@ func frontendGateAdvisorySummaryFromReport(report frontendBriefReport) string {
 	return "frontend=" + firstNonBlank(report.Header.FrontendGateStatus, report.EvidenceStatus)
 }
 
+func frontendInvalidContractBlocksExecution(report frontendBriefReport) bool {
+	return report.Header.TaskClassification != frontendTaskClassificationMinor
+}
+
 func frontendGateExecutionError(specID string, report frontendBriefReport) error {
 	if !report.Valid {
 		lines := []string{

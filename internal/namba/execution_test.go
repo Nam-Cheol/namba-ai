@@ -984,6 +984,33 @@ func TestLoadRunExecutionContextRejectsInvalidFrontendBriefContract(t *testing.T
 	}
 }
 
+func TestLoadRunExecutionContextAllowsInvalidFrontendMinorAsAdvisory(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-minor",
+		"Classification Rationale: Existing settings spacing fix.",
+		"Frontend Gate Status: not-applicable",
+		"Problem Gatee: not-applicable",
+		"Reference Gate: not-applicable",
+		"Critique Gate: not-applicable",
+		"Decision Gate: not-applicable",
+		"Prototype Gate: not-applicable",
+		"Prototype Evidence: n/a",
+	}, "\n"))
+
+	runCtx, err := app.loadRunExecutionContext(tmp, runExecuteOptions{specID: "SPEC-001", mode: executionModeDefault})
+	if err != nil {
+		t.Fatalf("expected invalid frontend-minor contract to remain advisory, got %v", err)
+	}
+	if !strings.Contains(runCtx.ReadinessAdvisory, "frontend=invalid-contract") {
+		t.Fatalf("expected readiness advisory to surface invalid frontend-minor contract, got %q", runCtx.ReadinessAdvisory)
+	}
+}
+
 func TestLoadRunExecutionContextBlocksFrontendMajorWhenDesignReviewPending(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

@@ -82,6 +82,7 @@ The result is predictable drift toward generic UI output: bootstrap/card overuse
 ## Parser Validity And Precedence
 
 - Unknown required labels, unsupported enum values, missing required fixed-label lines, or required labels left blank in `frontend-brief.md` put the artifact in an explicit invalid-contract state; the runner must not guess the intended meaning from nearby prose.
+- Invalid-contract artifacts hard-block execution only when the fixed-label `Task Classification` is not exactly `frontend-minor`; exact `frontend-minor` invalid-contracts remain visible in readiness as advisory repair work instead of forcing the full major gate.
 - Impossible combinations such as `Frontend Gate Status: approved` with any `missing` or `insufficient` major gate, or `frontend-minor` combined with non-`not-applicable` major-gate states, are invalid until corrected.
 - `frontend-brief.md` remains the canonical machine-readable source of truth. `reviews/design.md` and `reviews/readiness.md` summarize and evaluate that state.
 - If summarized review docs disagree with the canonical `frontend-brief.md` header state, readiness must surface the mismatch explicitly instead of silently picking one interpretation.

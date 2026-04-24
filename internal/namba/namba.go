@@ -1340,9 +1340,10 @@ func (a *App) loadRunExecutionContext(root string, options runExecuteOptions) (r
 	}
 	if frontend := loadFrontendBriefReport(root, specPkg.ID); frontend.Exists {
 		if !frontend.Valid {
-			return runExecutionContext{}, frontendGateExecutionError(specPkg.ID, frontend)
-		}
-		if frontend.Header.TaskClassification == frontendTaskClassificationMajor {
+			if frontendInvalidContractBlocksExecution(frontend) {
+				return runExecutionContext{}, frontendGateExecutionError(specPkg.ID, frontend)
+			}
+		} else if frontend.Header.TaskClassification == frontendTaskClassificationMajor {
 			frontendReady := frontend.Header.FrontendGateStatus == frontendGateStatusApproved && frontend.EvidenceStatus == frontendEvidenceStatusComplete && len(frontend.Mismatches) == 0
 			if !frontendReady {
 				return runExecutionContext{}, frontendGateExecutionError(specPkg.ID, frontend)
