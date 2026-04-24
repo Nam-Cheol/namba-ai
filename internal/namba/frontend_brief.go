@@ -120,6 +120,9 @@ func inferFrontendTaskClassification(kind, description string) (string, string, 
 		return "", "", false
 	}
 
+	if isFixOnlyFrontendMinor(kind, majorHits, minorHits) {
+		return frontendTaskClassificationMinor, fmt.Sprintf("Matched lightweight frontend fix signals: %s.", quoteList(minorHits)), true
+	}
 	if len(majorHits) > 0 {
 		return frontendTaskClassificationMajor, fmt.Sprintf("Matched frontend-major signals: %s.", quoteList(majorHits)), true
 	}
@@ -130,6 +133,19 @@ func inferFrontendTaskClassification(kind, description string) (string, string, 
 		return frontendTaskClassificationMinor, "Frontend-touching fix work defaults to `frontend-minor` when no major redesign signal is present.", true
 	}
 	return frontendTaskClassificationMajor, "Frontend-touching feature work defaults to `frontend-major` unless the change is clearly minor.", true
+}
+
+func isFixOnlyFrontendMinor(kind string, majorHits, minorHits []string) bool {
+	if strings.TrimSpace(kind) != "fix" || len(minorHits) == 0 {
+		return false
+	}
+	for _, hit := range majorHits {
+		switch hit {
+		case "landing page", "redesign", "restructure", "new screen", "new page", "new section", "primary workflow", "interaction model", "visual tone", "hierarchy":
+			return false
+		}
+	}
+	return true
 }
 
 func frontendTouchKeywords() []string {
@@ -598,6 +614,7 @@ func compareFrontendBriefAndDesignReview(report *frontendBriefReport, reviewText
 		} else if evidence != report.EvidenceStatus {
 			report.Mismatches = append(report.Mismatches, fmt.Sprintf("Evidence status mismatch: frontend-brief=%s, design-review=%s", report.EvidenceStatus, evidence))
 		}
+		appendPendingDesignReviewDecisionFieldMismatches(report)
 		return
 	}
 	if gate != "" && gate != "pending" && gate != report.Header.FrontendGateStatus {
@@ -606,6 +623,27 @@ func compareFrontendBriefAndDesignReview(report *frontendBriefReport, reviewText
 	if evidence != "" && evidence != "pending" && evidence != report.EvidenceStatus {
 		report.Mismatches = append(report.Mismatches, fmt.Sprintf("Evidence status mismatch: frontend-brief=%s, design-review=%s", report.EvidenceStatus, evidence))
 	}
+}
+
+func appendPendingDesignReviewDecisionFieldMismatches(report *frontendBriefReport) {
+	for _, field := range []struct {
+		Message string
+		Value   string
+	}{
+		{Message: "Design review approved direction is pending for frontend-major; design-review=pending", Value: report.DesignReview.ApprovedDirection},
+		{Message: "Design review banned patterns are pending for frontend-major; design-review=pending", Value: report.DesignReview.BannedPatterns},
+		{Message: "Design review open questions are pending for frontend-major; design-review=pending", Value: report.DesignReview.OpenQuestions},
+		{Message: "Design review unresolved questions are pending for frontend-major; design-review=pending", Value: report.DesignReview.UnresolvedQuestions},
+	} {
+		if isPendingDesignReviewField(field.Value) {
+			report.Mismatches = append(report.Mismatches, field.Message)
+		}
+	}
+}
+
+func isPendingDesignReviewField(value string) bool {
+	normalized := normalizeFrontendBriefEnum(value)
+	return normalized == "" || normalized == "pending"
 }
 
 func frontendGateReadinessLines(root, specID string) []string {

@@ -982,6 +982,45 @@ func TestLoadRunExecutionContextBlocksFrontendMajorWhenDesignReviewPending(t *te
 	}
 }
 
+func TestLoadRunExecutionContextBlocksFrontendMajorWhenDesignDecisionFieldsPending(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: New dashboard hierarchy.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+	}, "\n"))
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews", "design.md"), strings.Join([]string{
+		"# Design Review",
+		"",
+		"- Status: approved",
+		"- Evidence Status: complete",
+		"- Gate Decision: approved",
+		"- Approved Direction: pending",
+		"- Banned Patterns: pending",
+		"- Open Questions: pending",
+		"- Unresolved Questions: pending",
+		"",
+	}, "\n"))
+
+	_, err := app.loadRunExecutionContext(tmp, runExecuteOptions{specID: "SPEC-001", mode: executionModeDefault})
+	if err == nil {
+		t.Fatal("expected pending design decision fields to block frontend-major execution")
+	}
+	if !strings.Contains(err.Error(), "Design review approved direction is pending") || !strings.Contains(err.Error(), "Design review banned patterns are pending") {
+		t.Fatalf("expected pending design decision field mismatches, got %v", err)
+	}
+}
+
 func TestRunUsesConfiguredApprovalAndSandbox(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

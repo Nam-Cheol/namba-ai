@@ -55,6 +55,7 @@ The result is predictable drift toward generic UI output: bootstrap/card overuse
   - Additional state inside an established component pattern
   - Copy replacement without hierarchy or layout change
 - If classification is ambiguous, treat the `frontend-major` tie-break rule as authoritative when the request changes hierarchy, visual language, or the shape of a primary workflow.
+- Fix-only requests with lightweight maintenance signals such as spacing, alignment, button, copy, or existing-component work stay `frontend-minor` even when they mention a broad surface such as dashboard, unless they also include a structural redesign signal.
 - For new SPECs that touch frontend scope, `frontend-brief.md` must persist `Task Classification` plus a short `Classification Rationale`; `namba run` must not infer major/minor status from freeform prose at execution time.
 
 ## Canonical Gate Contract
@@ -119,6 +120,7 @@ The result is predictable drift toward generic UI output: bootstrap/card overuse
 - `approved` means architecture and implementation may proceed.
 - `blocked` or `needs-research` means work routes back into synthesis instead of UI implementation.
 - If `reviews/design.md` disagrees with the canonical gate state in `frontend-brief.md`, treat the Decision Gate as unresolved until the artifacts are reconciled.
+- For `frontend-major`, `Gate Decision: approved` and `Evidence Status: complete` are not enough by themselves; `Approved Direction`, `Banned Patterns`, `Open Questions`, and `Unresolved Questions` must be resolved from their scaffolded `pending` placeholders before execution can proceed.
 - For `frontend-major`, frontend architecture planning and frontend implementation stay blocked until the Decision Gate is `approved` and the other four gates are at least `complete`.
 
 ### Prototype Gate
