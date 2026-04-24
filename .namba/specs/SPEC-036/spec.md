@@ -36,6 +36,7 @@ The result is predictable drift toward generic UI output: bootstrap/card overuse
 - User-provided references become optional input, not the gate itself. When references are missing or insufficient, Namba must collect current external references first.
 - `frontend-brief.md` becomes the canonical frontend planning artifact for new frontend-touching work: `frontend-major` uses the full five-gate contract, while `frontend-minor` uses the same artifact to persist explicit classification, a short rationale, and lightweight `not-applicable` gate state.
 - Planning artifacts persist the evidence needed to explain why a direction was chosen, what was rejected, and what implementation is allowed to do next.
+- Design judgment is anchored to evidence, assets, alternatives, and review axes instead of reviewer taste or unstructured visual preference.
 - General plan-review readiness stays advisory for the rest of the system, but `frontend-major` execution is allowed to block when the frontend gate is missing required evidence.
 - Blocked frontend runs tell the operator exactly what to do next: gather or replace references, improve weak synthesis, add prototype evidence, or split mixed work into separate SPECs/phases when independent delivery matters.
 - Role routing becomes explicit: `namba-designer` owns research and synthesis, `namba-frontend-architect` plans structure only after the gate is satisfied, and `namba-frontend-implementer` codes only after synthesis plus design clearance.
@@ -93,13 +94,14 @@ The result is predictable drift toward generic UI output: bootstrap/card overuse
 - Require at least three references for `frontend-major` work.
 - Treat user references as optional. If the user did not provide them, Namba must gather them before moving forward.
 - When current external research is constrained or low-signal, authoritative user-provided references or repo-local references may satisfy the minimum set, but weak synthesis still counts as `insufficient`.
+- Record asset evidence separately from references: brand assets, product or domain imagery, existing UI screenshots, asset constraints, and known gaps.
 - For each reference, record `adopt`, `avoid`, and `why`.
 - Use authority guides such as Apple HIG, Primer, Carbon, Atlassian, GOV.UK, Material, and NN/g as normative grounding, and practical product examples such as Linear, Stripe, Vercel, Attio, and Raycast as adopt/avoid heuristics rather than style-copy targets.
 
 ### Critique Gate
 
 - Produce a reference synthesis, not just a list of links.
-- Record anti-generic bans, typography intent, spacing and density intent, depth and container budget, primary hierarchy explanation, and alternatives considered.
+- Record anti-generic bans, typography intent, spacing and density intent, depth and container budget, primary hierarchy explanation, and at least three direction alternatives with tradeoffs before selecting one.
 - State why proposed layout primitives match the product/domain/state model better than the most obvious generic card/grid fallback.
 - Evidence quality matters, not just artifact presence. A filled section that does not narrow execution ambiguity should count as `insufficient`, not `complete`.
 
@@ -112,6 +114,8 @@ The result is predictable drift toward generic UI output: bootstrap/card overuse
   - `Banned Patterns`
   - `Open Questions`
   - `Unresolved Questions`
+  - `Design Review Axes`
+  - `Keep / Fix / Quick Wins`
 - `approved` means architecture and implementation may proceed.
 - `blocked` or `needs-research` means work routes back into synthesis instead of UI implementation.
 - If `reviews/design.md` disagrees with the canonical gate state in `frontend-brief.md`, treat the Decision Gate as unresolved until the artifacts are reconciled.
@@ -171,7 +175,7 @@ These rules exist to block systemically weak output, not to force one house styl
   - `.namba/specs/<SPEC>/frontend-brief.md`
 - Expanded planning contract:
   - `spec.md` carries narrative goal, scope, risks, and rollout constraints.
-  - `frontend-brief.md` is the canonical frontend sidecar for task classification, classification rationale, gate state, agent-collected references, adopt/avoid/why, reference synthesis, anti-generic bans, typography scale, spacing/density intent, depth/container budget, prototype evidence, open questions, and decisions.
+  - `frontend-brief.md` is the canonical frontend sidecar for task classification, classification rationale, gate state, asset evidence, agent-collected references, adopt/avoid/why, direction alternatives, reference synthesis, anti-generic bans, typography scale, spacing/density intent, depth/container budget, design review axes, prototype evidence, open questions, and decisions.
   - `frontend-brief.md` must distinguish `missing` evidence from `insufficient` evidence so operators know whether to create material or improve weak material.
   - `frontend-minor` uses the same artifact to make classification and rationale visible without forcing the full five-gate burden.
 - Expanded `reviews/design.md`:
@@ -181,6 +185,8 @@ These rules exist to block systemically weak output, not to force one house styl
   - `Banned Patterns`
   - `Open Questions`
   - `Unresolved Questions`
+  - `Design Review Axes`
+  - `Keep / Fix / Quick Wins`
 - Expanded `reviews/readiness.md`:
   - keep the existing advisory product/engineering/design summary
   - add a separate Frontend Gate summary when the SPEC uses `frontend-brief.md`

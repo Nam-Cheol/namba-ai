@@ -939,6 +939,49 @@ func TestLoadRunExecutionContextRejectsInvalidFrontendBriefContract(t *testing.T
 	}
 }
 
+func TestLoadRunExecutionContextBlocksFrontendMajorWhenDesignReviewPending(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: New dashboard hierarchy.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+		"",
+		"## Reference Set",
+		"",
+		"- Reference 1: Complete.",
+	}, "\n"))
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews", "design.md"), strings.Join([]string{
+		"# Design Review",
+		"",
+		"- Status: pending",
+		"- Evidence Status: pending",
+		"- Gate Decision: pending",
+		"- Approved Direction: pending",
+		"- Banned Patterns: pending",
+		"- Open Questions: pending",
+		"- Unresolved Questions: pending",
+		"",
+	}, "\n"))
+
+	_, err := app.loadRunExecutionContext(tmp, runExecuteOptions{specID: "SPEC-001", mode: executionModeDefault})
+	if err == nil {
+		t.Fatal("expected pending design review to block frontend-major execution")
+	}
+	if !strings.Contains(err.Error(), "Design review gate decision is pending") || !strings.Contains(err.Error(), "design-review=pending") {
+		t.Fatalf("expected pending design-review mismatch, got %v", err)
+	}
+}
+
 func TestRunUsesConfiguredApprovalAndSandbox(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

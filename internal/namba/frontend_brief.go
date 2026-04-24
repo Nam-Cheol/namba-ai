@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 )
 
 const (
@@ -112,9 +113,9 @@ func inferFrontendTaskClassification(kind, description string) (string, string, 
 		return "", "", false
 	}
 
-	touchHits := findKeywordHits(text, frontendTouchKeywords())
-	majorHits := findKeywordHits(text, frontendMajorKeywords())
-	minorHits := findKeywordHits(text, frontendMinorKeywords())
+	touchHits := findFrontendKeywordHits(text, frontendTouchKeywords())
+	majorHits := findFrontendKeywordHits(text, frontendMajorKeywords())
+	minorHits := findFrontendKeywordHits(text, frontendMinorKeywords())
 	if len(touchHits) == 0 && len(majorHits) == 0 && len(minorHits) == 0 {
 		return "", "", false
 	}
@@ -133,7 +134,7 @@ func inferFrontendTaskClassification(kind, description string) (string, string, 
 
 func frontendTouchKeywords() []string {
 	return []string{
-		" ui ",
+		"ui",
 		"screen",
 		"page",
 		"dashboard",
@@ -161,6 +162,31 @@ func frontendTouchKeywords() []string {
 		"a11y",
 		"accessibility",
 	}
+}
+
+func findFrontendKeywordHits(text string, keywords []string) []string {
+	normalizedText := normalizeFrontendKeywordText(text)
+	hits := make([]string, 0, len(keywords))
+	for _, keyword := range keywords {
+		normalizedKeyword := strings.TrimSpace(normalizeFrontendKeywordText(keyword))
+		if normalizedKeyword == "" {
+			continue
+		}
+		if strings.Contains(normalizedText, " "+normalizedKeyword+" ") {
+			hits = append(hits, keyword)
+		}
+	}
+	return uniqueStrings(hits)
+}
+
+func normalizeFrontendKeywordText(text string) string {
+	fields := strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	if len(fields) == 0 {
+		return " "
+	}
+	return " " + strings.Join(fields, " ") + " "
 }
 
 func frontendMajorKeywords() []string {
@@ -218,6 +244,13 @@ func buildFrontendMajorBriefDoc(rationale string) string {
 		"- Why now: Pending.",
 		"- Scope boundary: Pending.",
 		"",
+		"## Asset Evidence",
+		"",
+		"- Brand assets: Pending.",
+		"- Product or domain imagery: Pending.",
+		"- Existing UI screenshots: Pending.",
+		"- Asset constraints and gaps: Pending.",
+		"",
 		"## Reference Set",
 		"",
 		"- Reference 1: Pending.",
@@ -233,6 +266,16 @@ func buildFrontendMajorBriefDoc(rationale string) string {
 		"  Avoid: Pending.",
 		"  Why: Pending.",
 		"",
+		"## Direction Alternatives",
+		"",
+		"- Direction A: Pending.",
+		"  Tradeoff: Pending.",
+		"- Direction B: Pending.",
+		"  Tradeoff: Pending.",
+		"- Direction C: Pending.",
+		"  Tradeoff: Pending.",
+		"- Selected direction rationale: Pending.",
+		"",
 		"## Synthesis",
 		"",
 		"- UX metaphor: Pending.",
@@ -243,6 +286,16 @@ func buildFrontendMajorBriefDoc(rationale string) string {
 		"- Typography scale: Pending.",
 		"- Spacing and density intent: Pending.",
 		"- Depth and container budget: Pending.",
+		"",
+		"## Design Review Axes",
+		"",
+		"- Evidence fit: Pending.",
+		"- Asset fidelity: Pending.",
+		"- Alternative coverage: Pending.",
+		"- Visual hierarchy: Pending.",
+		"- Craft and detail: Pending.",
+		"- Functionality and accessibility: Pending.",
+		"- Differentiation without novelty drift: Pending.",
 		"",
 		"## Prototype Evidence",
 		"",
@@ -315,7 +368,10 @@ func loadFrontendBriefReport(root, specID string) frontendBriefReport {
 	reviewPath := filepath.Join(root, filepath.FromSlash(specReviewPath(specID, "design")))
 	if body, err := os.ReadFile(reviewPath); err == nil {
 		compareFrontendBriefAndDesignReview(&report, string(body))
+	} else if report.Valid && report.Header.TaskClassification == frontendTaskClassificationMajor {
+		report.Mismatches = append(report.Mismatches, fmt.Sprintf("Design review artifact missing: `%s`", specReviewPath(specID, "design")))
 	}
+	report.Mismatches = uniqueStrings(report.Mismatches)
 	return report
 }
 
@@ -529,10 +585,25 @@ func compareFrontendBriefAndDesignReview(report *frontendBriefReport, reviewText
 	if !report.Valid {
 		return
 	}
-	if gate := report.DesignReview.GateDecision; gate != "" && gate != "pending" && gate != report.Header.FrontendGateStatus {
+	gate := report.DesignReview.GateDecision
+	evidence := report.DesignReview.EvidenceStatus
+	if report.Header.TaskClassification == frontendTaskClassificationMajor {
+		if gate == "" || gate == "pending" {
+			report.Mismatches = append(report.Mismatches, "Design review gate decision is pending for frontend-major; design-review=pending")
+		} else if gate != report.Header.FrontendGateStatus {
+			report.Mismatches = append(report.Mismatches, fmt.Sprintf("Gate decision mismatch: frontend-brief=%s, design-review=%s", report.Header.FrontendGateStatus, gate))
+		}
+		if evidence == "" || evidence == "pending" {
+			report.Mismatches = append(report.Mismatches, "Design review evidence status is pending for frontend-major; design-review=pending")
+		} else if evidence != report.EvidenceStatus {
+			report.Mismatches = append(report.Mismatches, fmt.Sprintf("Evidence status mismatch: frontend-brief=%s, design-review=%s", report.EvidenceStatus, evidence))
+		}
+		return
+	}
+	if gate != "" && gate != "pending" && gate != report.Header.FrontendGateStatus {
 		report.Mismatches = append(report.Mismatches, fmt.Sprintf("Gate decision mismatch: frontend-brief=%s, design-review=%s", report.Header.FrontendGateStatus, gate))
 	}
-	if evidence := report.DesignReview.EvidenceStatus; evidence != "" && evidence != "pending" && evidence != report.EvidenceStatus {
+	if evidence != "" && evidence != "pending" && evidence != report.EvidenceStatus {
 		report.Mismatches = append(report.Mismatches, fmt.Sprintf("Evidence status mismatch: frontend-brief=%s, design-review=%s", report.EvidenceStatus, evidence))
 	}
 }

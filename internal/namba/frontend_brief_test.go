@@ -71,3 +71,37 @@ func TestParseFrontendBriefAcceptsFrontendMinorNotApplicableHeader(t *testing.T)
 		t.Fatalf("expected no contract issues, got %+v", report)
 	}
 }
+
+func TestInferFrontendTaskClassificationMatchesUIAtBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name               string
+		kind               string
+		description        string
+		wantClassification string
+	}{
+		{
+			name:               "start boundary",
+			kind:               "fix",
+			description:        "UI polish on the existing settings screen",
+			wantClassification: frontendTaskClassificationMinor,
+		},
+		{
+			name:               "end boundary",
+			kind:               "plan",
+			description:        "improve UI",
+			wantClassification: frontendTaskClassificationMajor,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			classification, _, ok := inferFrontendTaskClassification(tt.kind, tt.description)
+			if !ok {
+				t.Fatalf("expected %q to be classified as frontend-touching", tt.description)
+			}
+			if classification != tt.wantClassification {
+				t.Fatalf("classification = %q, want %q", classification, tt.wantClassification)
+			}
+		})
+	}
+}

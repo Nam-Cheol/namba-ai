@@ -120,6 +120,8 @@ func buildSpecReviewDoc(state specReviewState) string {
 			"- Banned Patterns: pending",
 			"- Open Questions: pending",
 			"- Unresolved Questions: pending",
+			"- Design Review Axes: evidence, assets, alternatives, hierarchy, craft, functionality, differentiation",
+			"- Keep / Fix / Quick Wins: pending",
 			"",
 		)
 	}

@@ -515,6 +515,9 @@ func TestBuildSpecPackageScaffoldOutputsAddsFrontendBriefForFrontendMajorWork(t 
 		"Reference Gate: missing",
 		"Critique Gate: missing",
 		"Prototype Gate: missing",
+		"## Asset Evidence",
+		"## Direction Alternatives",
+		"## Design Review Axes",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("expected frontend-major brief to contain %q, got %q", want, body)
