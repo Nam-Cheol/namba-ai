@@ -146,6 +146,7 @@ func TestInferFrontendTaskClassificationIgnoresBackendOnlyAmbiguousTouchKeywords
 		"refactor auth component service",
 		"add dashboard metrics API endpoint",
 		"add dashboard text API endpoint",
+		"refactor database hierarchy for settings API endpoint",
 	} {
 		classification, rationale, ok := inferFrontendTaskClassification("plan", description)
 		if ok {

@@ -159,7 +159,9 @@ func isBackendOnlyAmbiguousFrontendReference(text string, touchHits, majorHits, 
 
 func hasOnlyBackendAmbiguousMajorHits(hits []string) bool {
 	for _, hit := range hits {
-		if hit != "dashboard" {
+		switch hit {
+		case "dashboard", "hierarchy":
+		default:
 			return false
 		}
 	}
