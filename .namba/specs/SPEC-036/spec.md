@@ -56,7 +56,7 @@ The result is predictable drift toward generic UI output: bootstrap/card overuse
   - Copy replacement without hierarchy or layout change
 - If classification is ambiguous, treat the `frontend-major` tie-break rule as authoritative when the request changes hierarchy, visual language, or the shape of a primary workflow.
 - Fix-only requests with lightweight maintenance signals such as spacing, alignment, button, copy, or existing-component work stay `frontend-minor` even when they mention a broad surface such as dashboard, unless they also include a structural redesign signal.
-- Broad nouns such as dashboard, settings, form, or component do not classify work as frontend-touching by themselves when paired only with backend/API/storage signals; they need an explicit UI/screen/layout signal or a major/minor frontend signal so backend/API work is not blocked by frontend synthesis.
+- Broad nouns such as dashboard, settings, form, or component do not classify work as frontend-touching by themselves when paired only with backend/API/storage signals; generic text/copy terms do not override that backend-only filter. They need an explicit UI/screen/layout signal or a non-generic major/minor frontend signal so backend/API work is not blocked by frontend synthesis.
 - For new SPECs that touch frontend scope, `frontend-brief.md` must persist `Task Classification` plus a short `Classification Rationale`; `namba run` must not infer major/minor status from freeform prose at execution time.
 
 ## Canonical Gate Contract
@@ -79,7 +79,7 @@ The result is predictable drift toward generic UI output: bootstrap/card overuse
 
 ## Parser Validity And Precedence
 
-- Unknown required labels, unsupported enum values, or missing required fixed-label lines in `frontend-brief.md` put the artifact in an explicit invalid-contract state; the runner must not guess the intended meaning from nearby prose.
+- Unknown required labels, unsupported enum values, missing required fixed-label lines, or required labels left blank in `frontend-brief.md` put the artifact in an explicit invalid-contract state; the runner must not guess the intended meaning from nearby prose.
 - Impossible combinations such as `Frontend Gate Status: approved` with any `missing` or `insufficient` major gate, or `frontend-minor` combined with non-`not-applicable` major-gate states, are invalid until corrected.
 - `frontend-brief.md` remains the canonical machine-readable source of truth. `reviews/design.md` and `reviews/readiness.md` summarize and evaluate that state.
 - If summarized review docs disagree with the canonical `frontend-brief.md` header state, readiness must surface the mismatch explicitly instead of silently picking one interpretation.

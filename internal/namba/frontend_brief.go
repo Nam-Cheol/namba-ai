@@ -142,22 +142,50 @@ func inferFrontendTaskClassification(kind, description string) (string, string, 
 }
 
 func isBackendOnlyAmbiguousFrontendReference(text string, touchHits, majorHits, minorHits []string) bool {
-	if len(minorHits) > 0 || !hasBackendImplementationSignal(text) {
+	if !hasBackendImplementationSignal(text) {
 		return false
 	}
-	for _, hit := range majorHits {
+	if !hasOnlyBackendAmbiguousMajorHits(majorHits) {
+		return false
+	}
+	if !hasOnlyBackendAmbiguousTouchHits(touchHits) {
+		return false
+	}
+	if !hasOnlyBackendAmbiguousMinorHits(minorHits) {
+		return false
+	}
+	return len(touchHits) > 0 || len(majorHits) > 0 || len(minorHits) > 0
+}
+
+func hasOnlyBackendAmbiguousMajorHits(hits []string) bool {
+	for _, hit := range hits {
 		if hit != "dashboard" {
 			return false
 		}
 	}
-	for _, hit := range touchHits {
+	return true
+}
+
+func hasOnlyBackendAmbiguousTouchHits(hits []string) bool {
+	for _, hit := range hits {
 		switch hit {
 		case "dashboard", "settings", "form", "component":
 		default:
 			return false
 		}
 	}
-	return len(touchHits) > 0 || len(majorHits) > 0
+	return true
+}
+
+func hasOnlyBackendAmbiguousMinorHits(hits []string) bool {
+	for _, hit := range hits {
+		switch hit {
+		case "text", "copy":
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func hasBackendImplementationSignal(text string) bool {
@@ -567,6 +595,9 @@ func normalizeFrontendBriefEnum(value string) string {
 func validateFrontendBriefEnums(report *frontendBriefReport) {
 	checkEnum := func(label, value string, allowed ...string) {
 		if value == "" {
+			if !frontendBriefMissingLabel(report, label) {
+				report.ContractIssues = append(report.ContractIssues, fmt.Sprintf("%s must not be blank.", label))
+			}
 			return
 		}
 		for _, candidate := range allowed {
@@ -589,6 +620,15 @@ func validateFrontendBriefEnums(report *frontendBriefReport) {
 		checkEnum(label, value, frontendGateStateComplete, frontendGateStateMissing, frontendGateStateInsufficient, frontendGateStateNotApplicable)
 	}
 	checkEnum("Prototype Evidence", report.Header.PrototypeEvidence, "wireframe", "annotated-layout", "prototype", "equivalent", "n/a")
+}
+
+func frontendBriefMissingLabel(report *frontendBriefReport, label string) bool {
+	for _, missing := range report.MissingLabels {
+		if missing == label {
+			return true
+		}
+	}
+	return false
 }
 
 func validateFrontendBriefConsistency(report *frontendBriefReport) {

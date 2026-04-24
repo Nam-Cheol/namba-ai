@@ -72,6 +72,31 @@ func TestParseFrontendBriefAcceptsFrontendMinorNotApplicableHeader(t *testing.T)
 	}
 }
 
+func TestParseFrontendBriefRejectsBlankFixedLabelValues(t *testing.T) {
+	t.Parallel()
+
+	report := parseFrontendBrief(strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification:",
+		"Classification Rationale: Blank enum labels should fail.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+	}, "\n"))
+
+	if report.Valid {
+		t.Fatalf("expected invalid report, got %+v", report)
+	}
+	if !strings.Contains(strings.Join(report.ContractIssues, "\n"), "Task Classification must not be blank.") {
+		t.Fatalf("expected blank classification to be reported, got %+v", report.ContractIssues)
+	}
+}
+
 func TestInferFrontendTaskClassificationMatchesUIAtBoundaries(t *testing.T) {
 	t.Parallel()
 
@@ -120,6 +145,7 @@ func TestInferFrontendTaskClassificationIgnoresBackendOnlyAmbiguousTouchKeywords
 		"add form submission API",
 		"refactor auth component service",
 		"add dashboard metrics API endpoint",
+		"add dashboard text API endpoint",
 	} {
 		classification, rationale, ok := inferFrontendTaskClassification("plan", description)
 		if ok {
