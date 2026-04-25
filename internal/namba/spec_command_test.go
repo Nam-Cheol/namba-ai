@@ -564,6 +564,26 @@ func TestBuildSpecPackageScaffoldOutputsAddsFrontendBriefForExplicitFrontendWork
 	}
 }
 
+func TestBuildSpecPackageScaffoldOutputsSkipsDocumentationOnlySectionWork(t *testing.T) {
+	scaffoldCtx := specPackageScaffoldContext{
+		Root:        "/repo",
+		Kind:        "plan",
+		Description: "add a section to README",
+		SpecID:      "SPEC-008",
+		ProjectCfg: projectConfig{
+			Name:        "namba-ai",
+			ProjectType: "existing",
+			Language:    "go",
+		},
+		QualityCfg: qualityConfig{DevelopmentMode: "tdd"},
+	}
+
+	outputs := buildSpecPackageScaffoldOutputs(scaffoldCtx)
+	if body, ok := outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-008", frontendBriefFileName))]; ok {
+		t.Fatalf("did not expect frontend brief scaffold for documentation-only section work, got %q", body)
+	}
+}
+
 func TestBuildSpecPackageScaffoldOutputsAddsFrontendBriefForFrontendMinorFixes(t *testing.T) {
 	scaffoldCtx := specPackageScaffoldContext{
 		Root:        "/repo",

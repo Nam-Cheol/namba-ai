@@ -231,7 +231,6 @@ func hasExplicitFrontendTouchSignal(hits []string) bool {
 		"modal":         true,
 		"dialog":        true,
 		"visual":        true,
-		"section":       true,
 		"a11y":          true,
 		"accessibility": true,
 	}

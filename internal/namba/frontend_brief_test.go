@@ -297,3 +297,12 @@ func TestInferFrontendTaskClassificationIgnoresBackendOnlyAmbiguousTouchKeywords
 		}
 	}
 }
+
+func TestInferFrontendTaskClassificationIgnoresDocumentationSectionOnly(t *testing.T) {
+	t.Parallel()
+
+	classification, rationale, ok := inferFrontendTaskClassification("plan", "add a section to README")
+	if ok {
+		t.Fatalf("expected documentation-only section request to avoid frontend classification, got classification=%q rationale=%q", classification, rationale)
+	}
+}
