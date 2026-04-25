@@ -49,6 +49,14 @@ func TestDesignReviewTemplateIncludesExplicitChecklist(t *testing.T) {
 	designReview := outputs[specReviewPath("SPEC-999", "design")]
 	for _, want := range []string{
 		"## Review Checklist",
+		"- Evidence Status: pending",
+		"- Gate Decision: pending",
+		"- Approved Direction: pending",
+		"- Banned Patterns: pending",
+		"- Open Questions: pending",
+		"- Unresolved Questions: pending",
+		"- Design Review Axes: evidence, assets, alternatives, hierarchy, craft, functionality, differentiation",
+		"- Keep / Fix / Quick Wins: pending",
 		"Art direction is clear and fits the task context.",
 		"Palette temperature and undertone logic are coherent",
 		"generic cards, border-heavy framing, or bento/grid fallback",
@@ -58,6 +66,74 @@ func TestDesignReviewTemplateIncludesExplicitChecklist(t *testing.T) {
 		if !strings.Contains(designReview, want) {
 			t.Fatalf("expected design review scaffold to contain %q, got %q", want, designReview)
 		}
+	}
+}
+
+func TestRefreshSpecReviewReadinessIncludesFrontendGateMismatchSummary(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	specID := "SPEC-101"
+	specDir := filepath.Join(tmp, ".namba", "specs", specID)
+	reviewsDir := filepath.Join(specDir, "reviews")
+	if err := os.MkdirAll(reviewsDir, 0o755); err != nil {
+		t.Fatalf("mkdir reviews dir: %v", err)
+	}
+	for _, template := range specReviewTemplates() {
+		writeTestFile(t, filepath.Join(reviewsDir, template.Slug+".md"), strings.Join([]string{
+			"# " + template.Title,
+			"",
+			"- Status: clear",
+			"- Last Reviewed: 2026-04-23",
+			"- Reviewer: test",
+			"- Evidence Status: complete",
+			"- Gate Decision: approved",
+			"",
+		}, "\n"))
+	}
+	writeTestFile(t, filepath.Join(specDir, frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: New dashboard hierarchy.",
+		"Frontend Gate Status: needs-research",
+		"Problem Gate: complete",
+		"Reference Gate: missing",
+		"Critique Gate: missing",
+		"Decision Gate: missing",
+		"Prototype Gate: missing",
+		"Prototype Evidence: n/a",
+		"",
+		"## Reference Set",
+		"",
+		"- Pending.",
+	}, "\n"))
+
+	advisory, err := app.refreshSpecReviewReadiness(tmp, specID)
+	if err != nil {
+		t.Fatalf("refreshSpecReviewReadiness failed: %v", err)
+	}
+	if !strings.Contains(advisory, "frontend=") {
+		t.Fatalf("expected advisory to include frontend status, got %q", advisory)
+	}
+
+	readiness := mustReadFile(t, filepath.Join(reviewsDir, "readiness.md"))
+	for _, want := range []string{
+		"## Frontend Gate",
+		"Task Classification: `frontend-major`",
+		"Evidence Status: `missing`",
+		"Cross-artifact mismatches:",
+		"Gate decision mismatch",
+		"Advisory status: follow up on frontend=blocked",
+	} {
+		if !strings.Contains(readiness, want) {
+			t.Fatalf("expected readiness to contain %q, got %q", want, readiness)
+		}
+	}
+	if strings.Contains(readiness, "Advisory status: all current review tracks are marked clear.") {
+		t.Fatalf("expected frontend blocker to prevent all-clear readiness summary, got %q", readiness)
 	}
 }
 

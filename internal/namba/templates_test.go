@@ -745,11 +745,43 @@ func TestRenderCodexUsageWorkflowCommandSemanticsSectionPreservesAnchors(t *test
 		"`$namba-create` is the preview-first creation path",
 		"`namba codex access` inspects the current repo-owned Codex access defaults",
 		"`namba fix --command plan \"<issue description>\"` creates the next bugfix SPEC package plus review scaffolds.",
+		"`frontend-brief.md`",
+		"`frontend-major`",
 		"`namba run SPEC-XXX --parallel` still refers to the standalone worktree runner path.",
 	} {
 		if !strings.Contains(workflowSemantics, want) {
 			t.Fatalf("workflow-command-semantics section missing %q: %q", want, workflowSemantics)
 		}
+	}
+}
+
+func TestRunSkillAndUIRolesMentionFrontendGateContract(t *testing.T) {
+	t.Parallel()
+
+	runSkill := renderRunCommandSkill(initProfile{})
+	for _, want := range []string{"`frontend-brief.md`", "`frontend-major`", "canonical source for frontend task classification"} {
+		if !strings.Contains(runSkill, want) {
+			t.Fatalf("run skill missing %q: %q", want, runSkill)
+		}
+	}
+
+	frontendArchitect := renderFrontendArchitectRoleCard() + "\n" + renderFrontendArchitectCustomAgent()
+	for _, want := range []string{"`frontend-major` synthesis", "design clearance"} {
+		if !strings.Contains(frontendArchitect, want) {
+			t.Fatalf("frontend architect surface missing %q: %q", want, frontendArchitect)
+		}
+	}
+
+	frontendImplementer := renderFrontendImplementerRoleCard() + "\n" + renderFrontendImplementerCustomAgent()
+	for _, want := range []string{"frontend synthesis is cleared", "`frontend-brief.md`"} {
+		if !strings.Contains(frontendImplementer, want) {
+			t.Fatalf("frontend implementer surface missing %q: %q", want, frontendImplementer)
+		}
+	}
+
+	designer := renderDesignerRoleCard() + "\n" + renderDesignerCustomAgent()
+	if !strings.Contains(designer, "reference collection and synthesis") && !strings.Contains(designer, "Collect or critique references") {
+		t.Fatalf("designer surface should mention reference synthesis ownership: %q", designer)
 	}
 }
 

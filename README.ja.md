@@ -106,7 +106,7 @@ namba land
 ## Codex 用 Custom Agents
 
 - Strategy and readiness: `namba-product-manager` がスコープと acceptance を整え、`namba-planner` が SPEC を実行計画へ変換し、`namba-plan-reviewer` が plan-review 結果の整合性と readiness を検証します。
-- UI split: `namba-designer` は art direction、palette/tone logic、composition、motion intent、generic または bland な section の診断を担当し、`namba-frontend-architect` は component boundary と state/file planning、delivery slicing を担当し、`namba-frontend-implementer` は承認済み UI 実装を担当し、`namba-mobile-engineer` は mobile 制約を担当します。
+- UI split: `namba-designer` は reference 収集と synthesis を含む art direction を担当し、`namba-frontend-architect` は frontend gate が満たされた後に hierarchy と state/file planning を担当し、`namba-frontend-implementer` は synthesis と design clearance 後の承認済み UI 実装だけを担当し、`namba-mobile-engineer` は mobile 制約を担当します。
 - Routing examples: `Redesign this landing page hero so it stops looking generic` は `namba-designer`、`Plan the component/state split for this dashboard` は `namba-frontend-architect`、`Implement the approved dashboard filters and responsive states` は `namba-frontend-implementer` に送ります。
 - Backend and data: `namba-backend-architect`、`namba-backend-implementer`、`namba-data-engineer` が API、persistence、migration、pipeline を担当します。
 - Security and delivery: `namba-security-engineer`、`namba-test-engineer`、`namba-devops-engineer`、`namba-reviewer` が hardening、regression confidence、CI/CD、final acceptance を担当します。

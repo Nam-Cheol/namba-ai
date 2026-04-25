@@ -383,13 +383,15 @@ func renderRunCommandSkill(profile initProfile) string {
 			"Behavior:",
 			"- Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md` before implementation.",
 			"- Read `.namba/specs/<SPEC>/reviews/readiness.md` when it exists so advisory review depth is visible before coding starts.",
+			"- Read `.namba/specs/<SPEC>/frontend-brief.md` when it exists; it is the canonical source for frontend task classification and gate state.",
 			"- In an interactive Codex session, prefer Codex-native in-session execution over recursively calling `namba run`.",
 			"- Only use the standalone CLI runner for `--solo`, `--team`, `--parallel`, `--dry-run`, or when the user explicitly wants the non-interactive runner path.",
 			"- For `--solo`, stay inside one runner unless one domain clearly dominates and a single specialist would materially reduce risk.",
 			"- For `--team`, prefer one specialist when one domain dominates, expand to two or three only when acceptance spans multiple domains, and keep one integrator plus final validation owner in the workspace.",
 			"- For `--team`, honor each selected role's `model` and `model_reasoning_effort` metadata from `.codex/agents/*.toml` so planner/reviewer/security roles can think harder without making every delivery role heavy.",
 			"- Route art direction, palette/tone logic, composition, motion intent, Figma critique, and generic-section redesign work to `namba-designer`; route component boundaries, state ownership, and UI delivery planning to `namba-frontend-architect`; route approved UI implementation to `namba-frontend-implementer`; route mobile-specific UI delivery to `namba-mobile-engineer`; route API, schema, and pipeline work to backend/data; route auth, secrets, and compliance work to security; route deployment and runtime work to devops.",
-			"- Treat review readiness as advisory by default: missing plan-review artifacts should be surfaced clearly, not silently block execution.",
+			"- `frontend-major` work must not move into architecture or implementation until `frontend-brief.md` shows coherent problem, reference, critique, decision, and prototype evidence plus aligned design clearance; `frontend-minor` keeps the lightweight advisory path.",
+			"- Treat review readiness as advisory by default for non-frontend and `frontend-minor` work, but block explicit `frontend-major` execution when the frontend brief is missing required evidence, internally contradictory, or mismatched with design-review summaries.",
 			"- Run validation commands from `.namba/config/sections/quality.yaml` and finish with `namba sync`. Use `namba pr` and `namba land` for the GitHub handoff and merge cycle instead of overloading `sync`.",
 			fmt.Sprintf("- Collaboration defaults: branch from `%s`, open the PR into `%s`, write the PR in %s, and request `%s` on GitHub after the PR is open.", branchBase(profile), prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
 		},
@@ -523,9 +525,11 @@ func renderExecutionSkill(profile initProfile) string {
 		"2. Read `.namba/specs/<SPEC>/plan.md`",
 		"3. Read `.namba/specs/<SPEC>/acceptance.md`",
 		"4. Read `.namba/specs/<SPEC>/reviews/readiness.md` when present so advisory review status informs execution",
-		"5. Implement the work directly in the current Codex session",
-		"6. Run configured validation commands",
-		"7. Summarize results in `.namba/logs` and sync artifacts",
+		"5. Read `.namba/specs/<SPEC>/frontend-brief.md` when present and treat it as the canonical frontend gate contract",
+		"6. If the SPEC is explicitly `frontend-major`, stop and route back to research/synthesis when the frontend gate is incomplete, invalid, or contradicted by design-review summaries",
+		"7. Implement the work directly in the current Codex session",
+		"8. Run configured validation commands",
+		"9. Summarize results in `.namba/logs` and sync artifacts",
 		"",
 		fmt.Sprintf("Collaboration defaults: use a dedicated branch from `%s` for the SPEC, open the PR into `%s`, write the PR in %s, and request `%s` on GitHub after the PR is open.", branchBase(profile), prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
 		"",
@@ -572,7 +576,7 @@ func renderCodexUsageWorkflowCommandSemanticsSection() []string {
 		"- `namba pr` prepares the current branch for GitHub review by syncing, validating, committing, pushing, opening or reusing the PR, and ensuring the Codex review marker is present.",
 		"- `namba land` waits for checks when requested, merges a clean PR, and updates local `main` safely.",
 		"- `namba release` requires a clean `main` branch and passing validators before it creates a tag. `--push` pushes both `main` and the new tag.",
-		"- `namba run SPEC-XXX` keeps the standard standalone Codex flow when you use the CLI runner without extra mode flags.",
+		"- `namba run SPEC-XXX` keeps the standard standalone Codex flow when you use the CLI runner without extra mode flags, but explicit `frontend-major` work now reads `frontend-brief.md` as a canonical gate before coding.",
 		"- `namba run SPEC-XXX --solo` requests a standalone Codex run that explicitly targets a single-subagent workflow inside one workspace.",
 		"- `namba run SPEC-XXX --team` requests a standalone Codex run that explicitly coordinates multiple subagents inside one workspace.",
 		"- `namba run SPEC-XXX --parallel` still refers to the standalone worktree runner path. It uses git worktrees, merges only after every worker passes execution and validation, and preserves failed worktrees and branches for inspection.",
@@ -613,7 +617,7 @@ func renderCodexUsageAgentRosterSection() []string {
 		"## Namba Custom Agent Roster",
 		"",
 		"- Strategy and readiness: `namba-product-manager` shapes scope and acceptance, `namba-planner` turns a SPEC into an execution plan, and `namba-plan-reviewer` validates whether the product/engineering/design review set is coherent enough to start implementation.",
-		"- UI split: `namba-designer` owns art direction, palette/tone logic, composition, motion intent, and diagnosis of generic or bland sections; `namba-frontend-architect` owns component boundaries, state/file planning, and delivery slicing; `namba-frontend-implementer` ships approved UI work; `namba-mobile-engineer` handles mobile-specific constraints.",
+		"- UI split: `namba-designer` owns art direction plus reference collection and synthesis, `namba-frontend-architect` plans hierarchy and state only after the frontend gate is satisfied, `namba-frontend-implementer` ships approved UI work only after synthesis plus design clearance, and `namba-mobile-engineer` handles mobile-specific constraints.",
 		"- Routing examples: `Redesign this landing page hero so it stops looking generic` -> `namba-designer`; `Plan the component/state split for this dashboard` -> `namba-frontend-architect`; `Implement the approved dashboard filters and responsive states` -> `namba-frontend-implementer`.",
 		"- Backend and data: `namba-backend-architect` plans service boundaries, `namba-backend-implementer` ships server-side changes, and `namba-data-engineer` owns data pipelines, transformations, migrations, and analytics-facing changes.",
 		"- Security and delivery: `namba-security-engineer` handles hardening work, `namba-test-engineer` adds targeted regression coverage, `namba-devops-engineer` handles CI/CD and runtime changes, and `namba-reviewer` checks implementation acceptance before sync.",
@@ -632,7 +636,7 @@ func renderCodexUsageDelegationHeuristicsSection() []string {
 		"- `--team` prefers one specialist when one domain dominates and expands to two or three only when acceptance spans multiple domains.",
 		"- Repo-managed same-workspace defaults set `.codex/config.toml [agents].max_threads = 5` when `agent_mode: multi`; worktree fan-out remains separately controlled by `.namba/config/sections/workflow.yaml`.",
 		"- Team mode honors each selected role's `model` and `model_reasoning_effort` metadata from `.codex/agents/*.toml`, keeping planner/reviewer/security roles stronger and delivery roles lighter.",
-		"- Route art direction, palette/tone logic, composition, motion intent, redesign, and Figma critique to `namba-designer`; route component, state, and delivery planning to `namba-frontend-architect`; route approved UI implementation to `namba-frontend-implementer`; route mobile-specific delivery to `namba-mobile-engineer`; route API, schema, and pipeline work to backend/data; route auth, secrets, and compliance work to security; route deployment and runtime work to devops.",
+		"- Route art direction plus reference synthesis to `namba-designer`; route component, state, and delivery planning only after the frontend gate is satisfied to `namba-frontend-architect`; route approved UI implementation only after synthesis plus design clearance to `namba-frontend-implementer`; route mobile-specific delivery to `namba-mobile-engineer`; route API, schema, and pipeline work to backend/data; route auth, secrets, and compliance work to security; route deployment and runtime work to devops.",
 		"- Keep the standalone runner as the integrator and final validation owner, and use `namba-reviewer` last when multiple specialists contribute.",
 	}
 }
@@ -643,9 +647,10 @@ func renderCodexUsagePlanReviewReadinessSection() []string {
 		"## Plan Review Readiness",
 		"",
 		"- `namba plan`, `namba harness`, and `namba fix --command plan` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.",
+		"- Frontend-touching planning also seeds `.namba/specs/<SPEC>/frontend-brief.md`, and explicit `frontend-major` work uses that brief as the canonical gate contract.",
 		"- `$namba-plan-review` bundles SPEC creation or resolution, the three review tracks, and an aggregate validation loop when you want that whole pre-implementation pass handled through one skill.",
 		"- `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` update those review artifacts directly in the repository.",
-		"- `namba run`, `namba sync`, and `namba pr` surface the latest readiness summary as advisory context so review depth is visible without silently hard-blocking delivery.",
+		"- `namba run`, `namba sync`, and `namba pr` surface the latest readiness summary as advisory context for non-frontend and `frontend-minor` work, while explicit `frontend-major` runs can block on missing, insufficient, invalid, or mismatched frontend evidence.",
 	}
 }
 
@@ -1114,6 +1119,7 @@ func frontendArchitectAgentTemplate() codexAgentTemplate {
 		"Map UI changes to file targets, design-system constraints, and accessibility impact.",
 		"Highlight responsive, performance, and browser-risk considerations.",
 		"Recommend the smallest coherent UI implementation slice.",
+		"Verify that `frontend-major` synthesis and design clearance exist before planning hierarchy, file structure, or state ownership.",
 	}
 	return codexAgentTemplate{
 		roleTitle:              "Namba Frontend Architect",
@@ -1141,12 +1147,13 @@ func renderFrontendArchitectCustomAgent() string {
 func renderFrontendImplementerRoleCard() string {
 	return renderRoleCard(
 		"Namba Frontend Implementer",
-		"Use this role when implementing approved UI work.",
+		"Use this role when implementing approved UI work after frontend synthesis is cleared.",
 		[]string{
 			"Change only the frontend files assigned by the main session.",
 			"Preserve design-system conventions, accessibility, and responsive behavior.",
 			"Keep loading, empty, and error states coherent with the surrounding UI.",
 			"Run or report the relevant UI validation steps when feasible.",
+			"Do not start `frontend-major` implementation until `frontend-brief.md` and design review agree on an approved direction.",
 		},
 	)
 }
@@ -1159,13 +1166,14 @@ func renderFrontendImplementerCustomAgent() string {
 		[]string{
 			"You are Namba Frontend Implementer.",
 			"",
-			"Use this custom agent when implementing approved UI work.",
+			"Use this custom agent when implementing approved UI work after frontend synthesis is cleared.",
 			"",
 			"Responsibilities:",
 			"- Change only the frontend files assigned by the main session.",
 			"- Preserve design-system conventions, accessibility, and responsive behavior.",
 			"- Keep loading, empty, and error states coherent with the surrounding UI.",
 			"- Run or report the relevant UI validation steps when feasible.",
+			"- Do not start `frontend-major` implementation until `frontend-brief.md` and design review agree on an approved direction.",
 		},
 	)
 }
@@ -1178,6 +1186,7 @@ func designerAgentTemplate() codexAgentTemplate {
 		"Keep motion purposeful: use it only when it clarifies hierarchy, attention, or state change.",
 		"For screen-, page-, or section-scale work, identify the most generic-looking section and propose a concrete redesign; for component-scale work, call out the risk without forcing gratuitous scope creep.",
 		"Guard against overcorrection: do not flatten everything into gray minimalism, do not add novelty without payoff, and do not sacrifice accessibility, design-system fit, or implementation realism.",
+		"Collect or critique references, synthesize adopt/avoid/why decisions, and define banned patterns before implementation begins.",
 	}
 	return codexAgentTemplate{
 		roleTitle:              "Namba Designer",

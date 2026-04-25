@@ -822,6 +822,277 @@ func TestDispatchRunExecutionDryRunSkipsRunnerAndPrintsPromptPath(t *testing.T) 
 	}
 }
 
+func TestRunBlocksFrontendMajorWhenFrontendSynthesisIsIncomplete(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: Dashboard restructure.",
+		"Frontend Gate Status: needs-research",
+		"Problem Gate: complete",
+		"Reference Gate: missing",
+		"Critique Gate: missing",
+		"Decision Gate: missing",
+		"Prototype Gate: missing",
+		"Prototype Evidence: n/a",
+	}, "\n"))
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		t.Fatalf("runner/validators should not execute for blocked frontend-major run: %s %v", name, args)
+		return "", nil
+	}
+
+	err := app.Run(context.Background(), []string{"run", "SPEC-001"})
+	if err == nil {
+		t.Fatal("expected frontend synthesis block")
+	}
+	if !strings.Contains(err.Error(), "blocked for frontend synthesis") {
+		t.Fatalf("expected frontend block message, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "Reference Gate") || !strings.Contains(err.Error(), "split this work into separate SPECs or explicit phases") {
+		t.Fatalf("expected remediation guidance in block message, got %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-execution.json")); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("expected no execution artifact for blocked run, got stat err=%v", statErr)
+	}
+}
+
+func TestLoadRunExecutionContextBlocksFrontendMajorWithStatusRemediation(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: New dashboard hierarchy.",
+		"Frontend Gate Status: blocked",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+	}, "\n"))
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews", "design.md"), strings.Join([]string{
+		"# Design Review",
+		"",
+		"- Status: blocked",
+		"- Evidence Status: complete",
+		"- Gate Decision: blocked",
+		"- Approved Direction: Focused dashboard table direction is not yet accepted.",
+		"- Banned Patterns: Avoid generic card grids.",
+		"- Open Questions: Resolve review concerns before implementation.",
+		"- Unresolved Questions: Blocked pending design owner approval.",
+		"",
+	}, "\n"))
+
+	_, err := app.loadRunExecutionContext(tmp, runExecuteOptions{specID: "SPEC-001", mode: executionModeDefault})
+	if err == nil {
+		t.Fatal("expected blocked frontend-major execution")
+	}
+	for _, want := range []string{
+		"blocked for frontend synthesis",
+		"Frontend Gate Status: `blocked`",
+		"Resolve the blocked frontend decision",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("expected blocked run error to contain %q, got %v", want, err)
+		}
+	}
+}
+
+func TestRunAllowsFrontendMinorExecutionAndEmbedsFrontendBriefInPrompt(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-minor",
+		"Classification Rationale: Existing settings spacing fix.",
+		"Frontend Gate Status: not-applicable",
+		"Problem Gate: not-applicable",
+		"Reference Gate: not-applicable",
+		"Critique Gate: not-applicable",
+		"Decision Gate: not-applicable",
+		"Prototype Gate: not-applicable",
+		"Prototype Evidence: n/a",
+	}, "\n"))
+
+	var promptArg string
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			promptArg = args[len(args)-1]
+			return "runner output", nil
+		case isShellCommand(name):
+			return "validation ok", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"run", "SPEC-001"}); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+	if !strings.Contains(promptArg, "## Frontend Brief") || !strings.Contains(promptArg, "Task Classification: frontend-minor") {
+		t.Fatalf("expected prompt to embed frontend brief, got %q", promptArg)
+	}
+}
+
+func TestLoadRunExecutionContextRejectsInvalidFrontendBriefContract(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: New landing page.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: missing",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+	}, "\n"))
+
+	_, err := app.loadRunExecutionContext(tmp, runExecuteOptions{specID: "SPEC-001", mode: executionModeDefault})
+	if err == nil {
+		t.Fatal("expected invalid frontend brief contract error")
+	}
+	if !strings.Contains(err.Error(), "invalid frontend brief contract") {
+		t.Fatalf("expected invalid-contract error, got %v", err)
+	}
+}
+
+func TestLoadRunExecutionContextAllowsInvalidFrontendMinorAsAdvisory(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-minor",
+		"Classification Rationale: Existing settings spacing fix.",
+		"Frontend Gate Status: not-applicable",
+		"Problem Gatee: not-applicable",
+		"Reference Gate: not-applicable",
+		"Critique Gate: not-applicable",
+		"Decision Gate: not-applicable",
+		"Prototype Gate: not-applicable",
+		"Prototype Evidence: n/a",
+	}, "\n"))
+
+	runCtx, err := app.loadRunExecutionContext(tmp, runExecuteOptions{specID: "SPEC-001", mode: executionModeDefault})
+	if err != nil {
+		t.Fatalf("expected invalid frontend-minor contract to remain advisory, got %v", err)
+	}
+	if !strings.Contains(runCtx.ReadinessAdvisory, "frontend=invalid-contract") {
+		t.Fatalf("expected readiness advisory to surface invalid frontend-minor contract, got %q", runCtx.ReadinessAdvisory)
+	}
+}
+
+func TestLoadRunExecutionContextBlocksFrontendMajorWhenDesignReviewPending(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: New dashboard hierarchy.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+		"",
+		"## Reference Set",
+		"",
+		"- Reference 1: Complete.",
+	}, "\n"))
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews", "design.md"), strings.Join([]string{
+		"# Design Review",
+		"",
+		"- Status: pending",
+		"- Evidence Status: pending",
+		"- Gate Decision: pending",
+		"- Approved Direction: pending",
+		"- Banned Patterns: pending",
+		"- Open Questions: pending",
+		"- Unresolved Questions: pending",
+		"",
+	}, "\n"))
+
+	_, err := app.loadRunExecutionContext(tmp, runExecuteOptions{specID: "SPEC-001", mode: executionModeDefault})
+	if err == nil {
+		t.Fatal("expected pending design review to block frontend-major execution")
+	}
+	if !strings.Contains(err.Error(), "Design review gate decision is pending") || !strings.Contains(err.Error(), "design-review=pending") {
+		t.Fatalf("expected pending design-review mismatch, got %v", err)
+	}
+}
+
+func TestLoadRunExecutionContextBlocksFrontendMajorWhenDesignDecisionFieldsPending(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: New dashboard hierarchy.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+	}, "\n"))
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews", "design.md"), strings.Join([]string{
+		"# Design Review",
+		"",
+		"- Status: approved",
+		"- Evidence Status: complete",
+		"- Gate Decision: approved",
+		"- Approved Direction: pending",
+		"- Banned Patterns: pending",
+		"- Open Questions: pending",
+		"- Unresolved Questions: pending",
+		"",
+	}, "\n"))
+
+	_, err := app.loadRunExecutionContext(tmp, runExecuteOptions{specID: "SPEC-001", mode: executionModeDefault})
+	if err == nil {
+		t.Fatal("expected pending design decision fields to block frontend-major execution")
+	}
+	if !strings.Contains(err.Error(), "Design review approved direction is pending") || !strings.Contains(err.Error(), "Design review banned patterns are pending") {
+		t.Fatalf("expected pending design decision field mismatches, got %v", err)
+	}
+}
+
 func TestRunUsesConfiguredApprovalAndSandbox(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

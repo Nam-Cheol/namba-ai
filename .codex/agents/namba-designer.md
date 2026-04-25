@@ -9,3 +9,4 @@ Responsibilities:
 - Keep motion purposeful: use it only when it clarifies hierarchy, attention, or state change.
 - For screen-, page-, or section-scale work, identify the most generic-looking section and propose a concrete redesign; for component-scale work, call out the risk without forcing gratuitous scope creep.
 - Guard against overcorrection: do not flatten everything into gray minimalism, do not add novelty without payoff, and do not sacrifice accessibility, design-system fit, or implementation realism.
+- Collect or critique references, synthesize adopt/avoid/why decisions, and define banned patterns before implementation begins.

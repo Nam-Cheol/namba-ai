@@ -490,6 +490,132 @@ func TestBuildSpecPackageScaffoldOutputsAutoClassifiesCoreHarnessPlan(t *testing
 	}
 }
 
+func TestBuildSpecPackageScaffoldOutputsAddsFrontendBriefForFrontendMajorWork(t *testing.T) {
+	scaffoldCtx := specPackageScaffoldContext{
+		Root:        "/repo",
+		Kind:        "plan",
+		Description: "redesign the dashboard layout and primary workflow hierarchy",
+		SpecID:      "SPEC-005",
+		ProjectCfg: projectConfig{
+			Name:        "namba-ai",
+			ProjectType: "existing",
+			Language:    "go",
+		},
+		QualityCfg: qualityConfig{DevelopmentMode: "tdd"},
+	}
+
+	outputs := buildSpecPackageScaffoldOutputs(scaffoldCtx)
+	body, ok := outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-005", frontendBriefFileName))]
+	if !ok {
+		t.Fatalf("expected frontend brief scaffold, got %+v", outputs)
+	}
+	for _, want := range []string{
+		"Task Classification: frontend-major",
+		"Frontend Gate Status: needs-research",
+		"Reference Gate: missing",
+		"Critique Gate: missing",
+		"Prototype Gate: missing",
+		"## Asset Evidence",
+		"## Direction Alternatives",
+		"## Design Review Axes",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("expected frontend-major brief to contain %q, got %q", want, body)
+		}
+	}
+
+	readiness, ok := outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-005", "reviews", "readiness.md"))]
+	if !ok {
+		t.Fatalf("expected readiness scaffold, got %+v", outputs)
+	}
+	for _, want := range []string{
+		"## Frontend Gate",
+		"Task Classification: `frontend-major`",
+		"Advisory status: follow up on",
+		"frontend=",
+	} {
+		if !strings.Contains(readiness, want) {
+			t.Fatalf("expected initial readiness to contain %q, got %q", want, readiness)
+		}
+	}
+}
+
+func TestBuildSpecPackageScaffoldOutputsAddsFrontendBriefForExplicitFrontendWork(t *testing.T) {
+	scaffoldCtx := specPackageScaffoldContext{
+		Root:        "/repo",
+		Kind:        "plan",
+		Description: "frontend component refactor",
+		SpecID:      "SPEC-007",
+		ProjectCfg: projectConfig{
+			Name:        "namba-ai",
+			ProjectType: "existing",
+			Language:    "go",
+		},
+		QualityCfg: qualityConfig{DevelopmentMode: "tdd"},
+	}
+
+	outputs := buildSpecPackageScaffoldOutputs(scaffoldCtx)
+	body, ok := outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-007", frontendBriefFileName))]
+	if !ok {
+		t.Fatalf("expected frontend brief scaffold for explicit frontend wording, got %+v", outputs)
+	}
+	if !strings.Contains(body, "Task Classification: frontend-major") {
+		t.Fatalf("expected explicit frontend work to scaffold frontend-major brief, got %q", body)
+	}
+}
+
+func TestBuildSpecPackageScaffoldOutputsSkipsDocumentationOnlySectionWork(t *testing.T) {
+	scaffoldCtx := specPackageScaffoldContext{
+		Root:        "/repo",
+		Kind:        "plan",
+		Description: "add a section to README",
+		SpecID:      "SPEC-008",
+		ProjectCfg: projectConfig{
+			Name:        "namba-ai",
+			ProjectType: "existing",
+			Language:    "go",
+		},
+		QualityCfg: qualityConfig{DevelopmentMode: "tdd"},
+	}
+
+	outputs := buildSpecPackageScaffoldOutputs(scaffoldCtx)
+	if body, ok := outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-008", frontendBriefFileName))]; ok {
+		t.Fatalf("did not expect frontend brief scaffold for documentation-only section work, got %q", body)
+	}
+}
+
+func TestBuildSpecPackageScaffoldOutputsAddsFrontendBriefForFrontendMinorFixes(t *testing.T) {
+	scaffoldCtx := specPackageScaffoldContext{
+		Root:        "/repo",
+		Kind:        "fix",
+		Description: "fix button spacing in the existing settings screen",
+		SpecID:      "SPEC-006",
+		ProjectCfg: projectConfig{
+			Name:        "namba-ai",
+			ProjectType: "existing",
+			Language:    "go",
+		},
+		QualityCfg: qualityConfig{DevelopmentMode: "tdd"},
+	}
+
+	outputs := buildSpecPackageScaffoldOutputs(scaffoldCtx)
+	body, ok := outputs[filepath.ToSlash(filepath.Join(specsDir, "SPEC-006", frontendBriefFileName))]
+	if !ok {
+		t.Fatalf("expected frontend brief scaffold, got %+v", outputs)
+	}
+	for _, want := range []string{
+		"Task Classification: frontend-minor",
+		"Frontend Gate Status: not-applicable",
+		"Problem Gate: not-applicable",
+		"Reference Gate: not-applicable",
+		"Prototype Evidence: n/a",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("expected frontend-minor brief to contain %q, got %q", want, body)
+		}
+	}
+}
+
 func TestBuildSpecDocRoutesByKind(t *testing.T) {
 	projectCfg := projectConfig{Name: "namba-ai", ProjectType: "existing", Language: "go"}
 	qualityCfg := qualityConfig{DevelopmentMode: "tdd"}

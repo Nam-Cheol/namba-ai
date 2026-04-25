@@ -1,0 +1,308 @@
+package namba
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestParseFrontendBriefRejectsApprovedMajorWithMissingGate(t *testing.T) {
+	t.Parallel()
+
+	report := parseFrontendBrief(strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: Major dashboard restructure.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: missing",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+		"",
+		"## Problem Frame",
+		"",
+		"- Pending.",
+	}, "\n"))
+
+	if report.Valid {
+		t.Fatalf("expected invalid report, got %+v", report)
+	}
+	if report.ContractStatus != "invalid-contract" {
+		t.Fatalf("expected invalid-contract status, got %+v", report)
+	}
+	if !strings.Contains(strings.Join(report.ContractIssues, "\n"), "approved") {
+		t.Fatalf("expected approved/missing contradiction to be reported, got %+v", report)
+	}
+}
+
+func TestParseFrontendBriefAcceptsFrontendMinorNotApplicableHeader(t *testing.T) {
+	t.Parallel()
+
+	report := parseFrontendBrief(strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-minor",
+		"Classification Rationale: Existing settings screen spacing fix.",
+		"Frontend Gate Status: not-applicable",
+		"Problem Gate: not-applicable",
+		"Reference Gate: not-applicable",
+		"Critique Gate: not-applicable",
+		"Decision Gate: not-applicable",
+		"Prototype Gate: not-applicable",
+		"Prototype Evidence: n/a",
+		"",
+		"## Current Pattern",
+		"",
+		"- Existing inline settings rows.",
+	}, "\n"))
+
+	if !report.Valid {
+		t.Fatalf("expected valid minor report, got %+v", report)
+	}
+	if report.Header.TaskClassification != "frontend-minor" {
+		t.Fatalf("expected frontend-minor classification, got %+v", report)
+	}
+	if report.EvidenceStatus != "not-applicable" {
+		t.Fatalf("expected not-applicable evidence status, got %+v", report)
+	}
+	if len(report.ContractIssues) != 0 {
+		t.Fatalf("expected no contract issues, got %+v", report)
+	}
+}
+
+func TestParseFrontendBriefRejectsBlankFixedLabelValues(t *testing.T) {
+	t.Parallel()
+
+	report := parseFrontendBrief(strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification:",
+		"Classification Rationale: Blank enum labels should fail.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+	}, "\n"))
+
+	if report.Valid {
+		t.Fatalf("expected invalid report, got %+v", report)
+	}
+	if !strings.Contains(strings.Join(report.ContractIssues, "\n"), "Task Classification must not be blank.") {
+		t.Fatalf("expected blank classification to be reported, got %+v", report.ContractIssues)
+	}
+}
+
+func TestCompareFrontendBriefAndDesignReviewAcceptsMultilineDecisionFields(t *testing.T) {
+	t.Parallel()
+
+	report := parseFrontendBrief(strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: Major dashboard restructure.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+	}, "\n"))
+	if !report.Valid {
+		t.Fatalf("expected valid report before design review comparison, got %+v", report)
+	}
+
+	compareFrontendBriefAndDesignReview(&report, strings.Join([]string{
+		"# Design Review",
+		"",
+		"- Evidence Status: complete",
+		"- Gate Decision: approved",
+		"- Approved Direction:",
+		"  - Use the focused dashboard table direction.",
+		"- Banned Patterns:",
+		"  - Avoid generic card grids.",
+		"- Open Questions:",
+		"  - none",
+		"- Unresolved Questions:",
+		"  - none",
+	}, "\n"))
+
+	if len(report.Mismatches) > 0 {
+		t.Fatalf("expected multiline decision fields to satisfy design review contract, got %+v", report.Mismatches)
+	}
+}
+
+func TestCompareFrontendBriefAndDesignReviewBlocksPendingMarkdownMarkers(t *testing.T) {
+	t.Parallel()
+
+	report := parseFrontendBrief(strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: Major dashboard restructure.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+	}, "\n"))
+	if !report.Valid {
+		t.Fatalf("expected valid report before design review comparison, got %+v", report)
+	}
+
+	compareFrontendBriefAndDesignReview(&report, strings.Join([]string{
+		"# Design Review",
+		"",
+		"- Evidence Status: complete",
+		"- Gate Decision: approved",
+		"- Approved Direction:",
+		"  - pending",
+		"- Banned Patterns: Pending.",
+		"- Open Questions:",
+		"  - Pending.",
+		"- Unresolved Questions: none",
+	}, "\n"))
+
+	mismatches := strings.Join(report.Mismatches, "\n")
+	for _, want := range []string{
+		"Design review approved direction is pending",
+		"Design review banned patterns are pending",
+		"Design review open questions are pending",
+	} {
+		if !strings.Contains(mismatches, want) {
+			t.Fatalf("expected %q mismatch, got %+v", want, report.Mismatches)
+		}
+	}
+	if strings.Contains(mismatches, "Design review unresolved questions are pending") {
+		t.Fatalf("expected non-pending unresolved questions field to pass, got %+v", report.Mismatches)
+	}
+}
+
+func TestFrontendGateRemediationIncludesStatusOnlyMajorBlocks(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		status string
+		want   string
+	}{
+		{
+			status: frontendGateStatusBlocked,
+			want:   "Resolve the blocked frontend decision",
+		},
+		{
+			status: frontendGateStatusNeedsResearch,
+			want:   "Complete the requested frontend research",
+		},
+	} {
+		t.Run(tt.status, func(t *testing.T) {
+			report := parseFrontendBrief(strings.Join([]string{
+				"# Frontend Brief",
+				"",
+				"Task Classification: frontend-major",
+				"Classification Rationale: Major dashboard restructure.",
+				"Frontend Gate Status: " + tt.status,
+				"Problem Gate: complete",
+				"Reference Gate: complete",
+				"Critique Gate: complete",
+				"Decision Gate: complete",
+				"Prototype Gate: complete",
+				"Prototype Evidence: wireframe",
+			}, "\n"))
+			if !report.Valid {
+				t.Fatalf("expected valid report, got %+v", report)
+			}
+
+			steps := strings.Join(frontendGateRemediation(report), "\n")
+			if !strings.Contains(steps, tt.want) {
+				t.Fatalf("expected remediation to contain %q, got %q", tt.want, steps)
+			}
+		})
+	}
+}
+
+func TestInferFrontendTaskClassificationMatchesUIAtBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name               string
+		kind               string
+		description        string
+		wantClassification string
+	}{
+		{
+			name:               "start boundary",
+			kind:               "fix",
+			description:        "UI polish on the existing settings screen",
+			wantClassification: frontendTaskClassificationMinor,
+		},
+		{
+			name:               "end boundary",
+			kind:               "plan",
+			description:        "improve UI",
+			wantClassification: frontendTaskClassificationMajor,
+		},
+		{
+			name:               "fix-only dashboard maintenance",
+			kind:               "fix",
+			description:        "fix button spacing on dashboard",
+			wantClassification: frontendTaskClassificationMinor,
+		},
+		{
+			name:               "dashboard-only bugfix",
+			kind:               "fix",
+			description:        "fix dashboard filters not loading",
+			wantClassification: frontendTaskClassificationMinor,
+		},
+		{
+			name:               "explicit frontend token",
+			kind:               "plan",
+			description:        "frontend component refactor",
+			wantClassification: frontendTaskClassificationMajor,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			classification, _, ok := inferFrontendTaskClassification(tt.kind, tt.description)
+			if !ok {
+				t.Fatalf("expected %q to be classified as frontend-touching", tt.description)
+			}
+			if classification != tt.wantClassification {
+				t.Fatalf("classification = %q, want %q", classification, tt.wantClassification)
+			}
+		})
+	}
+}
+
+func TestInferFrontendTaskClassificationIgnoresBackendOnlyAmbiguousTouchKeywords(t *testing.T) {
+	t.Parallel()
+
+	for _, description := range []string{
+		"add settings API endpoint",
+		"add form submission API",
+		"refactor auth component service",
+		"add dashboard metrics API endpoint",
+		"add dashboard text API endpoint",
+		"refactor database hierarchy for settings API endpoint",
+		"add page token to API endpoint",
+	} {
+		classification, rationale, ok := inferFrontendTaskClassification("plan", description)
+		if ok {
+			t.Fatalf("expected backend-only description %q to avoid frontend classification, got classification=%q rationale=%q", description, classification, rationale)
+		}
+	}
+}
+
+func TestInferFrontendTaskClassificationIgnoresDocumentationSectionOnly(t *testing.T) {
+	t.Parallel()
+
+	classification, rationale, ok := inferFrontendTaskClassification("plan", "add a section to README")
+	if ok {
+		t.Fatalf("expected documentation-only section request to avoid frontend classification, got classification=%q rationale=%q", classification, rationale)
+	}
+}

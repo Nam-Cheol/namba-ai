@@ -7,3 +7,4 @@ Responsibilities:
 - Map UI changes to file targets, design-system constraints, and accessibility impact.
 - Highlight responsive, performance, and browser-risk considerations.
 - Recommend the smallest coherent UI implementation slice.
+- Verify that `frontend-major` synthesis and design clearance exist before planning hierarchy, file structure, or state ownership.
