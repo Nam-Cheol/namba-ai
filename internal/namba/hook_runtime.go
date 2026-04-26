@@ -590,9 +590,19 @@ func loadHookConfig(root string) (hookConfig, error) {
 
 	parsed, err := parseHookConfigTOML(rootAbs, string(data))
 	if err != nil {
-		return hookConfig{}, err
+		return onFailureOnlyHookConfig(parsed), err
 	}
 	return parsed, nil
+}
+
+func onFailureOnlyHookConfig(cfg hookConfig) hookConfig {
+	filtered := hookConfig{Hooks: make([]hookRegistration, 0)}
+	for _, hook := range cfg.Hooks {
+		if hook.Event == hookEventOnFailure {
+			filtered.Hooks = append(filtered.Hooks, hook)
+		}
+	}
+	return filtered
 }
 
 func parseHookConfigTOML(rootAbs, body string) (hookConfig, error) {
@@ -602,7 +612,33 @@ func parseHookConfigTOML(rootAbs, body string) (hookConfig, error) {
 	}
 	var hooks []rawHook
 	var current *rawHook
+	currentIndex := -1
 	seenHookNames := make(map[string]struct{})
+	buildConfig := func(raws []rawHook) (hookConfig, error) {
+		cfg := hookConfig{Hooks: make([]hookRegistration, 0, len(raws))}
+		var firstErr error
+		for _, raw := range raws {
+			hook, err := buildHookRegistration(rootAbs, raw.name, raw.fields)
+			if err != nil {
+				if firstErr == nil {
+					firstErr = err
+				}
+				continue
+			}
+			cfg.Hooks = append(cfg.Hooks, hook)
+		}
+		return cfg, firstErr
+	}
+	failWithPartial := func(raws []rawHook, err error) (hookConfig, error) {
+		cfg, _ := buildConfig(raws)
+		return cfg, err
+	}
+	failWithoutCurrent := func(err error) (hookConfig, error) {
+		if currentIndex >= 0 && currentIndex < len(hooks) {
+			return failWithPartial(hooks[:currentIndex], err)
+		}
+		return failWithPartial(hooks, err)
+	}
 	for lineNo, rawLine := range strings.Split(body, "\n") {
 		line := strings.TrimSpace(stripHookComment(rawLine))
 		if line == "" {
@@ -610,54 +646,48 @@ func parseHookConfigTOML(rootAbs, body string) (hookConfig, error) {
 		}
 		if strings.HasPrefix(line, "[") {
 			if !strings.HasSuffix(line, "]") {
-				return hookConfig{}, fmt.Errorf("parse hooks.toml line %d: missing closing bracket", lineNo+1)
+				return failWithPartial(hooks, fmt.Errorf("parse hooks.toml line %d: missing closing bracket", lineNo+1))
 			}
 			section := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line, "["), "]"))
 			current = nil
+			currentIndex = -1
 			if strings.HasPrefix(section, "hooks.") {
 				name := strings.TrimSpace(strings.TrimPrefix(section, "hooks."))
 				if !validHookName(name) {
-					return hookConfig{}, fmt.Errorf("invalid hook name %q", name)
+					return failWithPartial(hooks, fmt.Errorf("invalid hook name %q", name))
 				}
 				if _, exists := seenHookNames[name]; exists {
-					return hookConfig{}, fmt.Errorf("parse hooks.toml line %d: duplicate hook table %q", lineNo+1, name)
+					return failWithPartial(hooks, fmt.Errorf("parse hooks.toml line %d: duplicate hook table %q", lineNo+1, name))
 				}
 				seenHookNames[name] = struct{}{}
 				hooks = append(hooks, rawHook{name: name, fields: make(map[string]hookTOMLValue)})
+				currentIndex = len(hooks) - 1
 				current = &hooks[len(hooks)-1]
 			}
 			continue
 		}
 		if current == nil {
-			return hookConfig{}, fmt.Errorf("parse hooks.toml line %d: key outside [hooks.<hook_name>] table", lineNo+1)
+			return failWithPartial(hooks, fmt.Errorf("parse hooks.toml line %d: key outside [hooks.<hook_name>] table", lineNo+1))
 		}
 		key, valueRaw, ok := strings.Cut(line, "=")
 		if !ok {
-			return hookConfig{}, fmt.Errorf("parse hooks.toml line %d: expected key = value", lineNo+1)
+			return failWithoutCurrent(fmt.Errorf("parse hooks.toml line %d: expected key = value", lineNo+1))
 		}
 		key = strings.TrimSpace(key)
 		if key == "" {
-			return hookConfig{}, fmt.Errorf("parse hooks.toml line %d: empty key", lineNo+1)
+			return failWithoutCurrent(fmt.Errorf("parse hooks.toml line %d: empty key", lineNo+1))
 		}
 		if _, exists := current.fields[key]; exists {
-			return hookConfig{}, fmt.Errorf("parse hooks.toml line %d: duplicate key %q in hook %s", lineNo+1, key, current.name)
+			return failWithoutCurrent(fmt.Errorf("parse hooks.toml line %d: duplicate key %q in hook %s", lineNo+1, key, current.name))
 		}
 		value, err := parseHookTOMLValue(strings.TrimSpace(valueRaw))
 		if err != nil {
-			return hookConfig{}, fmt.Errorf("parse hooks.toml line %d: %w", lineNo+1, err)
+			return failWithoutCurrent(fmt.Errorf("parse hooks.toml line %d: %w", lineNo+1, err))
 		}
 		current.fields[key] = value
 	}
 
-	cfg := hookConfig{Hooks: make([]hookRegistration, 0, len(hooks))}
-	for _, raw := range hooks {
-		hook, err := buildHookRegistration(rootAbs, raw.name, raw.fields)
-		if err != nil {
-			return hookConfig{}, err
-		}
-		cfg.Hooks = append(cfg.Hooks, hook)
-	}
-	return cfg, nil
+	return buildConfig(hooks)
 }
 
 type hookTOMLValue struct {

@@ -599,6 +599,63 @@ continue_on_failure = false
 	}
 }
 
+func TestMalformedHooksConfigRunsValidOnFailureHook(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "hooks.toml"), `
+[hooks.failure_notice]
+event = "on_failure"
+command = "capture-config-failure"
+cwd = "."
+timeout = 5
+enabled = true
+continue_on_failure = true
+
+[hooks.bad_event]
+event = "codex_pre_tool_use"
+command = "echo bad"
+cwd = "."
+timeout = 5
+enabled = true
+continue_on_failure = false
+`)
+
+	app.lookPath = func(name string) (string, error) {
+		t.Fatalf("preflight should not inspect %s after malformed hook config", name)
+		return "", errors.New("unexpected preflight")
+	}
+	var failureCtx hookExecutionContext
+	app.runCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
+		if !isShellCommand(name) || !strings.Contains(strings.Join(args, " "), "capture-config-failure") {
+			t.Fatalf("unexpected on_failure hook command: %s %v", name, args)
+		}
+		if err := json.Unmarshal([]byte(input), &failureCtx); err != nil {
+			t.Fatalf("hook context is not JSON: %v", err)
+		}
+		return "config failure noticed", "", nil
+	}
+
+	err := app.Run(context.Background(), []string{"run", "SPEC-001"})
+	if err == nil || !strings.Contains(err.Error(), "invalid hook event") {
+		t.Fatalf("expected hook config error, got %v", err)
+	}
+	if failureCtx.Event != string(hookEventOnFailure) || failureCtx.FailureStatus != "hook_failed" {
+		t.Fatalf("unexpected on_failure context: %+v", failureCtx)
+	}
+	if !strings.Contains(failureCtx.ErrorSummary, "invalid hook event") {
+		t.Fatalf("expected config parse error in on_failure context, got %+v", failureCtx)
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-evidence.json"))
+	if len(manifest.Hooks) != 2 {
+		t.Fatalf("expected config error and one on_failure hook, got %+v", manifest.Hooks)
+	}
+	if manifest.Hooks[0].HookName != hookConfigErrorName || manifest.Hooks[1].HookName != "failure_notice" {
+		t.Fatalf("expected config error followed by preserved on_failure hook, got %+v", manifest.Hooks)
+	}
+}
+
 func TestUnsupportedRunnerObservationsProduceNoFakeHookResults(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
