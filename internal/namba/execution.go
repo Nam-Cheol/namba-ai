@@ -200,19 +200,54 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	if progress != nil {
 		progressPath = progress.Path()
 	}
+	hooks := newHookLifecycle(a, projectRoot, logID, req, progressPath)
 	writeRunEvidence := func(status string, validationAttempts int) error {
-		return a.writeRunExecutionEvidence(projectRoot, logID, req, status, validationAttempts, progressPath, false)
+		return hooks.writeRunEvidence(ctx, status, validationAttempts, false)
 	}
 	writeRunEvidenceWithProgressFailure := func(status string, validationAttempts int) error {
-		return a.writeRunExecutionEvidence(projectRoot, logID, req, status, validationAttempts, progressPath, true)
+		return hooks.writeRunEvidence(ctx, status, validationAttempts, true)
+	}
+
+	if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-request.json"), req); err != nil {
+		return result, validationReport{}, err
+	}
+	if err := hooks.Trigger(ctx, hookTrigger{
+		Event:       hookEventBeforePreflight,
+		StageStatus: "pending",
+	}); err != nil {
+		result.FinishedAt = a.now().Format(time.RFC3339)
+		result.Error = err.Error()
+		if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
+			return result, validationReport{}, writeErr
+		}
+		if writeErr := writeRunEvidence("hook_failed", 0); writeErr != nil {
+			return result, validationReport{}, errors.Join(err, writeErr)
+		}
+		return result, validationReport{}, err
 	}
 
 	preflight, capabilities, preflightErr := a.runPreflight(ctx, req)
 	if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-preflight.json"), preflight); err != nil {
 		return result, validationReport{}, err
 	}
-	if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-request.json"), req); err != nil {
-		return result, validationReport{}, err
+	afterPreflightErr := hooks.Trigger(ctx, hookTrigger{
+		Event:        hookEventAfterPreflight,
+		StageStatus:  hookStageStatus(preflight.Passed, preflightErr),
+		ErrorSummary: hookErrorSummary(preflightErr),
+		EventData: map[string]any{
+			"preflight_path": filepath.ToSlash(filepath.Join(logsDir, "runs", logID+"-preflight.json")),
+		},
+	})
+	if preflightErr == nil && afterPreflightErr != nil {
+		result.FinishedAt = a.now().Format(time.RFC3339)
+		result.Error = afterPreflightErr.Error()
+		if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-execution.json"), result); err != nil {
+			return result, validationReport{}, err
+		}
+		if err := writeRunEvidence("hook_failed", 0); err != nil {
+			return result, validationReport{}, errors.Join(afterPreflightErr, err)
+		}
+		return result, validationReport{}, afterPreflightErr
 	}
 	if preflightErr != nil {
 		result.FinishedAt = a.now().Format(time.RFC3339)
@@ -226,10 +261,29 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		publishErr := publishProgress("failed", "preflight_failed", "Worker execution preflight failed", preflightErr.Error(), nil)
 		if publishErr != nil {
 			if err := writeRunEvidenceWithProgressFailure("preflight_failed", 0); err != nil {
-				return result, validationReport{}, errors.Join(preflightErr, publishErr, err)
+				return result, validationReport{}, errors.Join(preflightErr, afterPreflightErr, publishErr, err)
 			}
 		}
-		return result, validationReport{}, errors.Join(preflightErr, publishErr)
+		return result, validationReport{}, errors.Join(preflightErr, afterPreflightErr, publishErr)
+	}
+
+	if err := hooks.Trigger(ctx, hookTrigger{
+		Event:       hookEventBeforeExecution,
+		StageStatus: "pending",
+		EventData: map[string]any{
+			"runner":          normalizeRunner(req.Runner),
+			"delegation_mode": executionDelegationMode(req.Mode),
+		},
+	}); err != nil {
+		result.FinishedAt = a.now().Format(time.RFC3339)
+		result.Error = err.Error()
+		if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
+			return result, validationReport{}, writeErr
+		}
+		if writeErr := writeRunEvidence("hook_failed", 0); writeErr != nil {
+			return result, validationReport{}, errors.Join(err, writeErr)
+		}
+		return result, validationReport{}, err
 	}
 
 	turnRequests := buildExecutionTurnRequests(req)
@@ -272,8 +326,16 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
 				return result, validationReport{}, writeErr
 			}
+			afterExecutionErr := hooks.Trigger(ctx, hookTrigger{
+				Event:        hookEventAfterExecution,
+				StageStatus:  "failed",
+				ErrorSummary: err.Error(),
+				EventData: map[string]any{
+					"execution_path": filepath.ToSlash(filepath.Join(logsDir, "runs", logID+"-execution.json")),
+				},
+			})
 			if writeErr := writeRunEvidence("execution_failed", 0); writeErr != nil {
-				return result, validationReport{}, writeErr
+				return result, validationReport{}, errors.Join(err, afterExecutionErr, writeErr)
 			}
 			publishErr := publishProgress(
 				"failed",
@@ -287,13 +349,53 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 					return result, validationReport{}, errors.Join(err, publishErr, writeErr)
 				}
 			}
-			return result, validationReport{}, errors.Join(err, publishErr)
+			return result, validationReport{}, errors.Join(err, afterExecutionErr, publishErr)
 		}
+	}
+
+	if err := hooks.Trigger(ctx, hookTrigger{
+		Event:       hookEventAfterExecution,
+		StageStatus: "succeeded",
+		EventData: map[string]any{
+			"turn_count": len(result.Turns),
+		},
+	}); err != nil {
+		result.Output = joinExecutionOutputs(result.Turns)
+		result.FinishedAt = a.now().Format(time.RFC3339)
+		result.Error = err.Error()
+		if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
+			return result, validationReport{}, writeErr
+		}
+		if writeErr := writeRunEvidence("hook_failed", 0); writeErr != nil {
+			return result, validationReport{}, errors.Join(err, writeErr)
+		}
+		return result, validationReport{}, err
 	}
 
 	var finalReport validationReport
 	maxAttempts := maxInt(req.RepairAttempts, 0) + 1
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if err := hooks.Trigger(ctx, hookTrigger{
+			Event:       hookEventBeforeValidation,
+			StageStatus: "pending",
+			Attempt:     attempt,
+			EventData: map[string]any{
+				"validation_attempt": attempt,
+				"validation_root":    validationRoot,
+			},
+		}); err != nil {
+			result.Output = joinExecutionOutputs(result.Turns)
+			result.FinishedAt = a.now().Format(time.RFC3339)
+			result.Error = err.Error()
+			if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
+				return result, finalReport, writeErr
+			}
+			if writeErr := writeRunEvidence("hook_failed", result.ValidationAttempts); writeErr != nil {
+				return result, finalReport, errors.Join(err, writeErr)
+			}
+			return result, finalReport, err
+		}
+
 		if err := publishProgress(
 			"validating",
 			"active",
@@ -318,6 +420,38 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		finalReport = report
 		if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", fmt.Sprintf("%s-validation-attempt-%d.json", logID, attempt)), report); err != nil {
 			return result, finalReport, err
+		}
+		afterValidationErr := hooks.Trigger(ctx, hookTrigger{
+			Event:        hookEventAfterValidation,
+			StageStatus:  hookStageStatus(report.Passed, validationErr),
+			ErrorSummary: hookErrorSummary(validationErr),
+			Attempt:      attempt,
+			EventData: map[string]any{
+				"validation_path":    filepath.ToSlash(filepath.Join(logsDir, "runs", fmt.Sprintf("%s-validation-attempt-%d.json", logID, attempt))),
+				"validation_passed":  report.Passed,
+				"validation_attempt": attempt,
+				"retry_remaining":    attempt <= req.RepairAttempts,
+			},
+		})
+		if afterValidationErr != nil {
+			result.Output = joinExecutionOutputs(result.Turns)
+			result.FinishedAt = a.now().Format(time.RFC3339)
+			status := "hook_failed"
+			result.Error = afterValidationErr.Error()
+			if validationErr != nil {
+				status = "validation_failed"
+				result.Error = fmt.Sprintf("validation failed after %d repair attempt(s): %s", result.RetryCount, validationFailureMessage(finalReport, validationErr))
+			}
+			if err := a.writeExecutionArtifacts(projectRoot, logID, result); err != nil {
+				return result, finalReport, err
+			}
+			if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-validation.json"), finalReport); err != nil {
+				return result, finalReport, err
+			}
+			if err := writeRunEvidence(status, attempt); err != nil {
+				return result, finalReport, errors.Join(validationErr, afterValidationErr, err)
+			}
+			return result, finalReport, errors.Join(validationErr, afterValidationErr)
 		}
 		if validationErr == nil {
 			result.Output = joinExecutionOutputs(result.Turns)

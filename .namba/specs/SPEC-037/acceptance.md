@@ -1,0 +1,30 @@
+# Acceptance
+
+- [ ] `.namba/hooks.toml` is the v1 hook registration location.
+- [ ] Hook registrations are named by `[hooks.<hook_name>]`, and the table key is recorded as `hook_name` in evidence.
+- [ ] Hook registration supports the required fields `event`, `command`, `cwd`, `timeout`, `enabled`, and `continue_on_failure`.
+- [ ] The supported v1 event names are exactly `before_preflight`, `after_preflight`, `before_execution`, `after_execution`, `after_patch`, `after_bash`, `after_mcp_tool`, `before_validation`, `after_validation`, and `on_failure`.
+- [ ] Namba-owned lifecycle events are wired to deterministic run-pipeline trigger points.
+- [ ] Tool-boundary events are emitted only from normalized runner observations and are not inferred from free-form logs.
+- [ ] A typed runner observation sink exists before `after_patch`, `after_bash`, or `after_mcp_tool` are implemented.
+- [ ] Unsupported runner tool observations produce no fake hook results and do not imply that tool-boundary hooks were evaluated.
+- [ ] Hook commands receive a normalized event context containing run identity, SPEC identity, execution mode, working directory, artifact paths, event name, and event-specific data.
+- [ ] Enabled hooks for the same event execute in deterministic `hook_name` order.
+- [ ] Disabled hooks are ignored and do not produce hook result records.
+- [ ] Hook execution captures stdout, stderr, exit code, start time, end time, duration, and status.
+- [ ] Hook stdout and stderr are persisted under `.namba/logs/runs/` and referenced by evidence paths.
+- [ ] `.namba/logs/runs/<log-id>-evidence.json` includes a top-level `hooks` array for executed hook results.
+- [ ] Every hook result includes `event`, `hook_name`, `command`, `cwd`, `started_at`, `ended_at`, `duration_ms`, `exit_code`, `status`, `stdout_path`, and `stderr_path`.
+- [ ] New v1 hook results also include operator-readable `blocking`, `failure_action`, `error_summary` when applicable, and `scope`.
+- [ ] Advisory hook failures continue execution by default.
+- [ ] Execution stops only when a failing hook has `continue_on_failure=false`.
+- [ ] Blocking hook failures are recorded before execution stops.
+- [ ] `on_failure` runs once for terminal failures and never recursively triggers itself.
+- [ ] A single per-run lifecycle owner buffers hook results, writes hook output artifacts, preserves the primary failure, triggers `on_failure` once, and finalizes evidence after hook results are recorded.
+- [ ] Missing `.namba/hooks.toml` is a no-op and does not fail the run.
+- [ ] Malformed `.namba/hooks.toml` stops before preflight after a config-error hook result is recorded with `status="error"`, `exit_code=-1`, `blocking=true`, `failure_action="stopped"`, and a concrete `error_summary`.
+- [ ] In parallel mode v1, hooks run only at worker scope through worker execution, worker hook results are recorded in worker manifests, and aggregate parallel evidence does not duplicate worker hook results.
+- [ ] Hook evidence is finalized on success, preflight failure, execution failure, validation failure, blocking hook failure, timeout, and spawn/config error paths.
+- [ ] Existing request, preflight, execution, validation, and execution-evidence artifacts remain backward-compatible with historical runs.
+- [ ] Regression tests cover missing config, malformed config, disabled hooks, event filtering, ordering, success, advisory failure, blocking failure, timeout, stdout/stderr artifact persistence, evidence manifest extension, failure-path finalization, unsupported runner observations, and parallel worker-scope evidence.
+- [ ] Validation commands pass.

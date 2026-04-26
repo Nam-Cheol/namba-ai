@@ -63,6 +63,26 @@ namba land
 
 - If the work is reusable agent, skill, workflow, or orchestration scaffolding, swap `namba plan` for `namba harness "description"`.
 
+## 🪝 Hook Runtime
+
+- 📍 Registration: create `.namba/hooks.toml` at the repository root and `namba run SPEC-XXX` reads it automatically during execution.
+- 🧩 Shape: add a `[hooks.<hook_name>]` table with `event`, `command`, `cwd`, `timeout`, `enabled`, and `continue_on_failure`.
+- 🧾 Evidence: each hook stdout/stderr is saved under `.namba/logs/runs/<log-id>-hooks/`, and the result is recorded in the `hooks` array of `<log-id>-evidence.json`.
+- 🚦 Failure policy: hooks continue by default. A hook with `continue_on_failure = false` stops the Namba run when it fails and triggers `on_failure` once.
+
+```toml
+[hooks.validation_guard]
+event = "before_validation"
+command = "go test ./..."
+cwd = "."
+timeout = 120
+enabled = true
+continue_on_failure = false
+```
+
+- ⚙️ Common events: `before_preflight`, `after_preflight`, `before_execution`, `after_execution`, `before_validation`, `after_validation`, and `on_failure`.
+- 🔭 Tool-boundary events `after_patch`, `after_bash`, and `after_mcp_tool` run only when the runner provides typed observations; Namba does not infer them from free-form logs.
+
 ## Install, Update, and Uninstall
 
 - Install on Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`

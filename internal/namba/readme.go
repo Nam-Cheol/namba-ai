@@ -924,6 +924,103 @@ func renderNambaCLIRootQuickStartSection(lang string) []string {
 	}
 }
 
+func renderNambaCLIRootHookRuntimeSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 🪝 Hook Runtime",
+			"",
+			"- 📍 등록 위치: 저장소 루트에 `.namba/hooks.toml`을 만들면 `namba run SPEC-XXX`가 실행 중 자동으로 읽습니다.",
+			"- 🧩 등록 형식: `[hooks.<hook_name>]` 테이블을 추가하고 `event`, `command`, `cwd`, `timeout`, `enabled`, `continue_on_failure`를 채웁니다.",
+			"- 🧾 실행 증거: 각 hook의 stdout/stderr는 `.namba/logs/runs/<log-id>-hooks/` 아래에 저장되고, 결과는 `<log-id>-evidence.json`의 `hooks` 배열에 기록됩니다.",
+			"- 🚦 실패 정책: 기본은 계속 진행입니다. `continue_on_failure = false`인 hook이 실패하면 Namba run이 중단되고 `on_failure` hook이 한 번 실행됩니다.",
+			"",
+			"```toml",
+			"[hooks.validation_guard]",
+			"event = \"before_validation\"",
+			"command = \"go test ./...\"",
+			"cwd = \".\"",
+			"timeout = 120",
+			"enabled = true",
+			"continue_on_failure = false",
+			"```",
+			"",
+			"- ⚙️ 자주 쓰는 이벤트: `before_preflight`, `after_preflight`, `before_execution`, `after_execution`, `before_validation`, `after_validation`, `on_failure`.",
+			"- 🔭 Tool-boundary 이벤트인 `after_patch`, `after_bash`, `after_mcp_tool`은 runner가 typed observation을 제공할 때만 실행되며, 자유 형식 로그에서 추론하지 않습니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 🪝 Hook Runtime",
+			"",
+			"- 📍 登録場所: リポジトリルートに `.namba/hooks.toml` を置くと、`namba run SPEC-XXX` が実行中に自動で読み込みます。",
+			"- 🧩 登録形式: `[hooks.<hook_name>]` テーブルを追加し、`event`、`command`、`cwd`、`timeout`、`enabled`、`continue_on_failure` を設定します。",
+			"- 🧾 実行証跡: 各 hook の stdout/stderr は `.namba/logs/runs/<log-id>-hooks/` に保存され、結果は `<log-id>-evidence.json` の `hooks` 配列に記録されます。",
+			"- 🚦 失敗ポリシー: 既定では継続します。`continue_on_failure = false` の hook が失敗すると Namba run は停止し、`on_failure` hook が一度だけ実行されます。",
+			"",
+			"```toml",
+			"[hooks.validation_guard]",
+			"event = \"before_validation\"",
+			"command = \"go test ./...\"",
+			"cwd = \".\"",
+			"timeout = 120",
+			"enabled = true",
+			"continue_on_failure = false",
+			"```",
+			"",
+			"- ⚙️ よく使うイベント: `before_preflight`、`after_preflight`、`before_execution`、`after_execution`、`before_validation`、`after_validation`、`on_failure`。",
+			"- 🔭 Tool-boundary イベントの `after_patch`、`after_bash`、`after_mcp_tool` は runner が typed observation を提供した場合だけ実行され、自由形式ログから推測しません。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 🪝 Hook Runtime",
+			"",
+			"- 📍 注册位置: 在仓库根目录放置 `.namba/hooks.toml` 后，`namba run SPEC-XXX` 会在执行过程中自动读取。",
+			"- 🧩 注册格式: 添加 `[hooks.<hook_name>]` 表，并填写 `event`、`command`、`cwd`、`timeout`、`enabled`、`continue_on_failure`。",
+			"- 🧾 执行证据: 每个 hook 的 stdout/stderr 会保存到 `.namba/logs/runs/<log-id>-hooks/`，结果会写入 `<log-id>-evidence.json` 的 `hooks` 数组。",
+			"- 🚦 失败策略: 默认继续执行。若 `continue_on_failure = false` 的 hook 失败，Namba run 会停止，并且只触发一次 `on_failure` hook。",
+			"",
+			"```toml",
+			"[hooks.validation_guard]",
+			"event = \"before_validation\"",
+			"command = \"go test ./...\"",
+			"cwd = \".\"",
+			"timeout = 120",
+			"enabled = true",
+			"continue_on_failure = false",
+			"```",
+			"",
+			"- ⚙️ 常用事件: `before_preflight`、`after_preflight`、`before_execution`、`after_execution`、`before_validation`、`after_validation`、`on_failure`。",
+			"- 🔭 Tool-boundary 事件 `after_patch`、`after_bash`、`after_mcp_tool` 只会在 runner 提供 typed observation 时运行，不会从自由格式日志中推断。",
+			"",
+		}
+	default:
+		return []string{
+			"## 🪝 Hook Runtime",
+			"",
+			"- 📍 Registration: create `.namba/hooks.toml` at the repository root and `namba run SPEC-XXX` reads it automatically during execution.",
+			"- 🧩 Shape: add a `[hooks.<hook_name>]` table with `event`, `command`, `cwd`, `timeout`, `enabled`, and `continue_on_failure`.",
+			"- 🧾 Evidence: each hook stdout/stderr is saved under `.namba/logs/runs/<log-id>-hooks/`, and the result is recorded in the `hooks` array of `<log-id>-evidence.json`.",
+			"- 🚦 Failure policy: hooks continue by default. A hook with `continue_on_failure = false` stops the Namba run when it fails and triggers `on_failure` once.",
+			"",
+			"```toml",
+			"[hooks.validation_guard]",
+			"event = \"before_validation\"",
+			"command = \"go test ./...\"",
+			"cwd = \".\"",
+			"timeout = 120",
+			"enabled = true",
+			"continue_on_failure = false",
+			"```",
+			"",
+			"- ⚙️ Common events: `before_preflight`, `after_preflight`, `before_execution`, `after_execution`, `before_validation`, `after_validation`, and `on_failure`.",
+			"- 🔭 Tool-boundary events `after_patch`, `after_bash`, and `after_mcp_tool` run only when the runner provides typed observations; Namba does not infer them from free-form logs.",
+			"",
+		}
+	}
+}
+
 func renderNambaCLIRootCommandSkillsSection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
@@ -1309,6 +1406,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 		}
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
+		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)
 		lines = append(lines, renderNambaCLIRootSkillMappingSection(lang)...)
@@ -1345,6 +1443,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 		}
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
+		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)
 		lines = append(lines, renderNambaCLIRootSkillMappingSection(lang)...)
@@ -1381,6 +1480,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 		}
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
+		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)
 		lines = append(lines, renderNambaCLIRootSkillMappingSection(lang)...)
@@ -1418,6 +1518,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 		}
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
+		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)
 		lines = append(lines, renderNambaCLIRootSkillMappingSection(lang)...)

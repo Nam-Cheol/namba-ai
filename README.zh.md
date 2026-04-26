@@ -62,6 +62,26 @@ namba land
 
 - 如果工作是为了复用 agent、skill、workflow 或 orchestration，请把 `namba plan` 换成 `namba harness "description"`。
 
+## 🪝 Hook Runtime
+
+- 📍 注册位置: 在仓库根目录放置 `.namba/hooks.toml` 后，`namba run SPEC-XXX` 会在执行过程中自动读取。
+- 🧩 注册格式: 添加 `[hooks.<hook_name>]` 表，并填写 `event`、`command`、`cwd`、`timeout`、`enabled`、`continue_on_failure`。
+- 🧾 执行证据: 每个 hook 的 stdout/stderr 会保存到 `.namba/logs/runs/<log-id>-hooks/`，结果会写入 `<log-id>-evidence.json` 的 `hooks` 数组。
+- 🚦 失败策略: 默认继续执行。若 `continue_on_failure = false` 的 hook 失败，Namba run 会停止，并且只触发一次 `on_failure` hook。
+
+```toml
+[hooks.validation_guard]
+event = "before_validation"
+command = "go test ./..."
+cwd = "."
+timeout = 120
+enabled = true
+continue_on_failure = false
+```
+
+- ⚙️ 常用事件: `before_preflight`、`after_preflight`、`before_execution`、`after_execution`、`before_validation`、`after_validation`、`on_failure`。
+- 🔭 Tool-boundary 事件 `after_patch`、`after_bash`、`after_mcp_tool` 只会在 runner 提供 typed observation 时运行，不会从自由格式日志中推断。
+
 ## 安装、更新与卸载
 
 - 在 Windows 上安装: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
