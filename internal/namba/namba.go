@@ -48,6 +48,7 @@ type App struct {
 	lookPath                func(string) (string, error)
 	detectCodexCapabilities func(context.Context, string, executionRequest) (codexCapabilityMatrix, error)
 	runCmd                  func(context.Context, string, []string, string) (string, error)
+	runCmdWithInput         func(context.Context, string, []string, string, string) (string, string, error)
 	startCmd                func(string, []string, string) error
 	downloadURL             func(context.Context, string) ([]byte, error)
 	executablePath          func() (string, error)
@@ -158,6 +159,19 @@ func NewApp(stdout, stderr io.Writer) *App {
 			cmd.Dir = dir
 			output, err := cmd.CombinedOutput()
 			return strings.TrimSpace(string(output)), err
+		},
+		runCmdWithInput: func(ctx context.Context, name string, args []string, dir, input string) (string, string, error) {
+			cmd := exec.CommandContext(ctx, name, args...)
+			cmd.Dir = dir
+			if input != "" {
+				cmd.Stdin = strings.NewReader(input)
+			}
+			var stdout strings.Builder
+			var stderr strings.Builder
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+			err := cmd.Run()
+			return stdout.String(), stderr.String(), err
 		},
 		startCmd: func(name string, args []string, dir string) error {
 			cmd := exec.Command(name, args...)

@@ -62,6 +62,26 @@ namba land
 
 - agent, skill, workflow, orchestration 재사용 작업이면 `namba plan` 대신 `namba harness "description"`를 넣으세요.
 
+## 🪝 Hook Runtime
+
+- 📍 등록 위치: 저장소 루트에 `.namba/hooks.toml`을 만들면 `namba run SPEC-XXX`가 실행 중 자동으로 읽습니다.
+- 🧩 등록 형식: `[hooks.<hook_name>]` 테이블을 추가하고 `event`, `command`, `cwd`, `timeout`, `enabled`, `continue_on_failure`를 채웁니다.
+- 🧾 실행 증거: 각 hook의 stdout/stderr는 `.namba/logs/runs/<log-id>-hooks/` 아래에 저장되고, 결과는 `<log-id>-evidence.json`의 `hooks` 배열에 기록됩니다.
+- 🚦 실패 정책: 기본은 계속 진행입니다. `continue_on_failure = false`인 hook이 실패하면 Namba run이 중단되고 `on_failure` hook이 한 번 실행됩니다.
+
+```toml
+[hooks.validation_guard]
+event = "before_validation"
+command = "go test ./..."
+cwd = "."
+timeout = 120
+enabled = true
+continue_on_failure = false
+```
+
+- ⚙️ 자주 쓰는 이벤트: `before_preflight`, `after_preflight`, `before_execution`, `after_execution`, `before_validation`, `after_validation`, `on_failure`.
+- 🔭 Tool-boundary 이벤트인 `after_patch`, `after_bash`, `after_mcp_tool`은 runner가 typed observation을 제공할 때만 실행되며, 자유 형식 로그에서 추론하지 않습니다.
+
 ## 설치, 업데이트, 제거
 
 - 설치 (Windows): `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`

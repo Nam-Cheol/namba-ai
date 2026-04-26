@@ -39,6 +39,10 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		"`$namba-harness`: use when you want a harness-oriented SPEC package",
 		"`$namba-fix`: use when you need direct repair in the current workspace",
 		"`$namba-run`: use when you want to execute an existing SPEC package",
+		"## 🪝 Hook Runtime",
+		"`.namba/hooks.toml`",
+		"`continue_on_failure = false`",
+		"`before_validation`",
 		"`$namba-sync`",
 		"`$namba-pr`",
 		"`$namba-land`",
@@ -106,6 +110,8 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 			"`namba sync`",
 			"`namba pr`",
 			"`namba land`",
+			"## 🪝 Hook Runtime",
+			"`.namba/hooks.toml`",
 		} {
 			assertContains(t, readme, want, fmt.Sprintf("%s README", lang))
 		}

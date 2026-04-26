@@ -66,6 +66,7 @@ type executionEvidenceManifest struct {
 	Validation    executionEvidenceRef          `json:"validation"`
 	Progress      executionEvidenceRef          `json:"progress"`
 	Extensions    executionEvidenceExtensions   `json:"extensions"`
+	Hooks         []hookResult                  `json:"hooks"`
 }
 
 type executionEvidenceRefInput struct {
@@ -93,6 +94,7 @@ type executionEvidenceOptions struct {
 	BrowserArtifacts     []executionEvidenceRef
 	RuntimeArtifacts     []executionEvidenceRef
 	RuntimeSignalBundles []executionEvidenceSignalBundle
+	Hooks                []hookResult
 }
 
 func executionEvidenceManifestPath(logID string) string {
@@ -231,6 +233,10 @@ func buildExecutionEvidenceManifest(projectRoot string, options executionEvidenc
 	if status == "" {
 		status = inferExecutionEvidenceStatus(requestInput, preflightInput, executionInput, validationInput)
 	}
+	hooks := append([]hookResult(nil), options.Hooks...)
+	if hooks == nil {
+		hooks = []hookResult{}
+	}
 
 	return executionEvidenceManifest{
 		SchemaVersion: executionEvidenceSchemaVersion,
@@ -256,6 +262,7 @@ func buildExecutionEvidenceManifest(projectRoot string, options executionEvidenc
 			Browser: browser,
 			Runtime: runtime,
 		},
+		Hooks: hooks,
 	}, nil
 }
 
@@ -295,6 +302,8 @@ func executionEvidenceFailurePhase(status string) string {
 		return "repair"
 	case "progress_log_failed":
 		return "progress"
+	case "hook_failed":
+		return "hooks"
 	case "merge_blocked":
 		return "merge"
 	case "merge_failed":

@@ -62,6 +62,26 @@ namba land
 
 - agent / skill / workflow / orchestration の再利用作業なら、`namba plan` の代わりに `namba harness "description"` を使ってください。
 
+## 🪝 Hook Runtime
+
+- 📍 登録場所: リポジトリルートに `.namba/hooks.toml` を置くと、`namba run SPEC-XXX` が実行中に自動で読み込みます。
+- 🧩 登録形式: `[hooks.<hook_name>]` テーブルを追加し、`event`、`command`、`cwd`、`timeout`、`enabled`、`continue_on_failure` を設定します。
+- 🧾 実行証跡: 各 hook の stdout/stderr は `.namba/logs/runs/<log-id>-hooks/` に保存され、結果は `<log-id>-evidence.json` の `hooks` 配列に記録されます。
+- 🚦 失敗ポリシー: 既定では継続します。`continue_on_failure = false` の hook が失敗すると Namba run は停止し、`on_failure` hook が一度だけ実行されます。
+
+```toml
+[hooks.validation_guard]
+event = "before_validation"
+command = "go test ./..."
+cwd = "."
+timeout = 120
+enabled = true
+continue_on_failure = false
+```
+
+- ⚙️ よく使うイベント: `before_preflight`、`after_preflight`、`before_execution`、`after_execution`、`before_validation`、`after_validation`、`on_failure`。
+- 🔭 Tool-boundary イベントの `after_patch`、`after_bash`、`after_mcp_tool` は runner が typed observation を提供した場合だけ実行され、自由形式ログから推測しません。
+
 ## インストール、アップデート、アンインストール
 
 - Windows でインストール: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
