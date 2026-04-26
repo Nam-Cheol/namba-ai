@@ -92,6 +92,41 @@ func TestInitCreatesScaffold(t *testing.T) {
 	}
 }
 
+func TestInitCreatesManagedCoachSkillScaffold(t *testing.T) {
+	tmp := t.TempDir()
+	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	coachSkillPath := filepath.Join(tmp, ".agents", "skills", "namba-coach", "SKILL.md")
+	mustExist(t, coachSkillPath)
+
+	coachSkill := mustRead(t, coachSkillPath)
+	for _, want := range []string{
+		"name: namba-coach",
+		"description: Read-only advisory entry point for choosing the right Namba workflow handoff.",
+		"Behavior:",
+		"Stay read-only. Do not create SPEC packages, edit repository files, generate skill, agent, source, or review artifacts, run implementation, update `.namba/specs/<SPEC>/reviews/readiness.md`, or invoke a public `namba coach` CLI command.",
+		"Restate the user's current goal briefly before choosing a path.",
+		"Follow this response order: brief restatement, up to three essential clarification questions when required, one primary executable handoff, optional single alternative when there is a real tradeoff, and a one- or two-sentence reason.",
+		"Treat essential clarification as information needed to choose the correct Namba workflow or make the handoff command usable, not information that would fully specify implementation.",
+		"Ask only 1-3 essential clarification questions when the request is underspecified.",
+		"Once the request is concrete enough, recommend exactly one primary executable invocation and at most one alternative.",
+		"Correct a clearly wrong command choice first instead of running it as-is.",
+		"$namba-help",
+		"Example:",
+		"For `todo 리스트를 만들고 싶은데 뭘 해야돼?`, ask only essential questions first: target environment, UI surface, and whether tasks should be local-only or persisted somewhere.",
+		"After those answers are concrete, hand off with `namba plan \"Build a todo list feature for <environment> with <UI surface> and <storage approach>.\"`",
+		"namba plan \"Build a todo list feature for <environment> with <UI surface> and <storage approach>.\"",
+	} {
+		if !strings.Contains(coachSkill, want) {
+			t.Fatalf("expected coach skill scaffold to contain %q, got: %s", want, coachSkill)
+		}
+	}
+}
+
 func TestInitSupportsCodexProfileFlags(t *testing.T) {
 	tmp := t.TempDir()
 	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
@@ -180,6 +215,33 @@ func TestRepoCodexUpstreamReferenceUsesLiveDocs(t *testing.T) {
 	upstreamReference := mustRead(t, filepath.Join(filepath.Dir(file), "docs", "codex-upstream-reference.md"))
 	if !strings.Contains(upstreamReference, "https://developers.openai.com/codex/") || !strings.Contains(upstreamReference, "https://github.com/openai/codex") || !strings.Contains(upstreamReference, "supplemental implementation reference") {
 		t.Fatalf("expected codex upstream reference doc to use live docs as the primary baseline, got: %s", upstreamReference)
+	}
+}
+
+func TestSpec038CoachContractDocumentsTheAcceptanceShape(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+
+	contract := mustRead(t, filepath.Join(filepath.Dir(file), ".namba", "specs", "SPEC-038", "contract.md"))
+	for _, want := range []string{
+		"`$namba-coach` is a first-class, managed, generated repo skill under `.agents/skills/namba-coach/SKILL.md`.",
+		"Follow this answer order: brief restatement, up to three essential clarification questions if required, one primary executable command, optional single alternative when there is a real tradeoff, and a short reason.",
+		"Ask only 1-3 essential clarification questions when the request is underspecified.",
+		"Boundary With Existing Skills",
+		"`$namba-help` explains NambaAI usage, command semantics, and documentation locations.",
+		"`$namba-coach` selects the next workflow handoff for the current user goal.",
+		"Routing Table",
+		"todo 리스트를 만들고 싶은데 뭘 해야돼?",
+		"Which environment should this target?",
+		"After those answers, coach should hand off with:",
+		"namba plan \"Build a todo list feature for <environment> with <UI surface> and <storage approach>.\"",
+		"Read-Only Boundary",
+	} {
+		if !strings.Contains(contract, want) {
+			t.Fatalf("SPEC-038 coach contract missing %q: %s", want, contract)
+		}
 	}
 }
 

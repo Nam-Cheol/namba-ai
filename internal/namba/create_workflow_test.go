@@ -246,6 +246,45 @@ func TestRunRegenPreservesNonRegenManagedOutputs(t *testing.T) {
 	}
 }
 
+func TestRunRegenPreservesManagedCoachSkill(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	coachSkillPath := filepath.Join(tmp, ".agents", "skills", "namba-coach", "SKILL.md")
+	if _, err := os.Stat(coachSkillPath); err != nil {
+		t.Fatalf("expected coach skill to exist after init: %v", err)
+	}
+	before := mustReadFile(t, coachSkillPath)
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"regen"}); err != nil {
+		t.Fatalf("regen failed: %v", err)
+	}
+
+	if got := mustReadFile(t, coachSkillPath); got != before {
+		t.Fatalf("coach skill changed after regen: %q", got)
+	}
+
+	manifest, err := app.readManifest(tmp)
+	if err != nil {
+		t.Fatalf("read manifest after regen: %v", err)
+	}
+	entry, ok := findManifestEntry(manifest, ".agents/skills/namba-coach/SKILL.md")
+	if !ok {
+		t.Fatal("expected coach skill manifest entry to remain after regen")
+	}
+	if entry.Owner != manifestOwnerManaged {
+		t.Fatalf("expected coach skill to remain managed after regen, got owner=%q", entry.Owner)
+	}
+}
+
 func TestCreateWorkflowSkillContractFixture(t *testing.T) {
 	t.Parallel()
 

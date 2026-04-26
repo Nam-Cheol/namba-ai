@@ -1,0 +1,30 @@
+# Acceptance
+
+- [ ] `namba init` and `namba regen` generate `.agents/skills/namba-coach/SKILL.md`.
+- [ ] `namba-coach` is included in the managed skill registry, so regen preserves it and `.namba/manifest.json` reflects the generated output.
+- [ ] `$namba-coach` is exposed consistently in `AGENTS.md`, the `$namba` router skill, README output, workflow guide output, and `.namba/codex/README.md`.
+- [ ] `$namba-coach` is described as a read-only advisory skill that clarifies current intent, corrects wrong command choices, and hands off to the right Namba workflow.
+- [ ] `$namba-coach` does not create SPEC packages, modify files, generate artifacts, update review readiness, or run implementation directly.
+- [ ] The `$namba-help` boundary stays explicit: help explains NambaAI usage, while coach turns a current idea or question into a next-command recommendation.
+- [ ] `$namba-coach` uses a canonical response order: brief restatement, up to three essential questions when required, one primary executable handoff, optional single alternative, and short reason.
+- [ ] "Essential clarification" is defined as information needed to choose the correct workflow or make the handoff command usable, not information needed to fully specify implementation.
+- [ ] When the user goal is underspecified, `$namba-coach` asks only 1-3 essential clarification questions before recommending a command.
+- [ ] Once sufficiently concrete, `$namba-coach` recommends exactly one primary executable invocation and at most one alternative.
+- [ ] The routing table covers `namba plan`, `namba harness`, `$namba-create`, `namba fix`, `namba fix --command plan`, `namba run`, `$namba-help`, `namba sync`, `namba pr`, and `namba land`.
+- [ ] For the ambiguous request "todo 리스트를 만들고 싶은데 뭘 해야돼?", `$namba-coach` asks essential questions first, including environment, UI surface, and storage expectations, then hands off with `namba plan "<description>"`.
+- [ ] For a plain-language non-developer request that names no Namba command, `$namba-coach` clarifies only enough to route and then recommends the next command.
+- [ ] If a developer selects a clearly wrong command, `$namba-coach` does not execute it as-is and instead recommends the better Namba command or skill with a short reason.
+- [ ] `$namba-coach` distinguishes direct repo-local skill or custom-agent creation (`$namba-create`) from reusable skill, agent, workflow, or orchestration planning (`namba harness "<description>"`) and from Namba core managed-surface changes (`namba plan "<description>"`).
+- [ ] Post-implementation handoff is stage-specific: implementation finished -> `namba sync`, review handoff ready -> `namba pr "<Korean title>"`, approved PR ready to merge -> `namba land`.
+- [ ] Existing responsibilities of `$namba-help`, `$namba-create`, `namba plan`, `namba harness`, `namba fix`, and `namba run` are unchanged.
+- [ ] No public `namba coach` CLI command, public help entry, persistent coach output, separate SPEC artifact, or separate readiness track is added.
+- [ ] `internal/namba/templates_test.go` covers `renderCoachCommandSkill()` content and `$namba` and AGENTS exposure anchors.
+- [ ] `internal/namba/readme_contract_test.go` and `internal/namba/readme_sync_test.go` cover README, workflow guide, and Codex usage exposure.
+- [ ] Existing init or regen scaffold tests cover generation of `.agents/skills/namba-coach/SKILL.md` and managed registry inclusion.
+- [ ] A regen cleanup regression proves `.agents/skills/namba-coach/SKILL.md` survives managed output cleanup once registered.
+- [ ] Public CLI help contract tests are not expanded for `namba coach`.
+- [ ] `gofmt -l "cmd" "internal" "namba_test.go"` reports no files.
+- [ ] `go vet ./...` passes.
+- [ ] `go test ./...` passes.
+- [ ] `namba regen` passes.
+- [ ] `namba sync` passes.

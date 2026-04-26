@@ -947,3 +947,45 @@ func TestRenderNambaSkillSectionsStayOrderedInIntegratedDoc(t *testing.T) {
 		lastIndex = index
 	}
 }
+
+func TestRenderNambaSkillRouterSectionsReserveCoachForAdvisoryRouting(t *testing.T) {
+	t.Parallel()
+
+	commandMapping := strings.Join(renderNambaSkillCommandMappingSection(), "\n")
+	for _, want := range []string{
+		"`$namba-coach`",
+		"`$namba-help`",
+		"`$namba-create`",
+		"`namba plan \"<description>\"`",
+		"`namba harness \"<description>\"`",
+		"`namba fix --command plan \"<issue description>\"`",
+		"`namba fix \"<issue description>\"` or `namba fix --command run \"<issue description>\"`",
+		"`namba run SPEC-XXX`",
+		"`namba sync`",
+		"`namba pr \"<title>\"`",
+		"`namba land`",
+	} {
+		if !strings.Contains(commandMapping, want) {
+			t.Fatalf("namba skill command-mapping section missing %q: %q", want, commandMapping)
+		}
+	}
+
+	executionRules := strings.Join(renderNambaSkillExecutionRulesSection(initProfile{}), "\n")
+	for _, want := range []string{
+		"current-goal command coaching",
+		"read-only usage guidance",
+		"`$namba-coach`",
+		"`$namba-create`",
+		"`$namba-run`",
+		"`$namba-pr`",
+		"`$namba-land`",
+		"`$namba-plan`",
+		"`$namba-plan-review`",
+		"`$namba-harness`",
+		"`$namba-fix`",
+	} {
+		if !strings.Contains(executionRules, want) {
+			t.Fatalf("namba skill execution-rules section missing %q: %q", want, executionRules)
+		}
+	}
+}

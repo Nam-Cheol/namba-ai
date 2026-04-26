@@ -91,6 +91,7 @@ func managedCodexSkillNames() []string {
 		"namba",
 		"namba-init",
 		"namba-help",
+		"namba-coach",
 		"namba-create",
 		"namba-project",
 		"namba-regen",
@@ -118,6 +119,7 @@ func codexSkillTemplates(profile initProfile) map[string]string {
 		filepath.ToSlash(filepath.Join("namba", "SKILL.md")):                    renderNambaSkill(profile),
 		filepath.ToSlash(filepath.Join("namba-init", "SKILL.md")):               renderInitCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-help", "SKILL.md")):               renderHelpCommandSkill(),
+		filepath.ToSlash(filepath.Join("namba-coach", "SKILL.md")):              renderCoachCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-create", "SKILL.md")):             renderCreateCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-project", "SKILL.md")):            renderProjectCommandSkill(),
 		filepath.ToSlash(filepath.Join("namba-regen", "SKILL.md")):              renderRegenCommandSkill(),
@@ -165,6 +167,7 @@ func codexNativeIssues(root string) []string {
 	}{
 		{label: "AGENTS.md", path: filepath.Join(root, "AGENTS.md")},
 		{label: ".agents/skills/namba/SKILL.md", path: filepath.Join(root, ".agents", "skills", "namba", "SKILL.md")},
+		{label: ".agents/skills/namba-coach/SKILL.md", path: filepath.Join(root, ".agents", "skills", "namba-coach", "SKILL.md")},
 		{label: ".agents/skills/namba-create/SKILL.md", path: filepath.Join(root, ".agents", "skills", "namba-create", "SKILL.md")},
 		{label: ".agents/skills/namba-run/SKILL.md", path: filepath.Join(root, ".agents", "skills", "namba-run", "SKILL.md")},
 		{label: ".codex/config.toml", path: filepath.Join(root, ".codex", "config.toml")},
