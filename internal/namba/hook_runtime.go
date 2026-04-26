@@ -270,7 +270,7 @@ func (l *hookLifecycle) ObserveRunnerTool(ctx context.Context, observation runne
 	})
 }
 
-func (l *hookLifecycle) writeRunEvidence(ctx context.Context, status string, validationAttempts int, progressLogFailed bool) error {
+func (l *hookLifecycle) writeRunEvidence(ctx context.Context, status string, validationAttempts int, progressLogFailed bool, failureSummary string) error {
 	if l == nil {
 		return nil
 	}
@@ -278,7 +278,7 @@ func (l *hookLifecycle) writeRunEvidence(ctx context.Context, status string, val
 		if err := l.triggerOnFailure(ctx, hookTrigger{
 			FailurePhase:  executionEvidenceFailurePhase(status),
 			FailureStatus: status,
-			ErrorSummary:  status,
+			ErrorSummary:  firstNonBlank(failureSummary, status),
 			BlockingHook:  l.blockingHook,
 		}); err != nil {
 			return err
@@ -357,19 +357,25 @@ func (l *hookLifecycle) runHook(ctx context.Context, hook hookRegistration, trig
 	if err != nil {
 		result.ErrorSummary = err.Error()
 		l.finishHookResult(&result, start)
-		_ = l.writeHookOutputs(result, "", result.ErrorSummary)
+		if writeErr := l.writeHookOutputs(result, "", result.ErrorSummary); writeErr != nil {
+			recordHookArtifactWriteFailure(&result, writeErr)
+		}
 		return l.applyHookFailurePolicy(result, hook)
 	}
 
 	if info, statErr := os.Stat(hook.ResolvedCWD); statErr != nil {
 		result.ErrorSummary = fmt.Sprintf("resolve cwd: %v", statErr)
 		l.finishHookResult(&result, start)
-		_ = l.writeHookOutputs(result, "", result.ErrorSummary)
+		if writeErr := l.writeHookOutputs(result, "", result.ErrorSummary); writeErr != nil {
+			recordHookArtifactWriteFailure(&result, writeErr)
+		}
 		return l.applyHookFailurePolicy(result, hook)
 	} else if !info.IsDir() {
 		result.ErrorSummary = fmt.Sprintf("cwd is not a directory: %s", hook.ResolvedCWD)
 		l.finishHookResult(&result, start)
-		_ = l.writeHookOutputs(result, "", result.ErrorSummary)
+		if writeErr := l.writeHookOutputs(result, "", result.ErrorSummary); writeErr != nil {
+			recordHookArtifactWriteFailure(&result, writeErr)
+		}
 		return l.applyHookFailurePolicy(result, hook)
 	}
 
@@ -396,7 +402,9 @@ func (l *hookLifecycle) runHook(ctx context.Context, hook hookRegistration, trig
 		result.ExitCode = -1
 		result.ErrorSummary = runErr.Error()
 	}
-	_ = l.writeHookOutputs(result, stdout, stderr)
+	if writeErr := l.writeHookOutputs(result, stdout, stderr); writeErr != nil {
+		recordHookArtifactWriteFailure(&result, writeErr)
+	}
 	return l.applyHookFailurePolicy(result, hook)
 }
 
@@ -420,7 +428,9 @@ func (l *hookLifecycle) configErrorResult(err error) hookResult {
 		ErrorSummary:  strings.TrimSpace(err.Error()),
 		Scope:         l.scope,
 	}
-	_ = l.writeHookOutputs(result, "", result.ErrorSummary)
+	if writeErr := l.writeHookOutputs(result, "", result.ErrorSummary); writeErr != nil {
+		recordHookArtifactWriteFailure(&result, writeErr)
+	}
 	return result
 }
 
@@ -535,6 +545,19 @@ func (l *hookLifecycle) writeHookOutputs(result hookResult, stdout, stderr strin
 		return err
 	}
 	return nil
+}
+
+func recordHookArtifactWriteFailure(result *hookResult, err error) {
+	if result == nil || err == nil {
+		return
+	}
+	result.Status = hookStatusError
+	writeSummary := fmt.Sprintf("write hook artifacts: %v", err)
+	if summary := strings.TrimSpace(result.ErrorSummary); summary != "" {
+		result.ErrorSummary = summary + "; " + writeSummary
+		return
+	}
+	result.ErrorSummary = writeSummary
 }
 
 func (a *App) hookCommandRunner() func(context.Context, string, []string, string, string) (string, string, error) {

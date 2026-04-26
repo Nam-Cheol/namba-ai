@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -414,6 +415,105 @@ continue_on_failure = true
 	}
 }
 
+func TestOnFailureHookReceivesPrimaryExecutionErrorSummary(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "hooks.toml"), `
+[hooks.failure_notice]
+event = "on_failure"
+command = "capture-failure"
+cwd = "."
+timeout = 5
+enabled = true
+continue_on_failure = true
+`)
+
+	app.lookPath = func(name string) (string, error) {
+		switch name {
+		case "codex", "git":
+			return name, nil
+		default:
+			return "", errors.New("missing dependency")
+		}
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			return "partial output", errors.New("runner exploded")
+		case isShellCommand(name):
+			t.Fatal("validators should not run after runner failure")
+			return "", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+	var failureCtx hookExecutionContext
+	app.runCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
+		if !isShellCommand(name) || !strings.Contains(strings.Join(args, " "), "capture-failure") {
+			t.Fatalf("unexpected hook command: %s %v", name, args)
+		}
+		if err := json.Unmarshal([]byte(input), &failureCtx); err != nil {
+			t.Fatalf("hook context is not JSON: %v", err)
+		}
+		return "", "", nil
+	}
+
+	err := app.Run(context.Background(), []string{"run", "SPEC-001"})
+	if err == nil || !strings.Contains(err.Error(), "runner exploded") {
+		t.Fatalf("expected runner failure, got %v", err)
+	}
+	if failureCtx.Event != string(hookEventOnFailure) || failureCtx.FailureStatus != "execution_failed" {
+		t.Fatalf("unexpected on_failure context: %+v", failureCtx)
+	}
+	if !strings.Contains(failureCtx.ErrorSummary, "runner exploded") {
+		t.Fatalf("expected primary runner error in on_failure context, got %+v", failureCtx)
+	}
+}
+
+func TestAdvisoryHookRecordsArtifactWriteFailure(t *testing.T) {
+	tmp := canonicalTempDir(t)
+	app := NewApp(&strings.Builder{}, &strings.Builder{})
+	writeTestFile(t, filepath.Join(tmp, ".namba", "hooks.toml"), `
+[hooks.write_blocked]
+event = "before_validation"
+command = "echo artifact"
+cwd = "."
+timeout = 5
+enabled = true
+continue_on_failure = true
+`)
+	blockedStdoutPath := filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-hooks", "before_validation", "write_blocked-stdout.txt")
+	if err := os.MkdirAll(blockedStdoutPath, 0o755); err != nil {
+		t.Fatalf("create blocked stdout path: %v", err)
+	}
+	app.runCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
+		if !isShellCommand(name) {
+			t.Fatalf("unexpected hook command: %s %v", name, args)
+		}
+		return "stdout", "stderr", nil
+	}
+
+	lifecycle := newHookLifecycle(app, tmp, "spec-001", executionRequest{SpecID: "SPEC-001", WorkDir: tmp}, "")
+	if err := lifecycle.Trigger(context.Background(), hookTrigger{
+		Event:       hookEventBeforeValidation,
+		StageStatus: "pending",
+	}); err != nil {
+		t.Fatalf("advisory artifact write failure should not stop run: %v", err)
+	}
+	if len(lifecycle.results) != 1 {
+		t.Fatalf("expected one hook result, got %+v", lifecycle.results)
+	}
+	result := lifecycle.results[0]
+	if result.Status != hookStatusError || result.Blocking || result.FailureAction != hookFailureActionContinued {
+		t.Fatalf("expected continued hook artifact write error, got %+v", result)
+	}
+	if !strings.Contains(result.ErrorSummary, "write hook artifacts") {
+		t.Fatalf("expected artifact write failure summary, got %+v", result)
+	}
+}
+
 func TestMalformedHooksConfigStopsBeforePreflightWithConfigErrorEvidence(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
@@ -624,7 +724,7 @@ continue_on_failure = true
 	}); err != nil {
 		t.Fatalf("ObserveRunnerTool failed: %v", err)
 	}
-	if err := lifecycle.writeRunEvidence(context.Background(), "completed", 0, false); err != nil {
+	if err := lifecycle.writeRunEvidence(context.Background(), "completed", 0, false, ""); err != nil {
 		t.Fatalf("write evidence failed: %v", err)
 	}
 
