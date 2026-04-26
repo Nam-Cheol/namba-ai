@@ -8,11 +8,11 @@
 
 ## System Landscape
 
-- `workspace`: NambaAI is a practical guide for working with Codex without guessing the next step. It sets up the repository, helps you choose the right command, turns bigger work into reviewable plans, and refreshes docs and checklists after the work is done. (`.namba/project/systems/workspace.md`)
+- `workspace`: NambaAI is a Codex-native workflow for bootstrapping repositories, choosing the right Namba command first, planning work as SPEC packages, and syncing project artifacts after implementation. (`.namba/project/systems/workspace.md`)
 
 ## Evidence Highlights
 
-- NambaAI is a practical guide for working with Codex without guessing the next step. It sets up the repository, helps you choose the right command, turns bigger work into reviewable plans, and refreshes docs and checklists after the work is done. Confidence: medium. Evidence: `README.md`.
+- NambaAI is a Codex-native workflow for bootstrapping repositories, choosing the right Namba command first, planning work as SPEC packages, and syncing project artifacts after implementation. Confidence: medium. Evidence: `README.md`.
 - `cmd/namba/main.go`: Go command entry point Confidence: high. Evidence: `cmd/namba/main.go`.
 
 ## Quality And Drift
@@ -23,5 +23,5 @@
 ## Source Snapshot
 
 - Source: `README.md`
-- Summary excerpt: NambaAI is a practical guide for working with Codex without guessing the next step. It sets up the repository, helps you choose the right command, turns bigger work into reviewable plans, and refreshes docs and checklists after the work is done.
+- Summary excerpt: NambaAI is a Codex-native workflow for bootstrapping repositories, choosing the right Namba command first, planning work as SPEC packages, and syncing project artifacts after implementation.
 

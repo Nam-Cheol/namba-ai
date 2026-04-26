@@ -274,48 +274,33 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-035/plan.md
 .namba/specs/SPEC-035/reviews/design.md
 .namba/specs/SPEC-035/reviews/engineering.md
-.namba/specs/SPEC-035/reviews/product 2.md
 .namba/specs/SPEC-035/reviews/product.md
 .namba/specs/SPEC-035/reviews/readiness.md
 .namba/specs/SPEC-035/spec.md
 .namba/specs/SPEC-036/acceptance.md
 .namba/specs/SPEC-036/plan.md
-.namba/specs/SPEC-036/reviews/design 2.md
 .namba/specs/SPEC-036/reviews/design.md
-.namba/specs/SPEC-036/reviews/engineering 2.md
 .namba/specs/SPEC-036/reviews/engineering.md
-.namba/specs/SPEC-036/reviews/product 2.md
 .namba/specs/SPEC-036/reviews/product.md
-.namba/specs/SPEC-036/reviews/readiness 2.md
 .namba/specs/SPEC-036/reviews/readiness.md
 .namba/specs/SPEC-036/spec.md
 .namba/specs/SPEC-037/acceptance.md
 .namba/specs/SPEC-037/plan.md
 .namba/specs/SPEC-037/reviews/design.md
-.namba/specs/SPEC-037/reviews/engineering 2.md
 .namba/specs/SPEC-037/reviews/engineering.md
 .namba/specs/SPEC-037/reviews/product.md
 .namba/specs/SPEC-037/reviews/readiness.md
 .namba/specs/SPEC-037/spec.md
-.namba/specs/SPEC-038/acceptance 2.md
 .namba/specs/SPEC-038/acceptance.md
 .namba/specs/SPEC-038/baseline.md
 .namba/specs/SPEC-038/contract.md
 .namba/specs/SPEC-038/eval-plan.md
 .namba/specs/SPEC-038/harness-request.json
-.namba/specs/SPEC-038/plan 2.md
 .namba/specs/SPEC-038/plan.md
-.namba/specs/SPEC-038/reviews/design 2.md
-.namba/specs/SPEC-038/reviews/design 3.md
 .namba/specs/SPEC-038/reviews/design.md
-.namba/specs/SPEC-038/reviews/engineering 2.md
-.namba/specs/SPEC-038/reviews/engineering 3.md
 .namba/specs/SPEC-038/reviews/engineering.md
-.namba/specs/SPEC-038/reviews/product 2.md
-.namba/specs/SPEC-038/reviews/product 3.md
 .namba/specs/SPEC-038/reviews/product.md
 .namba/specs/SPEC-038/reviews/readiness.md
-.namba/specs/SPEC-038/spec 2.md
 .namba/specs/SPEC-038/spec.md
 AGENTS.md
 README.ja.md
