@@ -17,6 +17,7 @@
 ## 계획 명령
 
 - `$namba-help`: NambaAI 사용법, 다음에 어떤 명령이나 skill을 선택할지, 어디 문서를 봐야 하는지 read-only로 안내합니다.
+- `$namba-coach`: 현재 목표를 짧게 정리하고, 필요한 질문만 한 뒤 올바른 Namba workflow handoff를 read-only로 추천합니다.
 - `$namba-create`: repo-local skill이나 project-scoped custom agent가 직접 필요할 때 preview-first 생성 경로를 제공합니다. SPEC 패키지가 목적이면 `namba plan` 또는 `namba harness`를 고르세요.
 - `namba project`: 현재 저장소 문서와 codemap을 새로 고치며 SPEC 패키지를 만들지 않습니다.
 - `namba codex access`: 현재 repo-owned Codex access 기본값을 inspect-only로 확인하고, 명시적 flag를 줄 때만 approval_policy / sandbox_mode를 변경합니다.

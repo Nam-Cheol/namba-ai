@@ -1,0 +1,22 @@
+{
+  "request_kind": "core_harness_change",
+  "delivery_mode": "spec",
+  "adaptation_mode": "extend_domain",
+  "base_contract_ref": "$namba-help, $namba-create, $namba-plan, $namba-harness, $namba-run",
+  "touches_namba_core": true,
+  "artifact_targets": [
+    "skill",
+    "workflow",
+    "docs"
+  ],
+  "required_evidence": [
+    "contract",
+    "baseline",
+    "eval-plan"
+  ],
+  "required_reviews": [
+    "product",
+    "engineering",
+    "design"
+  ]
+}

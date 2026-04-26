@@ -6,7 +6,7 @@
 
 # NambaAI
 
-NambaAI is a Codex-native workflow for bootstrapping repositories, choosing the right Namba command first, planning work as SPEC packages, and syncing project artifacts after implementation.
+NambaAI is a practical guide for working with Codex without guessing the next step. It sets up the repository, helps you choose the right command, turns bigger work into reviewable plans, and refreshes docs and checklists after the work is done.
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [中文](README.zh.md)
 
@@ -14,19 +14,19 @@ NambaAI is a Codex-native workflow for bootstrapping repositories, choosing the 
 
 ## Which Command Should I Use?
 
-- `namba project`: refresh the repository context and generated docs when you need to understand the codebase before choosing work.
-- `namba plan`: create a feature SPEC when the request is a product change or product-facing feature.
-- `namba harness`: create a harness-oriented SPEC when the work is about reusable agent, skill, workflow, or orchestration scaffolding.
-- `namba fix`: repair a bug directly in the current workspace, or use `namba fix --command plan` when you want a reviewable bugfix SPEC.
+- `namba project`: start here when you need Codex to look around and refresh its notes about the repository.
+- `namba plan`: use this when you want to add or change a feature and need a clear plan.
+- `namba harness`: use this for reusable Namba/Codex building blocks such as skills, agents, or workflows.
+- `namba fix`: use this when something is broken and you want to repair it now. Use `namba fix --command plan` when the fix should have a reviewable plan first.
 
 ## What You Can Do With NambaAI
 
-- Bootstrap a Codex-ready repository from an empty directory with `namba init .`.
-- Choose `namba project`, `namba plan`, `namba harness`, or `namba fix` based on whether you are refreshing context, starting a feature SPEC, planning reusable workflow scaffolding, or repairing a bug.
-- Use `$namba-help` when you want a read-only walkthrough of how to use NambaAI or which command or skill fits your goal.
-- Execute work with `namba run SPEC-XXX` for the default flow, use `--solo` for a single runner in one workspace, `--team` for same-workspace multi-agent execution, or `--parallel` for worktree fan-out/fan-in before handing off with `namba sync`, `namba pr`, and `namba land`.
-- Run explicit plan reviews with `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when a SPEC needs product, engineering, or design critique before implementation, or use `$namba-plan-review` when you want SPEC creation plus the full review loop bundled into one skill.
-- Keep CLI versions aligned across the team with `namba update` and release assets.
+- Set up a repository from an empty folder with `namba init .`.
+- Ask `$namba-coach` when you know what you want, but not which command to run.
+- Ask `$namba-help` when you only want an explanation. It stays read-only and does not change files.
+- Run planned work with `namba run SPEC-XXX`, then use `namba sync`, `namba pr`, and `namba land` to refresh docs, open review, and merge.
+- Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when you want product, engineering, or design feedback before implementation.
+- Keep everyone on the same CLI version with `namba update`.
 
 ## Quick Start
 
@@ -65,6 +65,7 @@ namba land
 
 ## 🪝 Hook Runtime
 
+- You can skip this section at first. Hooks are for automatic checks or notifications that should run at specific points during `namba run`.
 - 📍 Registration: create `.namba/hooks.toml` at the repository root and `namba run SPEC-XXX` reads it automatically during execution.
 - 🧩 Shape: add a `[hooks.<hook_name>]` table with `event`, `command`, `cwd`, `timeout`, `enabled`, and `continue_on_failure`.
 - 🧾 Evidence: each hook stdout/stderr is saved under `.namba/logs/runs/<log-id>-hooks/`, and the result is recorded in the `hooks` array of `<log-id>-evidence.json`.
@@ -96,12 +97,13 @@ continue_on_failure = false
 
 - `$namba`: general router when you want Codex to choose the right Namba workflow entry point from context.
 - `$namba-help`: use when you want a read-only explanation of how to use NambaAI, which command or skill to choose next, or where the authoritative docs live.
-- `$namba-create`: use when you want a preview-first flow that creates a repo-local skill, a project-scoped custom agent, or both directly inside Codex. This path keeps the public surface skill-first and does not add a new `namba create` CLI command.
+- `$namba-coach`: use when the current goal is vague or a command choice may be wrong, and you want a read-only recommendation for the right Namba workflow handoff.
+- `$namba-create`: use when you want a preview-first flow that creates a repo-local skill, a project-scoped custom agent, or both directly inside Codex. You see the preview before anything is written.
 - `$namba-project`: use when you need project docs and codemaps refreshed before starting or after larger changes.
-- `$namba-plan`: use when you want to create the next feature SPEC package.
+- `$namba-plan`: use when you want to create the next feature SPEC package, meaning a clear plan for a feature or product change.
 - `$namba-harness`: use when you want a harness-oriented SPEC package for reusable agent, skill, workflow, or orchestration work.
 - `$namba-fix`: use when you need direct repair in the current workspace, or choose `namba fix --command plan "issue description"` when you want a reviewable bugfix SPEC.
-- `$namba-plan-review`: use when you want one Codex entry point that creates or resolves a SPEC, runs the three plan-review tracks in parallel, validates readiness, and loops only where needed.
+- `$namba-plan-review`: use when you want one Codex entry point that checks the plan from product, engineering, and design angles.
 - `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: use when a SPEC needs product, engineering, or design review artifacts plus an updated advisory readiness summary.
 - `$namba-run`: use when you want to execute an existing SPEC package through the Namba workflow in the current Codex session.
 - `$namba-sync`: use when you need README bundles, project docs, codemaps, and PR-ready artifacts refreshed.
@@ -110,7 +112,10 @@ continue_on_failure = false
 
 ## Skill To Command Mapping
 
+This is a quick translation table: the `$...` names are what you ask Codex for, and the right side is the Namba command flow they point to.
+
 - `$namba-help` -> read-only Namba usage guidance; no direct CLI mutation
+- `$namba-coach` -> read-only command coaching that turns the current goal into the next Namba workflow handoff; no direct CLI mutation
 - `$namba-create` -> skill-first creation flow for `.agents/skills/*` or `.codex/agents/*`; no public `namba create` CLI in this slice
 - `$namba-project` -> `namba project`
 - `$namba-plan` -> `namba plan "description"`
@@ -126,12 +131,13 @@ continue_on_failure = false
 
 ## Custom Agents In Codex
 
-- Strategy and readiness: `namba-product-manager` shapes scope and acceptance, `namba-planner` turns a SPEC into an execution plan, and `namba-plan-reviewer` validates whether the plan-review set is coherent enough to start implementation.
-- UI split: `namba-designer` owns art direction plus reference collection and synthesis, `namba-frontend-architect` plans hierarchy and state only after the frontend gate is satisfied, `namba-frontend-implementer` ships approved UI work only after synthesis plus design clearance, and `namba-mobile-engineer` handles mobile-specific constraints.
+- Custom agents are role-based helpers inside Codex. You call them when a task needs a specific kind of thinking instead of asking one assistant to do everything.
+- Strategy and readiness: `namba-product-manager` clarifies the goal and scope, `namba-planner` turns the plan into execution steps, and `namba-plan-reviewer` checks whether the plan is ready enough to start.
+- UI split: `namba-designer` handles visual direction and references, `namba-frontend-architect` plans screen structure, `namba-frontend-implementer` implements approved UI, and `namba-mobile-engineer` handles mobile constraints.
 - Routing examples: `Redesign this landing page hero so it stops looking generic` -> `namba-designer`; `Plan the component/state split for this dashboard` -> `namba-frontend-architect`; `Implement the approved dashboard filters and responsive states` -> `namba-frontend-implementer`.
-- Backend and data: `namba-backend-architect`, `namba-backend-implementer`, and `namba-data-engineer` cover APIs, persistence, migrations, and pipelines.
-- Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, and `namba-reviewer` cover hardening, regression confidence, CI/CD, and final acceptance.
-- General delivery: `namba-implementer` remains the generalist execution agent when a task spans multiple domains but does not justify a larger specialist team.
+- Backend and data: `namba-backend-architect`, `namba-backend-implementer`, and `namba-data-engineer` cover server behavior, storage, migrations, and data flow.
+- Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, and `namba-reviewer` cover security, test confidence, deployment, and final checks.
+- General delivery: `namba-implementer` handles work that spans a few areas but does not need a larger specialist team.
 
 ## Need More Detail?
 
@@ -142,7 +148,7 @@ continue_on_failure = false
 
 ## Technical Snapshot
 
-- `.namba/` is the source of truth for config, SPEC packages, and project docs.
-- `.agents/skills/` is the repo-local skill surface used by Codex.
-- `.codex/agents/*.toml` defines task-oriented custom agents across product, planning, design, frontend, mobile, backend, data, security, testing, ops, implementation, and review.
-- `namba update`, `namba regen`, `namba sync`, `namba pr`, and `namba land` solve different problems and should not be mixed.
+- `.namba/` stores the settings, work plans, and project docs NambaAI needs to remember.
+- `.agents/skills/` stores the Namba guides Codex can call directly.
+- `.codex/agents/*.toml` stores the role-based custom agents Codex can use when work needs a specialist.
+- `namba update`, `namba regen`, `namba sync`, `namba pr`, and `namba land` solve different problems and should not be mixed. Ask `$namba-coach` or `$namba-help` first when unsure.

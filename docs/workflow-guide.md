@@ -17,6 +17,7 @@
 ## Planning commands
 
 - `$namba-help`: read-only guidance on how to use NambaAI, which command or skill to choose next, and where the authoritative docs live.
+- `$namba-coach`: briefly restate the current goal, ask only essential questions, and recommend the right Namba workflow handoff without mutating repo state.
 - `$namba-create`: use the preview-first creation flow when you need a repo-local skill or a project-scoped custom agent directly. Choose `namba plan` or `namba harness` instead when the outcome should be a SPEC package.
 - `namba project`: refresh current repository docs and codemaps without creating a SPEC package.
 - `namba codex access`: inspect the current repo-owned Codex access defaults, and change approval_policy / sandbox_mode only when explicit flags are provided.

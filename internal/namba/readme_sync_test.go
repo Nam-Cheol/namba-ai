@@ -46,6 +46,31 @@ func TestRenderNambaCLIWorkflowGuideIncludesRoleRouting(t *testing.T) {
 	}
 }
 
+func TestRenderNambaCLICoachGuidanceIsExposedInSyncedDocs(t *testing.T) {
+	outputs := buildReadmeOutputs(projectConfig{}, initProfile{}, docsConfig{
+		ManageReadme:        true,
+		ReadmeProfile:       readmeProfileNambaCLI,
+		DefaultLanguage:     "en",
+		AdditionalLanguages: []string{"ko", "ja", "zh"},
+	})
+
+	for _, lang := range []string{"en", "ko", "ja", "zh"} {
+		root := outputs[readmePath(lang)]
+		for _, want := range []string{"`$namba-coach`", "$namba-coach"} {
+			if !strings.Contains(root, want) {
+				t.Fatalf("%s README missing coach routing anchor %q: %q", lang, want, root)
+			}
+		}
+
+		guide := outputs[guidePath("workflow-guide", lang)]
+		for _, want := range []string{"`$namba-coach`", "$namba-coach"} {
+			if !strings.Contains(guide, want) {
+				t.Fatalf("%s workflow guide missing coach routing anchor %q: %q", lang, want, guide)
+			}
+		}
+	}
+}
+
 func TestRenderReadmeGuidePreludePreservesLocalizedHeaderAndLinks(t *testing.T) {
 	cases := []struct {
 		lang  string

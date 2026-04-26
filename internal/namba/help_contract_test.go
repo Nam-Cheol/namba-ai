@@ -347,6 +347,26 @@ func TestResolveTopLevelInvocationPreservesHelpAndUnknownCommandContracts(t *tes
 	}
 }
 
+func TestCoachIsNotAPublicTopLevelCommand(t *testing.T) {
+	t.Parallel()
+
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	for _, definition := range publicTopLevelCommandDefinitions() {
+		if definition.Name == "coach" {
+			t.Fatalf("did not expect public top-level command definitions to expose coach: %#v", definition)
+		}
+	}
+	if _, ok := commandUsageText("coach"); ok {
+		t.Fatal("did not expect command usage text for coach")
+	}
+	if _, ok := app.resolveTopLevelCommand("coach"); ok {
+		t.Fatal("did not expect top-level command resolution for coach")
+	}
+	if strings.Contains(usageText(), "namba coach") {
+		t.Fatalf("did not expect public usage text to mention a namba coach CLI command: %q", usageText())
+	}
+}
+
 func TestUsageTextMatchesPublicTopLevelCommandUsageSummaries(t *testing.T) {
 	t.Parallel()
 

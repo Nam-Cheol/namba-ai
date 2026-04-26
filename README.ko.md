@@ -6,7 +6,7 @@
 
 # NambaAI
 
-NambaAI는 저장소를 부트스트랩하고, 먼저 어떤 Namba 명령을 써야 하는지 고르고, 작업을 SPEC 패키지로 계획하고, 구현 이후 산출물을 동기화하는 Codex-native 워크플로입니다.
+NambaAI는 Codex와 함께 일할 때 "다음에 뭘 해야 하지?"를 덜 헤매게 해주는 작업 안내서입니다. 저장소를 처음 준비하고, 지금 상황에 맞는 명령을 고르고, 큰 작업은 검토 가능한 계획으로 나눈 뒤, 끝난 뒤에는 문서와 체크리스트까지 맞춰 줍니다.
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [中文](README.zh.md)
 
@@ -14,18 +14,19 @@ NambaAI는 저장소를 부트스트랩하고, 먼저 어떤 Namba 명령을 써
 
 ## 어떤 명령을 써야 하나요?
 
-- `namba project`: 작업을 시작하기 전에 저장소 문맥과 생성 문서를 새로 고칩니다.
-- `namba plan`: 기능이나 제품 변경을 SPEC 패키지로 만들 때 사용합니다.
-- `namba harness`: agent, skill, workflow, orchestration 재사용을 위한 harness-oriented SPEC 패키지를 만들 때 사용합니다.
-- `namba fix`: 현재 workspace에서 버그를 직접 수리할 때 사용하고, review 가능한 버그 수정 SPEC가 필요하면 `namba fix --command plan`을 씁니다.
+- `namba project`: 먼저 상황 파악이 필요할 때 씁니다. Codex가 저장소 구조와 문서를 다시 읽게 합니다.
+- `namba plan`: 새 기능이나 제품 변경을 차근차근 진행할 계획으로 만들고 싶을 때 씁니다.
+- `namba harness`: 재사용할 skill, agent, workflow 같은 Namba/Codex 구성요소를 계획할 때 씁니다.
+- `namba fix`: 지금 보이는 버그를 바로 고치고 싶을 때 씁니다. 버그도 리뷰 가능한 계획으로 남기고 싶으면 `namba fix --command plan`을 씁니다.
 
 ## NambaAI로 할 수 있는 일
 
-- 빈 디렉터리에서 `namba init .`로 Codex-ready 저장소를 바로 시작할 수 있습니다.
-- `namba project`, `namba plan`, `namba harness`, `namba fix` 중 무엇을 쓸지 먼저 고른 다음, 선택한 SPEC 경로로 작업을 진행합니다.
-- `namba run SPEC-XXX`로 기본 흐름을 실행하고, `--solo`는 하나의 workspace에서 단일 runner, `--team`은 같은 workspace의 멀티에이전트 실행, `--parallel`은 worktree fan-out/fan-in 실행에 사용한 뒤 `namba sync`, `namba pr`, `namba land`로 마무리합니다.
-- 구현 전에 제품, 엔지니어링, 디자인 검토가 필요하면 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`를 사용합니다.
-- `namba update`와 릴리스 자산으로 팀 전체 CLI 버전을 맞출 수 있습니다.
+- 빈 폴더에서도 `namba init .` 한 번으로 Codex가 참고할 기본 안내문과 설정을 만들 수 있습니다.
+- 어떤 명령을 써야 할지 애매하면 `$namba-coach`에게 현재 하고 싶은 일을 말하면 됩니다.
+- 사용법 자체가 궁금하면 `$namba-help`로 설명만 받을 수 있습니다. 이 경로는 파일을 바꾸지 않습니다.
+- 계획이 준비되면 `namba run SPEC-XXX`로 실행하고, 끝난 뒤 `namba sync`, `namba pr`, `namba land`로 문서 정리와 리뷰/머지 흐름을 이어 갑니다.
+- 구현 전에 제품, 엔지니어링, 디자인 관점의 확인이 필요하면 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`를 사용할 수 있습니다.
+- 팀원들이 같은 버전을 쓰도록 `namba update`로 CLI를 맞출 수 있습니다.
 
 ## 빠른 시작
 
@@ -64,6 +65,7 @@ namba land
 
 ## 🪝 Hook Runtime
 
+- 처음 쓰는 중이라면 이 섹션은 건너뛰어도 됩니다. Hook은 실행 중 특정 시점에 자동으로 돌릴 검사나 알림을 붙이고 싶을 때 사용합니다.
 - 📍 등록 위치: 저장소 루트에 `.namba/hooks.toml`을 만들면 `namba run SPEC-XXX`가 실행 중 자동으로 읽습니다.
 - 🧩 등록 형식: `[hooks.<hook_name>]` 테이블을 추가하고 `event`, `command`, `cwd`, `timeout`, `enabled`, `continue_on_failure`를 채웁니다.
 - 🧾 실행 증거: 각 hook의 stdout/stderr는 `.namba/logs/runs/<log-id>-hooks/` 아래에 저장되고, 결과는 `<log-id>-evidence.json`의 `hooks` 배열에 기록됩니다.
@@ -93,23 +95,27 @@ continue_on_failure = false
 
 ## Codex에서 쓰는 Command Skill
 
-- `$namba`: Codex가 문맥을 보고 적절한 Namba 진입점을 고르게 맡기고 싶을 때 쓰는 일반 라우터입니다.
-- `$namba-help`: 이 저장소에서 NambaAI를 어떻게 써야 하는지, 어떤 명령이나 skill을 골라야 하는지, 어디 문서를 봐야 하는지 read-only로 설명받고 싶을 때 씁니다.
-- `$namba-create`: repo-local skill, project-scoped custom agent, 또는 둘 다를 preview-first로 만들고 싶을 때 씁니다. 이 경로는 skill-first public surface를 유지하고, 새 `namba create` CLI를 추가하지 않습니다.
-- `$namba-project`: 작업을 시작하기 전이나 큰 변경 뒤에 프로젝트 문서와 codemap을 새로 고칩니다.
-- `$namba-plan`: 기능 SPEC 패키지를 만들고 싶을 때 씁니다.
-- `$namba-harness`: agent, skill, workflow, orchestration 재사용을 위한 harness-oriented SPEC 패키지를 만들고 싶을 때 씁니다.
-- `$namba-fix`: 현재 workspace에서 직접 버그를 수리할 때 쓰고, review 가능한 bugfix SPEC가 필요하면 `namba fix --command plan "issue description"` 경로를 선택합니다.
-- `$namba-plan-review`: SPEC 생성 또는 선택부터 product / engineering / design 리뷰 병렬 실행, aggregate validation, readiness 갱신까지 한 번에 묶고 싶을 때 씁니다.
-- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: SPEC의 product, engineering, design review 산출물과 advisory readiness를 갱신할 때 씁니다.
+- `$namba`: Codex에게 "상황 보고 알아서 맞는 입구를 골라줘"라고 맡길 때 쓰는 일반 라우터입니다.
+- `$namba-help`: NambaAI 사용법, 어떤 명령이나 skill을 고르면 되는지, 어느 문서를 보면 되는지 설명만 듣고 싶을 때 씁니다. 파일은 바꾸지 않습니다.
+- `$namba-coach`: 하고 싶은 일은 있는데 명령이 헷갈릴 때 씁니다. 필요한 질문만 하고 다음 Namba workflow handoff를 추천합니다.
+- `$namba-create`: repo-local skill이나 custom agent를 바로 만들고 싶을 때 씁니다. 먼저 미리보기를 보고 확인한 뒤 생성합니다.
+- `$namba-project`: 작업 전이나 큰 변경 뒤에 프로젝트 문서와 codemap을 새로 고칠 때 씁니다.
+- `$namba-plan`: 새 기능이나 제품 변경을 검토 가능한 작업 계획으로 만들 때 씁니다.
+- `$namba-harness`: 재사용할 agent, skill, workflow, orchestration 작업을 계획할 때 씁니다.
+- `$namba-fix`: 현재 workspace에서 버그를 바로 고칠 때 씁니다. review 가능한 bugfix SPEC가 필요하면 `namba fix --command plan "issue description"`을 고릅니다.
+- `$namba-plan-review`: 계획을 만든 뒤 product / engineering / design 관점에서 한 번에 점검하고 싶을 때 씁니다.
+- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: 제품, 엔지니어링, 디자인 중 필요한 관점만 따로 점검할 때 씁니다.
 - `$namba-run`: 이미 만든 SPEC 패키지를 현재 Codex 세션에서 실행할 때 씁니다.
-- `$namba-sync`: README 묶음, 프로젝트 문서, codemap, PR 준비 산출물을 갱신할 때 씁니다.
-- `$namba-pr` / `$namba-land`: 현재 브랜치를 GitHub 리뷰로 넘기고, 체크 통과 후 안전하게 머지할 때 씁니다.
-- `$namba-regen` / `$namba-update`: repo-local Codex 자산을 다시 만들거나 설치된 `namba` CLI를 self-update 할 때 씁니다.
+- `$namba-sync`: README 묶음, 프로젝트 문서, codemap, PR 준비 산출물을 최신 상태로 맞출 때 씁니다.
+- `$namba-pr` / `$namba-land`: GitHub 리뷰로 넘기고, 통과한 뒤 안전하게 머지할 때 씁니다.
+- `$namba-regen` / `$namba-update`: repo-local Codex 자산을 다시 만들거나 설치된 `namba` CLI를 업데이트할 때 씁니다.
 
 ## Skill To Command Mapping
 
+Codex에서 `$...` 형태로 부르는 skill이 실제로는 어떤 Namba 명령 흐름으로 이어지는지 빠르게 보는 표입니다.
+
 - `$namba-help` -> read-only Namba 사용 안내, 직접적인 CLI 변경 없음
+- `$namba-coach` -> 현재 목표를 다음 Namba workflow handoff로 연결하는 read-only command coaching, 직접적인 CLI 변경 없음
 - `$namba-create` -> `.agents/skills/*` 또는 `.codex/agents/*`를 위한 skill-first 생성 흐름, 이 slice에서는 public `namba create` CLI를 추가하지 않음
 - `$namba-project` -> `namba project`
 - `$namba-plan` -> `namba plan "description"`
@@ -125,12 +131,13 @@ continue_on_failure = false
 
 ## Codex용 Custom Agents
 
-- Strategy and readiness: `namba-product-manager`가 범위와 acceptance를 다듬고, `namba-planner`가 SPEC를 실행 계획으로 바꾸며, `namba-plan-reviewer`가 plan-review 결과의 일관성과 readiness를 검증합니다.
-- UI split: `namba-designer`는 reference 수집과 synthesis까지 포함한 art direction을 맡고, `namba-frontend-architect`는 frontend gate가 만족된 뒤 hierarchy와 state/file planning을 맡고, `namba-frontend-implementer`는 synthesis와 design clearance 이후의 승인된 UI 구현만 맡고, `namba-mobile-engineer`는 모바일 제약을 맡습니다.
+- Custom Agent는 Codex 안에서 역할을 나눠 맡기는 전담 도우미입니다. 혼자 다 처리하기보다, 필요한 때에만 알맞은 역할을 부릅니다.
+- Strategy and readiness: `namba-product-manager`는 목표와 범위를 정리하고, `namba-planner`는 계획을 실행 순서로 바꾸며, `namba-plan-reviewer`는 시작해도 될 만큼 계획이 맞는지 확인합니다.
+- UI split: `namba-designer`는 화면의 방향성과 참고자료를 보고, `namba-frontend-architect`는 화면 구조를 계획하고, `namba-frontend-implementer`는 승인된 UI를 구현하며, `namba-mobile-engineer`는 모바일 제약을 챙깁니다.
 - Routing examples: `Redesign this landing page hero so it stops looking generic`는 `namba-designer`, `Plan the component/state split for this dashboard`는 `namba-frontend-architect`, `Implement the approved dashboard filters and responsive states`는 `namba-frontend-implementer`로 보냅니다.
-- Backend and data: `namba-backend-architect`, `namba-backend-implementer`, `namba-data-engineer`가 API, 영속성, 마이그레이션, 파이프라인을 담당합니다.
-- Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, `namba-reviewer`가 보안 강화, 회귀 신뢰도, CI/CD, 최종 acceptance를 담당합니다.
-- General delivery: `namba-implementer`는 여러 도메인을 가로지르지만 더 큰 specialist roster까지는 필요 없는 작업에서 일반 실행 에이전트로 남아 있습니다.
+- Backend and data: `namba-backend-architect`, `namba-backend-implementer`, `namba-data-engineer`가 서버, 저장소, 마이그레이션, 데이터 흐름을 맡습니다.
+- Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, `namba-reviewer`가 보안, 테스트 신뢰도, 배포, 최종 확인을 맡습니다.
+- General delivery: `namba-implementer`는 여러 영역이 섞였지만 큰 팀까지는 필요 없는 작업을 맡는 일반 실행 역할입니다.
 
 ## 더 읽기
 
@@ -141,7 +148,7 @@ continue_on_failure = false
 
 ## 기술 스냅샷
 
-- `.namba/`는 설정, SPEC 패키지, 프로젝트 문서의 source of truth 입니다.
-- `.agents/skills/`는 Codex가 직접 사용하는 repo-local skill surface 입니다.
-- `.codex/agents/*.toml`은 product, planning, design, frontend, mobile, backend, data, security, testing, ops, implementation, review 전반의 task-oriented custom agent를 정의합니다.
-- `namba update`, `namba regen`, `namba sync`, `namba pr`, `namba land`는 서로 다른 문제를 푸는 명령이므로 섞어서 이해하면 안 됩니다.
+- `.namba/`에는 NambaAI가 기억해야 할 설정, 작업 계획, 프로젝트 문서가 들어갑니다.
+- `.agents/skills/`에는 Codex가 바로 불러 쓸 수 있는 Namba 전용 안내서가 들어갑니다.
+- `.codex/agents/*.toml`에는 Codex 안에서 역할을 나눠 맡길 custom agent 설정이 들어갑니다.
+- `namba update`, `namba regen`, `namba sync`, `namba pr`, `namba land`는 이름은 비슷하지만 서로 다른 문제를 푸는 명령입니다. 헷갈리면 `$namba-coach`나 `$namba-help`로 먼저 물어보면 됩니다.
