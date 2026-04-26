@@ -52,6 +52,51 @@ continue_on_failure = true
 	}
 }
 
+func TestLoadHookConfigRejectsDuplicateHookTables(t *testing.T) {
+	tmp := canonicalTempDir(t)
+	writeTestFile(t, filepath.Join(tmp, ".namba", "hooks.toml"), `
+[hooks.duplicate]
+event = "before_validation"
+command = "echo first"
+cwd = "."
+timeout = 5
+enabled = true
+continue_on_failure = true
+
+[hooks.duplicate]
+event = "before_validation"
+command = "echo second"
+cwd = "."
+timeout = 5
+enabled = true
+continue_on_failure = true
+`)
+
+	_, err := loadHookConfig(tmp)
+	if err == nil || !strings.Contains(err.Error(), "duplicate hook table") {
+		t.Fatalf("expected duplicate hook table parse error, got %v", err)
+	}
+}
+
+func TestLoadHookConfigRejectsDuplicateHookKeys(t *testing.T) {
+	tmp := canonicalTempDir(t)
+	writeTestFile(t, filepath.Join(tmp, ".namba", "hooks.toml"), `
+[hooks.duplicate_key]
+event = "before_validation"
+command = "echo first"
+command = "echo second"
+cwd = "."
+timeout = 5
+enabled = true
+continue_on_failure = true
+`)
+
+	_, err := loadHookConfig(tmp)
+	if err == nil || !strings.Contains(err.Error(), "duplicate key") {
+		t.Fatalf("expected duplicate hook key parse error, got %v", err)
+	}
+}
+
 func TestRunShellCommandWithInputUsesNonLoginShell(t *testing.T) {
 	var gotName string
 	var gotArgs []string

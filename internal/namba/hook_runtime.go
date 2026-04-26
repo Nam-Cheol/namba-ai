@@ -602,6 +602,7 @@ func parseHookConfigTOML(rootAbs, body string) (hookConfig, error) {
 	}
 	var hooks []rawHook
 	var current *rawHook
+	seenHookNames := make(map[string]struct{})
 	for lineNo, rawLine := range strings.Split(body, "\n") {
 		line := strings.TrimSpace(stripHookComment(rawLine))
 		if line == "" {
@@ -618,6 +619,10 @@ func parseHookConfigTOML(rootAbs, body string) (hookConfig, error) {
 				if !validHookName(name) {
 					return hookConfig{}, fmt.Errorf("invalid hook name %q", name)
 				}
+				if _, exists := seenHookNames[name]; exists {
+					return hookConfig{}, fmt.Errorf("parse hooks.toml line %d: duplicate hook table %q", lineNo+1, name)
+				}
+				seenHookNames[name] = struct{}{}
 				hooks = append(hooks, rawHook{name: name, fields: make(map[string]hookTOMLValue)})
 				current = &hooks[len(hooks)-1]
 			}
@@ -633,6 +638,9 @@ func parseHookConfigTOML(rootAbs, body string) (hookConfig, error) {
 		key = strings.TrimSpace(key)
 		if key == "" {
 			return hookConfig{}, fmt.Errorf("parse hooks.toml line %d: empty key", lineNo+1)
+		}
+		if _, exists := current.fields[key]; exists {
+			return hookConfig{}, fmt.Errorf("parse hooks.toml line %d: duplicate key %q in hook %s", lineNo+1, key, current.name)
 		}
 		value, err := parseHookTOMLValue(strings.TrimSpace(valueRaw))
 		if err != nil {
