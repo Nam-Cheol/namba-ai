@@ -174,6 +174,10 @@ type runnerObservation struct {
 }
 
 func newHookLifecycle(app *App, artifactRoot, logID string, req executionRequest, progressPath string) *hookLifecycle {
+	artifactRoot = strings.TrimSpace(artifactRoot)
+	if abs, err := filepath.Abs(artifactRoot); err == nil {
+		artifactRoot = filepath.Clean(abs)
+	}
 	configRoot := strings.TrimSpace(req.WorkDir)
 	if configRoot == "" {
 		configRoot = artifactRoot
@@ -184,7 +188,7 @@ func newHookLifecycle(app *App, artifactRoot, logID string, req executionRequest
 	cfg, err := loadHookConfig(configRoot)
 	return &hookLifecycle{
 		app:          app,
-		artifactRoot: strings.TrimSpace(artifactRoot),
+		artifactRoot: artifactRoot,
 		configRoot:   configRoot,
 		logID:        strings.TrimSpace(logID),
 		req:          req,
@@ -482,16 +486,34 @@ func (l *hookLifecycle) contextForTrigger(trigger hookTrigger) hookExecutionCont
 
 func (l *hookLifecycle) artifactPaths() map[string]string {
 	paths := map[string]string{
-		"request":    filepath.ToSlash(filepath.Join(logsDir, "runs", l.logID+"-request.json")),
-		"preflight":  filepath.ToSlash(filepath.Join(logsDir, "runs", l.logID+"-preflight.json")),
-		"execution":  filepath.ToSlash(filepath.Join(logsDir, "runs", l.logID+"-execution.json")),
-		"validation": filepath.ToSlash(filepath.Join(logsDir, "runs", l.logID+"-validation.json")),
-		"evidence":   executionEvidenceManifestPath(l.logID),
+		"request":    l.artifactPath(filepath.ToSlash(filepath.Join(logsDir, "runs", l.logID+"-request.json"))),
+		"preflight":  l.artifactPath(filepath.ToSlash(filepath.Join(logsDir, "runs", l.logID+"-preflight.json"))),
+		"execution":  l.artifactPath(filepath.ToSlash(filepath.Join(logsDir, "runs", l.logID+"-execution.json"))),
+		"validation": l.artifactPath(filepath.ToSlash(filepath.Join(logsDir, "runs", l.logID+"-validation.json"))),
+		"evidence":   l.artifactPath(executionEvidenceManifestPath(l.logID)),
 	}
-	if rel := executionEvidenceRelativePath(l.artifactRoot, l.progressPath); rel != "" {
-		paths["progress"] = rel
+	if strings.TrimSpace(l.progressPath) != "" {
+		if filepath.IsAbs(l.progressPath) {
+			paths["progress"] = filepath.ToSlash(filepath.Clean(l.progressPath))
+		} else {
+			paths["progress"] = l.artifactPath(l.progressPath)
+		}
 	}
 	return paths
+}
+
+func (l *hookLifecycle) artifactPath(rel string) string {
+	rel = strings.TrimSpace(rel)
+	if rel == "" {
+		return ""
+	}
+	if filepath.IsAbs(rel) {
+		return filepath.ToSlash(filepath.Clean(rel))
+	}
+	if strings.TrimSpace(l.artifactRoot) == "" {
+		return filepath.ToSlash(filepath.Clean(filepath.FromSlash(rel)))
+	}
+	return filepath.ToSlash(filepath.Join(l.artifactRoot, filepath.FromSlash(rel)))
 }
 
 func (l *hookLifecycle) nextOutputPaths(event hookEvent, hookName string) (string, string) {
@@ -827,7 +849,7 @@ func runShellCommandWithInput(ctx context.Context, runner func(context.Context, 
 	if runtime.GOOS == "windows" {
 		return runner(ctx, "powershell", []string{"-NoProfile", "-Command", command}, dir, input)
 	}
-	return runner(ctx, "sh", []string{"-lc", command}, dir, input)
+	return runner(ctx, "sh", []string{"-c", command}, dir, input)
 }
 
 func hookExitCode(err error) int {

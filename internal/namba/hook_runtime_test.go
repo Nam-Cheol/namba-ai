@@ -51,6 +51,34 @@ continue_on_failure = true
 	}
 }
 
+func TestRunShellCommandWithInputUsesNonLoginShell(t *testing.T) {
+	var gotName string
+	var gotArgs []string
+	_, _, err := runShellCommandWithInput(
+		context.Background(),
+		func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
+			gotName = name
+			gotArgs = append([]string(nil), args...)
+			return "", "", nil
+		},
+		"echo ok",
+		"/tmp",
+		"{}",
+	)
+	if err != nil {
+		t.Fatalf("runShellCommandWithInput failed: %v", err)
+	}
+	if runtime.GOOS == "windows" {
+		if gotName != "powershell" || strings.Join(gotArgs, "\x00") != strings.Join([]string{"-NoProfile", "-Command", "echo ok"}, "\x00") {
+			t.Fatalf("expected powershell command, got %s %v", gotName, gotArgs)
+		}
+		return
+	}
+	if gotName != "sh" || strings.Join(gotArgs, "\x00") != strings.Join([]string{"-c", "echo ok"}, "\x00") {
+		t.Fatalf("expected non-login sh -c command, got %s %v", gotName, gotArgs)
+	}
+}
+
 func TestExecuteRunRecordsHookEvidenceAndArtifacts(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
@@ -98,7 +126,8 @@ continue_on_failure = true
 		if ctx.SchemaVersion != hookContextSchemaVersion || ctx.Event != string(hookEventBeforeValidation) || ctx.SpecID != "SPEC-001" {
 			t.Fatalf("unexpected hook context: %+v", ctx)
 		}
-		if ctx.Artifacts["evidence"] != ".namba/logs/runs/spec-001-evidence.json" {
+		wantEvidencePath := filepath.ToSlash(filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-evidence.json"))
+		if ctx.Artifacts["evidence"] != wantEvidencePath {
 			t.Fatalf("expected evidence artifact path in context, got %+v", ctx.Artifacts)
 		}
 		return "hook stdout", "hook stderr", nil
@@ -517,6 +546,17 @@ continue_on_failure = true
 	app.runCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
 		if dir != worker {
 			t.Fatalf("expected worker hook dir %s, got %s", worker, dir)
+		}
+		var ctx hookExecutionContext
+		if err := json.Unmarshal([]byte(input), &ctx); err != nil {
+			t.Fatalf("hook context is not JSON: %v", err)
+		}
+		if ctx.ProjectRoot != worker {
+			t.Fatalf("expected hook project_root to remain worker root %s, got %s", worker, ctx.ProjectRoot)
+		}
+		wantEvidencePath := filepath.ToSlash(filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-p1-evidence.json"))
+		if ctx.Artifacts["evidence"] != wantEvidencePath {
+			t.Fatalf("expected absolute central evidence path %s, got %+v", wantEvidencePath, ctx.Artifacts)
 		}
 		return "worker hook", "", nil
 	}
