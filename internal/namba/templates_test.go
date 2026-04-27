@@ -997,6 +997,102 @@ func TestRenderReviewResolveAndReleaseCommandSkillsPreserveContracts(t *testing.
 	}
 }
 
+func TestSkillSurfaceEvolutionHarnessContracts(t *testing.T) {
+	t.Parallel()
+
+	reviewResolve := renderReviewResolveCommandSkill()
+	for _, want := range []string{
+		"thread identity",
+		"changed paths",
+		"CI/check evidence when the review feedback or PR health depends on failing checks",
+		"Inspect PR check status before re-requesting review",
+	} {
+		if !strings.Contains(reviewResolve, want) {
+			t.Fatalf("review-resolve skill missing SPEC-040 contract %q: %q", want, reviewResolve)
+		}
+	}
+
+	prSkill := renderPRCommandSkill(initProfile{PRBaseBranch: "main", PRLanguage: "ko", CodexReviewComment: "@codex review"})
+	for _, want := range []string{
+		"Inspect current PR check status before review handoff",
+		"bounded GitHub Actions failure snippets",
+		"external checks by status and details URL only",
+		"configured Codex review marker exists exactly once",
+	} {
+		if !strings.Contains(prSkill, want) {
+			t.Fatalf("pr skill missing SPEC-040 contract %q: %q", want, prSkill)
+		}
+	}
+
+	harnessSkill := renderHarnessCommandSkill()
+	for _, want := range []string{
+		"deterministic helper-script candidates",
+		"`--help`",
+		"fixture or local-server tests",
+		"mechanical versus behavioral edits",
+		"update templates first, regenerate, review generated diffs, and validate",
+		"workflow-first",
+		"context-budgeted outputs",
+		"actionable errors",
+		"independent, read-only, realistic, verifiable, and stable",
+	} {
+		if !strings.Contains(harnessSkill, want) {
+			t.Fatalf("harness skill missing SPEC-040 contract %q: %q", want, harnessSkill)
+		}
+	}
+
+	runSkill := renderRunCommandSkill(initProfile{})
+	executionSkill := renderExecutionSkill(initProfile{})
+	for _, surface := range []struct {
+		name    string
+		content string
+	}{
+		{name: "run", content: runSkill},
+		{name: "execution", content: executionSkill},
+	} {
+		for _, want := range []string{
+			"managed server lifecycle",
+			"rendered DOM",
+			"screenshots",
+			"console errors",
+			"Playwright",
+		} {
+			if !strings.Contains(surface.content, want) {
+				t.Fatalf("%s skill missing frontend validation evidence %q: %q", surface.name, want, surface.content)
+			}
+		}
+	}
+
+	createSkill := renderCreateCommandSkill()
+	for _, want := range []string{
+		"progressive disclosure",
+		"references, assets, or deterministic helper candidates",
+		"Do not add `$CODEX_HOME/skills`",
+	} {
+		if !strings.Contains(createSkill, want) {
+			t.Fatalf("create skill missing progressive-disclosure contract %q: %q", want, createSkill)
+		}
+	}
+
+	for _, surface := range []struct {
+		name    string
+		content string
+	}{
+		{name: "review-resolve", content: reviewResolve},
+		{name: "pr", content: prSkill},
+		{name: "harness", content: harnessSkill},
+		{name: "run", content: runSkill},
+		{name: "execution", content: executionSkill},
+		{name: "create", content: createSkill},
+	} {
+		for _, unwanted := range []string{"Composio CLI", "Slack", "Notion", ".codex/skills/"} {
+			if strings.Contains(surface.content, unwanted) {
+				t.Fatalf("%s skill should not introduce rejected flow %q: %q", surface.name, unwanted, surface.content)
+			}
+		}
+	}
+}
+
 func TestRenderNambaSkillSectionsStayOrderedInIntegratedDoc(t *testing.T) {
 	t.Parallel()
 

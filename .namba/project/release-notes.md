@@ -2,7 +2,7 @@
 
 Project: namba-ai
 Project type: existing
-Reference SPEC: SPEC-039
+Reference SPEC: SPEC-040
 
 ## Workflow Changes
 

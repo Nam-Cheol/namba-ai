@@ -1,0 +1,25 @@
+{
+  "request_kind": "core_harness_change",
+  "delivery_mode": "spec",
+  "adaptation_mode": "modify_core",
+  "base_contract_ref": "namba-core-harness",
+  "touches_namba_core": true,
+  "artifact_targets": [
+    "skill",
+    "workflow",
+    "validator",
+    "eval-pack",
+    "docs"
+  ],
+  "required_evidence": [
+    "contract",
+    "baseline",
+    "eval-plan",
+    "harness-map"
+  ],
+  "required_reviews": [
+    "product",
+    "engineering",
+    "design"
+  ]
+}

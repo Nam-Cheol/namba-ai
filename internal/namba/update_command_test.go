@@ -120,7 +120,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 		}
 	}
 	reviewResolveSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-review-resolve", "SKILL.md"))
-	for _, want := range []string{"$namba-review-resolve", "thread-aware GitHub path", "`fixed-and-resolved`, `answered-open`, or `skipped-with-rationale`", "configured `@codex review` marker is present exactly once"} {
+	for _, want := range []string{"$namba-review-resolve", "thread-aware GitHub path", "`fixed-and-resolved`, `answered-open`, or `skipped-with-rationale`", "CI/check evidence when the review feedback or PR health depends on failing checks", "configured `@codex review` marker is present exactly once"} {
 		if !strings.Contains(reviewResolveSkill, want) {
 			t.Fatalf("expected review-resolve skill to contain %q, got %q", want, reviewResolveSkill)
 		}
@@ -132,7 +132,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 		}
 	}
 	harnessSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-harness", "SKILL.md"))
-	for _, want := range []string{"$namba-harness", "namba harness", "without inventing a second artifact model", "Codex-native"} {
+	for _, want := range []string{"$namba-harness", "namba harness", "without inventing a second artifact model", "deterministic helper-script candidates", "mechanical versus behavioral edits", "workflow-first designs", "Codex-native"} {
 		if !strings.Contains(harnessSkill, want) {
 			t.Fatalf("expected harness skill to contain %q, got %q", want, harnessSkill)
 		}
@@ -146,6 +146,11 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	prSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-pr", "SKILL.md"))
 	if !strings.Contains(prSkill, "$namba-pr") || !strings.Contains(prSkill, "namba pr") {
 		t.Fatalf("expected command-entry pr skill, got %q", prSkill)
+	}
+	for _, want := range []string{"Inspect current PR check status before review handoff", "bounded GitHub Actions failure snippets", "configured Codex review marker exists exactly once"} {
+		if !strings.Contains(prSkill, want) {
+			t.Fatalf("expected pr skill to contain %q, got %q", want, prSkill)
+		}
 	}
 	landSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-land", "SKILL.md"))
 	if !strings.Contains(landSkill, "$namba-land") || !strings.Contains(landSkill, "namba land") {

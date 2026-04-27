@@ -1016,6 +1016,8 @@ func TestRenderManagedProjectWorkflowGuidePRAndMergeFlowSectionPreservesEnglishA
 		"## PR and merge flow",
 		"- `namba sync` stays local and refreshes generated artifacts only.",
 		"- `namba pr` handles validation, commit, push, and PR handoff.",
+		"bounded GitHub Actions failure snippets",
+		"external checks by status plus details URL only",
 		"- `namba land` merges a clean PR and updates local `main`.",
 	} {
 		if !strings.Contains(section, want) {

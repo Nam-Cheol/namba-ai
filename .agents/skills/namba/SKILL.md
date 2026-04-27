@@ -19,12 +19,12 @@ Command mapping:
 - `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: update product, engineering, or design review artifacts under `.namba/specs/<SPEC>/reviews/` and refresh advisory readiness.
 - `namba fix --command plan "<issue description>"`: create the next bugfix SPEC package under `.namba/specs/` through the same dedicated-branch planning contract.
 - `namba fix "<issue description>"` or `namba fix --command run "<issue description>"`: perform direct repair in the current workspace without creating a SPEC package.
-- `$namba-review-resolve`: resolve the target PR from the current branch when possible, inspect unresolved review threads with thread-aware GitHub state, classify meaningful versus non-actionable feedback, validate before replying or resolving, and avoid duplicating the configured review marker.
+- `$namba-review-resolve`: resolve the target PR from the current branch when possible, inspect unresolved review threads with thread-aware GitHub state, record thread identity and outcome, validate before replying or resolving, include CI/check evidence when relevant, and avoid duplicating the configured review marker.
 - `$namba-release`: draft release notes from commits since the previous semver tag, write the notes to a durable per-version artifact, then hand off to the guarded `namba release --version <version> --push` path with a GitHub Release body that uses the generated notes.
 - `namba run SPEC-XXX`: execute the SPEC in the current Codex session. Read `spec.md`, `plan.md`, and `acceptance.md`, implement directly, validate, and sync artifacts.
 - `namba run SPEC-XXX --solo|--team|--parallel`: use the standalone CLI runner when you need explicit single-subagent, multi-subagent, or worktree-parallel execution semantics.
 - `namba sync`: refresh change summary, PR checklist, codemaps, advisory review readiness, and PR-ready docs after implementation.
-- `namba pr "<title>"`: run sync plus validation by default, commit and push the current branch, create or reuse a PR, and ensure the Codex review marker exists.
+- `namba pr "<title>"`: run sync plus validation by default, inspect PR checks, summarize bounded GitHub Actions failure snippets when checks fail, commit and push the current branch, create or reuse a PR, and ensure the Codex review marker exists exactly once.
 - `namba land`: resolve the current branch PR, optionally wait for checks, merge when the PR is clean, and update local `main` safely.
 - `namba doctor`: verify that AGENTS, repo skills, `.namba` config, Codex CLI, and the global `namba` command are available.
 
