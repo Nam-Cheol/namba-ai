@@ -177,6 +177,8 @@ func TestRunReleaseCreatesNotesCommitAndPrintsPushInstructions(t *testing.T) {
 				"ccccccc\x00ccccccc\x00docs: update workflow guide\x00",
 				"ddddddd\x00ddddddd\x00chore: refresh dependencies\x00",
 			}, "\x1e") + "\x1e", nil
+		case name == "git" && len(args) == 2 && args[0] == "show":
+			return "", errors.New("fixture has no spec artifact")
 		case name == "git" && len(args) == 2 && args[0] == "add" && args[1] == ".namba/releases/v0.1.2.md":
 			return "", nil
 		case name == "git" && len(args) >= 5 && args[0] == "commit" && args[1] == "-m":
@@ -248,6 +250,8 @@ func TestRunReleasePushesMainAndTag(t *testing.T) {
 			return strings.Join([]string{
 				"aaaaaaa\x00aaaaaaa\x00feat: add release notes support\x00SPEC-039\n",
 			}, "\x1e") + "\x1e", nil
+		case name == "git" && len(args) == 2 && args[0] == "show":
+			return "", errors.New("fixture has no spec artifact")
 		case name == "git" && len(args) == 2 && args[0] == "add" && args[1] == ".namba/releases/v0.1.1.md":
 			return "", nil
 		case name == "git" && len(args) >= 5 && args[0] == "commit" && args[1] == "-m":

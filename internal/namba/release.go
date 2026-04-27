@@ -117,7 +117,7 @@ func collectReleaseCommits(ctx context.Context, app *App, root, previousTag stri
 	if err != nil {
 		return nil, err
 	}
-	return enrichReleaseCommitsWithSpecDetails(root, commits), nil
+	return enrichReleaseCommitsWithSpecDetails(ctx, app, root, commits), nil
 }
 
 func parseReleaseCommits(output string) ([]releaseCommit, error) {
@@ -150,13 +150,13 @@ func parseReleaseCommits(output string) ([]releaseCommit, error) {
 	return commits, nil
 }
 
-func enrichReleaseCommitsWithSpecDetails(root string, commits []releaseCommit) []releaseCommit {
+func enrichReleaseCommitsWithSpecDetails(ctx context.Context, app *App, root string, commits []releaseCommit) []releaseCommit {
 	enriched := make([]releaseCommit, len(commits))
 	copy(enriched, commits)
 	for i := range enriched {
 		details := releaseCommitBodyDetails(enriched[i].Body)
 		for _, specID := range releaseCommitSpecIDs(enriched[i]) {
-			details = append(details, readSpecReleaseDetails(root, specID)...)
+			details = append(details, readSpecReleaseDetails(ctx, app, root, enriched[i].Hash, specID)...)
 		}
 		enriched[i].Details = limitReleaseDetails(dedupeReleaseDetails(details), maxReleaseDetailsPerCommit)
 	}
@@ -199,19 +199,34 @@ func releaseCommitSpecIDs(commit releaseCommit) []string {
 	return specIDs
 }
 
-func readSpecReleaseDetails(root, specID string) []string {
-	acceptancePath := filepath.Join(root, ".namba", "specs", specID, "acceptance.md")
-	if content, err := os.ReadFile(acceptancePath); err == nil {
-		if details := parseAcceptanceReleaseDetails(string(content)); len(details) > 0 {
-			return details
-		}
+func readSpecReleaseDetails(ctx context.Context, app *App, root, revision, specID string) []string {
+	acceptancePath := releaseSpecArtifactPath(specID, "acceptance.md")
+	if content, ok := readReleaseDetailFile(ctx, app, root, revision, acceptancePath); ok {
+		return parseAcceptanceReleaseDetails(content)
 	}
 
-	specPath := filepath.Join(root, ".namba", "specs", specID, "spec.md")
-	if content, err := os.ReadFile(specPath); err == nil {
-		return parseSpecReleaseDetails(string(content))
+	specPath := releaseSpecArtifactPath(specID, "spec.md")
+	if content, ok := readReleaseDetailFile(ctx, app, root, revision, specPath); ok {
+		return parseSpecReleaseDetails(content)
 	}
 	return nil
+}
+
+func releaseSpecArtifactPath(specID, name string) string {
+	return filepath.ToSlash(filepath.Join(".namba", "specs", specID, name))
+}
+
+func readReleaseDetailFile(ctx context.Context, app *App, root, revision, path string) (string, bool) {
+	if app != nil && strings.TrimSpace(revision) != "" {
+		content, err := app.runBinary(ctx, "git", []string{"show", revision + ":" + path}, root)
+		return content, err == nil
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+	if err != nil {
+		return "", false
+	}
+	return string(data), true
 }
 
 func parseAcceptanceReleaseDetails(content string) []string {

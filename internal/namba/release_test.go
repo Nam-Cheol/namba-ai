@@ -1,6 +1,7 @@
 package namba
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -122,7 +123,8 @@ func TestReleaseNotesEnrichSingleSpecCommitFromAcceptanceDetails(t *testing.T) {
 		},
 	}
 
-	notes := renderReleaseNotes("v0.5.6", "v0.5.5", enrichReleaseCommitsWithSpecDetails(root, commits))
+	enriched := enrichReleaseCommitsWithSpecDetails(context.Background(), nil, root, commits)
+	notes := renderReleaseNotes("v0.5.6", "v0.5.5", enriched)
 	for _, want := range []string{
 		"- SPEC-041 릴리스 노트 상세화 (SPEC-041, abcdef0)",
 		"  - `$namba-release`: Release notes expand single squash commits with SPEC acceptance details.",
@@ -153,7 +155,8 @@ func TestReleaseNotesEnrichCommitBodyBullets(t *testing.T) {
 		},
 	}
 
-	notes := renderReleaseNotes("v0.5.6", "v0.5.5", enrichReleaseCommitsWithSpecDetails("", commits))
+	enriched := enrichReleaseCommitsWithSpecDetails(context.Background(), nil, "", commits)
+	notes := renderReleaseNotes("v0.5.6", "v0.5.5", enriched)
 	for _, want := range []string{
 		"- release body handoff (PR #42, 1234567)",
 		"  - Preserve the generated GitHub Release body.",
@@ -162,6 +165,83 @@ func TestReleaseNotesEnrichCommitBodyBullets(t *testing.T) {
 		if !strings.Contains(notes, want) {
 			t.Fatalf("release notes missing %q:\n%s", want, notes)
 		}
+	}
+}
+
+func TestReleaseNotesDoNotFallbackToSpecWhenAcceptanceExistsWithoutCheckedItems(t *testing.T) {
+	t.Parallel()
+
+	root := canonicalTempDir(t)
+	writeTestFile(t, filepath.Join(root, ".namba", "specs", "SPEC-041", "acceptance.md"), "# Acceptance\n\n## Draft\n\n- [ ] This unfinished acceptance item must not ship.\n")
+	writeTestFile(t, filepath.Join(root, ".namba", "specs", "SPEC-041", "spec.md"), "# SPEC-041\n\n## Scope\n\n- This unpublished SPEC goal must not ship.\n")
+
+	commits := []releaseCommit{
+		{
+			ShortHash: "abcdef0",
+			Subject:   "SPEC-041 릴리스 노트 상세화",
+			Category:  releaseNoteCategoryDocs,
+			Refs:      []string{"SPEC-041"},
+		},
+	}
+
+	enriched := enrichReleaseCommitsWithSpecDetails(context.Background(), nil, root, commits)
+	notes := renderReleaseNotes("v0.5.6", "v0.5.5", enriched)
+	for _, unwanted := range []string{"unfinished acceptance item", "unpublished SPEC goal"} {
+		if strings.Contains(notes, unwanted) {
+			t.Fatalf("release notes should not include %q when acceptance is authoritative:\n%s", unwanted, notes)
+		}
+	}
+}
+
+func TestReleaseNotesReadSpecDetailsFromCommitRevision(t *testing.T) {
+	t.Parallel()
+
+	root := canonicalTempDir(t)
+	app := NewApp(nil, nil)
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if dir != root {
+			t.Fatalf("expected workdir %s, got %s", root, dir)
+		}
+		if name != "git" || len(args) != 2 || args[0] != "show" {
+			t.Fatalf("unexpected command: %s %v", name, args)
+		}
+		switch args[1] {
+		case "oldhash:.namba/specs/SPEC-041/acceptance.md":
+			return "# Acceptance\n\n## Release\n\n- [x] Old revision detail.\n", nil
+		case "newhash:.namba/specs/SPEC-041/acceptance.md":
+			return "# Acceptance\n\n## Release\n\n- [x] New revision detail.\n", nil
+		default:
+			t.Fatalf("unexpected git show target: %s", args[1])
+			return "", nil
+		}
+	}
+
+	commits := []releaseCommit{
+		{
+			Hash:      "oldhash",
+			ShortHash: "oldhash",
+			Subject:   "SPEC-041 첫 번째 변경",
+			Category:  releaseNoteCategoryDocs,
+			Refs:      []string{"SPEC-041"},
+		},
+		{
+			Hash:      "newhash",
+			ShortHash: "newhash",
+			Subject:   "SPEC-041 두 번째 변경",
+			Category:  releaseNoteCategoryDocs,
+			Refs:      []string{"SPEC-041"},
+		},
+	}
+
+	enriched := enrichReleaseCommitsWithSpecDetails(context.Background(), app, root, commits)
+	notes := renderReleaseNotes("v0.5.6", "v0.5.5", enriched)
+	for _, want := range []string{"  - Release: Old revision detail.", "  - Release: New revision detail."} {
+		if !strings.Contains(notes, want) {
+			t.Fatalf("release notes missing %q:\n%s", want, notes)
+		}
+	}
+	if strings.Index(notes, "Old revision detail.") > strings.Index(notes, "SPEC-041 두 번째 변경") {
+		t.Fatalf("old revision detail was not bound to the old commit:\n%s", notes)
 	}
 }
 
