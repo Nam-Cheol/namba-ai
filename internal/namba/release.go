@@ -14,6 +14,14 @@ const releaseNotesDir = ".namba/releases"
 
 var releaseCommitPrefixPattern = regexp.MustCompile(`^(feat|fix|docs|chore|refactor|test|ci|build|perf|style|revert)(\([^)]+\))?:\s*`)
 var releaseReferencePattern = regexp.MustCompile(`(?i)\bPR\s*#\d+\b|\bSPEC-\d+\b|#\d+\b`)
+var releaseSpecIDPattern = regexp.MustCompile(`(?i)\bSPEC-\d+\b`)
+var releaseBodyDetailPattern = regexp.MustCompile(`^\s*[-*]\s+(.+)$`)
+var releaseAcceptanceItemPattern = regexp.MustCompile(`^\s*-\s+\[[xX]\]\s+(.+)$`)
+
+const (
+	maxReleaseDetailsPerCommit  = 12
+	maxReleaseDetailsPerSection = 3
+)
 
 type releaseNoteCategory string
 
@@ -31,6 +39,7 @@ type releaseCommit struct {
 	Body      string
 	Category  releaseNoteCategory
 	Refs      []string
+	Details   []string
 }
 
 type releaseTarget struct {
@@ -108,7 +117,7 @@ func collectReleaseCommits(ctx context.Context, app *App, root, previousTag stri
 	if err != nil {
 		return nil, err
 	}
-	return commits, nil
+	return enrichReleaseCommitsWithSpecDetails(ctx, app, root, commits), nil
 }
 
 func parseReleaseCommits(output string) ([]releaseCommit, error) {
@@ -139,6 +148,235 @@ func parseReleaseCommits(output string) ([]releaseCommit, error) {
 		commits = append(commits, commit)
 	}
 	return commits, nil
+}
+
+func enrichReleaseCommitsWithSpecDetails(ctx context.Context, app *App, root string, commits []releaseCommit) []releaseCommit {
+	enriched := make([]releaseCommit, len(commits))
+	copy(enriched, commits)
+	for i := range enriched {
+		details := releaseCommitBodyDetails(enriched[i].Body)
+		for _, specID := range releaseCommitSpecIDs(enriched[i]) {
+			details = append(details, readSpecReleaseDetails(ctx, app, root, enriched[i].Hash, specID)...)
+		}
+		enriched[i].Details = limitReleaseDetails(dedupeReleaseDetails(details), maxReleaseDetailsPerCommit)
+	}
+	return enriched
+}
+
+func releaseCommitBodyDetails(body string) []string {
+	var details []string
+	for _, line := range strings.Split(body, "\n") {
+		match := releaseBodyDetailPattern.FindStringSubmatch(line)
+		if len(match) != 2 {
+			continue
+		}
+		detail := normalizeReleaseDetailText(match[1])
+		if shouldIncludeReleaseDetail("", detail) {
+			details = append(details, detail)
+		}
+	}
+	return details
+}
+
+func releaseCommitSpecIDs(commit releaseCommit) []string {
+	text := strings.Join(append([]string{commit.Subject, commit.Body}, commit.Refs...), "\n")
+	matches := releaseSpecIDPattern.FindAllString(text, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]bool)
+	specIDs := make([]string, 0, len(matches))
+	for _, match := range matches {
+		specID := strings.ToUpper(strings.TrimSpace(match))
+		if specID == "" || seen[specID] {
+			continue
+		}
+		seen[specID] = true
+		specIDs = append(specIDs, specID)
+	}
+	sort.Strings(specIDs)
+	return specIDs
+}
+
+func readSpecReleaseDetails(ctx context.Context, app *App, root, revision, specID string) []string {
+	acceptancePath := releaseSpecArtifactPath(specID, "acceptance.md")
+	if content, ok := readReleaseDetailFile(ctx, app, root, revision, acceptancePath); ok {
+		return parseAcceptanceReleaseDetails(content)
+	}
+
+	specPath := releaseSpecArtifactPath(specID, "spec.md")
+	if content, ok := readReleaseDetailFile(ctx, app, root, revision, specPath); ok {
+		return parseSpecReleaseDetails(content)
+	}
+	return nil
+}
+
+func releaseSpecArtifactPath(specID, name string) string {
+	return filepath.ToSlash(filepath.Join(".namba", "specs", specID, name))
+}
+
+func readReleaseDetailFile(ctx context.Context, app *App, root, revision, path string) (string, bool) {
+	if app != nil && strings.TrimSpace(revision) != "" {
+		content, err := app.runBinary(ctx, "git", []string{"show", revision + ":" + path}, root)
+		return content, err == nil
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+	if err != nil {
+		return "", false
+	}
+	return string(data), true
+}
+
+func parseAcceptanceReleaseDetails(content string) []string {
+	currentSection := ""
+	sectionOrder := make([]string, 0)
+	sectionItems := make(map[string][]string)
+	var unsectioned []string
+
+	for _, line := range strings.Split(content, "\n") {
+		if heading, ok := releaseMarkdownHeading(line); ok {
+			if strings.EqualFold(heading, "Acceptance") {
+				currentSection = ""
+			} else {
+				currentSection = heading
+				if _, exists := sectionItems[currentSection]; !exists {
+					sectionOrder = append(sectionOrder, currentSection)
+				}
+			}
+			continue
+		}
+
+		match := releaseAcceptanceItemPattern.FindStringSubmatch(line)
+		if len(match) != 2 {
+			continue
+		}
+		detail := normalizeReleaseDetailText(match[1])
+		if !shouldIncludeReleaseDetail(currentSection, detail) {
+			continue
+		}
+		if currentSection == "" {
+			unsectioned = append(unsectioned, detail)
+			continue
+		}
+		sectionItems[currentSection] = append(sectionItems[currentSection], detail)
+	}
+
+	if len(sectionOrder) == 0 {
+		return limitReleaseDetails(unsectioned, maxReleaseDetailsPerCommit)
+	}
+
+	var details []string
+	details = append(details, unsectioned...)
+	for _, section := range sectionOrder {
+		items := sectionItems[section]
+		for i, item := range items {
+			if i >= maxReleaseDetailsPerSection {
+				break
+			}
+			details = append(details, fmt.Sprintf("%s: %s", section, item))
+			if len(details) >= maxReleaseDetailsPerCommit {
+				return details
+			}
+		}
+	}
+	return limitReleaseDetails(details, maxReleaseDetailsPerCommit)
+}
+
+func parseSpecReleaseDetails(content string) []string {
+	capturing := false
+	var details []string
+	for _, line := range strings.Split(content, "\n") {
+		if heading, ok := releaseMarkdownHeading(line); ok {
+			switch strings.ToLower(heading) {
+			case "goal", "desired outcome", "scope":
+				capturing = true
+			default:
+				capturing = false
+			}
+			continue
+		}
+		if !capturing {
+			continue
+		}
+		match := releaseBodyDetailPattern.FindStringSubmatch(line)
+		if len(match) != 2 {
+			continue
+		}
+		detail := normalizeReleaseDetailText(match[1])
+		if shouldIncludeReleaseDetail("", detail) {
+			details = append(details, detail)
+		}
+		if len(details) >= maxReleaseDetailsPerCommit {
+			break
+		}
+	}
+	return details
+}
+
+func releaseMarkdownHeading(line string) (string, bool) {
+	line = strings.TrimSpace(line)
+	if !strings.HasPrefix(line, "#") {
+		return "", false
+	}
+	trimmed := strings.TrimLeft(line, "#")
+	if len(trimmed) == len(line) || !strings.HasPrefix(trimmed, " ") {
+		return "", false
+	}
+	heading := strings.TrimSpace(trimmed)
+	return heading, heading != ""
+}
+
+func normalizeReleaseDetailText(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.TrimPrefix(value, "- ")
+	return strings.TrimSpace(value)
+}
+
+func shouldIncludeReleaseDetail(section, detail string) bool {
+	if detail == "" {
+		return false
+	}
+	normalizedSection := strings.ToLower(section)
+	if strings.Contains(normalizedSection, "test") || strings.Contains(normalizedSection, "validation") {
+		return false
+	}
+	normalizedDetail := strings.ToLower(detail)
+	skipped := []string{
+		"validation commands pass",
+		"gofmt",
+		"go test",
+		"go vet",
+		"git diff --check",
+	}
+	for _, needle := range skipped {
+		if strings.Contains(normalizedDetail, needle) {
+			return false
+		}
+	}
+	return true
+}
+
+func dedupeReleaseDetails(details []string) []string {
+	seen := make(map[string]bool)
+	result := make([]string, 0, len(details))
+	for _, detail := range details {
+		key := strings.ToLower(strings.TrimSpace(detail))
+		if key == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		result = append(result, strings.TrimSpace(detail))
+	}
+	return result
+}
+
+func limitReleaseDetails(details []string, limit int) []string {
+	if limit <= 0 || len(details) <= limit {
+		return details
+	}
+	return details[:limit]
 }
 
 func categorizeReleaseCommit(subject, body string) releaseNoteCategory {
@@ -251,6 +489,9 @@ func renderReleaseNotes(version, previousTag string, commits []releaseCommit) st
 		lines = append(lines, fmt.Sprintf("## %s", section.title), "")
 		for _, commit := range items {
 			lines = append(lines, fmt.Sprintf("- %s%s", normalizeReleaseSubject(commit.Subject), renderReleaseCommitSuffix(commit)))
+			for _, detail := range commit.Details {
+				lines = append(lines, fmt.Sprintf("  - %s", detail))
+			}
 		}
 		lines = append(lines, "")
 	}
