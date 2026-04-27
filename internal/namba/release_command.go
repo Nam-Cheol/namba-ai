@@ -87,11 +87,47 @@ func (a *App) runRelease(ctx context.Context, args []string) error {
 		}
 	}
 
+	previousTag, err := previousReleaseTag(tags, version)
+	if err != nil {
+		return err
+	}
+
+	commits, err := collectReleaseCommits(ctx, a, root, previousTag)
+	if err != nil {
+		return err
+	}
+	if len(commits) == 0 {
+		return fmt.Errorf("release notes for %s are empty; add at least one meaningful commit since %s", version, fallbackReleaseTag(previousTag))
+	}
+
+	notes := renderReleaseNotes(version, previousTag, commits)
+	notesPath, err := writeReleaseNotes(root, version, notes)
+	if err != nil {
+		return err
+	}
+	if _, err := a.runBinary(ctx, "git", []string{"add", notesPath}, root); err != nil {
+		return fmt.Errorf("stage release notes: %w", err)
+	}
+
+	commitMessage := fmt.Sprintf("chore(release): prepare release notes for %s [namba-release-notes]", version)
+	if _, err := a.runBinary(ctx, "git", []string{"commit", "-m", commitMessage, "--", notesPath}, root); err != nil {
+		return fmt.Errorf("commit release notes: %w", err)
+	}
+
+	status, err = a.runBinary(ctx, "git", []string{"status", "--porcelain"}, root)
+	if err != nil {
+		return fmt.Errorf("verify release notes commit: %w", err)
+	}
+	if strings.TrimSpace(status) != "" {
+		return errors.New("release requires a clean working tree after release notes commit")
+	}
+
 	if _, err := a.runBinary(ctx, "git", []string{"tag", version}, root); err != nil {
 		return fmt.Errorf("create tag %s: %w", version, err)
 	}
 
 	fmt.Fprintf(a.stdout, "Created release tag %s\n", version)
+	fmt.Fprintf(a.stdout, "Wrote release notes to %s\n", notesPath)
 
 	if !opts.Push {
 		fmt.Fprintf(a.stdout, "Next: git push %s main && git push %s %s\n", opts.Remote, opts.Remote, version)
@@ -268,4 +304,11 @@ func splitLines(text string) []string {
 	}
 	sort.Strings(values)
 	return values
+}
+
+func fallbackReleaseTag(tag string) string {
+	if strings.TrimSpace(tag) == "" {
+		return "the initial release"
+	}
+	return tag
 }

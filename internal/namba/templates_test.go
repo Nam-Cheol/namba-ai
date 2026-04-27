@@ -1,6 +1,7 @@
 package namba
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -565,6 +566,8 @@ func TestRenderCodexUsageTailSectionsPreserveDynamicAnchors(t *testing.T) {
 		"`.agents/skills/`",
 		"`.toml` custom agents",
 		"`$namba`",
+		"`$namba-review-resolve`",
+		"`$namba-release`",
 	} {
 		if !strings.Contains(claudeMapping, want) {
 			t.Fatalf("claude-mapping section missing %q: %q", want, claudeMapping)
@@ -580,6 +583,38 @@ func TestRenderCodexUsageTailSectionsPreserveDynamicAnchors(t *testing.T) {
 	} {
 		if !strings.Contains(importantDistinction, want) {
 			t.Fatalf("important-distinction section missing %q: %q", want, importantDistinction)
+		}
+	}
+}
+
+func TestManagedCodexSkillRegistryIncludesReviewResolveAndRelease(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"namba-review-resolve", "namba-release"} {
+		found := false
+		for _, managed := range managedCodexSkillNames() {
+			if managed == name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("managed skill registry missing %q: %v", name, managedCodexSkillNames())
+		}
+
+		rel := filepath.ToSlash(filepath.Join(repoSkillsDir, name, "SKILL.md"))
+		if !isManagedRepoSkillPath(rel) {
+			t.Fatalf("expected %s to be treated as a managed repo skill path", rel)
+		}
+	}
+
+	templates := codexSkillTemplates(initProfile{})
+	for _, rel := range []string{
+		filepath.ToSlash(filepath.Join("namba-review-resolve", "SKILL.md")),
+		filepath.ToSlash(filepath.Join("namba-release", "SKILL.md")),
+	} {
+		if _, ok := templates[rel]; !ok {
+			t.Fatalf("codex skill templates missing %s", rel)
 		}
 	}
 }
@@ -713,6 +748,8 @@ func TestRenderCodexUsageFrontSectionsPreserveAnchors(t *testing.T) {
 		"`.agents/skills/`",
 		"`.codex/agents/*.toml`",
 		"`.namba/codex/output-contract.md`",
+		"`namba-review-resolve`",
+		"`namba-release`",
 		"Creates `.namba/` project state, configs, docs, and SPEC storage.",
 	} {
 		if !strings.Contains(initEnables, want) {
@@ -727,7 +764,9 @@ func TestRenderCodexUsageFrontSectionsPreserveAnchors(t *testing.T) {
 		"WSL workspace",
 		"Codex loads `AGENTS.md` and repo skills.",
 		"`default`, `worker`, and `explorer`",
-		"`namba project`, `namba regen`, `namba update`, `namba codex access`, `namba plan`, `namba harness`, `namba fix`, `namba run SPEC-XXX`, `namba sync`, `namba pr`, and `namba land`",
+		"`namba project`, `namba regen`, `namba update`, `namba codex access`, `namba plan`, `namba harness`, `namba fix`, `namba run SPEC-XXX`, `namba sync`, `namba pr`, `namba land`, and `namba release`",
+		"`$namba-review-resolve`",
+		"`$namba-release`",
 	} {
 		if !strings.Contains(howCodexUses, want) {
 			t.Fatalf("how-codex-uses section missing %q: %q", want, howCodexUses)
@@ -743,6 +782,8 @@ func TestRenderCodexUsageWorkflowCommandSemanticsSectionPreservesAnchors(t *test
 		"## Workflow Command Semantics",
 		"`$namba-help` explains how to use NambaAI",
 		"`$namba-create` is the preview-first creation path",
+		"`$namba-review-resolve` resolves GitHub review threads one by one",
+		"`$namba-release` handles NambaAI release orchestration",
 		"`namba codex access` inspects the current repo-owned Codex access defaults",
 		"`namba fix --command plan \"<issue description>\"` creates the next bugfix SPEC package plus review scaffolds.",
 		"`frontend-brief.md`",
@@ -892,6 +933,8 @@ func TestRenderNambaSkillSectionsPreserveAnchors(t *testing.T) {
 		"Command mapping:",
 		"`$namba-help`",
 		"`$namba-create`",
+		"`$namba-review-resolve`",
+		"`$namba-release`",
 		"`namba codex access`",
 		"`$namba-plan-review`",
 		"`namba run SPEC-XXX --solo|--team|--parallel`",
@@ -911,12 +954,45 @@ func TestRenderNambaSkillSectionsPreserveAnchors(t *testing.T) {
 		"Execution rules:",
 		"Treat `.namba/` as the source of truth.",
 		"Prefer repo-local skills in `.agents/skills/`.",
-		"`project`, `regen`, `update`, `codex access`, `plan`",
+		"`project`, `regen`, `update`, `codex access`, `plan`, `harness`, `fix`, `pr`, `land`, `release`, and `sync`",
 		"`--solo`, `--team`, `--parallel`, or `--dry-run`",
 		"Prepare PRs against `release`, write the title/body in Korean, and request GitHub Codex review with `@codex review`",
 	} {
 		if !strings.Contains(executionRules, want) {
 			t.Fatalf("namba-skill execution-rules section missing %q: %q", want, executionRules)
+		}
+	}
+}
+
+func TestRenderReviewResolveAndReleaseCommandSkillsPreserveContracts(t *testing.T) {
+	t.Parallel()
+
+	reviewResolve := renderReviewResolveCommandSkill()
+	for _, want := range []string{
+		"name: namba-review-resolve",
+		"$namba-review-resolve",
+		"thread-aware GitHub path such as `gh api graphql`",
+		"`fixed-and-resolved`, `answered-open`, or `skipped-with-rationale`",
+		"validation commands before replying or resolving",
+		"configured `@codex review` marker is present exactly once",
+	} {
+		if !strings.Contains(reviewResolve, want) {
+			t.Fatalf("review-resolve skill missing %q: %q", want, reviewResolve)
+		}
+	}
+
+	release := renderReleaseCommandSkill()
+	for _, want := range []string{
+		"name: namba-release",
+		"$namba-release",
+		"clean working tree before the final tagging step",
+		"`namba regen` and/or `namba sync`",
+		"`.namba/releases/<version>.md`",
+		"guarded `namba release --version <version> --push` path",
+		"GitHub Release body uses the generated notes",
+	} {
+		if !strings.Contains(release, want) {
+			t.Fatalf("release skill missing %q: %q", want, release)
 		}
 	}
 }

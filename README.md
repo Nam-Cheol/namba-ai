@@ -12,14 +12,14 @@ NambaAI is a practical guide for working with Codex without guessing the next st
 
 [Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](SECURITY.md)
 
-## Which Command Should I Use?
+## 🧭 Which Command Should I Use?
 
 - `namba project`: start here when you need Codex to look around and refresh its notes about the repository.
 - `namba plan`: use this when you want to add or change a feature and need a clear plan.
 - `namba harness`: use this for reusable Namba/Codex building blocks such as skills, agents, or workflows.
 - `namba fix`: use this when something is broken and you want to repair it now. Use `namba fix --command plan` when the fix should have a reviewable plan first.
 
-## What You Can Do With NambaAI
+## 🧰 What You Can Do With NambaAI
 
 - Set up a repository from an empty folder with `namba init .`.
 - Ask `$namba-coach` when you know what you want, but not which command to run.
@@ -28,7 +28,7 @@ NambaAI is a practical guide for working with Codex without guessing the next st
 - Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when you want product, engineering, or design feedback before implementation.
 - Keep everyone on the same CLI version with `namba update`.
 
-## Quick Start
+## 🚀 Quick Start
 
 ### 1. Install NambaAI
 
@@ -84,7 +84,7 @@ continue_on_failure = false
 - ⚙️ Common events: `before_preflight`, `after_preflight`, `before_execution`, `after_execution`, `before_validation`, `after_validation`, and `on_failure`.
 - 🔭 Tool-boundary events `after_patch`, `after_bash`, and `after_mcp_tool` run only when the runner provides typed observations; Namba does not infer them from free-form logs.
 
-## Install, Update, and Uninstall
+## 📦 Install, Update, and Uninstall
 
 - Install on Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
 - Install on macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
@@ -93,7 +93,14 @@ continue_on_failure = false
 - Uninstall on Windows: remove `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe`, then remove `%LOCALAPPDATA%\Programs\NambaAI\bin` from your user `PATH` if you no longer need it.
 - Uninstall on macOS / Linux: remove `~/.local/bin/namba`, then delete the `PATH` line that the installer added to `~/.profile` or `~/.zshrc` if you no longer need it.
 
-## Command Skills In Codex
+## 🚢 Release Flow
+
+- `$namba-release` is the Codex-facing workflow that checks clean `main`, validation, commit-based release notes, and the `.namba/releases/<version>.md` handoff before release.
+- `namba release` requires a clean working tree on `main`.
+- `--push` pushes both the new tag and `main`, then triggers the GitHub Release workflow.
+- The GitHub Release body uses generated release notes while preserving the existing asset matrix and `checksums.txt` publication.
+
+## 🧩 Command Skills In Codex
 
 - `$namba`: general router when you want Codex to choose the right Namba workflow entry point from context.
 - `$namba-help`: use when you want a read-only explanation of how to use NambaAI, which command or skill to choose next, or where the authoritative docs live.
@@ -108,9 +115,11 @@ continue_on_failure = false
 - `$namba-run`: use when you want to execute an existing SPEC package through the Namba workflow in the current Codex session.
 - `$namba-sync`: use when you need README bundles, project docs, codemaps, and PR-ready artifacts refreshed.
 - `$namba-pr` / `$namba-land`: use when you are ready to hand off the current branch for GitHub review and then merge it safely after checks pass.
+- `$namba-review-resolve`: use when you need PR review threads inspected, meaningful feedback fixed, original threads answered and resolved, validation evidence recorded, and review requested again.
+- `$namba-release`: use when you need commit-based release notes drafted before the guarded Namba release path tags and publishes the GitHub Release.
 - `$namba-regen` / `$namba-update`: use when you need repo-local Codex assets regenerated or the installed `namba` CLI updated.
 
-## Skill To Command Mapping
+## 🗺️ Skill To Command Mapping
 
 This is a quick translation table: the `$...` names are what you ask Codex for, and the right side is the Namba command flow they point to.
 
@@ -126,10 +135,12 @@ This is a quick translation table: the `$...` names are what you ask Codex for, 
 - `$namba-sync` -> `namba sync`
 - `$namba-pr` -> `namba pr "title"`
 - `$namba-land` -> `namba land`
+- `$namba-review-resolve` -> active PR review-thread handling plus validation and re-review request; no public CLI mutation
+- `$namba-release` -> release-note generation plus `namba release --version <version> --push`
 - `$namba-regen` -> `namba regen`
 - `$namba-update` -> `namba update [--version vX.Y.Z]`
 
-## Custom Agents In Codex
+## 👥 Custom Agents In Codex
 
 - Custom agents are role-based helpers inside Codex. You call them when a task needs a specific kind of thinking instead of asking one assistant to do everything.
 - Strategy and readiness: `namba-product-manager` clarifies the goal and scope, `namba-planner` turns the plan into execution steps, and `namba-plan-reviewer` checks whether the plan is ready enough to start.
@@ -139,16 +150,17 @@ This is a quick translation table: the `$...` names are what you ask Codex for, 
 - Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, and `namba-reviewer` cover security, test confidence, deployment, and final checks.
 - General delivery: `namba-implementer` handles work that spans a few areas but does not need a larger specialist team.
 
-## Need More Detail?
+## 📚 Need More Detail?
 
 - [Getting Started](docs/getting-started.md): installation, updates, uninstall, init, and first-run flow
 - [Workflow Guide](docs/workflow-guide.md): update vs regen vs sync vs pr vs land, run modes, generated assets, and collaboration defaults
 - [Codex Upstream Reference](docs/codex-upstream-reference.md): upstream baseline this repository follows
 - [SECURITY.md](SECURITY.md): security policy
 
-## Technical Snapshot
+## 🧱 Technical Snapshot
 
 - `.namba/` stores the settings, work plans, and project docs NambaAI needs to remember.
 - `.agents/skills/` stores the Namba guides Codex can call directly.
 - `.codex/agents/*.toml` stores the role-based custom agents Codex can use when work needs a specialist.
+- Emoji density rule: section headings by default, selected lifecycle/caution bullets only when they add scan value, and no emoji inside command literals, language links, release/CI/security links, or shell snippets.
 - `namba update`, `namba regen`, `namba sync`, `namba pr`, and `namba land` solve different problems and should not be mixed. Ask `$namba-coach` or `$namba-help` first when unsure.

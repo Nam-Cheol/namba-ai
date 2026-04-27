@@ -252,7 +252,7 @@ func renderNambaCLIRootLifecycleSection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
 		return []string{
-			"## 설치, 업데이트, 제거",
+			"## 📦 설치, 업데이트, 제거",
 			"",
 			fmt.Sprintf("- 설치 (Windows): `%s`", nambaInstallPowerShell),
 			fmt.Sprintf("- 설치 (macOS / Linux): `%s`", nambaInstallShell),
@@ -264,7 +264,7 @@ func renderNambaCLIRootLifecycleSection(lang string) []string {
 		}
 	case "ja":
 		return []string{
-			"## インストール、アップデート、アンインストール",
+			"## 📦 インストール、アップデート、アンインストール",
 			"",
 			fmt.Sprintf("- Windows でインストール: `%s`", nambaInstallPowerShell),
 			fmt.Sprintf("- macOS / Linux でインストール: `%s`", nambaInstallShell),
@@ -276,7 +276,7 @@ func renderNambaCLIRootLifecycleSection(lang string) []string {
 		}
 	case "zh":
 		return []string{
-			"## 安装、更新与卸载",
+			"## 📦 安装、更新与卸载",
 			"",
 			fmt.Sprintf("- 在 Windows 上安装: `%s`", nambaInstallPowerShell),
 			fmt.Sprintf("- 在 macOS / Linux 上安装: `%s`", nambaInstallShell),
@@ -288,7 +288,7 @@ func renderNambaCLIRootLifecycleSection(lang string) []string {
 		}
 	default:
 		return []string{
-			"## Install, Update, and Uninstall",
+			"## 📦 Install, Update, and Uninstall",
 			"",
 			fmt.Sprintf("- Install on Windows: `%s`", nambaInstallPowerShell),
 			fmt.Sprintf("- Install on macOS / Linux: `%s`", nambaInstallShell),
@@ -734,34 +734,42 @@ func renderNambaCLIWorkflowGuideReleaseFlowSection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
 		return []string{
-			"## 릴리스 흐름",
+			"## 🚢 릴리스 흐름",
 			"",
+			"- `$namba-release`는 clean `main`, 검증, commit 기반 릴리스 노트, `.namba/releases/<version>.md` handoff를 확인한 뒤 릴리스를 진행하는 Codex-facing workflow입니다.",
 			"- `namba release`는 `main`에서 clean working tree를 요구합니다.",
 			"- `--push`는 새 태그와 `main`을 함께 push한 뒤 GitHub Release workflow를 트리거합니다.",
+			"- GitHub Release body는 생성된 릴리스 노트를 사용하고, 기존 asset matrix와 `checksums.txt` publication은 유지됩니다.",
 			"",
 		}
 	case "ja":
 		return []string{
-			"## リリースフロー",
+			"## 🚢 リリースフロー",
 			"",
+			"- `$namba-release` は clean な `main`、validation、commit 由来の release notes、`.namba/releases/<version>.md` handoff を確認してから release を進める Codex-facing workflow です。",
 			"- `namba release` は `main` 上の clean working tree を要求します。",
 			"- `--push` は新しい tag と `main` をまとめて push し、その後 GitHub Release workflow を起動します。",
+			"- GitHub Release body は生成済み release notes を使い、既存の asset matrix と `checksums.txt` publication は維持します。",
 			"",
 		}
 	case "zh":
 		return []string{
-			"## 发布流程",
+			"## 🚢 发布流程",
 			"",
+			"- `$namba-release` 是 Codex-facing workflow，会先确认 clean `main`、validation、基于 commit 的 release notes，以及 `.namba/releases/<version>.md` handoff。",
 			"- `namba release` 要求 `main` 上是 clean working tree。",
 			"- `--push` 会同时 push 新 tag 和 `main`，然后触发 GitHub Release workflow。",
+			"- GitHub Release body 使用生成的 release notes，并保留现有 asset matrix 和 `checksums.txt` publication。",
 			"",
 		}
 	default:
 		return []string{
-			"## Release flow",
+			"## 🚢 Release Flow",
 			"",
+			"- `$namba-release` is the Codex-facing workflow that checks clean `main`, validation, commit-based release notes, and the `.namba/releases/<version>.md` handoff before release.",
 			"- `namba release` requires a clean working tree on `main`.",
 			"- `--push` pushes both the new tag and `main`, then triggers the GitHub Release workflow.",
+			"- The GitHub Release body uses generated release notes while preserving the existing asset matrix and `checksums.txt` publication.",
 			"",
 		}
 	}
@@ -771,7 +779,7 @@ func renderNambaCLIRootQuickStartSection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
 		return []string{
-			"## 빠른 시작",
+			"## 🚀 빠른 시작",
 			"",
 			"### 1. NambaAI 설치",
 			"",
@@ -809,7 +817,7 @@ func renderNambaCLIRootQuickStartSection(lang string) []string {
 		}
 	case "ja":
 		return []string{
-			"## クイックスタート",
+			"## 🚀 クイックスタート",
 			"",
 			"### 1. NambaAI をインストール",
 			"",
@@ -847,7 +855,7 @@ func renderNambaCLIRootQuickStartSection(lang string) []string {
 		}
 	case "zh":
 		return []string{
-			"## 快速开始",
+			"## 🚀 快速开始",
 			"",
 			"### 1. 安装 NambaAI",
 			"",
@@ -885,7 +893,7 @@ func renderNambaCLIRootQuickStartSection(lang string) []string {
 		}
 	default:
 		return []string{
-			"## Quick Start",
+			"## 🚀 Quick Start",
 			"",
 			"### 1. Install NambaAI",
 			"",
@@ -1029,7 +1037,7 @@ func renderNambaCLIRootCommandSkillsSection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
 		return []string{
-			"## Codex에서 쓰는 Command Skill",
+			"## 🧩 Codex에서 쓰는 Command Skill",
 			"",
 			"- `$namba`: Codex에게 \"상황 보고 알아서 맞는 입구를 골라줘\"라고 맡길 때 쓰는 일반 라우터입니다.",
 			"- `$namba-help`: NambaAI 사용법, 어떤 명령이나 skill을 고르면 되는지, 어느 문서를 보면 되는지 설명만 듣고 싶을 때 씁니다. 파일은 바꾸지 않습니다.",
@@ -1044,12 +1052,14 @@ func renderNambaCLIRootCommandSkillsSection(lang string) []string {
 			"- `$namba-run`: 이미 만든 SPEC 패키지를 현재 Codex 세션에서 실행할 때 씁니다.",
 			"- `$namba-sync`: README 묶음, 프로젝트 문서, codemap, PR 준비 산출물을 최신 상태로 맞출 때 씁니다.",
 			"- `$namba-pr` / `$namba-land`: GitHub 리뷰로 넘기고, 통과한 뒤 안전하게 머지할 때 씁니다.",
+			"- `$namba-review-resolve`: PR review thread를 확인하고, 의미 있는 지적만 수정/답변/resolve한 뒤 검증 증거와 함께 다시 review를 요청할 때 씁니다.",
+			"- `$namba-release`: commit history로 릴리스 노트를 만든 뒤 Namba의 guarded release 경로로 태그와 GitHub Release를 진행할 때 씁니다.",
 			"- `$namba-regen` / `$namba-update`: repo-local Codex 자산을 다시 만들거나 설치된 `namba` CLI를 업데이트할 때 씁니다.",
 			"",
 		}
 	case "ja":
 		return []string{
-			"## Codex で使う Command Skill",
+			"## 🧩 Codex で使う Command Skill",
 			"",
 			"- `$namba`: 「状況を見て適切な入口を選んで」と Codex に任せたいときの汎用ルーターです。",
 			"- `$namba-help`: NambaAI の使い方、選ぶべき command や skill、参照すべき文書を説明だけ聞きたいときに使います。ファイルは変更しません。",
@@ -1064,12 +1074,14 @@ func renderNambaCLIRootCommandSkillsSection(lang string) []string {
 			"- `$namba-run`: 作成済みの SPEC パッケージを現在の Codex セッションで実行するときに使います。",
 			"- `$namba-sync`: README 一式、プロジェクト文書、codemap、PR 用成果物を最新にするときに使います。",
 			"- `$namba-pr` / `$namba-land`: GitHub レビューに渡し、通過後に安全にマージするときに使います。",
+			"- `$namba-review-resolve`: PR review thread を確認し、意味のある指摘だけを修正、返信、resolve して、検証証跡とともに再レビューを依頼するときに使います。",
+			"- `$namba-release`: commit history から release notes を作り、Namba の guarded release 経路で tag と GitHub Release を進めるときに使います。",
 			"- `$namba-regen` / `$namba-update`: repo-local Codex 資産を再生成するか、インストール済み `namba` CLI を更新するときに使います。",
 			"",
 		}
 	case "zh":
 		return []string{
-			"## Codex 中的 Command Skill",
+			"## 🧩 Codex 中的 Command Skill",
 			"",
 			"- `$namba`: 想让 Codex 根据上下文帮你选择入口时使用的通用路由器。",
 			"- `$namba-help`: 只想了解 NambaAI 怎么用、该选哪个命令或 skill、该看哪些文档时使用。它不会修改文件。",
@@ -1084,12 +1096,14 @@ func renderNambaCLIRootCommandSkillsSection(lang string) []string {
 			"- `$namba-run`: 在当前 Codex 会话中执行已经创建好的 SPEC 包时使用。",
 			"- `$namba-sync`: 刷新 README 套件、项目文档、codemap 和 PR 交接产物时使用。",
 			"- `$namba-pr` / `$namba-land`: 提交 GitHub 评审，并在通过后安全合并时使用。",
+			"- `$namba-review-resolve`: 检查 PR review thread，只处理有意义的反馈，完成修复、回复、resolve，并带验证证据再次请求评审时使用。",
+			"- `$namba-release`: 根据 commit history 生成 release notes，然后通过 Namba 的 guarded release 路径发布 tag 和 GitHub Release 时使用。",
 			"- `$namba-regen` / `$namba-update`: 重新生成 repo-local Codex 资产，或更新已安装的 `namba` CLI 时使用。",
 			"",
 		}
 	default:
 		return []string{
-			"## Command Skills In Codex",
+			"## 🧩 Command Skills In Codex",
 			"",
 			"- `$namba`: general router when you want Codex to choose the right Namba workflow entry point from context.",
 			"- `$namba-help`: use when you want a read-only explanation of how to use NambaAI, which command or skill to choose next, or where the authoritative docs live.",
@@ -1104,6 +1118,8 @@ func renderNambaCLIRootCommandSkillsSection(lang string) []string {
 			"- `$namba-run`: use when you want to execute an existing SPEC package through the Namba workflow in the current Codex session.",
 			"- `$namba-sync`: use when you need README bundles, project docs, codemaps, and PR-ready artifacts refreshed.",
 			"- `$namba-pr` / `$namba-land`: use when you are ready to hand off the current branch for GitHub review and then merge it safely after checks pass.",
+			"- `$namba-review-resolve`: use when you need PR review threads inspected, meaningful feedback fixed, original threads answered and resolved, validation evidence recorded, and review requested again.",
+			"- `$namba-release`: use when you need commit-based release notes drafted before the guarded Namba release path tags and publishes the GitHub Release.",
 			"- `$namba-regen` / `$namba-update`: use when you need repo-local Codex assets regenerated or the installed `namba` CLI updated.",
 			"",
 		}
@@ -1114,7 +1130,7 @@ func renderNambaCLIRootSkillMappingSection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
 		return []string{
-			"## Skill To Command Mapping",
+			"## 🗺️ Skill To Command Mapping",
 			"",
 			"Codex에서 `$...` 형태로 부르는 skill이 실제로는 어떤 Namba 명령 흐름으로 이어지는지 빠르게 보는 표입니다.",
 			"",
@@ -1130,13 +1146,15 @@ func renderNambaCLIRootSkillMappingSection(lang string) []string {
 			"- `$namba-sync` -> `namba sync`",
 			"- `$namba-pr` -> `namba pr \"title\"`",
 			"- `$namba-land` -> `namba land`",
+			"- `$namba-review-resolve` -> active PR review thread 처리 + validation + re-review request, public CLI 변경 없음",
+			"- `$namba-release` -> release notes 생성 + `namba release --version <version> --push`",
 			"- `$namba-regen` -> `namba regen`",
 			"- `$namba-update` -> `namba update [--version vX.Y.Z]`",
 			"",
 		}
 	case "ja":
 		return []string{
-			"## Skill To Command Mapping",
+			"## 🗺️ Skill To Command Mapping",
 			"",
 			"Codex で `$...` と呼ぶ skill が、実際にはどの Namba command の流れにつながるかを見るための早見表です。",
 			"",
@@ -1152,13 +1170,15 @@ func renderNambaCLIRootSkillMappingSection(lang string) []string {
 			"- `$namba-sync` -> `namba sync`",
 			"- `$namba-pr` -> `namba pr \"title\"`",
 			"- `$namba-land` -> `namba land`",
+			"- `$namba-review-resolve` -> active PR review thread の処理 + validation + re-review request、public CLI 変更なし",
+			"- `$namba-release` -> release notes 生成 + `namba release --version <version> --push`",
 			"- `$namba-regen` -> `namba regen`",
 			"- `$namba-update` -> `namba update [--version vX.Y.Z]`",
 			"",
 		}
 	case "zh":
 		return []string{
-			"## Skill To Command Mapping",
+			"## 🗺️ Skill To Command Mapping",
 			"",
 			"这是一个速查表，用来说明在 Codex 中以 `$...` 调用的 skill 实际会指向哪类 Namba 命令流程。",
 			"",
@@ -1174,13 +1194,15 @@ func renderNambaCLIRootSkillMappingSection(lang string) []string {
 			"- `$namba-sync` -> `namba sync`",
 			"- `$namba-pr` -> `namba pr \"title\"`",
 			"- `$namba-land` -> `namba land`",
+			"- `$namba-review-resolve` -> active PR review thread 处理 + validation + re-review request；不新增 public CLI",
+			"- `$namba-release` -> 生成 release notes + `namba release --version <version> --push`",
 			"- `$namba-regen` -> `namba regen`",
 			"- `$namba-update` -> `namba update [--version vX.Y.Z]`",
 			"",
 		}
 	default:
 		return []string{
-			"## Skill To Command Mapping",
+			"## 🗺️ Skill To Command Mapping",
 			"",
 			"This is a quick translation table: the `$...` names are what you ask Codex for, and the right side is the Namba command flow they point to.",
 			"",
@@ -1196,6 +1218,8 @@ func renderNambaCLIRootSkillMappingSection(lang string) []string {
 			"- `$namba-sync` -> `namba sync`",
 			"- `$namba-pr` -> `namba pr \"title\"`",
 			"- `$namba-land` -> `namba land`",
+			"- `$namba-review-resolve` -> active PR review-thread handling plus validation and re-review request; no public CLI mutation",
+			"- `$namba-release` -> release-note generation plus `namba release --version <version> --push`",
 			"- `$namba-regen` -> `namba regen`",
 			"- `$namba-update` -> `namba update [--version vX.Y.Z]`",
 			"",
@@ -1207,7 +1231,7 @@ func renderNambaCLIRootCustomAgentsSection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
 		return []string{
-			"## Codex용 Custom Agents",
+			"## 👥 Codex용 Custom Agents",
 			"",
 			"- Custom Agent는 Codex 안에서 역할을 나눠 맡기는 전담 도우미입니다. 혼자 다 처리하기보다, 필요한 때에만 알맞은 역할을 부릅니다.",
 			"- Strategy and readiness: `namba-product-manager`는 목표와 범위를 정리하고, `namba-planner`는 계획을 실행 순서로 바꾸며, `namba-plan-reviewer`는 시작해도 될 만큼 계획이 맞는지 확인합니다.",
@@ -1220,7 +1244,7 @@ func renderNambaCLIRootCustomAgentsSection(lang string) []string {
 		}
 	case "ja":
 		return []string{
-			"## Codex 用 Custom Agents",
+			"## 👥 Codex 用 Custom Agents",
 			"",
 			"- Custom Agent は、Codex 内で役割を分けて任せるための担当者です。必要なときだけ、合う役割を呼びます。",
 			"- Strategy and readiness: `namba-product-manager` が目的と範囲を整理し、`namba-planner` が計画を実行順に変え、`namba-plan-reviewer` が開始できる程度に計画が整っているか確認します。",
@@ -1233,7 +1257,7 @@ func renderNambaCLIRootCustomAgentsSection(lang string) []string {
 		}
 	case "zh":
 		return []string{
-			"## Codex 自定义 Agents",
+			"## 👥 Codex 自定义 Agents",
 			"",
 			"- Custom Agent 是 Codex 里的分工助手。不是让一个角色做所有事，而是在需要时调用合适的角色。",
 			"- Strategy and readiness: `namba-product-manager` 整理目标和范围，`namba-planner` 把计划变成执行顺序，`namba-plan-reviewer` 检查计划是否足够清楚、可以开始。",
@@ -1246,7 +1270,7 @@ func renderNambaCLIRootCustomAgentsSection(lang string) []string {
 		}
 	default:
 		return []string{
-			"## Custom Agents In Codex",
+			"## 👥 Custom Agents In Codex",
 			"",
 			"- Custom agents are role-based helpers inside Codex. You call them when a task needs a specific kind of thinking instead of asking one assistant to do everything.",
 			"- Strategy and readiness: `namba-product-manager` clarifies the goal and scope, `namba-planner` turns the plan into execution steps, and `namba-plan-reviewer` checks whether the plan is ready enough to start.",
@@ -1264,7 +1288,7 @@ func renderNambaCLIRootReadMoreSection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
 		return []string{
-			"## 더 읽기",
+			"## 📚 더 읽기",
 			"",
 			fmt.Sprintf("- [%s](%s): 설치, 업데이트, 제거, init, 첫 실행 흐름", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
 			fmt.Sprintf("- [%s](%s): update / regen / sync / pr / land 차이, run 모드, 생성 산출물, 협업 기본값", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
@@ -1274,7 +1298,7 @@ func renderNambaCLIRootReadMoreSection(lang string) []string {
 		}
 	case "ja":
 		return []string{
-			"## さらに詳しく",
+			"## 📚 さらに詳しく",
 			"",
 			fmt.Sprintf("- [%s](%s): インストール、更新、アンインストール、init、初回フロー", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
 			fmt.Sprintf("- [%s](%s): update / regen / sync / pr / land の違い、run mode、生成物、協業ルール", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
@@ -1284,7 +1308,7 @@ func renderNambaCLIRootReadMoreSection(lang string) []string {
 		}
 	case "zh":
 		return []string{
-			"## 继续阅读",
+			"## 📚 继续阅读",
 			"",
 			fmt.Sprintf("- [%s](%s): 安装、更新、卸载、init 和首次运行流程", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
 			fmt.Sprintf("- [%s](%s): update / regen / sync / pr / land 的区别、run 模式、生成产物和协作默认值", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
@@ -1294,7 +1318,7 @@ func renderNambaCLIRootReadMoreSection(lang string) []string {
 		}
 	default:
 		return []string{
-			"## Need More Detail?",
+			"## 📚 Need More Detail?",
 			"",
 			fmt.Sprintf("- [%s](%s): installation, updates, uninstall, init, and first-run flow", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
 			fmt.Sprintf("- [%s](%s): update vs regen vs sync vs pr vs land, run modes, generated assets, and collaboration defaults", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
@@ -1309,41 +1333,45 @@ func renderNambaCLIRootTechnicalSnapshotSection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
 		return []string{
-			"## 기술 스냅샷",
+			"## 🧱 기술 스냅샷",
 			"",
 			"- `.namba/`에는 NambaAI가 기억해야 할 설정, 작업 계획, 프로젝트 문서가 들어갑니다.",
 			"- `.agents/skills/`에는 Codex가 바로 불러 쓸 수 있는 Namba 전용 안내서가 들어갑니다.",
 			"- `.codex/agents/*.toml`에는 Codex 안에서 역할을 나눠 맡길 custom agent 설정이 들어갑니다.",
+			"- Emoji density rule: section headings by default, selected lifecycle/caution bullets only when they add scan value, and no emoji inside command literals, language links, release/CI/security links, or shell snippets.",
 			"- `namba update`, `namba regen`, `namba sync`, `namba pr`, `namba land`는 이름은 비슷하지만 서로 다른 문제를 푸는 명령입니다. 헷갈리면 `$namba-coach`나 `$namba-help`로 먼저 물어보면 됩니다.",
 			"",
 		}
 	case "ja":
 		return []string{
-			"## 技術スナップショット",
+			"## 🧱 技術スナップショット",
 			"",
 			"- `.namba/` には、NambaAI が覚えておく設定、作業計画、プロジェクト文書が入ります。",
 			"- `.agents/skills/` には、Codex がすぐ呼び出せる Namba 専用ガイドが入ります。",
 			"- `.codex/agents/*.toml` には、Codex 内で役割を分ける custom agent 設定が入ります。",
+			"- Emoji density rule: section headings by default, selected lifecycle/caution bullets only when they add scan value, and no emoji inside command literals, language links, release/CI/security links, or shell snippets.",
 			"- `namba update`、`namba regen`、`namba sync`、`namba pr`、`namba land` は名前が似ていますが、別々の問題を解くコマンドです。迷ったら `$namba-coach` や `$namba-help` に先に聞けます。",
 			"",
 		}
 	case "zh":
 		return []string{
-			"## 技术概览",
+			"## 🧱 技术概览",
 			"",
 			"- `.namba/` 保存 NambaAI 需要记住的设置、工作计划和项目文档。",
 			"- `.agents/skills/` 保存 Codex 可以直接调用的 Namba 专用指南。",
 			"- `.codex/agents/*.toml` 保存 Codex 内部分工用的 custom agent 设置。",
+			"- Emoji density rule: section headings by default, selected lifecycle/caution bullets only when they add scan value, and no emoji inside command literals, language links, release/CI/security links, or shell snippets.",
 			"- `namba update`、`namba regen`、`namba sync`、`namba pr`、`namba land` 名字相近，但各自解决不同的问题。拿不准时可以先问 `$namba-coach` 或 `$namba-help`。",
 			"",
 		}
 	default:
 		return []string{
-			"## Technical Snapshot",
+			"## 🧱 Technical Snapshot",
 			"",
 			"- `.namba/` stores the settings, work plans, and project docs NambaAI needs to remember.",
 			"- `.agents/skills/` stores the Namba guides Codex can call directly.",
 			"- `.codex/agents/*.toml` stores the role-based custom agents Codex can use when work needs a specialist.",
+			"- Emoji density rule: section headings by default, selected lifecycle/caution bullets only when they add scan value, and no emoji inside command literals, language links, release/CI/security links, or shell snippets.",
 			"- `namba update`, `namba regen`, `namba sync`, `namba pr`, and `namba land` solve different problems and should not be mixed. Ask `$namba-coach` or `$namba-help` first when unsure.",
 			"",
 		}
@@ -1413,14 +1441,14 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 			renderRootLinkBar(),
 			"",
-			"## 어떤 명령을 써야 하나요?",
+			"## 🧭 어떤 명령을 써야 하나요?",
 			"",
 			"- `namba project`: 먼저 상황 파악이 필요할 때 씁니다. Codex가 저장소 구조와 문서를 다시 읽게 합니다.",
 			"- `namba plan`: 새 기능이나 제품 변경을 차근차근 진행할 계획으로 만들고 싶을 때 씁니다.",
 			"- `namba harness`: 재사용할 skill, agent, workflow 같은 Namba/Codex 구성요소를 계획할 때 씁니다.",
 			"- `namba fix`: 지금 보이는 버그를 바로 고치고 싶을 때 씁니다. 버그도 리뷰 가능한 계획으로 남기고 싶으면 `namba fix --command plan`을 씁니다.",
 			"",
-			"## NambaAI로 할 수 있는 일",
+			"## 🧰 NambaAI로 할 수 있는 일",
 			"",
 			"- 빈 폴더에서도 `namba init .` 한 번으로 Codex가 참고할 기본 안내문과 설정을 만들 수 있습니다.",
 			"- 어떤 명령을 써야 할지 애매하면 `$namba-coach`에게 현재 하고 싶은 일을 말하면 됩니다.",
@@ -1433,6 +1461,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
 		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)
 		lines = append(lines, renderNambaCLIRootSkillMappingSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCustomAgentsSection(lang)...)
@@ -1451,14 +1480,14 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 			renderRootLinkBar(),
 			"",
-			"## どのコマンドを使うべきですか?",
+			"## 🧭 どのコマンドを使うべきですか?",
 			"",
 			"- `namba project`: まず状況を把握したいときに使います。Codex がリポジトリ構造と文書を読み直します。",
 			"- `namba plan`: 新しい機能やプロダクト変更を、順番に進められる計画にしたいときに使います。",
 			"- `namba harness`: 再利用する skill、agent、workflow などの Namba/Codex 部品を計画したいときに使います。",
 			"- `namba fix`: 目の前のバグをすぐ直したいときに使います。バグ修正もレビュー可能な計画にしたい場合は `namba fix --command plan` を使います。",
 			"",
-			"## NambaAI でできること",
+			"## 🧰 NambaAI でできること",
 			"",
 			"- 空のフォルダでも `namba init .` だけで、Codex が参照する基本ガイドと設定を作れます。",
 			"- どのコマンドを使うべきか迷ったら、`$namba-coach` に今やりたいことを伝えます。",
@@ -1471,6 +1500,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
 		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)
 		lines = append(lines, renderNambaCLIRootSkillMappingSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCustomAgentsSection(lang)...)
@@ -1489,14 +1519,14 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 			renderRootLinkBar(),
 			"",
-			"## 应该使用哪个命令？",
+			"## 🧭 应该使用哪个命令？",
 			"",
 			"- `namba project`: 先了解情况时使用。它会让 Codex 重新读取仓库结构和文档。",
 			"- `namba plan`: 想添加功能或做产品变更，并希望有一份清楚计划时使用。",
 			"- `namba harness`: 想规划可复用的 skill、agent、workflow 等 Namba/Codex 组件时使用。",
 			"- `namba fix`: 想直接修复眼前的 bug 时使用。如果 bug 修复也需要评审计划，就用 `namba fix --command plan`。",
 			"",
-			"## 你可以用 NambaAI 做什么",
+			"## 🧰 你可以用 NambaAI 做什么",
 			"",
 			"- 即使是空文件夹，也可以用 `namba init .` 创建 Codex 可参考的基础说明和配置。",
 			"- 不确定该用哪个命令时，把当前想做的事告诉 `$namba-coach`。",
@@ -1509,6 +1539,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
 		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)
 		lines = append(lines, renderNambaCLIRootSkillMappingSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCustomAgentsSection(lang)...)
@@ -1527,14 +1558,14 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 			renderRootLinkBar(),
 			"",
-			"## Which Command Should I Use?",
+			"## 🧭 Which Command Should I Use?",
 			"",
 			"- `namba project`: start here when you need Codex to look around and refresh its notes about the repository.",
 			"- `namba plan`: use this when you want to add or change a feature and need a clear plan.",
 			"- `namba harness`: use this for reusable Namba/Codex building blocks such as skills, agents, or workflows.",
 			"- `namba fix`: use this when something is broken and you want to repair it now. Use `namba fix --command plan` when the fix should have a reviewable plan first.",
 			"",
-			"## What You Can Do With NambaAI",
+			"## 🧰 What You Can Do With NambaAI",
 			"",
 			"- Set up a repository from an empty folder with `namba init .`.",
 			"- Ask `$namba-coach` when you know what you want, but not which command to run.",
@@ -1547,6 +1578,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
 		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)
 		lines = append(lines, renderNambaCLIRootSkillMappingSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCustomAgentsSection(lang)...)
@@ -1847,6 +1879,8 @@ func renderManagedProjectRootCommandSkillsSection(lang string) []string {
 			"- `$namba-run`: execute the current SPEC package with the Namba run workflow.",
 			"- `$namba-sync`: refresh README bundles, project docs, codemaps, and PR-ready artifacts.",
 			"- `$namba-pr` / `$namba-land`: prepare GitHub review handoff, then merge safely after checks pass.",
+			"- `$namba-review-resolve`: inspect GitHub review threads, fix meaningful feedback, reply with validation evidence, resolve only addressed threads, and request review again.",
+			"- `$namba-release`: generate commit-based release notes and use the guarded Namba release path to tag and publish.",
 			"- `$namba-regen` / `$namba-update`: regenerate repo-local Codex assets or update the installed `namba` CLI.",
 			"",
 		}

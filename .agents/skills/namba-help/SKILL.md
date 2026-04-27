@@ -8,7 +8,7 @@ Use this skill when the user explicitly says `$namba-help`, asks how to use Namb
 Behavior:
 - Stay read-only. Do not mutate repository state, create a SPEC, run validators, or invoke workflow commands just to answer a usage question.
 - Prefer `.namba/` and generated repository docs as the primary source of truth: `README*.md`, `docs/getting-started*.md`, `docs/workflow-guide*.md`, `.namba/codex/README.md`, and relevant repo skills under `.agents/skills/`.
-- Explain the practical differences between `$namba-create`, `namba project`, `namba codex access`, `namba plan`, `namba harness`, `namba fix`, `namba run`, `namba sync`, `namba pr`, `namba land`, `namba regen`, `namba update`, and `namba doctor` when those distinctions matter to the user's goal.
+- Explain the practical differences between `$namba-create`, `namba project`, `namba codex access`, `namba plan`, `namba harness`, `namba fix`, `namba run`, `namba sync`, `namba pr`, `namba land`, `namba release`, `namba regen`, `namba update`, `$namba-review-resolve`, `$namba-release`, and `namba doctor` when those distinctions matter to the user's goal.
 - When the user describes an outcome, recommend the next Namba command or skill concretely instead of giving a vague taxonomy.
 - If the user asks about pre-implementation review flow, explain when to use `$namba-plan-review` versus the individual review skills.
 - Distinguish `$namba-create` from `namba plan` and `namba harness`: use create when the user wants repo-local skills or custom agents directly, and use plan or harness when the user needs a SPEC package first.

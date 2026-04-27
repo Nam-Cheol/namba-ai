@@ -74,7 +74,9 @@
 - `namba land`는 깨끗한 PR만 머지하고, 관련 없는 로컬 작업을 덮어쓰지 않은 채 `main`을 갱신합니다.
 - GitHub review 요청은 `@codex review`를 사용합니다.
 
-## 릴리스 흐름
+## 🚢 릴리스 흐름
 
+- `$namba-release`는 clean `main`, 검증, commit 기반 릴리스 노트, `.namba/releases/<version>.md` handoff를 확인한 뒤 릴리스를 진행하는 Codex-facing workflow입니다.
 - `namba release`는 `main`에서 clean working tree를 요구합니다.
 - `--push`는 새 태그와 `main`을 함께 push한 뒤 GitHub Release workflow를 트리거합니다.
+- GitHub Release body는 생성된 릴리스 노트를 사용하고, 기존 asset matrix와 `checksums.txt` publication은 유지됩니다.

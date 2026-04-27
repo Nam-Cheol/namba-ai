@@ -74,7 +74,9 @@
 - `namba land` 只合并 clean PR，并在不覆盖无关本地改动的前提下更新 `main`。
 - GitHub review request 使用 `@codex review`。
 
-## 发布流程
+## 🚢 发布流程
 
+- `$namba-release` 是 Codex-facing workflow，会先确认 clean `main`、validation、基于 commit 的 release notes，以及 `.namba/releases/<version>.md` handoff。
 - `namba release` 要求 `main` 上是 clean working tree。
 - `--push` 会同时 push 新 tag 和 `main`，然后触发 GitHub Release workflow。
+- GitHub Release body 使用生成的 release notes，并保留现有 asset matrix 和 `checksums.txt` publication。

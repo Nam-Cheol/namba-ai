@@ -95,6 +95,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v6
+
       - uses: actions/download-artifact@v8
         with:
           path: dist
@@ -114,5 +116,6 @@ jobs:
       - name: Publish release assets
         uses: softprops/action-gh-release@v2
         with:
+          body_path: .namba/releases/${{ github.ref_name }}.md
           files: |
             release/*

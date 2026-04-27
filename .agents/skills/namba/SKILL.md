@@ -3,7 +3,7 @@ name: namba
 description: Codex-native Namba command surface for SPEC orchestration inside a repository.
 ---
 
-Use this skill whenever the user mentions `namba`, `namba help`, `namba project`, `namba regen`, `namba update`, `namba codex access`, `namba plan`, `namba harness`, `namba fix`, `namba run`, `namba sync`, `namba pr`, `namba land`, `$namba-help`, `$namba-coach`, `$namba-create`, `$namba-plan-review`, or asks to use the Namba workflow.
+Use this skill whenever the user mentions `namba`, `namba help`, `namba project`, `namba regen`, `namba update`, `namba codex access`, `namba plan`, `namba harness`, `namba fix`, `namba run`, `namba sync`, `namba pr`, `namba land`, `namba release`, `$namba-help`, `$namba-coach`, `$namba-create`, `$namba-plan-review`, `$namba-review-resolve`, `$namba-release`, or asks to use the Namba workflow.
 
 Command mapping:
 - `$namba-help`: explain how to use NambaAI in this repository, which command or skill to use next, and where the authoritative docs live, without mutating repository state.
@@ -19,6 +19,8 @@ Command mapping:
 - `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: update product, engineering, or design review artifacts under `.namba/specs/<SPEC>/reviews/` and refresh advisory readiness.
 - `namba fix --command plan "<issue description>"`: create the next bugfix SPEC package under `.namba/specs/` through the same dedicated-branch planning contract.
 - `namba fix "<issue description>"` or `namba fix --command run "<issue description>"`: perform direct repair in the current workspace without creating a SPEC package.
+- `$namba-review-resolve`: resolve the target PR from the current branch when possible, inspect unresolved review threads with thread-aware GitHub state, classify meaningful versus non-actionable feedback, validate before replying or resolving, and avoid duplicating the configured review marker.
+- `$namba-release`: draft release notes from commits since the previous semver tag, write the notes to a durable per-version artifact, then hand off to the guarded `namba release --version <version> --push` path with a GitHub Release body that uses the generated notes.
 - `namba run SPEC-XXX`: execute the SPEC in the current Codex session. Read `spec.md`, `plan.md`, and `acceptance.md`, implement directly, validate, and sync artifacts.
 - `namba run SPEC-XXX --solo|--team|--parallel`: use the standalone CLI runner when you need explicit single-subagent, multi-subagent, or worktree-parallel execution semantics.
 - `namba sync`: refresh change summary, PR checklist, codemaps, advisory review readiness, and PR-ready docs after implementation.
@@ -29,8 +31,8 @@ Command mapping:
 Execution rules:
 1. Treat `.namba/` as the source of truth.
 2. Prefer repo-local skills in `.agents/skills/`.
-3. Prefer `$namba-coach` for read-only current-goal command coaching, prefer `$namba-help` for read-only usage guidance, and prefer command-entry skills such as `$namba-create`, `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-plan-review`, `$namba-harness`, `$namba-fix`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, `$namba-project`, and `$namba-sync` when the user is invoking one Namba command directly.
-4. Use the installed `namba` CLI for `project`, `regen`, `update`, `codex access`, `plan`, `harness`, `fix`, `pr`, `land`, and `sync` when it will update repo state more reliably or self-update the installed CLI directly.
+3. Prefer `$namba-coach` for read-only current-goal command coaching, prefer `$namba-help` for read-only usage guidance, and prefer command-entry skills such as `$namba-create`, `$namba-run`, `$namba-pr`, `$namba-land`, `$namba-release`, `$namba-plan`, `$namba-plan-review`, `$namba-harness`, `$namba-fix`, `$namba-review-resolve`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, `$namba-project`, and `$namba-sync` when the user is invoking one Namba command directly.
+4. Use the installed `namba` CLI for `project`, `regen`, `update`, `codex access`, `plan`, `harness`, `fix`, `pr`, `land`, `release`, and `sync` when it will update repo state more reliably or self-update the installed CLI directly.
 5. Keep `.namba/specs/<SPEC>/reviews/*.md` and `readiness.md` current when you use the plan-review workflow; the readiness summary is advisory unless the user explicitly asks for a gate.
 6. For `namba run` in an interactive Codex session, prefer Codex-native in-session execution over recursively calling `namba run`, unless the user explicitly asks for standalone `--solo`, `--team`, `--parallel`, or `--dry-run` behavior.
 7. Run validation commands from `.namba/config/sections/quality.yaml` before finishing.
