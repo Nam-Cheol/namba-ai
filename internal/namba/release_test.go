@@ -111,7 +111,7 @@ func TestReleaseNotesEnrichSingleSpecCommitFromAcceptanceDetails(t *testing.T) {
 	t.Parallel()
 
 	root := canonicalTempDir(t)
-	writeTestFile(t, filepath.Join(root, ".namba", "specs", "SPEC-041", "acceptance.md"), "# Acceptance\n\n## `$namba-release`\n\n- [x] Release notes expand single squash commits with SPEC acceptance details.\n- [x] Release notes preserve SPEC IDs and short commit hashes.\n- [x] Validation commands pass: `go test ./...` and `go vet ./...`.\n\n## `namba pr`\n\n- [x] PR handoff inspects GitHub checks before review request.\n- [x] PR handoff reports bounded failure snippets when checks fail.\n- [x] PR handoff confirms the configured review marker once.\n\n## Tests And Validation\n\n- [x] `go test ./...` passes.\n")
+	writeTestFile(t, filepath.Join(root, ".namba", "specs", "SPEC-041", "acceptance.md"), "# Acceptance\n\n## `$namba-release`\n\n- [x] Release notes expand single squash commits with SPEC acceptance details.\n- [ ] Release notes must not claim unfinished acceptance work as shipped.\n- [x] Release notes preserve SPEC IDs and short commit hashes.\n- [x] Validation commands pass: `go test ./...` and `go vet ./...`.\n\n## `namba pr`\n\n- [x] PR handoff inspects GitHub checks before review request.\n- [x] PR handoff reports bounded failure snippets when checks fail.\n- [x] PR handoff confirms the configured review marker once.\n\n## Tests And Validation\n\n- [x] `go test ./...` passes.\n")
 
 	commits := []releaseCommit{
 		{
@@ -133,7 +133,7 @@ func TestReleaseNotesEnrichSingleSpecCommitFromAcceptanceDetails(t *testing.T) {
 			t.Fatalf("release notes missing %q:\n%s", want, notes)
 		}
 	}
-	for _, unwanted := range []string{"Validation commands pass", "go test ./... passes"} {
+	for _, unwanted := range []string{"Validation commands pass", "go test ./... passes", "unfinished acceptance work"} {
 		if strings.Contains(notes, unwanted) {
 			t.Fatalf("release notes should omit validation-only detail %q:\n%s", unwanted, notes)
 		}

@@ -16,7 +16,7 @@ var releaseCommitPrefixPattern = regexp.MustCompile(`^(feat|fix|docs|chore|refac
 var releaseReferencePattern = regexp.MustCompile(`(?i)\bPR\s*#\d+\b|\bSPEC-\d+\b|#\d+\b`)
 var releaseSpecIDPattern = regexp.MustCompile(`(?i)\bSPEC-\d+\b`)
 var releaseBodyDetailPattern = regexp.MustCompile(`^\s*[-*]\s+(.+)$`)
-var releaseAcceptanceItemPattern = regexp.MustCompile(`^\s*-\s+\[[ xX]\]\s+(.+)$`)
+var releaseAcceptanceItemPattern = regexp.MustCompile(`^\s*-\s+\[[xX]\]\s+(.+)$`)
 
 const (
 	maxReleaseDetailsPerCommit  = 12
