@@ -23,7 +23,7 @@ func TestRunSyncWritesRunModeDocs(t *testing.T) {
 	}
 
 	readme := mustReadFile(t, filepath.Join(tmp, "README.md"))
-	for _, want := range []string{"`--solo` for a single runner in one workspace", "`--team` for same-workspace multi-agent execution", "`--parallel` for worktree fan-out/fan-in", "## Command Skills In Codex", "## Skill To Command Mapping", "## Custom Agents In Codex", "`$namba-help`", "`$namba-run`", "`$namba-harness`", "`$namba-plan-review`", "`$namba-sync`", "`$namba-pr`", "`$namba-regen`", "`$namba-plan-pm-review`", "`$namba-plan-eng-review`", "`$namba-plan-design-review`", "`namba-product-manager`", "`namba-plan-reviewer`", "`namba-mobile-engineer`", "`namba-designer`", "`namba-data-engineer`", "`namba-security-engineer`", "`namba harness \"description\"`", "`namba fix --command plan \"issue description\"`", "direct repair in the current workspace", "frontend-brief.md", "`frontend-major`"} {
+	for _, want := range []string{"`--solo` for a single runner in one workspace", "`--team` for same-workspace multi-agent execution", "`--parallel` for worktree fan-out/fan-in", "## Command Skills In Codex", "## 🗺️ Skill To Command Mapping", "## Custom Agents In Codex", "`$namba-help`", "`$namba-run`", "`$namba-harness`", "`$namba-plan-review`", "`$namba-review-resolve`", "`$namba-release`", "`$namba-sync`", "`$namba-pr`", "`$namba-regen`", "`$namba-plan-pm-review`", "`$namba-plan-eng-review`", "`$namba-plan-design-review`", "`namba-product-manager`", "`namba-plan-reviewer`", "`namba-mobile-engineer`", "`namba-designer`", "`namba-data-engineer`", "`namba-security-engineer`", "`namba harness \"description\"`", "`namba fix --command plan \"issue description\"`", "direct repair in the current workspace", "frontend-brief.md", "`frontend-major`"} {
 		if !strings.Contains(readme, want) {
 			t.Fatalf("expected README to contain %q, got %q", want, readme)
 		}
@@ -119,7 +119,7 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 	}{
 		{
 			lang:                    "en",
-			rootLifecycleHeading:    "## Install, Update, and Uninstall",
+			rootLifecycleHeading:    "## 📦 Install, Update, and Uninstall",
 			gettingStartedUpdate:    "## 2. Update",
 			gettingStartedUninstall: "## 3. Uninstall",
 			workflowModesHeading:    "## `namba run` modes",
@@ -127,7 +127,7 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 		},
 		{
 			lang:                    "ko",
-			rootLifecycleHeading:    "## 설치, 업데이트, 제거",
+			rootLifecycleHeading:    "## 📦 설치, 업데이트, 제거",
 			gettingStartedUpdate:    "## 2. 업데이트",
 			gettingStartedUninstall: "## 3. 제거",
 			workflowModesHeading:    "## `namba run` 모드",
@@ -135,7 +135,7 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 		},
 		{
 			lang:                    "ja",
-			rootLifecycleHeading:    "## インストール、アップデート、アンインストール",
+			rootLifecycleHeading:    "## 📦 インストール、アップデート、アンインストール",
 			gettingStartedUpdate:    "## 2. アップデート",
 			gettingStartedUninstall: "## 3. アンインストール",
 			workflowModesHeading:    "## `namba run` モード",
@@ -143,7 +143,7 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 		},
 		{
 			lang:                    "zh",
-			rootLifecycleHeading:    "## 安装、更新与卸载",
+			rootLifecycleHeading:    "## 📦 安装、更新与卸载",
 			gettingStartedUpdate:    "## 2. 更新",
 			gettingStartedUninstall: "## 3. 卸载",
 			workflowModesHeading:    "## `namba run` 模式",
@@ -159,6 +159,8 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 			"`$namba-run`",
 			"`$namba-harness`",
 			"`$namba-plan-review`",
+			"`$namba-review-resolve`",
+			"`$namba-release`",
 			"`$namba-update`",
 			"`namba-mobile-engineer`",
 			"`namba-plan-reviewer`",
@@ -582,7 +584,7 @@ func TestRenderManagedProjectRootWhatYouCanDoSectionFallbackToEnglish(t *testing
 
 func TestRenderManagedProjectRootEnglishCommandSurfaceHelpersPreserveAnchors(t *testing.T) {
 	commandSkills := strings.Join(renderManagedProjectRootCommandSkillsSection("en"), "\n")
-	for _, want := range []string{"## Command Skills In Codex", "`$namba-help`", "`$namba-plan-review`", "`$namba-update`", "right Namba entry point", "reviewable bugfix SPEC"} {
+	for _, want := range []string{"## Command Skills In Codex", "`$namba-help`", "`$namba-plan-review`", "`$namba-review-resolve`", "`$namba-release`", "`$namba-update`", "right Namba entry point", "reviewable bugfix SPEC"} {
 		if !strings.Contains(commandSkills, want) {
 			t.Fatalf("managed-project command-skills section missing %q: %q", want, commandSkills)
 		}
@@ -1138,28 +1140,28 @@ func TestRenderNambaCLIWorkflowGuideTailSectionHelpersPreserveLocalizedAnchors(t
 			prMergeHeading:       "## PR and merge flow",
 			assetsHeading:        "## Key generated assets",
 			collaborationHeading: "## Collaboration defaults",
-			releaseHeading:       "## Release flow",
+			releaseHeading:       "## 🚢 Release Flow",
 		},
 		{
 			lang:                 "ko",
 			prMergeHeading:       "## PR 및 머지 흐름",
 			assetsHeading:        "## 주요 생성 산출물",
 			collaborationHeading: "## 협업 기본값",
-			releaseHeading:       "## 릴리스 흐름",
+			releaseHeading:       "## 🚢 릴리스 흐름",
 		},
 		{
 			lang:                 "ja",
 			prMergeHeading:       "## PR とマージの流れ",
 			assetsHeading:        "## 主な生成物",
 			collaborationHeading: "## 協業の既定値",
-			releaseHeading:       "## リリースフロー",
+			releaseHeading:       "## 🚢 リリースフロー",
 		},
 		{
 			lang:                 "zh",
 			prMergeHeading:       "## PR 与合并流程",
 			assetsHeading:        "## 主要生成产物",
 			collaborationHeading: "## 协作默认值",
-			releaseHeading:       "## 发布流程",
+			releaseHeading:       "## 🚢 发布流程",
 		},
 	}
 
@@ -1186,7 +1188,7 @@ func TestRenderNambaCLIWorkflowGuideTailSectionHelpersPreserveLocalizedAnchors(t
 		}
 
 		release := strings.Join(renderNambaCLIWorkflowGuideReleaseFlowSection(tc.lang), "\n")
-		for _, want := range []string{tc.releaseHeading, "`namba release`", "`--push`"} {
+		for _, want := range []string{tc.releaseHeading, "`$namba-release`", "`namba release`", "`--push`", ".namba/releases/<version>.md", "`checksums.txt`"} {
 			if !strings.Contains(release, want) {
 				t.Fatalf("%s release section missing %q: %q", tc.lang, want, release)
 			}
@@ -1211,7 +1213,7 @@ func TestRenderNambaCLIWorkflowGuideTailSectionHelpersFallbackToEnglish(t *testi
 	}
 
 	release := strings.Join(renderNambaCLIWorkflowGuideReleaseFlowSection("fr"), "\n")
-	if !strings.Contains(release, "## Release flow") {
+	if !strings.Contains(release, "## 🚢 Release Flow") {
 		t.Fatalf("release section fallback missing English heading: %q", release)
 	}
 }
@@ -1229,7 +1231,7 @@ func TestRenderNambaCLIRootQuickStartSectionPreservesLocalizedAnchors(t *testing
 	}{
 		{
 			lang:              "en",
-			quickStartHeading: "## Quick Start",
+			quickStartHeading: "## 🚀 Quick Start",
 			installHeading:    "### 1. Install NambaAI",
 			windowsLabel:      "Windows:",
 			unixLabel:         "macOS / Linux:",
@@ -1239,7 +1241,7 @@ func TestRenderNambaCLIRootQuickStartSectionPreservesLocalizedAnchors(t *testing
 		},
 		{
 			lang:              "ko",
-			quickStartHeading: "## 빠른 시작",
+			quickStartHeading: "## 🚀 빠른 시작",
 			installHeading:    "### 1. NambaAI 설치",
 			windowsLabel:      "Windows:",
 			unixLabel:         "macOS / Linux:",
@@ -1249,7 +1251,7 @@ func TestRenderNambaCLIRootQuickStartSectionPreservesLocalizedAnchors(t *testing
 		},
 		{
 			lang:              "ja",
-			quickStartHeading: "## クイックスタート",
+			quickStartHeading: "## 🚀 クイックスタート",
 			installHeading:    "### 1. NambaAI をインストール",
 			windowsLabel:      "Windows:",
 			unixLabel:         "macOS / Linux:",
@@ -1259,7 +1261,7 @@ func TestRenderNambaCLIRootQuickStartSectionPreservesLocalizedAnchors(t *testing
 		},
 		{
 			lang:              "zh",
-			quickStartHeading: "## 快速开始",
+			quickStartHeading: "## 🚀 快速开始",
 			installHeading:    "### 1. 安装 NambaAI",
 			windowsLabel:      "Windows:",
 			unixLabel:         "macOS / Linux:",
@@ -1294,7 +1296,7 @@ func TestRenderNambaCLIRootQuickStartSectionPreservesLocalizedAnchors(t *testing
 
 func TestRenderNambaCLIRootQuickStartSectionFallbackToEnglish(t *testing.T) {
 	section := strings.Join(renderNambaCLIRootQuickStartSection("fr"), "\n")
-	for _, want := range []string{"## Quick Start", "### 1. Install NambaAI", "### 2. Bootstrap a new repository", "### 3. Start working from Codex"} {
+	for _, want := range []string{"## 🚀 Quick Start", "### 1. Install NambaAI", "### 2. Bootstrap a new repository", "### 3. Start working from Codex"} {
 		if !strings.Contains(section, want) {
 			t.Fatalf("quick-start section fallback missing %q: %q", want, section)
 		}
@@ -1338,40 +1340,40 @@ func TestRenderNambaCLIRootCommandSurfaceSectionHelpersPreserveLocalizedAnchors(
 	}{
 		{
 			lang:                 "en",
-			commandSkillsHeading: "## Command Skills In Codex",
-			skillMappingHeading:  "## Skill To Command Mapping",
-			customAgentsHeading:  "## Custom Agents In Codex",
+			commandSkillsHeading: "## 🧩 Command Skills In Codex",
+			skillMappingHeading:  "## 🗺️ Skill To Command Mapping",
+			customAgentsHeading:  "## 👥 Custom Agents In Codex",
 		},
 		{
 			lang:                 "ko",
-			commandSkillsHeading: "## Codex에서 쓰는 Command Skill",
-			skillMappingHeading:  "## Skill To Command Mapping",
-			customAgentsHeading:  "## Codex용 Custom Agents",
+			commandSkillsHeading: "## 🧩 Codex에서 쓰는 Command Skill",
+			skillMappingHeading:  "## 🗺️ Skill To Command Mapping",
+			customAgentsHeading:  "## 👥 Codex용 Custom Agents",
 		},
 		{
 			lang:                 "ja",
-			commandSkillsHeading: "## Codex で使う Command Skill",
-			skillMappingHeading:  "## Skill To Command Mapping",
-			customAgentsHeading:  "## Codex 用 Custom Agents",
+			commandSkillsHeading: "## 🧩 Codex で使う Command Skill",
+			skillMappingHeading:  "## 🗺️ Skill To Command Mapping",
+			customAgentsHeading:  "## 👥 Codex 用 Custom Agents",
 		},
 		{
 			lang:                 "zh",
-			commandSkillsHeading: "## Codex 中的 Command Skill",
-			skillMappingHeading:  "## Skill To Command Mapping",
-			customAgentsHeading:  "## Codex 自定义 Agents",
+			commandSkillsHeading: "## 🧩 Codex 中的 Command Skill",
+			skillMappingHeading:  "## 🗺️ Skill To Command Mapping",
+			customAgentsHeading:  "## 👥 Codex 自定义 Agents",
 		},
 	}
 
 	for _, tc := range cases {
 		commandSkills := strings.Join(renderNambaCLIRootCommandSkillsSection(tc.lang), "\n")
-		for _, want := range []string{tc.commandSkillsHeading, "`$namba-help`", "`$namba-run`", "`$namba-plan-review`", "`$namba-update`"} {
+		for _, want := range []string{tc.commandSkillsHeading, "`$namba-help`", "`$namba-run`", "`$namba-plan-review`", "`$namba-review-resolve`", "`$namba-release`", "`$namba-update`"} {
 			if !strings.Contains(commandSkills, want) {
 				t.Fatalf("%s command-skills section missing %q: %q", tc.lang, want, commandSkills)
 			}
 		}
 
 		mapping := strings.Join(renderNambaCLIRootSkillMappingSection(tc.lang), "\n")
-		for _, want := range []string{tc.skillMappingHeading, "`$namba-project` -> `namba project`", "`$namba-run` -> `namba run SPEC-XXX`", "`$namba-update` -> `namba update [--version vX.Y.Z]`"} {
+		for _, want := range []string{tc.skillMappingHeading, "`$namba-project` -> `namba project`", "`$namba-run` -> `namba run SPEC-XXX`", "`$namba-review-resolve`", "`$namba-release`", "`$namba-update` -> `namba update [--version vX.Y.Z]`"} {
 			if !strings.Contains(mapping, want) {
 				t.Fatalf("%s skill-mapping section missing %q: %q", tc.lang, want, mapping)
 			}
@@ -1388,17 +1390,17 @@ func TestRenderNambaCLIRootCommandSurfaceSectionHelpersPreserveLocalizedAnchors(
 
 func TestRenderNambaCLIRootCommandSurfaceSectionHelpersFallbackToEnglish(t *testing.T) {
 	commandSkills := strings.Join(renderNambaCLIRootCommandSkillsSection("fr"), "\n")
-	if !strings.Contains(commandSkills, "## Command Skills In Codex") {
+	if !strings.Contains(commandSkills, "## 🧩 Command Skills In Codex") {
 		t.Fatalf("command-skills section fallback missing English heading: %q", commandSkills)
 	}
 
 	mapping := strings.Join(renderNambaCLIRootSkillMappingSection("fr"), "\n")
-	if !strings.Contains(mapping, "## Skill To Command Mapping") {
+	if !strings.Contains(mapping, "## 🗺️ Skill To Command Mapping") {
 		t.Fatalf("skill-mapping section fallback missing English heading: %q", mapping)
 	}
 
 	customAgents := strings.Join(renderNambaCLIRootCustomAgentsSection("fr"), "\n")
-	if !strings.Contains(customAgents, "## Custom Agents In Codex") {
+	if !strings.Contains(customAgents, "## 👥 Custom Agents In Codex") {
 		t.Fatalf("custom-agents section fallback missing English heading: %q", customAgents)
 	}
 }
@@ -1413,29 +1415,29 @@ func TestRenderNambaCLIRootTailSectionHelpersPreserveLocalizedAnchors(t *testing
 	}{
 		{
 			lang:                      "en",
-			readMoreHeading:           "## Need More Detail?",
-			technicalSnapshotHeading:  "## Technical Snapshot",
+			readMoreHeading:           "## 📚 Need More Detail?",
+			technicalSnapshotHeading:  "## 🧱 Technical Snapshot",
 			workflowGuideNeedle:       "generated assets, and collaboration defaults",
 			technicalSnapshotLangNeed: "solve different problems and should not be mixed",
 		},
 		{
 			lang:                      "ko",
-			readMoreHeading:           "## 더 읽기",
-			technicalSnapshotHeading:  "## 기술 스냅샷",
+			readMoreHeading:           "## 📚 더 읽기",
+			technicalSnapshotHeading:  "## 🧱 기술 스냅샷",
 			workflowGuideNeedle:       "생성 산출물, 협업 기본값",
 			technicalSnapshotLangNeed: "서로 다른 문제를 푸는 명령",
 		},
 		{
 			lang:                      "ja",
-			readMoreHeading:           "## さらに詳しく",
-			technicalSnapshotHeading:  "## 技術スナップショット",
+			readMoreHeading:           "## 📚 さらに詳しく",
+			technicalSnapshotHeading:  "## 🧱 技術スナップショット",
 			workflowGuideNeedle:       "生成物、協業ルール",
 			technicalSnapshotLangNeed: "別々の問題を解くコマンド",
 		},
 		{
 			lang:                      "zh",
-			readMoreHeading:           "## 继续阅读",
-			technicalSnapshotHeading:  "## 技术概览",
+			readMoreHeading:           "## 📚 继续阅读",
+			technicalSnapshotHeading:  "## 🧱 技术概览",
 			workflowGuideNeedle:       "生成产物和协作默认值",
 			technicalSnapshotLangNeed: "各自解决不同的问题",
 		},
@@ -1450,7 +1452,7 @@ func TestRenderNambaCLIRootTailSectionHelpersPreserveLocalizedAnchors(t *testing
 		}
 
 		technicalSnapshot := strings.Join(renderNambaCLIRootTechnicalSnapshotSection(tc.lang), "\n")
-		for _, want := range []string{tc.technicalSnapshotHeading, ".namba/", ".agents/skills/", ".codex/agents/*.toml", tc.technicalSnapshotLangNeed, "namba update", "namba regen", "namba sync", "namba pr", "namba land"} {
+		for _, want := range []string{tc.technicalSnapshotHeading, ".namba/", ".agents/skills/", ".codex/agents/*.toml", "Emoji density rule", tc.technicalSnapshotLangNeed, "namba update", "namba regen", "namba sync", "namba pr", "namba land"} {
 			if !strings.Contains(technicalSnapshot, want) {
 				t.Fatalf("%s technical-snapshot section missing %q: %q", tc.lang, want, technicalSnapshot)
 			}
@@ -1460,14 +1462,14 @@ func TestRenderNambaCLIRootTailSectionHelpersPreserveLocalizedAnchors(t *testing
 
 func TestRenderNambaCLIRootTailSectionHelpersFallbackToEnglish(t *testing.T) {
 	readMore := strings.Join(renderNambaCLIRootReadMoreSection("fr"), "\n")
-	for _, want := range []string{"## Need More Detail?", "installation, updates, uninstall, init, and first-run flow", "SECURITY.md"} {
+	for _, want := range []string{"## 📚 Need More Detail?", "installation, updates, uninstall, init, and first-run flow", "SECURITY.md"} {
 		if !strings.Contains(readMore, want) {
 			t.Fatalf("read-more section fallback missing %q: %q", want, readMore)
 		}
 	}
 
 	technicalSnapshot := strings.Join(renderNambaCLIRootTechnicalSnapshotSection("fr"), "\n")
-	for _, want := range []string{"## Technical Snapshot", ".namba/", ".agents/skills/", ".codex/agents/*.toml", "solve different problems and should not be mixed"} {
+	for _, want := range []string{"## 🧱 Technical Snapshot", ".namba/", ".agents/skills/", ".codex/agents/*.toml", "Emoji density rule", "solve different problems and should not be mixed"} {
 		if !strings.Contains(technicalSnapshot, want) {
 			t.Fatalf("technical-snapshot section fallback missing %q: %q", want, technicalSnapshot)
 		}

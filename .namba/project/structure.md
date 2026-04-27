@@ -19,6 +19,8 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .agents/skills/namba-pr/SKILL.md
 .agents/skills/namba-project/SKILL.md
 .agents/skills/namba-regen/SKILL.md
+.agents/skills/namba-release/SKILL.md
+.agents/skills/namba-review-resolve/SKILL.md
 .agents/skills/namba-run/SKILL.md
 .agents/skills/namba-sync/SKILL.md
 .agents/skills/namba-update/SKILL.md
@@ -302,6 +304,13 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-038/reviews/product.md
 .namba/specs/SPEC-038/reviews/readiness.md
 .namba/specs/SPEC-038/spec.md
+.namba/specs/SPEC-039/acceptance.md
+.namba/specs/SPEC-039/plan.md
+.namba/specs/SPEC-039/reviews/design.md
+.namba/specs/SPEC-039/reviews/engineering.md
+.namba/specs/SPEC-039/reviews/product.md
+.namba/specs/SPEC-039/reviews/readiness.md
+.namba/specs/SPEC-039/spec.md
 AGENTS.md
 README.ja.md
 README.ko.md

@@ -74,7 +74,9 @@
 - `namba land` merges only clean PRs and updates local `main` without clobbering unrelated work.
 - GitHub review requests use `@codex review`.
 
-## Release flow
+## 🚢 Release Flow
 
+- `$namba-release` is the Codex-facing workflow that checks clean `main`, validation, commit-based release notes, and the `.namba/releases/<version>.md` handoff before release.
 - `namba release` requires a clean working tree on `main`.
 - `--push` pushes both the new tag and `main`, then triggers the GitHub Release workflow.
+- The GitHub Release body uses generated release notes while preserving the existing asset matrix and `checksums.txt` publication.

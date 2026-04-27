@@ -161,7 +161,7 @@ func TestBuildSyncProjectSupportOutputsIncludesManagedDocSet(t *testing.T) {
 	if !strings.Contains(outputs[filepath.ToSlash(filepath.Join(projectDir, "pr-checklist.md"))], "`@codex review` review request is present on GitHub") {
 		t.Fatalf("expected pr-checklist output to include Codex review marker, got %q", outputs[filepath.ToSlash(filepath.Join(projectDir, "pr-checklist.md"))])
 	}
-	if !strings.Contains(outputs[filepath.ToSlash(filepath.Join(projectDir, "release-notes.md"))], "## Release Commands") || !strings.Contains(outputs[filepath.ToSlash(filepath.Join(projectDir, "release-notes.md"))], "`checksums.txt`") {
+	if !strings.Contains(outputs[filepath.ToSlash(filepath.Join(projectDir, "release-notes.md"))], "## Release Commands") || !strings.Contains(outputs[filepath.ToSlash(filepath.Join(projectDir, "release-notes.md"))], "`checksums.txt`") || !strings.Contains(outputs[filepath.ToSlash(filepath.Join(projectDir, "release-notes.md"))], "`$namba-release`") {
 		t.Fatalf("expected release-notes output to include command and asset sections, got %q", outputs[filepath.ToSlash(filepath.Join(projectDir, "release-notes.md"))])
 	}
 	if !strings.Contains(outputs[filepath.ToSlash(filepath.Join(projectDir, "pr-checklist.md"))], "Latest SPEC review readiness checked") {
@@ -447,6 +447,20 @@ func TestReleaseNotesExpectedAssetsSectionIncludesChecksums(t *testing.T) {
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected expected-assets section to contain %q, got %q", want, got)
+		}
+	}
+}
+
+func TestReleaseNotesGuardrailsIncludeGeneratedNotesHandoff(t *testing.T) {
+	got := strings.Join(releaseNotesGuardrailsSection(), "\n")
+
+	for _, want := range []string{
+		"## Release Guardrails",
+		"`.namba/releases/<version>.md`",
+		"GitHub Release workflow uses that file as the release body",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected release guardrails to contain %q, got %q", want, got)
 		}
 	}
 }

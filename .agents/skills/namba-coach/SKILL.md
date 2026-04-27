@@ -24,6 +24,8 @@ Routing rules:
 - Direct repo-local skill or custom-agent creation: `$namba-create`
 - Bug repair: `namba fix "<issue>"`
 - Reviewable bugfix SPEC: `namba fix --command plan "<issue>"`
+- Review-thread cleanup and reply/resolve loop: `$namba-review-resolve`
+- NambaAI release orchestration and release-note handoff: `$namba-release`
 - Existing SPEC execution: `namba run SPEC-XXX`
 - Usage or onboarding explanation: `$namba-help`
 - Implementation finished and artifacts need refresh: `namba sync`

@@ -22,8 +22,12 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 
 	rootReadme := outputs[readmePath("en")]
 	for _, want := range []string{
-		"## Which Command Should I Use?",
-		"## What You Can Do With NambaAI",
+		"## 🧭 Which Command Should I Use?",
+		"## 🧰 What You Can Do With NambaAI",
+		"## 🚀 Quick Start",
+		"## 🚢 Release Flow",
+		"## 🧩 Command Skills In Codex",
+		"## 🧱 Technical Snapshot",
 		"`namba project`",
 		"`namba plan`",
 		"`namba harness`",
@@ -47,8 +51,11 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		"`$namba-sync`",
 		"`$namba-pr`",
 		"`$namba-land`",
+		"`$namba-review-resolve`",
+		"`$namba-release`",
 		"`$namba-regen`",
 		"`$namba-update`",
+		"Emoji density rule",
 		"`namba-frontend-architect`",
 		"`Redesign this landing page hero so it stops looking generic`",
 	} {
@@ -66,6 +73,7 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		"## Role routing",
 		"## Review readiness",
 		"## PR and merge flow",
+		"## 🚢 Release Flow",
 		"`namba project`",
 		"`$namba-coach`",
 		"`$namba-create`: use the preview-first creation flow",
@@ -84,6 +92,7 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		"`namba-reviewer`",
 		"`$namba-help`",
 		"`$namba-plan-review`",
+		"`$namba-release`",
 		"`Redesign the hero so it stops looking generic`",
 		"`Plan the component boundaries for this dashboard`",
 		"`Implement the approved dashboard filters`",
@@ -113,6 +122,8 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 			"`namba pr`",
 			"`namba land`",
 			"## 🪝 Hook Runtime",
+			"`$namba-review-resolve`",
+			"`$namba-release`",
 			"`.namba/hooks.toml`",
 		} {
 			assertContains(t, readme, want, fmt.Sprintf("%s README", lang))

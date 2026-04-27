@@ -1,6 +1,12 @@
 package namba
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+)
 
 func TestReleaseAssetName(t *testing.T) {
 	t.Parallel()
@@ -69,5 +75,55 @@ func TestReleaseAssetName(t *testing.T) {
 				t.Fatalf("releaseAssetName(%q, %q) = %q, want %q", tt.goos, tt.goarch, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestReleaseNotesPath(t *testing.T) {
+	t.Parallel()
+
+	if got, want := releaseNotesPath("v1.2.3"), ".namba/releases/v1.2.3.md"; got != want {
+		t.Fatalf("releaseNotesPath() = %q, want %q", got, want)
+	}
+}
+
+func TestWriteReleaseNotesUsesProjectRoot(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path, err := writeReleaseNotes(root, "v1.2.3", "# notes")
+	if err != nil {
+		t.Fatalf("writeReleaseNotes returned error: %v", err)
+	}
+	if path != ".namba/releases/v1.2.3.md" {
+		t.Fatalf("writeReleaseNotes path = %q", path)
+	}
+
+	content, err := os.ReadFile(filepath.Join(root, ".namba", "releases", "v1.2.3.md"))
+	if err != nil {
+		t.Fatalf("read written release notes: %v", err)
+	}
+	if string(content) != "# notes\n" {
+		t.Fatalf("release notes content = %q", content)
+	}
+}
+
+func TestReleaseWorkflowUsesNotesBodyPath(t *testing.T) {
+	t.Parallel()
+
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve test file path")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	workflow, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "release.yml"))
+	if err != nil {
+		t.Fatalf("read release workflow: %v", err)
+	}
+
+	if !strings.Contains(string(workflow), "body_path: .namba/releases/${{ github.ref_name }}.md") {
+		t.Fatalf("expected release workflow to publish notes body path, got:\n%s", workflow)
+	}
+	if strings.Count(string(workflow), "actions/checkout@v6") < 2 {
+		t.Fatalf("expected release workflow publish job to checkout notes artifact before body_path, got:\n%s", workflow)
 	}
 }
