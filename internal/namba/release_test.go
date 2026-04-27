@@ -107,6 +107,64 @@ func TestWriteReleaseNotesUsesProjectRoot(t *testing.T) {
 	}
 }
 
+func TestReleaseNotesEnrichSingleSpecCommitFromAcceptanceDetails(t *testing.T) {
+	t.Parallel()
+
+	root := canonicalTempDir(t)
+	writeTestFile(t, filepath.Join(root, ".namba", "specs", "SPEC-041", "acceptance.md"), "# Acceptance\n\n## `$namba-release`\n\n- [x] Release notes expand single squash commits with SPEC acceptance details.\n- [x] Release notes preserve SPEC IDs and short commit hashes.\n- [x] Validation commands pass: `go test ./...` and `go vet ./...`.\n\n## `namba pr`\n\n- [x] PR handoff inspects GitHub checks before review request.\n- [x] PR handoff reports bounded failure snippets when checks fail.\n- [x] PR handoff confirms the configured review marker once.\n\n## Tests And Validation\n\n- [x] `go test ./...` passes.\n")
+
+	commits := []releaseCommit{
+		{
+			ShortHash: "abcdef0",
+			Subject:   "SPEC-041 릴리스 노트 상세화",
+			Category:  releaseNoteCategoryDocs,
+			Refs:      []string{"SPEC-041"},
+		},
+	}
+
+	notes := renderReleaseNotes("v0.5.6", "v0.5.5", enrichReleaseCommitsWithSpecDetails(root, commits))
+	for _, want := range []string{
+		"- SPEC-041 릴리스 노트 상세화 (SPEC-041, abcdef0)",
+		"  - `$namba-release`: Release notes expand single squash commits with SPEC acceptance details.",
+		"  - `namba pr`: PR handoff inspects GitHub checks before review request.",
+		"  - `namba pr`: PR handoff confirms the configured review marker once.",
+	} {
+		if !strings.Contains(notes, want) {
+			t.Fatalf("release notes missing %q:\n%s", want, notes)
+		}
+	}
+	for _, unwanted := range []string{"Validation commands pass", "go test ./... passes"} {
+		if strings.Contains(notes, unwanted) {
+			t.Fatalf("release notes should omit validation-only detail %q:\n%s", unwanted, notes)
+		}
+	}
+}
+
+func TestReleaseNotesEnrichCommitBodyBullets(t *testing.T) {
+	t.Parallel()
+
+	commits := []releaseCommit{
+		{
+			ShortHash: "1234567",
+			Subject:   "fix: release body handoff",
+			Body:      "- Preserve the generated GitHub Release body.\n- Avoid publishing a generic one-line summary.\nPR #42\n",
+			Category:  releaseNoteCategoryFixes,
+			Refs:      []string{"PR #42"},
+		},
+	}
+
+	notes := renderReleaseNotes("v0.5.6", "v0.5.5", enrichReleaseCommitsWithSpecDetails("", commits))
+	for _, want := range []string{
+		"- release body handoff (PR #42, 1234567)",
+		"  - Preserve the generated GitHub Release body.",
+		"  - Avoid publishing a generic one-line summary.",
+	} {
+		if !strings.Contains(notes, want) {
+			t.Fatalf("release notes missing %q:\n%s", want, notes)
+		}
+	}
+}
+
 func TestReleaseWorkflowUsesNotesBodyPath(t *testing.T) {
 	t.Parallel()
 
