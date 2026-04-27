@@ -7,6 +7,7 @@ Use this skill when the user explicitly says `$namba-create` or asks to create a
 
 Behavior:
 - Keep this flow skill-first. Do not introduce a documented public `namba create` Go CLI command as part of this slice.
+- Use progressive disclosure for generated guidance: keep `SKILL.md` bodies lean and place long procedures in references, assets, or deterministic helper candidates. Do not add `$CODEX_HOME/skills`, third-party install flows, or app-automation dependencies.
 - When the installed `namba` CLI is available, use the internal adapter `namba __create preview` and `namba __create apply` with JSON stdin/stdout as the durable generation path. Treat `__create` as wrapper-only plumbing, not a public command.
 - Run the interaction as a staged generator: `unresolved` -> `narrowed` -> `confirmed`.
 - Keep each turn stateful and visible: summarize the current candidate target and the remaining unresolved items before asking the next clarifying question.

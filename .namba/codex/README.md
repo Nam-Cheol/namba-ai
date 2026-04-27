@@ -25,18 +25,18 @@
 - `$namba-help` explains how to use NambaAI, which command to choose next, and where the authoritative docs live. It should stay read-only.
 - `$namba-coach` clarifies the user's current goal, corrects clearly wrong command choices, and hands off to exactly one primary Namba workflow invocation. It should stay read-only.
 - `$namba-create` is the preview-first creation path for repo-local skills and custom agents. Use it when the user wants `.agents/skills/*` or `.codex/agents/*` outputs directly instead of a SPEC package.
-- `$namba-review-resolve` resolves GitHub review threads one by one: discover unresolved thread state with a thread-aware GitHub path, classify meaningful feedback versus non-actionable remarks, validate before replying or resolving, and request review again only after the meaningful items are handled.
+- `$namba-review-resolve` resolves GitHub review threads one by one: discover unresolved thread state with a thread-aware GitHub path, classify meaningful feedback versus non-actionable remarks, reply on original threads with validation plus relevant CI/check evidence, and request review again only after the meaningful items are handled.
 - `$namba-release` handles NambaAI release orchestration: collect commits since the previous semver tag, draft release notes into a durable per-version artifact, and hand the release off through the guarded `namba release --version <version> --push` path.
 - `namba project` refreshes current repository docs and codemaps without creating a SPEC package.
 - `namba codex access` inspects the current repo-owned Codex access defaults and mutates them only when explicit approval_policy / sandbox_mode flags are present.
 - `namba regen` regenerates `AGENTS.md`, repo skills under `.agents/skills/`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.
 - `namba update` self-updates the installed `namba` binary from GitHub Release assets. Use `--version vX.Y.Z` for a specific release.
 - `namba plan "<description>"` creates the next feature SPEC package plus review scaffolds.
-- `namba harness "<description>"` creates the next harness-oriented SPEC package plus review scaffolds while staying inside the standard `SPEC-XXX` model.
+- `namba harness "<description>"` creates the next harness-oriented SPEC package plus review scaffolds while staying inside the standard `SPEC-XXX` model; harness/MCP plans should favor workflow-first design, bounded outputs, actionable errors, and stable read-only evaluations.
 - `namba fix --command plan "<issue description>"` creates the next bugfix SPEC package plus review scaffolds.
 - `namba fix "<issue description>"` and `namba fix --command run "<issue description>"` are the direct-repair paths in the current workspace. They should stay read-only for help/probe flows, avoid implicit SPEC creation, and finish with validation plus `namba sync`.
 - `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, codemaps, and advisory review readiness summaries.
-- `namba pr` prepares the current branch for GitHub review by syncing, validating, committing, pushing, opening or reusing the PR, and ensuring the Codex review marker is present.
+- `namba pr` prepares the current branch for GitHub review by syncing, validating, inspecting PR checks, summarizing bounded GitHub Actions failure snippets when checks fail, committing, pushing, opening or reusing the PR, and ensuring the Codex review marker is present exactly once.
 - `namba land` waits for checks when requested, merges a clean PR, and updates local `main` safely.
 - `namba release` requires a clean `main` branch and passing validators before it creates a tag. `--push` pushes both `main` and the new tag.
 - `namba run SPEC-XXX` keeps the standard standalone Codex flow when you use the CLI runner without extra mode flags, but explicit `frontend-major` work now reads `frontend-brief.md` as a canonical gate before coding.

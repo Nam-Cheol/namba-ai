@@ -13,8 +13,9 @@ Execution pattern:
 5. Read `.namba/specs/<SPEC>/frontend-brief.md` when present and treat it as the canonical frontend gate contract
 6. If the SPEC is explicitly `frontend-major`, stop and route back to research/synthesis when the frontend gate is incomplete, invalid, or contradicted by design-review summaries
 7. Implement the work directly in the current Codex session
-8. Run configured validation commands
-9. Summarize results in `.namba/logs` and sync artifacts
+8. For browser-rendered frontend changes, use managed server lifecycle, inspect rendered DOM state, capture screenshots, record console errors, and prefer Playwright checks when practical
+9. Run configured validation commands
+10. Summarize results in `.namba/logs` and sync artifacts
 
 Collaboration defaults: use a dedicated branch from `main` for the SPEC, open the PR into `main`, write the PR in Korean, and request `@codex review` on GitHub after the PR is open.
 

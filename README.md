@@ -114,8 +114,8 @@ continue_on_failure = false
 - `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: use when a SPEC needs product, engineering, or design review artifacts plus an updated advisory readiness summary.
 - `$namba-run`: use when you want to execute an existing SPEC package through the Namba workflow in the current Codex session.
 - `$namba-sync`: use when you need README bundles, project docs, codemaps, and PR-ready artifacts refreshed.
-- `$namba-pr` / `$namba-land`: use when you are ready to hand off the current branch for GitHub review and then merge it safely after checks pass.
-- `$namba-review-resolve`: use when you need PR review threads inspected, meaningful feedback fixed, original threads answered and resolved, validation evidence recorded, and review requested again.
+- `$namba-pr` / `$namba-land`: use when you are ready to hand off the current branch for GitHub review, inspect PR checks, and then merge it safely after checks pass.
+- `$namba-review-resolve`: use when you need PR review threads inspected, meaningful feedback fixed, original threads answered and resolved, validation plus relevant CI/check evidence recorded, and review requested again.
 - `$namba-release`: use when you need commit-based release notes drafted before the guarded Namba release path tags and publishes the GitHub Release.
 - `$namba-regen` / `$namba-update`: use when you need repo-local Codex assets regenerated or the installed `namba` CLI updated.
 

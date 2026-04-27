@@ -25,7 +25,7 @@ When the user references `namba`, `namba help`, `namba project`, `namba regen`, 
 9. Run `namba pr "<title>"` to prepare the GitHub review handoff.
 10. Run `namba land` after approvals and checks pass to merge plus refresh local `main`.
 
-11. Use `$namba-review-resolve` after GitHub review feedback arrives: inspect thread-aware GitHub state, fix meaningful comments, reply on the original threads with validation evidence, resolve only addressed threads, and request review again without duplicating the configured marker.
+11. Use `$namba-review-resolve` after GitHub review feedback arrives: inspect thread-aware GitHub state, fix meaningful comments, reply on the original threads with validation and CI/check evidence when relevant, resolve only addressed threads, and request review again without duplicating the configured marker.
 12. Use `$namba-release` for NambaAI release-note handoff and release orchestration: start from clean `main`, generate commit-based notes, write `.namba/releases/<version>.md`, validate, then use the guarded `namba release` path.
 
 ## Collaboration Policy
