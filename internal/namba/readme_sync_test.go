@@ -166,6 +166,7 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 			"`namba-plan-reviewer`",
 			"`namba-security-engineer`",
 			"`namba update --version vX.Y.Z`",
+			"`codex update`",
 			"namba pr",
 			"namba land",
 			nambaWindowsBinaryPath,
@@ -182,6 +183,7 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 			tc.gettingStartedUninstall,
 			"`namba update`",
 			"`namba update --version vX.Y.Z`",
+			"`codex update`",
 			"`namba codex access`",
 			"`NAMBA_INSTALL_DIR`",
 			"namba pr",
@@ -209,6 +211,7 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 			"`$namba-plan-eng-review`",
 			"`namba pr`",
 			"`namba land`",
+			"`codex update`",
 		} {
 			if !strings.Contains(workflowGuide, want) {
 				t.Fatalf("%s workflow guide missing %q: %q", tc.lang, want, workflowGuide)
@@ -220,6 +223,8 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 				"`namba run SPEC-XXX --solo`: a single runner in one workspace.",
 				"`namba run SPEC-XXX --team`: same-workspace multi-agent execution.",
 				"`namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.",
+				"Codex subagent threads are controlled by `.codex/config.toml [agents].max_threads = 5`; Namba worktree workers stay separate at `.namba/config/sections/workflow.yaml max_parallel_workers: 3`.",
+				"Persisted Codex `/goal` workflows are a future orchestration candidate, not a required Namba runtime dependency.",
 				"fresh Codex session",
 			} {
 				if !strings.Contains(workflowGuide, want) {
@@ -739,36 +744,41 @@ func TestRenderManagedProjectWorkflowGuideRunModesSectionPreservesLocalizedAncho
 		heading    string
 		teamLine   string
 		parallelLn string
+		workerLine string
 	}{
 		{
 			lang:       "en",
 			heading:    "## Run modes",
 			teamLine:   "- `namba run SPEC-XXX --team`: same-workspace multi-agent execution.",
 			parallelLn: "- `namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.",
+			workerLine: "Codex subagent threads are controlled by `.codex/config.toml [agents].max_threads = 5`; Namba worktree workers stay separate at `.namba/config/sections/workflow.yaml max_parallel_workers: 3`.",
 		},
 		{
 			lang:       "ko",
 			heading:    "## Run 모드",
 			teamLine:   "- `namba run SPEC-XXX --team`: 같은 workspace의 멀티에이전트 실행입니다.",
 			parallelLn: "- `namba run SPEC-XXX --parallel`: Codex subagent orchestration이 아니라 Namba-managed git worktree fan-out/fan-in 입니다.",
+			workerLine: "Codex subagent threads는 `.codex/config.toml [agents].max_threads = 5`, Namba worktree workers는 `.namba/config/sections/workflow.yaml max_parallel_workers: 3`로 따로 관리합니다.",
 		},
 		{
 			lang:       "ja",
 			heading:    "## Run モード",
 			teamLine:   "- `namba run SPEC-XXX --team`: 同じ workspace の multi-agent execution です。",
 			parallelLn: "- `namba run SPEC-XXX --parallel`: Codex subagent orchestration ではなく、Namba-managed git worktree fan-out/fan-in です。",
+			workerLine: "Codex subagent threads は `.codex/config.toml [agents].max_threads = 5`、Namba worktree workers は `.namba/config/sections/workflow.yaml max_parallel_workers: 3` で別々に管理します。",
 		},
 		{
 			lang:       "zh",
 			heading:    "## Run 模式",
 			teamLine:   "- `namba run SPEC-XXX --team`: 同一 workspace 内的 multi-agent execution。",
 			parallelLn: "- `namba run SPEC-XXX --parallel`: 这不是 Codex subagent orchestration，而是 Namba-managed git worktree fan-out/fan-in。",
+			workerLine: "Codex subagent threads 由 `.codex/config.toml [agents].max_threads = 5` 管理，Namba worktree workers 由 `.namba/config/sections/workflow.yaml max_parallel_workers: 3` 分开管理。",
 		},
 	}
 
 	for _, tc := range cases {
 		section := strings.Join(renderManagedProjectWorkflowGuideRunModesSection(tc.lang), "\n")
-		for _, want := range []string{tc.heading, "- `namba run SPEC-XXX`: ", "- `namba run SPEC-XXX --solo`: ", tc.teamLine, tc.parallelLn} {
+		for _, want := range []string{tc.heading, "- `namba run SPEC-XXX`: ", "- `namba run SPEC-XXX --solo`: ", tc.teamLine, tc.parallelLn, tc.workerLine} {
 			if !strings.Contains(section, want) {
 				t.Fatalf("%s run-modes section missing %q: %q", tc.lang, want, section)
 			}
@@ -784,6 +794,7 @@ func TestRenderManagedProjectWorkflowGuideRunModesSectionFallbackToEnglish(t *te
 		"- `namba run SPEC-XXX --solo`: a single runner in one workspace.",
 		"- `namba run SPEC-XXX --team`: same-workspace multi-agent execution.",
 		"- `namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.",
+		"Codex subagent threads are controlled by `.codex/config.toml [agents].max_threads = 5`; Namba worktree workers stay separate at `.namba/config/sections/workflow.yaml max_parallel_workers: 3`.",
 	} {
 		if !strings.Contains(section, want) {
 			t.Fatalf("run-modes section fallback missing %q: %q", want, section)
@@ -1318,7 +1329,7 @@ func TestRenderNambaCLIWorkflowGuideCommandDifferencesSectionPreservesLocalizedA
 
 	for _, tc := range cases {
 		section := strings.Join(renderNambaCLIWorkflowGuideCommandDifferencesSection(tc.lang), "\n")
-		for _, want := range []string{tc.heading, "`namba update`", "`namba regen`", "`namba sync`", "`namba pr`", "`namba land`"} {
+		for _, want := range []string{tc.heading, "`namba update`", "`codex update`", "`namba regen`", "`namba sync`", "`namba pr`", "`namba land`"} {
 			if !strings.Contains(section, want) {
 				t.Fatalf("%s command-differences section missing %q: %q", tc.lang, want, section)
 			}

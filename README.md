@@ -90,6 +90,7 @@ continue_on_failure = false
 - Install on macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
 - Update to the latest release: `namba update`
 - Pin a specific release: `namba update --version vX.Y.Z`
+- `namba update` updates only the NambaAI CLI. Use upstream `codex update` for the Codex CLI.
 - Uninstall on Windows: remove `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe`, then remove `%LOCALAPPDATA%\Programs\NambaAI\bin` from your user `PATH` if you no longer need it.
 - Uninstall on macOS / Linux: remove `~/.local/bin/namba`, then delete the `PATH` line that the installer added to `~/.profile` or `~/.zshrc` if you no longer need it.
 

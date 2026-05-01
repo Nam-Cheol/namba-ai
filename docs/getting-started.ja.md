@@ -17,6 +17,7 @@
 
 - 最新リリース: `namba update`
 - 特定リリース: `namba update --version vX.Y.Z`
+- Codex CLI 本体は `codex update` で更新します。
 - 更新後のバイナリがすぐ反映されないときは、ターミナルを再起動してください。
 
 ## 3. アンインストール

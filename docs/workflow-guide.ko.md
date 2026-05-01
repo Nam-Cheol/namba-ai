@@ -9,6 +9,7 @@
 ## `update`, `regen`, `sync`, `pr`, `land`는 서로 다른 명령입니다
 
 - `namba update`: 설치된 CLI를 GitHub Release 자산 기준으로 self-update 합니다.
+- `codex update`: upstream Codex CLI를 업데이트합니다. `namba update`와 별개의 명령입니다.
 - `namba regen`: AGENTS, skills, custom agents, repo Codex config 같은 template-generated asset을 다시 생성합니다.
 - `namba sync`: README, 프로젝트 문서, codemap, advisory review readiness, PR checklist, release notes를 갱신합니다.
 - `namba pr`: 기본적으로 sync와 validation을 돌리고, 현재 브랜치를 commit/push 한 뒤 PR을 만들거나 재사용하고 Codex review marker를 보장합니다.
@@ -35,6 +36,7 @@
 - `namba run SPEC-XXX --solo`: 하나의 workspace에서 단일 runner를 사용합니다.
 - `namba run SPEC-XXX --team`: 같은 workspace 안에서 멀티에이전트 실행을 조율합니다.
 - `namba run SPEC-XXX --parallel`: Codex subagent orchestration이 아니라 Namba가 관리하는 git worktree fan-out/fan-in 입니다.
+- Codex subagent threads는 `.codex/config.toml [agents].max_threads = 5`, Namba worktree workers는 `.namba/config/sections/workflow.yaml max_parallel_workers: 3`로 따로 관리합니다.
 
 ## 역할 라우팅
 

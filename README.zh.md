@@ -90,6 +90,7 @@ continue_on_failure = false
 - 在 macOS / Linux 上安装: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
 - 更新到最新版本: `namba update`
 - 固定到指定版本: `namba update --version vX.Y.Z`
+- `namba update` 只更新 NambaAI CLI。upstream Codex CLI 使用 `codex update` 更新。
 - 在 Windows 上卸载: 删除 `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe`，如果不再需要，再从用户 `PATH` 中移除 `%LOCALAPPDATA%\Programs\NambaAI\bin`。
 - 在 macOS / Linux 上卸载: 删除 `~/.local/bin/namba`，如果不再需要，再从 `~/.profile` 或 `~/.zshrc` 中移除安装器添加的 `PATH` 配置。
 

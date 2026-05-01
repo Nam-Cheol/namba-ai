@@ -9,6 +9,7 @@
 ## `update`、`regen`、`sync`、`pr`、`land` 是不同的命令
 
 - `namba update`: 从 GitHub Release 资产对已安装的 CLI 做 self-update。
+- `codex update`: 更新 upstream Codex CLI。这和 `namba update` 是不同命令。
 - `namba regen`: 重新生成 AGENTS、skills、custom agents、repo Codex config 等 template-generated asset。
 - `namba sync`: 刷新 README、project docs、codemap、advisory review readiness、PR checklist 和 release notes。
 - `namba pr`: 默认先跑 sync 和 validation，把当前分支 commit / push 后创建或复用 PR，并确保 Codex review marker 存在。
@@ -35,6 +36,7 @@
 - `namba run SPEC-XXX --solo`: 在单一 workspace 中使用单 runner。
 - `namba run SPEC-XXX --team`: 在同一 workspace 内协调 multi-agent execution。
 - `namba run SPEC-XXX --parallel`: 这不是 Codex subagent orchestration，而是由 Namba 管理的 git worktree fan-out/fan-in。
+- Codex subagent threads 由 `.codex/config.toml [agents].max_threads = 5` 管理，Namba worktree workers 由 `.namba/config/sections/workflow.yaml max_parallel_workers: 3` 分开管理。
 
 ## 角色路由
 

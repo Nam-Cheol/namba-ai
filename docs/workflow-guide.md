@@ -9,6 +9,7 @@
 ## `update`, `regen`, `sync`, `pr`, and `land` are different commands
 
 - `namba update`: self-update the installed CLI from GitHub Release assets
+- `codex update`: update the upstream Codex CLI; this is separate from `namba update`
 - `namba regen`: regenerate AGENTS, skills, custom agents, and repo Codex config
 - `namba sync`: refresh README, project docs, codemaps, advisory review readiness, PR checklists, and release notes
 - `namba pr`: run sync plus validation by default, commit and push the current branch, open or reuse the PR, and ensure the Codex review marker exists
@@ -21,6 +22,8 @@
 - `$namba-create`: use the preview-first creation flow when you need a repo-local skill or a project-scoped custom agent directly. Choose `namba plan` or `namba harness` instead when the outcome should be a SPEC package.
 - `namba project`: refresh current repository docs and codemaps without creating a SPEC package.
 - `namba codex access`: inspect the current repo-owned Codex access defaults, and change approval_policy / sandbox_mode only when explicit flags are provided.
+- Codex permission profiles, models, auth, apps, web search, and platform sandbox choices remain user-owned unless NambaAI deliberately widens repo-managed config.
+- Avoid deprecated Codex full-auto style flags; prefer explicit `approval_policy`, `sandbox_mode`, sandbox profile, and permission profile settings.
 - `namba plan "description"`: create the next feature SPEC package and review artifacts.
 - `namba harness "description"`: create the next harness-oriented SPEC package and review artifacts for reusable agent, skill, workflow, or orchestration work.
 - `namba fix --command plan "issue description"`: create a bugfix SPEC package plus review artifacts.
@@ -35,6 +38,8 @@
 - `namba run SPEC-XXX --solo`: a single runner in one workspace.
 - `namba run SPEC-XXX --team`: same-workspace multi-agent execution.
 - `namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.
+- Codex subagent threads are controlled by `.codex/config.toml [agents].max_threads = 5`; Namba worktree workers stay separate at `.namba/config/sections/workflow.yaml max_parallel_workers: 3`.
+- Persisted Codex `/goal` workflows are a future orchestration candidate, not a required Namba runtime dependency.
 
 ## Role routing
 
