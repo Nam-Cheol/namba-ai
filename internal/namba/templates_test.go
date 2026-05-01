@@ -675,6 +675,7 @@ func TestRenderCodexUsageMidSectionsPreserveAnchors(t *testing.T) {
 		"`--solo`",
 		"`--team`",
 		"`.codex/config.toml [agents].max_threads = 5`",
+		"max_parallel_workers: 3",
 		"`model` and `model_reasoning_effort`",
 		"`namba-frontend-architect`",
 		"`namba-reviewer`",
@@ -785,10 +786,14 @@ func TestRenderCodexUsageWorkflowCommandSemanticsSectionPreservesAnchors(t *test
 		"`$namba-review-resolve` resolves GitHub review threads one by one",
 		"`$namba-release` handles NambaAI release orchestration",
 		"`namba codex access` inspects the current repo-owned Codex access defaults",
+		"Permission profiles, models, auth, apps, web search, and platform sandbox choices stay user-owned",
+		"Avoid deprecated Codex full-auto style flags",
+		"`codex update` updates the upstream Codex CLI itself",
 		"`namba fix --command plan \"<issue description>\"` creates the next bugfix SPEC package plus review scaffolds.",
 		"`frontend-brief.md`",
 		"`frontend-major`",
 		"`namba run SPEC-XXX --parallel` still refers to the standalone worktree runner path.",
+		"Codex `/goal` workflows are tracked as a future orchestration candidate",
 	} {
 		if !strings.Contains(workflowSemantics, want) {
 			t.Fatalf("workflow-command-semantics section missing %q: %q", want, workflowSemantics)

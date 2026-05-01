@@ -17,6 +17,7 @@
 
 - 最新版本: `namba update`
 - 指定版本: `namba update --version vX.Y.Z`
+- Codex CLI 本身使用 `codex update` 更新。
 - 如果更新后的二进制没有立即生效，请重新打开终端。
 
 ## 3. 卸载

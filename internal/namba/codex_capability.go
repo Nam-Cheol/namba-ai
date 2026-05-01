@@ -8,13 +8,15 @@ import (
 )
 
 type codexCommandCapabilities struct {
-	Config       bool `json:"config"`
-	ApprovalFlag bool `json:"approval_flag"`
-	SandboxFlag  bool `json:"sandbox_flag"`
-	ModelFlag    bool `json:"model_flag"`
-	ProfileFlag  bool `json:"profile_flag"`
-	WebSearch    bool `json:"web_search_flag"`
-	AddDirFlag   bool `json:"add_dir_flag"`
+	Config        bool `json:"config"`
+	ApprovalFlag  bool `json:"approval_flag"`
+	SandboxFlag   bool `json:"sandbox_flag"`
+	ModelFlag     bool `json:"model_flag"`
+	ProfileFlag   bool `json:"profile_flag"`
+	WebSearch     bool `json:"web_search_flag"`
+	AddDirFlag    bool `json:"add_dir_flag"`
+	EphemeralFlag bool `json:"ephemeral_flag"`
+	JSONFlag      bool `json:"json_flag"`
 }
 
 type codexCapabilityMatrix struct {
@@ -68,13 +70,15 @@ func (a *App) probeCodexCapabilities(ctx context.Context, dir string, req execut
 
 func parseCodexCommandCapabilities(help string) codexCommandCapabilities {
 	return codexCommandCapabilities{
-		Config:       commandHelpContains(help, "-c, --config"),
-		ApprovalFlag: commandHelpContains(help, "-a, --ask-for-approval"),
-		SandboxFlag:  commandHelpContains(help, "-s, --sandbox"),
-		ModelFlag:    commandHelpContains(help, "-m, --model"),
-		ProfileFlag:  commandHelpContains(help, "-p, --profile"),
-		WebSearch:    commandHelpContains(help, "--search"),
-		AddDirFlag:   commandHelpContains(help, "--add-dir"),
+		Config:        commandHelpContains(help, "--config"),
+		ApprovalFlag:  commandHelpContains(help, "--ask-for-approval"),
+		SandboxFlag:   commandHelpContains(help, "--sandbox"),
+		ModelFlag:     commandHelpContains(help, "--model"),
+		ProfileFlag:   commandHelpContains(help, "--profile"),
+		WebSearch:     commandHelpContains(help, "--search"),
+		AddDirFlag:    commandHelpContains(help, "--add-dir"),
+		EphemeralFlag: commandHelpContains(help, "--ephemeral"),
+		JSONFlag:      commandHelpContains(help, "--json"),
 	}
 }
 

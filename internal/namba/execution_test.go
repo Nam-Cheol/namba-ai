@@ -165,6 +165,95 @@ func TestBuildCodexExecArgsSupportsFallbacksAndResumeSurface(t *testing.T) {
 	}
 }
 
+func TestParseCodexCommandCapabilitiesTargetVersionFixtures(t *testing.T) {
+	execFixtures := map[string]string{
+		"0.124.0": strings.Join([]string{
+			"Options:",
+			"  -c, --config <key=value>",
+			"  -a, --ask-for-approval <APPROVAL_POLICY>",
+			"  -s, --sandbox <SANDBOX_MODE>",
+			"  -m, --model <MODEL>",
+			"  -p, --profile <CONFIG_PROFILE>",
+			"      --search",
+			"      --add-dir <DIR>",
+			"      --ephemeral",
+			"      --json",
+		}, "\n"),
+		"0.125.0": strings.Join([]string{
+			"Options:",
+			"  -c, --config <key=value>",
+			"  -a, --ask-for-approval <APPROVAL_POLICY>",
+			"  -s, --sandbox <SANDBOX_MODE>",
+			"  -m, --model <MODEL>",
+			"  -p, --profile <CONFIG_PROFILE>",
+			"      --add-dir <DIR>",
+			"      --ephemeral",
+			"      --json",
+			"  -o, --output-last-message <FILE>",
+		}, "\n"),
+		"0.126.0": strings.Join([]string{
+			"Options:",
+			"  -c, --config <key=value>",
+			"  -s, --sandbox <SANDBOX_MODE>",
+			"  -m, --model <MODEL>",
+			"  -p, --profile <CONFIG_PROFILE>",
+			"      --add-dir <DIR>",
+			"      --ephemeral",
+			"      --json",
+		}, "\n"),
+		"0.127.0": strings.Join([]string{
+			"Options:",
+			"  -c, --config <key=value>",
+			"      --enable <FEATURE>",
+			"      --disable <FEATURE>",
+			"  -m, --model <MODEL>",
+			"  -p, --profile <CONFIG_PROFILE>",
+			"  -s, --sandbox <SANDBOX_MODE>",
+			"      --add-dir <DIR>",
+			"      --ephemeral",
+			"      --json",
+		}, "\n"),
+		"0.128.0": strings.Join([]string{
+			"Options:",
+			"  -c, --config <key=value>",
+			"  -m, --model <MODEL>",
+			"  -p, --profile <CONFIG_PROFILE>",
+			"  -s, --sandbox <SANDBOX_MODE>",
+			"      --dangerously-bypass-approvals-and-sandbox",
+			"      --add-dir <DIR>",
+			"      --ephemeral",
+			"      --json",
+		}, "\n"),
+	}
+
+	for version, fixture := range execFixtures {
+		t.Run("exec "+version, func(t *testing.T) {
+			caps := parseCodexCommandCapabilities(fixture)
+			if !caps.Config || !caps.SandboxFlag || !caps.ModelFlag || !caps.ProfileFlag || !caps.AddDirFlag || !caps.EphemeralFlag || !caps.JSONFlag {
+				t.Fatalf("expected exec capabilities for %s, got %+v", version, caps)
+			}
+		})
+	}
+
+	resumeFixture := strings.Join([]string{
+		"Usage: codex exec resume [OPTIONS] [SESSION_ID] [PROMPT]",
+		"Options:",
+		"  -c, --config <key=value>",
+		"      --last",
+		"      --all",
+		"  -m, --model <MODEL>",
+		"      --ephemeral",
+		"      --json",
+	}, "\n")
+	resumeCaps := parseCodexCommandCapabilities(resumeFixture)
+	if !resumeCaps.Config || !resumeCaps.ModelFlag || !resumeCaps.EphemeralFlag || !resumeCaps.JSONFlag {
+		t.Fatalf("expected resume config/model/ephemeral/json capabilities, got %+v", resumeCaps)
+	}
+	if resumeCaps.SandboxFlag || resumeCaps.ProfileFlag || resumeCaps.AddDirFlag {
+		t.Fatalf("resume fixture should not claim exec-only controls, got %+v", resumeCaps)
+	}
+}
+
 func TestProbeCodexCapabilitiesSkipsResumeHelpWhenResumeIsNotPlanned(t *testing.T) {
 	tmp := t.TempDir()
 	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
@@ -206,6 +295,9 @@ func TestProbeCodexCapabilitiesSkipsResumeHelpWhenResumeIsNotPlanned(t *testing.
 	})
 	if err != nil {
 		t.Fatalf("probeCodexCapabilities failed: %v", err)
+	}
+	if caps.Version != "codex-cli test" {
+		t.Fatalf("expected trimmed version output, got %q", caps.Version)
 	}
 	if resumeHelpCalls != 0 {
 		t.Fatalf("expected no resume help probe, got %d", resumeHelpCalls)
@@ -255,6 +347,9 @@ func TestProbeCodexCapabilitiesIncludesResumeHelpWhenResumeIsPlanned(t *testing.
 	})
 	if err != nil {
 		t.Fatalf("probeCodexCapabilities failed: %v", err)
+	}
+	if caps.Version != "codex-cli test" {
+		t.Fatalf("expected trimmed version output, got %q", caps.Version)
 	}
 	if resumeHelpCalls != 1 {
 		t.Fatalf("expected one resume help probe, got %d", resumeHelpCalls)

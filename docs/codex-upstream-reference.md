@@ -39,3 +39,17 @@ Use `openai/codex` as a secondary reference when working on:
 
 This reference is for maintaining `namba-ai` itself.
 Do not assume it belongs in generated project templates unless that decision is made explicitly for NambaAI templates.
+
+## Codex CLI `0.124.0`-`0.128.0` compatibility baseline
+
+NambaAI can target this Codex range with capability-based compatibility rather than fixed version gating. The maintained contract is:
+
+- probe `codex --version`, `codex exec --help`, and `codex exec resume --help` where resume is planned
+- tolerate additive `codex exec --json` event fields because NambaAI does not currently own a Codex JSONL output consumer
+- keep `codex update` and `namba update` separate: `codex update` updates the upstream Codex CLI, while `namba update` updates NambaAI
+- prefer explicit `approval_policy`, `sandbox_mode`, sandbox profile, and permission profile settings over deprecated full-auto style flags
+- keep user-specific permission profiles, models, auth, apps, web search, and platform sandbox choices out of repo-managed `.codex/config.toml`
+- keep Codex subagent threads and Namba worktree workers separate: `.codex/config.toml [agents].max_threads = 5` is same-workspace Codex capacity, while `.namba/config/sections/workflow.yaml max_parallel_workers: 3` is Namba-managed git worktree fan-out
+- treat persisted Codex `/goal` workflows as a future orchestration candidate, not a required Namba runtime primitive
+
+Local validation evidence for this repo was captured on 2026-05-01 with `codex-cli 0.128.0`: `codex exec --help` and `codex exec resume --help` expose config/model/sandbox/profile/add-dir/ephemeral/json surfaces as expected, and `CODEX_HOME=/private/tmp/namba-codex-home codex debug prompt-input -c agents.max_threads=5 test` accepted the repo-managed `[agents].max_threads` shape.

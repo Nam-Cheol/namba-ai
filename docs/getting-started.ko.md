@@ -17,6 +17,7 @@
 
 - 최신 릴리스: `namba update`
 - 특정 릴리스: `namba update --version vX.Y.Z`
+- Codex CLI 자체는 `codex update`로 업데이트합니다.
 - 업데이트한 바이너리가 바로 잡히지 않으면 터미널을 다시 여세요.
 
 ## 3. 제거

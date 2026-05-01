@@ -29,8 +29,11 @@
 - `$namba-release` handles NambaAI release orchestration: collect commits since the previous semver tag, draft release notes into a durable per-version artifact, and hand the release off through the guarded `namba release --version <version> --push` path.
 - `namba project` refreshes current repository docs and codemaps without creating a SPEC package.
 - `namba codex access` inspects the current repo-owned Codex access defaults and mutates them only when explicit approval_policy / sandbox_mode flags are present.
+- Permission profiles, models, auth, apps, web search, and platform sandbox choices stay user-owned unless NambaAI explicitly widens repo-managed config.
+- Avoid deprecated Codex full-auto style flags; prefer explicit `approval_policy`, `sandbox_mode`, sandbox profile, and permission profile settings.
 - `namba regen` regenerates `AGENTS.md`, repo skills under `.agents/skills/`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.
 - `namba update` self-updates the installed `namba` binary from GitHub Release assets. Use `--version vX.Y.Z` for a specific release.
+- `codex update` updates the upstream Codex CLI itself. Keep it separate from `namba update`.
 - `namba plan "<description>"` creates the next feature SPEC package plus review scaffolds.
 - `namba harness "<description>"` creates the next harness-oriented SPEC package plus review scaffolds while staying inside the standard `SPEC-XXX` model; harness/MCP plans should favor workflow-first design, bounded outputs, actionable errors, and stable read-only evaluations.
 - `namba fix --command plan "<issue description>"` creates the next bugfix SPEC package plus review scaffolds.
@@ -43,6 +46,7 @@
 - `namba run SPEC-XXX --solo` requests a standalone Codex run that explicitly targets a single-subagent workflow inside one workspace.
 - `namba run SPEC-XXX --team` requests a standalone Codex run that explicitly coordinates multiple subagents inside one workspace.
 - `namba run SPEC-XXX --parallel` still refers to the standalone worktree runner path. It uses git worktrees, merges only after every worker passes execution and validation, and preserves failed worktrees and branches for inspection.
+- Codex `/goal` workflows are tracked as a future orchestration candidate, not a required Namba runtime dependency.
 
 ## Namba Custom Agent Roster
 
@@ -59,7 +63,7 @@
 - Default `namba run` stays inside the standalone runner unless specialist signals are strong enough to justify delegation.
 - `--solo` uses at most one specialist when one domain clearly dominates the request.
 - `--team` prefers one specialist when one domain dominates and expands to two or three only when acceptance spans multiple domains.
-- Repo-managed same-workspace defaults set `.codex/config.toml [agents].max_threads = 5` when `agent_mode: multi`; worktree fan-out remains separately controlled by `.namba/config/sections/workflow.yaml`.
+- Repo-managed same-workspace defaults set `.codex/config.toml [agents].max_threads = 5` when `agent_mode: multi`; Namba worktree workers remain separately controlled by `.namba/config/sections/workflow.yaml max_parallel_workers: 3` unless a later SPEC changes that fan-out.
 - Team mode honors each selected role's `model` and `model_reasoning_effort` metadata from `.codex/agents/*.toml`, keeping planner/reviewer/security roles stronger and delivery roles lighter.
 - Route art direction plus reference synthesis to `namba-designer`; route component, state, and delivery planning only after the frontend gate is satisfied to `namba-frontend-architect`; route approved UI implementation only after synthesis plus design clearance to `namba-frontend-implementer`; route mobile-specific delivery to `namba-mobile-engineer`; route API, schema, and pipeline work to backend/data; route auth, secrets, and compliance work to security; route deployment and runtime work to devops.
 - Keep the standalone runner as the integrator and final validation owner, and use `namba-reviewer` last when multiple specialists contribute.

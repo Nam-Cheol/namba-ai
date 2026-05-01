@@ -9,6 +9,7 @@
 ## `update`, `regen`, `sync`, `pr`, `land` はそれぞれ別のコマンドです
 
 - `namba update`: インストール済み CLI を GitHub Release 資産から self-update します。
+- `codex update`: upstream Codex CLI を更新します。`namba update` とは別のコマンドです。
 - `namba regen`: AGENTS、skills、custom agents、repo Codex config などの template-generated asset を再生成します。
 - `namba sync`: README、project docs、codemap、advisory review readiness、PR checklist、release notes を更新します。
 - `namba pr`: 既定で sync と validation を実行し、現在のブランチを commit / push した上で PR を作成または再利用し、Codex review marker を保証します。
@@ -35,6 +36,7 @@
 - `namba run SPEC-XXX --solo`: 1 つの workspace で単一 runner を使います。
 - `namba run SPEC-XXX --team`: 同じ workspace 内で multi-agent execution を調整します。
 - `namba run SPEC-XXX --parallel`: Codex subagent orchestration ではなく、Namba 管理の git worktree fan-out/fan-in です。
+- Codex subagent threads は `.codex/config.toml [agents].max_threads = 5`、Namba worktree workers は `.namba/config/sections/workflow.yaml max_parallel_workers: 3` で別々に管理します。
 
 ## ロールルーティング
 

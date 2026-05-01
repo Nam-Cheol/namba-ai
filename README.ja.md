@@ -90,6 +90,7 @@ continue_on_failure = false
 - macOS / Linux でインストール: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
 - 最新リリースへ更新: `namba update`
 - 特定バージョンを固定: `namba update --version vX.Y.Z`
+- `namba update` は NambaAI CLI だけを更新します。upstream Codex CLI は `codex update` で更新します。
 - Windows でアンインストール: `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe` を削除し、不要なら `%LOCALAPPDATA%\Programs\NambaAI\bin` をユーザー `PATH` から外します。
 - macOS / Linux でアンインストール: `~/.local/bin/namba` を削除し、不要ならインストーラーが追加した `PATH` の行を `~/.profile` または `~/.zshrc` から削除します。
 

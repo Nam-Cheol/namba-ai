@@ -17,6 +17,7 @@
 
 - Latest release: `namba update`
 - Specific release: `namba update --version vX.Y.Z`
+- Use `codex update` for the upstream Codex CLI itself.
 - Re-open the terminal if the updated binary is not picked up immediately.
 
 ## 3. Uninstall
