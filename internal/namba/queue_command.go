@@ -735,10 +735,15 @@ func (a *App) queueLandedEvidence(ctx context.Context, root, branch string) (boo
 	if profile, err := a.loadInitProfileFromConfig(root); err == nil {
 		base = branchBase(profile)
 	}
-	if exists, err := a.localBranchExists(ctx, root, branch); err == nil && exists {
+	exists, err := a.localBranchExists(ctx, root, branch)
+	if err != nil {
+		return false, ""
+	}
+	if exists {
 		if _, err := a.runBinary(ctx, "git", []string{"merge-base", "--is-ancestor", branch, base}, root); err == nil {
 			return true, fmt.Sprintf("branch %s is already merged into %s", branch, base)
 		}
+		return false, ""
 	}
 	if landed, evidence := a.queueMergedPullRequestEvidence(ctx, root, branch, base); landed {
 		return true, evidence

@@ -137,6 +137,28 @@ func TestQueueStartSkipsMergedPullRequestWhenLocalBranchIsMissing(t *testing.T) 
 	}
 }
 
+func TestQueueLandedEvidenceDoesNotUseMergedPRFallbackForLiveUnmergedBranch(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "git" && strings.Join(args, " ") == "branch --list spec/SPEC-001-queue-fixture":
+			return "  spec/SPEC-001-queue-fixture", nil
+		case name == "git" && strings.Join(args, " ") == "merge-base --is-ancestor spec/SPEC-001-queue-fixture main":
+			return "", errors.New("not ancestor")
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	landed, evidence := app.queueLandedEvidence(context.Background(), tmp, "spec/SPEC-001-queue-fixture")
+	if landed || evidence != "" {
+		t.Fatalf("expected live unmerged branch not to use stale merged PR fallback, landed=%v evidence=%q", landed, evidence)
+	}
+}
+
 func TestQueueStartPreparesActiveSpecPRAndSkipsReviewComment(t *testing.T) {
 	tmp, stdout, app, restore := prepareQueueProject(t)
 	defer restore()
