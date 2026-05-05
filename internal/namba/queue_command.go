@@ -404,7 +404,7 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 	if err := a.writeQueueState(root, state); err != nil {
 		return state, false, err
 	}
-	if landed, evidence := a.queueLandedEvidence(ctx, root, branch); landed {
+	if landed, evidence := a.queueLandedEvidence(ctx, root, specPkg.ID, branch); landed {
 		state = markQueueSpecSkipped(state, specID, specState, evidence)
 		state.LastSafeCheckpoint = specID + ":skipped"
 		if err := a.writeQueueState(root, state); err != nil {
@@ -442,7 +442,7 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 		currentHead, _ = a.gitHeadSHA(ctx, root)
 		currentHead = strings.TrimSpace(currentHead)
 	}
-	executionReady, validationEvidence := queueExecutionSucceeded(root, specID, currentHead)
+	executionReady, validationEvidence := queueExecutionSatisfied(root, specID, currentHead, specState)
 	if !executionReady {
 		runCtx, err := a.loadRunExecutionContext(root, runExecuteOptions{specID: specID, mode: executionModeTeam})
 		if err != nil {
@@ -490,6 +490,9 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 	pr, err := a.prepareQueuePullRequest(ctx, root, state, specPkg, branch)
 	if err != nil {
 		return blockQueueSpec(a, root, state, specID, "pr_failed", "", "fix PR state and run `namba queue resume`", err.Error())
+	}
+	if postPRHead, err := a.gitHeadSHA(ctx, root); err == nil {
+		state.LastObservedHeadSHA = strings.TrimSpace(postPRHead)
 	}
 	specState.PRNumber = pr.Number
 	specState.PRURL = pr.URL
@@ -727,7 +730,7 @@ func (a *App) ensureQueueBranch(ctx context.Context, root string, state queueSta
 	return nil
 }
 
-func (a *App) queueLandedEvidence(ctx context.Context, root, branch string) (bool, string) {
+func (a *App) queueLandedEvidence(ctx context.Context, root, specID, branch string) (bool, string) {
 	if strings.TrimSpace(branch) == "" {
 		return false, ""
 	}
@@ -745,14 +748,14 @@ func (a *App) queueLandedEvidence(ctx context.Context, root, branch string) (boo
 		}
 		return false, ""
 	}
-	if landed, evidence := a.queueMergedPullRequestEvidence(ctx, root, branch, base); landed {
+	if landed, evidence := a.queueMergedPullRequestEvidence(ctx, root, specID, branch, base); landed {
 		return true, evidence
 	}
 	return false, ""
 }
 
-func (a *App) queueMergedPullRequestEvidence(ctx context.Context, root, branch, base string) (bool, string) {
-	out, err := a.runBinary(ctx, "gh", []string{"pr", "list", "--head", branch, "--base", base, "--state", "merged", "--json", "number,url,mergedAt,headRefName,baseRefName,state"}, root)
+func (a *App) queueMergedPullRequestEvidence(ctx context.Context, root, specID, branch, base string) (bool, string) {
+	out, err := a.runBinary(ctx, "gh", []string{"pr", "list", "--head", branch, "--base", base, "--state", "merged", "--json", "number,url,mergedAt,mergeCommit,headRefName,baseRefName,state"}, root)
 	if err != nil {
 		return false, ""
 	}
@@ -760,12 +763,45 @@ func (a *App) queueMergedPullRequestEvidence(ctx context.Context, root, branch, 
 	if err := json.Unmarshal([]byte(firstNonBlank(out, "[]")), &prs); err != nil || len(prs) == 0 {
 		return false, ""
 	}
-	pr := prs[0]
+	specBaseCommit, err := a.latestQueueSpecBaseCommit(ctx, root, specID, base)
+	if err != nil {
+		return false, ""
+	}
+	var pr githubPullRequest
+	found := false
+	for _, candidate := range prs {
+		mergeCommit := strings.TrimSpace(candidate.MergeCommit.OID)
+		if mergeCommit == "" {
+			continue
+		}
+		if _, err := a.runBinary(ctx, "git", []string{"merge-base", "--is-ancestor", specBaseCommit, mergeCommit}, root); err != nil {
+			continue
+		}
+		pr = candidate
+		found = true
+		break
+	}
+	if !found {
+		return false, ""
+	}
 	when := strings.TrimSpace(pr.MergedAt)
 	if when != "" {
 		return true, fmt.Sprintf("PR #%d merged at %s", pr.Number, when)
 	}
 	return true, fmt.Sprintf("PR #%d is merged", pr.Number)
+}
+
+func (a *App) latestQueueSpecBaseCommit(ctx context.Context, root, specID, base string) (string, error) {
+	specPath := filepath.ToSlash(filepath.Join(specsDir, specID))
+	out, err := a.runBinary(ctx, "git", []string{"log", "-1", "--format=%H", base, "--", specPath}, root)
+	if err != nil {
+		return "", err
+	}
+	commit := strings.TrimSpace(out)
+	if commit == "" {
+		return "", fmt.Errorf("no base commit found for %s", specPath)
+	}
+	return commit, nil
 }
 
 func (a *App) ensureQueueReviewReady(root, specID string) error {
@@ -846,6 +882,22 @@ func queueExecutionSucceeded(root, specID, currentHead string) (bool, string) {
 		return false, filepath.ToSlash(filepath.Join(logsDir, "runs", logID+"-validation.json"))
 	}
 	return true, filepath.ToSlash(filepath.Join(logsDir, "runs", logID+"-validation.json"))
+}
+
+func queueExecutionSatisfied(root, specID, currentHead string, specState queueSpec) (bool, string) {
+	if queueSpecHasPostExecutionCheckpoint(specState) {
+		return true, firstNonBlank(specState.ValidationEvidence, queueRunEvidencePath(specID))
+	}
+	return queueExecutionSucceeded(root, specID, currentHead)
+}
+
+func queueSpecHasPostExecutionCheckpoint(specState queueSpec) bool {
+	switch specState.Phase {
+	case queuePhaseChecksPending, queuePhaseReadyToLand, queuePhaseWaitingLand, queuePhaseLanding, queuePhaseLanded:
+		return specState.PRNumber > 0 && strings.TrimSpace(specState.ValidationEvidence) != ""
+	default:
+		return false
+	}
 }
 
 func stampQueueRunEvidenceHead(root, specID, currentHead string) error {

@@ -34,6 +34,7 @@ type githubPullRequest struct {
 	Title            string              `json:"title"`
 	State            string              `json:"state"`
 	MergedAt         string              `json:"mergedAt"`
+	MergeCommit      githubCommitRef     `json:"mergeCommit"`
 	BaseRefName      string              `json:"baseRefName"`
 	HeadRefName      string              `json:"headRefName"`
 	ReviewDecision   string              `json:"reviewDecision"`
@@ -45,6 +46,10 @@ type githubPullRequest struct {
 
 type githubPRComment struct {
 	Body string `json:"body"`
+}
+
+type githubCommitRef struct {
+	OID string `json:"oid"`
 }
 
 type githubStatusCheck struct {

@@ -115,7 +115,11 @@ func TestQueueStartSkipsMergedPullRequestWhenLocalBranchIsMissing(t *testing.T) 
 		case name == "git" && len(args) == 3 && args[0] == "branch" && args[1] == "--list":
 			return "", nil
 		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list" && hasArg(args, "--state", "merged"):
-			return mustMarshalJSON(t, []githubPullRequest{{Number: 23, URL: "https://github.com/example/repo/pull/23", State: "MERGED", MergedAt: "2026-05-05T10:00:00Z", HeadRefName: "spec/SPEC-001-queue-fixture", BaseRefName: "main"}}), nil
+			return mustMarshalJSON(t, []githubPullRequest{{Number: 23, URL: "https://github.com/example/repo/pull/23", State: "MERGED", MergedAt: "2026-05-05T10:00:00Z", MergeCommit: githubCommitRef{OID: "merge-23"}, HeadRefName: "spec/SPEC-001-queue-fixture", BaseRefName: "main"}}), nil
+		case name == "git" && strings.Join(args, " ") == "log -1 --format=%H main -- .namba/specs/SPEC-001":
+			return "spec-base", nil
+		case name == "git" && strings.Join(args, " ") == "merge-base --is-ancestor spec-base merge-23":
+			return "", nil
 		default:
 			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
 			return "", nil
@@ -153,9 +157,33 @@ func TestQueueLandedEvidenceDoesNotUseMergedPRFallbackForLiveUnmergedBranch(t *t
 		}
 	}
 
-	landed, evidence := app.queueLandedEvidence(context.Background(), tmp, "spec/SPEC-001-queue-fixture")
+	landed, evidence := app.queueLandedEvidence(context.Background(), tmp, "SPEC-001", "spec/SPEC-001-queue-fixture")
 	if landed || evidence != "" {
 		t.Fatalf("expected live unmerged branch not to use stale merged PR fallback, landed=%v evidence=%q", landed, evidence)
+	}
+}
+
+func TestQueueMergedPullRequestEvidenceRequiresSpecBaseCommitInMergeCommit(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list" && hasArg(args, "--state", "merged"):
+			return mustMarshalJSON(t, []githubPullRequest{{Number: 23, URL: "https://github.com/example/repo/pull/23", State: "MERGED", MergedAt: "2026-05-05T10:00:00Z", MergeCommit: githubCommitRef{OID: "old-merge"}}}), nil
+		case name == "git" && strings.Join(args, " ") == "log -1 --format=%H main -- .namba/specs/SPEC-001":
+			return "new-spec-base", nil
+		case name == "git" && strings.Join(args, " ") == "merge-base --is-ancestor new-spec-base old-merge":
+			return "", errors.New("stale merged PR does not contain latest SPEC package commit")
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	landed, evidence := app.queueMergedPullRequestEvidence(context.Background(), tmp, "SPEC-001", "spec/SPEC-001-queue-fixture", "main")
+	if landed || evidence != "" {
+		t.Fatalf("expected stale merged PR history not to be landed evidence, landed=%v evidence=%q", landed, evidence)
 	}
 }
 
@@ -342,6 +370,32 @@ func TestQueueExecutionSucceededRequiresCurrentHead(t *testing.T) {
 	ok, evidence = queueExecutionSucceeded(tmp, "SPEC-001", "def456")
 	if ok || !strings.Contains(evidence, "spec-001-execution.json") {
 		t.Fatalf("expected mismatched head evidence to fail on execution evidence, ok=%v evidence=%q", ok, evidence)
+	}
+}
+
+func TestQueueExecutionSatisfiedTrustsPostExecutionCheckpoint(t *testing.T) {
+	t.Parallel()
+
+	tmp := canonicalTempDir(t)
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+	writeQueueRunEvidenceWithHead(t, tmp, "SPEC-001", "run-head")
+
+	specState := queueSpec{
+		SpecID:             "SPEC-001",
+		Phase:              queuePhaseChecksPending,
+		PRNumber:           17,
+		ValidationEvidence: queueRunEvidencePath("SPEC-001"),
+	}
+	ok, evidence := queueExecutionSatisfied(tmp, "SPEC-001", "post-pr-head", specState)
+	if !ok || !strings.Contains(evidence, "spec-001-validation.json") {
+		t.Fatalf("expected post-execution checkpoint to satisfy execution, ok=%v evidence=%q", ok, evidence)
+	}
+
+	specState.Phase = queuePhasePRReady
+	specState.PRNumber = 0
+	ok, evidence = queueExecutionSatisfied(tmp, "SPEC-001", "post-pr-head", specState)
+	if ok || !strings.Contains(evidence, "spec-001-execution.json") {
+		t.Fatalf("expected pre-PR checkpoint to keep enforcing current HEAD evidence, ok=%v evidence=%q", ok, evidence)
 	}
 }
 
