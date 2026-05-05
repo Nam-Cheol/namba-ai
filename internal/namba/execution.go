@@ -32,6 +32,7 @@ type executionResult struct {
 	Runner             string                `json:"runner"`
 	SpecID             string                `json:"spec_id"`
 	WorkDir            string                `json:"work_dir"`
+	HeadSHA            string                `json:"head_sha,omitempty"`
 	ExecutionMode      string                `json:"execution_mode"`
 	ApprovalPolicy     string                `json:"approval_policy"`
 	SandboxMode        string                `json:"sandbox_mode"`
@@ -58,6 +59,7 @@ type executionResult struct {
 
 type validationReport struct {
 	SpecID     string           `json:"spec_id"`
+	HeadSHA    string           `json:"head_sha,omitempty"`
 	Passed     bool             `json:"passed"`
 	Attempt    int              `json:"attempt"`
 	StartedAt  string           `json:"started_at"`

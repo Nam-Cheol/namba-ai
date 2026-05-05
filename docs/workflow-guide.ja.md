@@ -12,6 +12,7 @@
 - `codex update`: upstream Codex CLI を更新します。`namba update` とは別のコマンドです。
 - `namba regen`: AGENTS、skills、custom agents、repo Codex config などの template-generated asset を再生成します。
 - `namba sync`: README、project docs、codemap、advisory review readiness、PR checklist、release notes を更新します。
+- `namba queue`: 既存の SPEC package を新しく作らず順番に処理し、durable state と Git/GitHub gate を基準に安全に resume / block します。
 - `namba pr`: 既定で sync と validation を実行し、現在のブランチを commit / push した上で PR を作成または再利用し、Codex review marker を保証します。
 - `namba land`: 必要なら checks を待ち、PR が clean なときだけ merge してから local `main` を安全に更新します。
 
@@ -37,6 +38,15 @@
 - `namba run SPEC-XXX --team`: 同じ workspace 内で multi-agent execution を調整します。
 - `namba run SPEC-XXX --parallel`: Codex subagent orchestration ではなく、Namba 管理の git worktree fan-out/fan-in です。
 - Codex subagent threads は `.codex/config.toml [agents].max_threads = 5`、Namba worktree workers は `.namba/config/sections/workflow.yaml max_parallel_workers: 3` で別々に管理します。
+
+## SPEC queue conveyor
+
+- `namba queue start SPEC-001..SPEC-003`: 既存の SPEC package を新しく作らず、指定順に処理します。
+- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: 指定した SPEC list だけを対象にし、必要なら `@codex review` marker 作成を省略します。
+- `namba queue status`: active SPEC、durable state、blocker / wait reason、report path、次の安全な command を表示します。
+- `namba queue resume`、`pause`、`stop`: `.namba/logs/queue/` に保存された durable state から継続または停止します。
+- Queue は同時に 1 つの active SPEC だけを実行します。validation failure、failed checks、non-mergeable PR、曖昧な Git/GitHub state では skip せず blocked で止まります。
+- `--auto-land` がない場合、green+mergeable PR でも `waiting_for_land` で止まり、operator が確認できます。
 
 ## ロールルーティング
 

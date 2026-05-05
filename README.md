@@ -18,6 +18,7 @@ NambaAI is a practical guide for working with Codex without guessing the next st
 - `namba plan`: use this when you want to add or change a feature and need a clear plan.
 - `namba harness`: use this for reusable Namba/Codex building blocks such as skills, agents, or workflows.
 - `namba fix`: use this when something is broken and you want to repair it now. Use `namba fix --command plan` when the fix should have a reviewable plan first.
+- `namba queue start SPEC-001..SPEC-003`: use this when existing SPECs should be processed in order without creating new ones.
 
 ## 🧰 What You Can Do With NambaAI
 
@@ -25,6 +26,7 @@ NambaAI is a practical guide for working with Codex without guessing the next st
 - Ask `$namba-coach` when you know what you want, but not which command to run.
 - Ask `$namba-help` when you only want an explanation. It stays read-only and does not change files.
 - Run planned work with `namba run SPEC-XXX`, then use `namba sync`, `namba pr`, and `namba land` to refresh docs, open review, and merge.
+- Process a backlog of existing SPECs with `namba queue start`; failed validation, failed checks, non-mergeable PRs, and ambiguous GitHub state stop as blocked until `namba queue resume` can continue safely.
 - Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when you want product, engineering, or design feedback before implementation.
 - Keep everyone on the same CLI version with `namba update`.
 

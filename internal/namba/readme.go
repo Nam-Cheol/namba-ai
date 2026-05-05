@@ -1396,6 +1396,7 @@ func renderNambaCLIWorkflowGuideCommandDifferencesSection(lang string) []string 
 			"- `codex update`: upstream Codex CLI를 업데이트합니다. `namba update`와 별개의 명령입니다.",
 			"- `namba regen`: AGENTS, skills, custom agents, repo Codex config 같은 template-generated asset을 다시 생성합니다.",
 			"- `namba sync`: README, 프로젝트 문서, codemap, advisory review readiness, PR checklist, release notes를 갱신합니다.",
+			"- `namba queue`: 이미 존재하는 SPEC 패키지를 새로 만들지 않고 순서대로 처리하며, durable state와 Git/GitHub gate를 기준으로 안전하게 resume/block 합니다.",
 			"- `namba pr`: 기본적으로 sync와 validation을 돌리고, 현재 브랜치를 commit/push 한 뒤 PR을 만들거나 재사용하고 Codex review marker를 보장합니다.",
 			"- `namba land`: 필요하면 체크를 기다리고, PR이 깨끗할 때만 머지한 뒤 로컬 `main`을 안전하게 갱신합니다.",
 			"",
@@ -1408,6 +1409,7 @@ func renderNambaCLIWorkflowGuideCommandDifferencesSection(lang string) []string 
 			"- `codex update`: upstream Codex CLI を更新します。`namba update` とは別のコマンドです。",
 			"- `namba regen`: AGENTS、skills、custom agents、repo Codex config などの template-generated asset を再生成します。",
 			"- `namba sync`: README、project docs、codemap、advisory review readiness、PR checklist、release notes を更新します。",
+			"- `namba queue`: 既存の SPEC package を新しく作らず順番に処理し、durable state と Git/GitHub gate を基準に安全に resume / block します。",
 			"- `namba pr`: 既定で sync と validation を実行し、現在のブランチを commit / push した上で PR を作成または再利用し、Codex review marker を保証します。",
 			"- `namba land`: 必要なら checks を待ち、PR が clean なときだけ merge してから local `main` を安全に更新します。",
 			"",
@@ -1420,6 +1422,7 @@ func renderNambaCLIWorkflowGuideCommandDifferencesSection(lang string) []string 
 			"- `codex update`: 更新 upstream Codex CLI。这和 `namba update` 是不同命令。",
 			"- `namba regen`: 重新生成 AGENTS、skills、custom agents、repo Codex config 等 template-generated asset。",
 			"- `namba sync`: 刷新 README、project docs、codemap、advisory review readiness、PR checklist 和 release notes。",
+			"- `namba queue`: 按顺序处理已有 SPEC package，不会创建新的 SPEC，并用 durable state 与 Git/GitHub gate 安全 resume / block。",
 			"- `namba pr`: 默认先跑 sync 和 validation，把当前分支 commit / push 后创建或复用 PR，并确保 Codex review marker 存在。",
 			"- `namba land`: 需要时等待 checks，只在 PR clean 时 merge，然后安全更新本地 `main`。",
 			"",
@@ -1432,6 +1435,7 @@ func renderNambaCLIWorkflowGuideCommandDifferencesSection(lang string) []string 
 			"- `codex update`: update the upstream Codex CLI; this is separate from `namba update`",
 			"- `namba regen`: regenerate AGENTS, skills, custom agents, and repo Codex config",
 			"- `namba sync`: refresh README, project docs, codemaps, advisory review readiness, PR checklists, and release notes",
+			"- `namba queue`: process existing SPEC packages in order without creating new SPECs, using durable state plus Git/GitHub gates to resume or block safely",
 			"- `namba pr`: run sync plus validation by default, commit and push the current branch, open or reuse the PR, and ensure the Codex review marker exists",
 			"- `namba land`: optionally wait for checks, merge only when the PR is clean, and update local `main` safely",
 			"",
@@ -1459,6 +1463,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- `namba plan`: 새 기능이나 제품 변경을 차근차근 진행할 계획으로 만들고 싶을 때 씁니다.",
 			"- `namba harness`: 재사용할 skill, agent, workflow 같은 Namba/Codex 구성요소를 계획할 때 씁니다.",
 			"- `namba fix`: 지금 보이는 버그를 바로 고치고 싶을 때 씁니다. 버그도 리뷰 가능한 계획으로 남기고 싶으면 `namba fix --command plan`을 씁니다.",
+			"- `namba queue start SPEC-001..SPEC-003`: 이미 만들어 둔 SPEC들을 새로 생성하지 않고 순서대로 끝까지 처리하고 싶을 때 씁니다.",
 			"",
 			"## 🧰 NambaAI로 할 수 있는 일",
 			"",
@@ -1466,6 +1471,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- 어떤 명령을 써야 할지 애매하면 `$namba-coach`에게 현재 하고 싶은 일을 말하면 됩니다.",
 			"- 사용법 자체가 궁금하면 `$namba-help`로 설명만 받을 수 있습니다. 이 경로는 파일을 바꾸지 않습니다.",
 			"- 계획이 준비되면 `namba run SPEC-XXX`로 실행하고, 끝난 뒤 `namba sync`, `namba pr`, `namba land`로 문서 정리와 리뷰/머지 흐름을 이어 갑니다.",
+			"- 여러 SPEC을 대량 생성해 둔 경우 `namba queue start`로 하나씩 실행하고, 실패한 validation/checks/non-mergeable PR 같은 위험 상태에서는 blocked로 멈춘 뒤 `namba queue resume`으로 이어갈 수 있습니다.",
 			"- 구현 전에 제품, 엔지니어링, 디자인 관점의 확인이 필요하면 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`를 사용할 수 있습니다.",
 			"- 팀원들이 같은 버전을 쓰도록 `namba update`로 CLI를 맞출 수 있습니다.",
 			"",
@@ -1498,6 +1504,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- `namba plan`: 新しい機能やプロダクト変更を、順番に進められる計画にしたいときに使います。",
 			"- `namba harness`: 再利用する skill、agent、workflow などの Namba/Codex 部品を計画したいときに使います。",
 			"- `namba fix`: 目の前のバグをすぐ直したいときに使います。バグ修正もレビュー可能な計画にしたい場合は `namba fix --command plan` を使います。",
+			"- `namba queue start SPEC-001..SPEC-003`: 既に作成済みの SPEC を、新しく作らず順番に最後まで処理したいときに使います。",
 			"",
 			"## 🧰 NambaAI でできること",
 			"",
@@ -1505,6 +1512,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- どのコマンドを使うべきか迷ったら、`$namba-coach` に今やりたいことを伝えます。",
 			"- 使い方そのものを知りたいだけなら `$namba-help` を使います。この経路はファイルを変更しません。",
 			"- 計画ができたら `namba run SPEC-XXX` で実行し、完了後は `namba sync`、`namba pr`、`namba land` で文書整理とレビュー/マージへ進みます。",
+			"- 複数の SPEC をまとめて作成済みの場合は `namba queue start` で 1 件ずつ進め、validation / checks / non-mergeable PR など危険な状態では blocked で止まり、`namba queue resume` で続行できます。",
 			"- 実装前に product、engineering、design の観点で確認したい場合は `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` を使えます。",
 			"- チームで同じバージョンを使えるように `namba update` で CLI をそろえられます。",
 			"",
@@ -1537,6 +1545,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- `namba plan`: 想添加功能或做产品变更，并希望有一份清楚计划时使用。",
 			"- `namba harness`: 想规划可复用的 skill、agent、workflow 等 Namba/Codex 组件时使用。",
 			"- `namba fix`: 想直接修复眼前的 bug 时使用。如果 bug 修复也需要评审计划，就用 `namba fix --command plan`。",
+			"- `namba queue start SPEC-001..SPEC-003`: 想按顺序处理已创建的 SPEC，而不再生成新 SPEC 时使用。",
 			"",
 			"## 🧰 你可以用 NambaAI 做什么",
 			"",
@@ -1544,6 +1553,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- 不确定该用哪个命令时，把当前想做的事告诉 `$namba-coach`。",
 			"- 只是想了解用法时，用 `$namba-help`。这个路径不会改文件。",
 			"- 计划准备好后，用 `namba run SPEC-XXX` 执行；完成后用 `namba sync`、`namba pr`、`namba land` 继续整理文档、提交评审和合并。",
+			"- 如果已经批量创建了多个 SPEC，可以用 `namba queue start` 逐个执行；遇到 validation、checks 或 non-mergeable PR 等风险状态时会进入 blocked，并可用 `namba queue resume` 继续。",
 			"- 实现前如果需要产品、工程或设计视角的确认，可以使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review`。",
 			"- 团队可以用 `namba update` 保持 CLI 版本一致。",
 			"",
@@ -1576,6 +1586,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- `namba plan`: use this when you want to add or change a feature and need a clear plan.",
 			"- `namba harness`: use this for reusable Namba/Codex building blocks such as skills, agents, or workflows.",
 			"- `namba fix`: use this when something is broken and you want to repair it now. Use `namba fix --command plan` when the fix should have a reviewable plan first.",
+			"- `namba queue start SPEC-001..SPEC-003`: use this when existing SPECs should be processed in order without creating new ones.",
 			"",
 			"## 🧰 What You Can Do With NambaAI",
 			"",
@@ -1583,6 +1594,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"- Ask `$namba-coach` when you know what you want, but not which command to run.",
 			"- Ask `$namba-help` when you only want an explanation. It stays read-only and does not change files.",
 			"- Run planned work with `namba run SPEC-XXX`, then use `namba sync`, `namba pr`, and `namba land` to refresh docs, open review, and merge.",
+			"- Process a backlog of existing SPECs with `namba queue start`; failed validation, failed checks, non-mergeable PRs, and ambiguous GitHub state stop as blocked until `namba queue resume` can continue safely.",
 			"- Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when you want product, engineering, or design feedback before implementation.",
 			"- Keep everyone on the same CLI version with `namba update`.",
 			"",
@@ -1613,6 +1625,7 @@ func renderManagedProjectRootWorkSummarySection(lang string) []string {
 			"- `$namba-help`로 현재 저장소에서 NambaAI를 어떻게 써야 하는지, 어떤 명령이나 skill을 골라야 하는지 read-only로 안내받을 수 있습니다.",
 			"- SPEC에 명시적 사전 검토가 필요하면 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`를 사용하고, 생성부터 병렬 리뷰 루프까지 한 번에 돌리고 싶으면 `$namba-plan-review`를 사용합니다.",
 			"- `namba run SPEC-XXX`로 기본 흐름을 실행하고, `--solo`는 하나의 workspace에서 단일 runner, `--team`은 같은 workspace의 멀티에이전트 실행, `--parallel`은 worktree fan-out/fan-in 실행에 사용합니다.",
+			"- 여러 기존 SPEC을 순서대로 끝까지 처리해야 하면 `namba queue start SPEC-001..SPEC-003`를 사용합니다. Queue는 `.namba/logs/queue/` state를 기준으로 resume하고 위험 상태에서는 blocked로 멈춥니다.",
 			"- 브랜치, PR, Codex review 흐름을 기여자 간에 일관되게 유지합니다.",
 			"",
 		}
@@ -1627,6 +1640,7 @@ func renderManagedProjectRootWorkSummarySection(lang string) []string {
 			"- `$namba-help` を使うと、このリポジトリで NambaAI をどう使うか、次にどの command や skill を選ぶべきかを read-only で案内できます。",
 			"- SPEC に明示的な事前レビューが必要なら `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` を使い、作成から並列レビュー ループまで一度に回したいなら `$namba-plan-review` を使います。",
 			"- `namba run SPEC-XXX` で標準フローを実行し、`--solo` は 1 workspace の単一 runner、`--team` は同じ workspace のマルチエージェント実行、`--parallel` は worktree fan-out/fan-in 実行として使います。",
+			"- 複数の既存 SPEC を順番に最後まで処理する場合は `namba queue start SPEC-001..SPEC-003` を使います。Queue は `.namba/logs/queue/` state から resume し、危険な状態では blocked で止まります。",
 			"- ブランチ、PR、Codex review フローをコントリビューター間で一貫させます。",
 			"",
 		}
@@ -1641,6 +1655,7 @@ func renderManagedProjectRootWorkSummarySection(lang string) []string {
 			"- 可以使用 `$namba-help` 以 read-only 方式了解这个仓库里该如何使用 NambaAI，以及下一步应该选哪个命令或 skill。",
 			"- 如果某个 SPEC 需要明确的实现前评审，可以使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review`；如果想把创建和并行评审循环一次跑完，就使用 `$namba-plan-review`。",
 			"- 用 `namba run SPEC-XXX` 运行标准流程，`--solo` 表示单一 workspace 中的单 runner，`--team` 表示同一 workspace 内的多智能体执行，`--parallel` 表示 worktree fan-out/fan-in 执行。",
+			"- 如果需要按顺序完成多个已有 SPEC，请使用 `namba queue start SPEC-001..SPEC-003`。Queue 会基于 `.namba/logs/queue/` state resume，并在风险状态下 blocked 停止。",
 			"- 让 branch、PR 和 Codex review 流程在不同贡献者之间保持一致。",
 			"",
 		}
@@ -1655,6 +1670,7 @@ func renderManagedProjectRootWorkSummarySection(lang string) []string {
 			"- Use `$namba-help` when you want a read-only walkthrough of how to use NambaAI in this repository or which command or skill to choose next.",
 			"- Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when a SPEC needs explicit pre-implementation review depth, or use `$namba-plan-review` when you want SPEC creation plus the review loop bundled into one skill.",
 			"- Execute `namba run SPEC-XXX` for the default flow, or use `--solo` for a single runner in one workspace, `--team` for same-workspace multi-agent execution, and `--parallel` for worktree fan-out/fan-in execution.",
+			"- Use `namba queue start SPEC-001..SPEC-003` when existing SPECs should be completed in order; queue state resumes from `.namba/logs/queue/` and risky Git/GitHub states stop as blocked.",
 			"- Frontend-touching planning writes `.namba/specs/<SPEC>/frontend-brief.md`; explicit `frontend-major` work uses that brief as a canonical gate before implementation.",
 			"- Frontend-touching planning writes `.namba/specs/<SPEC>/frontend-brief.md`; explicit `frontend-major` work uses that brief as a canonical gate before implementation.",
 			"- Keep branch, PR, and Codex review flow consistent across contributors.",
@@ -1826,6 +1842,7 @@ func renderManagedProjectRootWhatYouCanDoSection(lang string) []string {
 			"- `$namba-help`로 현재 저장소에서 NambaAI를 어떻게 써야 하는지, 어떤 명령이나 skill을 골라야 하는지 read-only로 안내받을 수 있습니다.",
 			"- SPEC에 명시적 사전 검토가 필요하면 `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`를 사용하고, 생성부터 병렬 리뷰 루프까지 한 번에 돌리고 싶으면 `$namba-plan-review`를 사용합니다.",
 			"- `namba run SPEC-XXX`로 기본 흐름을 실행하고, `--solo`는 하나의 workspace에서 단일 runner, `--team`은 같은 workspace의 멀티에이전트 실행, `--parallel`은 worktree fan-out/fan-in 실행에 사용합니다.",
+			"- 여러 기존 SPEC을 순서대로 끝까지 처리해야 하면 `namba queue start SPEC-001..SPEC-003`를 사용합니다. Queue는 `.namba/logs/queue/` state를 기준으로 resume하고 위험 상태에서는 blocked로 멈춥니다.",
 			"- 브랜치, PR, Codex review 흐름을 기여자 간에 일관되게 유지합니다.",
 			"",
 		}
@@ -1839,6 +1856,7 @@ func renderManagedProjectRootWhatYouCanDoSection(lang string) []string {
 			"- `$namba-help` を使うと、このリポジトリで NambaAI をどう使うか、次にどの command や skill を選ぶべきかを read-only で案内できます。",
 			"- SPEC に明示的な事前レビューが必要なら `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` を使い、作成から並列レビュー ループまで一度に回したいなら `$namba-plan-review` を使います。",
 			"- `namba run SPEC-XXX` で標準フローを実行し、`--solo` は 1 workspace の単一 runner、`--team` は同じ workspace のマルチエージェント実行、`--parallel` は worktree fan-out/fan-in 実行として使います。",
+			"- 複数の既存 SPEC を順番に最後まで処理する場合は `namba queue start SPEC-001..SPEC-003` を使います。Queue は `.namba/logs/queue/` state から resume し、危険な状態では blocked で止まります。",
 			"- ブランチ、PR、Codex review フローをコントリビューター間で一貫させます。",
 			"",
 		}
@@ -1852,6 +1870,7 @@ func renderManagedProjectRootWhatYouCanDoSection(lang string) []string {
 			"- 可以使用 `$namba-help` 以 read-only 方式了解这个仓库里该如何使用 NambaAI，以及下一步应该选哪个命令或 skill。",
 			"- 如果某个 SPEC 需要明确的实现前评审，可以使用 `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review`；如果想把创建和并行评审循环一次跑完，就使用 `$namba-plan-review`。",
 			"- 用 `namba run SPEC-XXX` 运行标准流程，`--solo` 表示单一 workspace 中的单 runner，`--team` 表示同一 workspace 内的多智能体执行，`--parallel` 表示 worktree fan-out/fan-in 执行。",
+			"- 如果需要按顺序完成多个已有 SPEC，请使用 `namba queue start SPEC-001..SPEC-003`。Queue 会基于 `.namba/logs/queue/` state resume，并在风险状态下 blocked 停止。",
 			"- 让 branch、PR 和 Codex review 流程在不同贡献者之间保持一致。",
 			"",
 		}
@@ -1865,6 +1884,7 @@ func renderManagedProjectRootWhatYouCanDoSection(lang string) []string {
 			"- Use `$namba-help` when you want a read-only walkthrough of how to use NambaAI in this repository or which command or skill to choose next.",
 			"- Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` when a SPEC needs explicit pre-implementation review depth, or use `$namba-plan-review` when you want SPEC creation plus the review loop bundled into one skill.",
 			"- Execute `namba run SPEC-XXX` for the default flow, or use `--solo` for a single runner in one workspace, `--team` for same-workspace multi-agent execution, and `--parallel` for worktree fan-out/fan-in execution.",
+			"- Use `namba queue start SPEC-001..SPEC-003` when existing SPECs should be completed in order; queue state resumes from `.namba/logs/queue/` and risky Git/GitHub states stop as blocked.",
 			"- Frontend-touching planning writes `.namba/specs/<SPEC>/frontend-brief.md`; explicit `frontend-major` work uses that brief as a canonical gate before implementation.",
 			"- Keep branch, PR, and Codex review flow consistent across contributors.",
 			"",
@@ -2054,6 +2074,15 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- `namba run SPEC-XXX --parallel`: Codex subagent orchestration이 아니라 Namba가 관리하는 git worktree fan-out/fan-in 입니다.",
 			"- Codex subagent threads는 `.codex/config.toml [agents].max_threads = 5`, Namba worktree workers는 `.namba/config/sections/workflow.yaml max_parallel_workers: 3`로 따로 관리합니다.",
 			"",
+			"## SPEC queue conveyor",
+			"",
+			"- `namba queue start SPEC-001..SPEC-003`: 이미 존재하는 SPEC 패키지를 새로 생성하지 않고 지정된 순서대로 처리합니다.",
+			"- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: 명시한 SPEC 목록만 대상으로 삼고, 선택적으로 `@codex review` marker 생성을 건너뜁니다.",
+			"- `namba queue status`: active SPEC, durable state, blocker/wait reason, report path, 다음 안전한 명령을 보여줍니다.",
+			"- `namba queue resume`, `pause`, `stop`: `.namba/logs/queue/`에 저장된 durable state를 기준으로 이어가거나 멈춥니다.",
+			"- Queue는 한 번에 하나의 active SPEC만 실행합니다. validation 실패, failed checks, non-mergeable PR, 애매한 Git/GitHub 상태에서는 skip하지 않고 blocked로 멈춥니다.",
+			"- `--auto-land`를 켜지 않으면 green+mergeable PR에서도 `waiting_for_land` 상태로 멈춰 operator가 확인할 수 있게 합니다.",
+			"",
 			"## 역할 라우팅",
 			"",
 			"- 기본 `namba run`은 prompt에 강한 specialist 신호가 없으면 standalone runner에 머뭅니다.",
@@ -2103,6 +2132,15 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- `namba run SPEC-XXX --parallel`: Codex subagent orchestration ではなく、Namba 管理の git worktree fan-out/fan-in です。",
 			"- Codex subagent threads は `.codex/config.toml [agents].max_threads = 5`、Namba worktree workers は `.namba/config/sections/workflow.yaml max_parallel_workers: 3` で別々に管理します。",
 			"",
+			"## SPEC queue conveyor",
+			"",
+			"- `namba queue start SPEC-001..SPEC-003`: 既存の SPEC package を新しく作らず、指定順に処理します。",
+			"- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: 指定した SPEC list だけを対象にし、必要なら `@codex review` marker 作成を省略します。",
+			"- `namba queue status`: active SPEC、durable state、blocker / wait reason、report path、次の安全な command を表示します。",
+			"- `namba queue resume`、`pause`、`stop`: `.namba/logs/queue/` に保存された durable state から継続または停止します。",
+			"- Queue は同時に 1 つの active SPEC だけを実行します。validation failure、failed checks、non-mergeable PR、曖昧な Git/GitHub state では skip せず blocked で止まります。",
+			"- `--auto-land` がない場合、green+mergeable PR でも `waiting_for_land` で止まり、operator が確認できます。",
+			"",
 			"## ロールルーティング",
 			"",
 			"- 既定の `namba run` は、prompt に強い specialist signal がない限り standalone runner に留まります。",
@@ -2151,6 +2189,15 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- `namba run SPEC-XXX --team`: 在同一 workspace 内协调 multi-agent execution。",
 			"- `namba run SPEC-XXX --parallel`: 这不是 Codex subagent orchestration，而是由 Namba 管理的 git worktree fan-out/fan-in。",
 			"- Codex subagent threads 由 `.codex/config.toml [agents].max_threads = 5` 管理，Namba worktree workers 由 `.namba/config/sections/workflow.yaml max_parallel_workers: 3` 分开管理。",
+			"",
+			"## SPEC queue conveyor",
+			"",
+			"- `namba queue start SPEC-001..SPEC-003`: 按指定顺序处理已有 SPEC package，不会创建新的 SPEC。",
+			"- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: 只处理指定 SPEC 列表，并可选择跳过 `@codex review` marker 创建。",
+			"- `namba queue status`: 显示 active SPEC、durable state、blocker / wait reason、report path 和下一条安全命令。",
+			"- `namba queue resume`、`pause`、`stop`: 基于 `.namba/logs/queue/` 中保存的 durable state 继续或停止。",
+			"- Queue 一次只允许一个 active SPEC。validation 失败、failed checks、non-mergeable PR 或 Git/GitHub 状态不明确时，不会 skip，而是 blocked 停止。",
+			"- 未启用 `--auto-land` 时，即使 PR green+mergeable，也会停在 `waiting_for_land` 供 operator 确认。",
 			"",
 			"## 角色路由",
 			"",
@@ -2203,6 +2250,15 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- `namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.",
 			"- Codex subagent threads are controlled by `.codex/config.toml [agents].max_threads = 5`; Namba worktree workers stay separate at `.namba/config/sections/workflow.yaml max_parallel_workers: 3`.",
 			"- Persisted Codex `/goal` workflows are a future orchestration candidate, not a required Namba runtime dependency.",
+			"",
+			"## SPEC queue conveyor",
+			"",
+			"- `namba queue start SPEC-001..SPEC-003`: process existing SPEC packages in order without creating new SPECs.",
+			"- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: target an explicit SPEC list and optionally skip the `@codex review` marker.",
+			"- `namba queue status`: show the active SPEC, durable state, blocker or wait reason, report path, and next safe command.",
+			"- `namba queue resume`, `pause`, and `stop`: continue or halt from durable state under `.namba/logs/queue/`.",
+			"- Queue automation allows one active SPEC at a time. Failed validation, failed checks, non-mergeable PRs, and ambiguous Git/GitHub state stop as blocked instead of being skipped.",
+			"- Without `--auto-land`, green+mergeable PRs stop at `waiting_for_land` so an operator can confirm the merge.",
 			"",
 			"## Role routing",
 			"",
@@ -2699,6 +2755,59 @@ func renderManagedProjectWorkflowGuideRunModesSection(lang string) []string {
 	}
 }
 
+func renderManagedProjectWorkflowGuideQueueSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## SPEC queue conveyor",
+			"",
+			"- `namba queue start SPEC-001..SPEC-003`: 이미 존재하는 SPEC 패키지를 새로 생성하지 않고 순서대로 처리합니다.",
+			"- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: 명시한 SPEC 목록만 대상으로 삼고, 선택적으로 `@codex review` marker 생성을 건너뜁니다.",
+			"- `namba queue status`: active SPEC, durable state, blocker/wait reason, report path, 다음 안전한 명령을 보여줍니다.",
+			"- `namba queue resume`, `pause`, `stop`: `.namba/logs/queue/`에 저장된 durable state를 기준으로 이어가거나 멈춥니다.",
+			"- Queue는 한 번에 하나의 active SPEC만 실행하며, validation 실패, failed checks, non-mergeable PR, 애매한 Git/GitHub 상태에서는 skip하지 않고 blocked로 멈춥니다.",
+			"- `--auto-land`를 켜지 않으면 green+mergeable PR에서도 `waiting_for_land` 상태로 멈춰 operator가 확인할 수 있게 합니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## SPEC queue conveyor",
+			"",
+			"- `namba queue start SPEC-001..SPEC-003`: 既存の SPEC package を新しく作らず、指定順に処理します。",
+			"- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: 指定した SPEC list だけを対象にし、必要なら `@codex review` marker 作成を省略します。",
+			"- `namba queue status`: active SPEC、durable state、blocker / wait reason、report path、次の安全な command を表示します。",
+			"- `namba queue resume`、`pause`、`stop`: `.namba/logs/queue/` に保存された durable state から継続または停止します。",
+			"- Queue は同時に 1 つの active SPEC だけを実行し、validation failure、failed checks、non-mergeable PR、曖昧な Git/GitHub state では skip せず blocked で止まります。",
+			"- `--auto-land` がない場合、green+mergeable PR でも `waiting_for_land` で止まり、operator が確認できます。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## SPEC queue conveyor",
+			"",
+			"- `namba queue start SPEC-001..SPEC-003`: 按指定顺序处理已有 SPEC package，不会创建新的 SPEC。",
+			"- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: 只处理指定 SPEC 列表，并可选择跳过 `@codex review` marker 创建。",
+			"- `namba queue status`: 显示 active SPEC、durable state、blocker / wait reason、report path 和下一条安全命令。",
+			"- `namba queue resume`、`pause`、`stop`: 基于 `.namba/logs/queue/` 中保存的 durable state 继续或停止。",
+			"- Queue 一次只允许一个 active SPEC；validation 失败、failed checks、non-mergeable PR 或 Git/GitHub 状态不明确时，不会 skip，而是 blocked 停止。",
+			"- 未启用 `--auto-land` 时，即使 PR green+mergeable，也会停在 `waiting_for_land` 供 operator 确认。",
+			"",
+		}
+	default:
+		return []string{
+			"## SPEC queue conveyor",
+			"",
+			"- `namba queue start SPEC-001..SPEC-003`: process existing SPEC packages in order without creating new SPECs.",
+			"- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: target an explicit SPEC list and optionally skip the `@codex review` marker.",
+			"- `namba queue status`: show the active SPEC, durable state, blocker or wait reason, report path, and next safe command.",
+			"- `namba queue resume`, `pause`, and `stop`: continue or halt from durable state under `.namba/logs/queue/`.",
+			"- Queue automation allows one active SPEC at a time. Failed validation, failed checks, non-mergeable PRs, and ambiguous Git/GitHub state stop as blocked instead of being skipped.",
+			"- Without `--auto-land`, green+mergeable PRs stop at `waiting_for_land` so an operator can confirm the merge.",
+			"",
+		}
+	}
+}
+
 func renderManagedProjectWorkflowGuideReviewReadinessSection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
@@ -2915,6 +3024,7 @@ func appendManagedProjectWorkflowGuideSections(lines []string, lang string, incl
 	}
 	lines = append(lines, renderManagedProjectWorkflowGuidePlanAndFixSection(lang)...)
 	lines = append(lines, renderManagedProjectWorkflowGuideRunModesSection(lang)...)
+	lines = append(lines, renderManagedProjectWorkflowGuideQueueSection(lang)...)
 	lines = append(lines, renderManagedProjectWorkflowGuideRoleRoutingSection(lang)...)
 	lines = append(lines, renderManagedProjectWorkflowGuideReviewReadinessSection(lang)...)
 	if includePRAndMerge {
