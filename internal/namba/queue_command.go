@@ -702,15 +702,15 @@ func (a *App) ensureQueueBranch(ctx context.Context, root string, state queueSta
 	if err != nil {
 		return fmt.Errorf("detect current branch: %w", err)
 	}
-	if current == branch {
-		return nil
-	}
 	dirty, err := a.hasWorkingTreeChanges(ctx, root)
 	if err != nil {
 		return err
 	}
 	if dirty {
-		return fmt.Errorf("cannot switch queue branch with uncommitted changes")
+		return fmt.Errorf("cannot continue queue branch with uncommitted changes")
+	}
+	if current == branch {
+		return nil
 	}
 	exists, err := a.localBranchExists(ctx, root, branch)
 	if err != nil {

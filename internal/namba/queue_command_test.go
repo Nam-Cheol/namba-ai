@@ -69,6 +69,28 @@ func TestQueueStartBlocksOnAmbiguousSpecBranches(t *testing.T) {
 	}
 }
 
+func TestEnsureQueueBranchBlocksDirtyCurrentQueueBranch(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return "spec/SPEC-001-queue-fixture", nil
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return " M unrelated.txt", nil
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	err := app.ensureQueueBranch(context.Background(), tmp, queueState{}, "spec/SPEC-001-queue-fixture")
+	if err == nil || !strings.Contains(err.Error(), "uncommitted changes") {
+		t.Fatalf("expected dirty current queue branch to block, got %v", err)
+	}
+}
+
 func TestQueueStartSkipsSpecAlreadyMergedIntoBase(t *testing.T) {
 	tmp, _, app, restore := prepareQueueProject(t)
 	defer restore()
