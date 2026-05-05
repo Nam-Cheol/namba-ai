@@ -412,6 +412,22 @@ func TestClassifyQueueCheckProofRequiresSurfacedChecks(t *testing.T) {
 	}
 }
 
+func TestQueueMergePullRequestArgsPinsHeadCommit(t *testing.T) {
+	t.Parallel()
+
+	args, err := queueMergePullRequestArgs(githubPullRequest{Number: 17, HeadRefOID: "abc123"})
+	if err != nil {
+		t.Fatalf("queueMergePullRequestArgs returned error: %v", err)
+	}
+	if got := strings.Join(args, " "); got != "pr merge 17 --merge --match-head-commit abc123" {
+		t.Fatalf("unexpected merge args: %s", got)
+	}
+
+	if _, err := queueMergePullRequestArgs(githubPullRequest{Number: 17}); err == nil || !strings.Contains(err.Error(), "headRefOid") {
+		t.Fatalf("expected missing headRefOid error, got %v", err)
+	}
+}
+
 func TestQueueExecutionSucceededRequiresCurrentHead(t *testing.T) {
 	t.Parallel()
 

@@ -570,7 +570,11 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 	if err != nil {
 		return state, false, err
 	}
-	if _, err := a.runBinary(ctx, "gh", []string{"pr", "merge", strconv.Itoa(pr.Number), "--merge"}, root); err != nil {
+	mergeArgs, err := queueMergePullRequestArgs(pr)
+	if err != nil {
+		return blockQueueSpec(a, root, state, specID, "pr_state_ambiguous", "", "fix GitHub PR head state and run `namba queue resume`", err.Error())
+	}
+	if _, err := a.runBinary(ctx, "gh", mergeArgs, root); err != nil {
 		return blockQueueSpec(a, root, state, specID, "land_failed", "", "fix merge failure and run `namba queue resume`", err.Error())
 	}
 	if err := a.updateLocalBaseBranch(ctx, root, branch, prBaseBranch(profile), state.Options.Remote); err != nil {
@@ -1075,6 +1079,14 @@ func classifyQueueCheckProof(pr githubPullRequest) (string, error) {
 		return "", fmt.Errorf("no PR check evidence was surfaced")
 	}
 	return "all_surfaced_checks_green", nil
+}
+
+func queueMergePullRequestArgs(pr githubPullRequest) ([]string, error) {
+	headRefOID := strings.TrimSpace(pr.HeadRefOID)
+	if headRefOID == "" {
+		return nil, fmt.Errorf("pull request #%d did not surface headRefOid", pr.Number)
+	}
+	return []string{"pr", "merge", strconv.Itoa(pr.Number), "--merge", "--match-head-commit", headRefOID}, nil
 }
 
 func (a *App) gitHeadSHA(ctx context.Context, root string) (string, error) {

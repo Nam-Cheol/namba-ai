@@ -37,6 +37,7 @@ type githubPullRequest struct {
 	MergeCommit      githubCommitRef     `json:"mergeCommit"`
 	BaseRefName      string              `json:"baseRefName"`
 	HeadRefName      string              `json:"headRefName"`
+	HeadRefOID       string              `json:"headRefOid"`
 	ReviewDecision   string              `json:"reviewDecision"`
 	MergeStateStatus string              `json:"mergeStateStatus"`
 	IsDraft          bool                `json:"isDraft"`
@@ -498,7 +499,7 @@ func reviewPullRequestFields() []string {
 }
 
 func landPullRequestFields() []string {
-	return []string{"number", "url", "title", "headRefName", "baseRefName", "reviewDecision", "mergeStateStatus", "isDraft", "statusCheckRollup"}
+	return []string{"number", "url", "title", "headRefName", "headRefOid", "baseRefName", "reviewDecision", "mergeStateStatus", "isDraft", "statusCheckRollup"}
 }
 
 func worktreeListArgs() []string {
