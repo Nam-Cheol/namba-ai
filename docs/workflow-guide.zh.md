@@ -12,6 +12,7 @@
 - `codex update`: 更新 upstream Codex CLI。这和 `namba update` 是不同命令。
 - `namba regen`: 重新生成 AGENTS、skills、custom agents、repo Codex config 等 template-generated asset。
 - `namba sync`: 刷新 README、project docs、codemap、advisory review readiness、PR checklist 和 release notes。
+- `namba queue`: 按顺序处理已有 SPEC package，不会创建新的 SPEC，并用 durable state 与 Git/GitHub gate 安全 resume / block。
 - `namba pr`: 默认先跑 sync 和 validation，把当前分支 commit / push 后创建或复用 PR，并确保 Codex review marker 存在。
 - `namba land`: 需要时等待 checks，只在 PR clean 时 merge，然后安全更新本地 `main`。
 
@@ -37,6 +38,15 @@
 - `namba run SPEC-XXX --team`: 在同一 workspace 内协调 multi-agent execution。
 - `namba run SPEC-XXX --parallel`: 这不是 Codex subagent orchestration，而是由 Namba 管理的 git worktree fan-out/fan-in。
 - Codex subagent threads 由 `.codex/config.toml [agents].max_threads = 5` 管理，Namba worktree workers 由 `.namba/config/sections/workflow.yaml max_parallel_workers: 3` 分开管理。
+
+## SPEC queue conveyor
+
+- `namba queue start SPEC-001..SPEC-003`: 按指定顺序处理已有 SPEC package，不会创建新的 SPEC。
+- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: 只处理指定 SPEC 列表，并可选择跳过 `@codex review` marker 创建。
+- `namba queue status`: 显示 active SPEC、durable state、blocker / wait reason、report path 和下一条安全命令。
+- `namba queue resume`、`pause`、`stop`: 基于 `.namba/logs/queue/` 中保存的 durable state 继续或停止。
+- Queue 一次只允许一个 active SPEC。validation 失败、failed checks、non-mergeable PR 或 Git/GitHub 状态不明确时，不会 skip，而是 blocked 停止。
+- 未启用 `--auto-land` 时，即使 PR green+mergeable，也会停在 `waiting_for_land` 供 operator 确认。
 
 ## 角色路由
 

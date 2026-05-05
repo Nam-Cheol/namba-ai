@@ -12,6 +12,7 @@
 - `codex update`: upstream Codex CLI를 업데이트합니다. `namba update`와 별개의 명령입니다.
 - `namba regen`: AGENTS, skills, custom agents, repo Codex config 같은 template-generated asset을 다시 생성합니다.
 - `namba sync`: README, 프로젝트 문서, codemap, advisory review readiness, PR checklist, release notes를 갱신합니다.
+- `namba queue`: 이미 존재하는 SPEC 패키지를 새로 만들지 않고 순서대로 처리하며, durable state와 Git/GitHub gate를 기준으로 안전하게 resume/block 합니다.
 - `namba pr`: 기본적으로 sync와 validation을 돌리고, 현재 브랜치를 commit/push 한 뒤 PR을 만들거나 재사용하고 Codex review marker를 보장합니다.
 - `namba land`: 필요하면 체크를 기다리고, PR이 깨끗할 때만 머지한 뒤 로컬 `main`을 안전하게 갱신합니다.
 
@@ -37,6 +38,15 @@
 - `namba run SPEC-XXX --team`: 같은 workspace 안에서 멀티에이전트 실행을 조율합니다.
 - `namba run SPEC-XXX --parallel`: Codex subagent orchestration이 아니라 Namba가 관리하는 git worktree fan-out/fan-in 입니다.
 - Codex subagent threads는 `.codex/config.toml [agents].max_threads = 5`, Namba worktree workers는 `.namba/config/sections/workflow.yaml max_parallel_workers: 3`로 따로 관리합니다.
+
+## SPEC queue conveyor
+
+- `namba queue start SPEC-001..SPEC-003`: 이미 존재하는 SPEC 패키지를 새로 생성하지 않고 지정된 순서대로 처리합니다.
+- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: 명시한 SPEC 목록만 대상으로 삼고, 선택적으로 `@codex review` marker 생성을 건너뜁니다.
+- `namba queue status`: active SPEC, durable state, blocker/wait reason, report path, 다음 안전한 명령을 보여줍니다.
+- `namba queue resume`, `pause`, `stop`: `.namba/logs/queue/`에 저장된 durable state를 기준으로 이어가거나 멈춥니다.
+- Queue는 한 번에 하나의 active SPEC만 실행합니다. validation 실패, failed checks, non-mergeable PR, 애매한 Git/GitHub 상태에서는 skip하지 않고 blocked로 멈춥니다.
+- `--auto-land`를 켜지 않으면 green+mergeable PR에서도 `waiting_for_land` 상태로 멈춰 operator가 확인할 수 있게 합니다.
 
 ## 역할 라우팅
 

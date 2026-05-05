@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-01T18:44:11+09:00",
+  "generated_at": "2026-05-05T19:01:14+09:00",
   "entries": [
     {
       "path": ".agents/skills/namba-coach/SKILL.md",
@@ -492,8 +492,8 @@
       "path": ".namba/project/change-summary.md",
       "kind": "project-doc",
       "owner": "namba-managed",
-      "checksum": "6410312c66b8cea23bb782cdae838caba46e7a22e77abfdc3c1883b4789dc8eb",
-      "updated_at": "2026-05-01T18:43:46+09:00"
+      "checksum": "3b7f758e21b7bac7834dcc565e02c4f8bf6ea38e372758a63999025b5026a790",
+      "updated_at": "2026-05-05T18:14:06+09:00"
     },
     {
       "path": ".namba/project/codemaps/data-flow.md",
@@ -534,8 +534,8 @@
       "path": ".namba/project/pr-checklist.md",
       "kind": "project-doc",
       "owner": "namba-managed",
-      "checksum": "f02c16c7bf0984c1e95fa465129fbee4efcde93d2884b8415a3b94402226d09b",
-      "updated_at": "2026-05-01T17:41:00+09:00"
+      "checksum": "1ee66059030eca70bedd4eada1ab400ada1b6ece7c929655eafb956aa44a6e04",
+      "updated_at": "2026-05-05T18:00:59+09:00"
     },
     {
       "path": ".namba/project/product.md",
@@ -562,15 +562,15 @@
       "path": ".namba/project/release-notes.md",
       "kind": "project-doc",
       "owner": "namba-managed",
-      "checksum": "17f1ffe6295d76a9f9fd4068ab007adb9075e904572ef8bdf767929b97c4c1aa",
-      "updated_at": "2026-05-01T17:41:00+09:00"
+      "checksum": "f81e6cb84f68ba2cc09fc3f391035084101d9328af50d6bfea6cc21b179fc7ed",
+      "updated_at": "2026-05-05T18:00:59+09:00"
     },
     {
       "path": ".namba/project/structure.md",
       "kind": "project-doc",
       "owner": "namba-managed",
-      "checksum": "3cdeb0426ecd23ff9d80202717429c0a0a50709110603e7a0eeeeee6ef5d41f8",
-      "updated_at": "2026-05-01T17:41:00+09:00"
+      "checksum": "7abdfd9607c3fadc0e54f7ed5c1396aa950350d18fa5e36bcd7d89ba8dc3a4e4",
+      "updated_at": "2026-05-05T18:33:29+09:00"
     },
     {
       "path": ".namba/project/systems/workspace.md",
@@ -1882,6 +1882,55 @@
       "updated_at": "2026-05-01T17:41:00+09:00"
     },
     {
+      "path": ".namba/specs/SPEC-042/acceptance.md",
+      "kind": "spec",
+      "owner": "namba-managed",
+      "checksum": "f1d1d1fde086752b592bf4968264b65bb80318ca5571441dc81ec8b2403a63e4",
+      "updated_at": "2026-05-05T17:58:22+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-042/plan.md",
+      "kind": "spec",
+      "owner": "namba-managed",
+      "checksum": "911a36fd35814d6d5e9efcace42287a6a5d35db97ab419cf4c8484b9e9f41932",
+      "updated_at": "2026-05-05T17:58:22+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-042/reviews/design.md",
+      "kind": "spec",
+      "owner": "namba-managed",
+      "checksum": "70b67c97bdc098f19721f377138e88530f467db6384da12fc07f25b04ffd68c2",
+      "updated_at": "2026-05-05T17:58:22+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-042/reviews/engineering.md",
+      "kind": "spec",
+      "owner": "namba-managed",
+      "checksum": "0576a22e3d37991625485d80d2770bda2c032a9ac4d2fc17c61b896942e59de6",
+      "updated_at": "2026-05-05T17:58:22+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-042/reviews/product.md",
+      "kind": "spec",
+      "owner": "namba-managed",
+      "checksum": "917bb2906c1c4c82eded44aa8f6d8a99ac5f056d28d471b2c830f2801804f4da",
+      "updated_at": "2026-05-05T17:58:22+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-042/reviews/readiness.md",
+      "kind": "spec",
+      "owner": "namba-managed",
+      "checksum": "bab785acc7170c1e4f895e124da988837ded32663a8667f27302b3404a591264",
+      "updated_at": "2026-05-05T18:33:29+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-042/spec.md",
+      "kind": "spec",
+      "owner": "namba-managed",
+      "checksum": "795966e516a37e6422b6b33453b2f99299cc83c873e240064e0e1d311109d6b8",
+      "updated_at": "2026-05-05T17:58:22+09:00"
+    },
+    {
       "path": ".namba/worktrees/.gitkeep",
       "kind": "asset",
       "checksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -1898,29 +1947,29 @@
       "path": "README.ja.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "62a9edf12b6a8ee502a98d664d2f54af0cf308b535a4a87a02e6005b7cdd4af9",
-      "updated_at": "2026-05-01T18:44:11+09:00"
+      "checksum": "721cb3b87cddfc888662f3fcf33a2c374c08387f6a59bb4b39526fc2a3604287",
+      "updated_at": "2026-05-05T19:01:14+09:00"
     },
     {
       "path": "README.ko.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "ee8f161d62ffb980e89ba64f0983a3934ad4a6aaa97546399ebde8ad883a2aea",
-      "updated_at": "2026-05-01T18:44:11+09:00"
+      "checksum": "79b698ebe2a39bc40cd99eb438f1072eb982e2249889863cfdb629534f4be570",
+      "updated_at": "2026-05-05T19:01:14+09:00"
     },
     {
       "path": "README.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "643083e7639535ea3bd96ad724f54f0f0a8c549966700aa292f8ae3287245f20",
-      "updated_at": "2026-05-01T18:44:11+09:00"
+      "checksum": "390b7324756bb4c56d58da86d86ea87dabfcf7c6f1ceed4c7e34c98afa8145e3",
+      "updated_at": "2026-05-05T19:01:14+09:00"
     },
     {
       "path": "README.zh.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "a8182c713c9e529715a01e97057d0f26e21c594e36c1ffc555c460d044899650",
-      "updated_at": "2026-05-01T18:44:11+09:00"
+      "checksum": "9e6892855dc59e3bb5045ea848d39fdf6b703e4740aa42e602358e4586e7bafa",
+      "updated_at": "2026-05-05T19:01:14+09:00"
     },
     {
       "path": "docs/getting-started.ja.md",
@@ -1954,29 +2003,29 @@
       "path": "docs/workflow-guide.ja.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "2f0d94569428d5b4e4684305fcc23a89cb04e9310b1142b9dcaa8176461772ec",
-      "updated_at": "2026-05-01T18:44:11+09:00"
+      "checksum": "ba9ea5b4c1284870ab5b972cc1f151ac9edd543d4db96f57e2ced9c0788ddf74",
+      "updated_at": "2026-05-05T19:01:14+09:00"
     },
     {
       "path": "docs/workflow-guide.ko.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "2992cff26bb6083f3b0b682aeccc6de515036aeeb76fdbfc7b7dc4744a292d4e",
-      "updated_at": "2026-05-01T18:44:11+09:00"
+      "checksum": "d4ad3ecd0801d768da865f708c1ef8ac09aded0a5225cbebef8dad6e3dc0d9d2",
+      "updated_at": "2026-05-05T19:01:14+09:00"
     },
     {
       "path": "docs/workflow-guide.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "f73bd7091abbae071ce19f8e59c9e8c2260ae4435ff29f8b8e7005a327e1c7c5",
-      "updated_at": "2026-05-01T18:44:11+09:00"
+      "checksum": "6daf7c56948c5aabfb60f4cf987ffa71a1b60241a0a7c15dfc4b12ae7792e86b",
+      "updated_at": "2026-05-05T19:01:14+09:00"
     },
     {
       "path": "docs/workflow-guide.zh.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "318b07b1c2823ca87bc3ce1ab51f7f4b086022a86bc4d7c7245a2c34db88c56c",
-      "updated_at": "2026-05-01T18:44:11+09:00"
+      "checksum": "fa14d60836b9c1ba7fdaa5c76310cbeb82719b19ceb6842397d0aef6b02134a7",
+      "updated_at": "2026-05-05T19:01:14+09:00"
     }
   ]
 }

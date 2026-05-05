@@ -18,6 +18,7 @@ NambaAI は、Codex と一緒に作業するときに「次に何をすればい
 - `namba plan`: 新しい機能やプロダクト変更を、順番に進められる計画にしたいときに使います。
 - `namba harness`: 再利用する skill、agent、workflow などの Namba/Codex 部品を計画したいときに使います。
 - `namba fix`: 目の前のバグをすぐ直したいときに使います。バグ修正もレビュー可能な計画にしたい場合は `namba fix --command plan` を使います。
+- `namba queue start SPEC-001..SPEC-003`: 既に作成済みの SPEC を、新しく作らず順番に最後まで処理したいときに使います。
 
 ## 🧰 NambaAI でできること
 
@@ -25,6 +26,7 @@ NambaAI は、Codex と一緒に作業するときに「次に何をすればい
 - どのコマンドを使うべきか迷ったら、`$namba-coach` に今やりたいことを伝えます。
 - 使い方そのものを知りたいだけなら `$namba-help` を使います。この経路はファイルを変更しません。
 - 計画ができたら `namba run SPEC-XXX` で実行し、完了後は `namba sync`、`namba pr`、`namba land` で文書整理とレビュー/マージへ進みます。
+- 複数の SPEC をまとめて作成済みの場合は `namba queue start` で 1 件ずつ進め、validation / checks / non-mergeable PR など危険な状態では blocked で止まり、`namba queue resume` で続行できます。
 - 実装前に product、engineering、design の観点で確認したい場合は `$namba-plan-pm-review`、`$namba-plan-eng-review`、`$namba-plan-design-review` を使えます。
 - チームで同じバージョンを使えるように `namba update` で CLI をそろえられます。
 

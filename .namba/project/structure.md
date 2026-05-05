@@ -84,6 +84,7 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/manifest.json
 .namba/releases/v0.5.4.md
 .namba/releases/v0.5.5.md
+.namba/releases/v0.5.6.md
 .namba/specs/.gitkeep
 .namba/specs/SPEC-001/acceptance.md
 .namba/specs/SPEC-001/plan.md
@@ -333,6 +334,13 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-041/reviews/readiness.md
 .namba/specs/SPEC-041/spec.md
 .namba/specs/SPEC-041/upstream-analysis.md
+.namba/specs/SPEC-042/acceptance.md
+.namba/specs/SPEC-042/plan.md
+.namba/specs/SPEC-042/reviews/design.md
+.namba/specs/SPEC-042/reviews/engineering.md
+.namba/specs/SPEC-042/reviews/product.md
+.namba/specs/SPEC-042/reviews/readiness.md
+.namba/specs/SPEC-042/spec.md
 AGENTS.md
 README.ja.md
 README.ko.md
@@ -402,6 +410,8 @@ internal/namba/pr_land_command_test.go
 internal/namba/project_analysis.go
 internal/namba/project_analysis_index.go
 internal/namba/project_analysis_inventory_test.go
+internal/namba/queue_command.go
+internal/namba/queue_command_test.go
 internal/namba/readme.go
 internal/namba/readme_contract_test.go
 internal/namba/readme_sync_test.go

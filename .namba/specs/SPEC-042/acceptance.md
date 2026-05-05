@@ -1,0 +1,31 @@
+# Acceptance
+
+- [ ] `namba queue --help` and `namba help queue` document `start`, `status`, `resume`, `pause`, and `stop`.
+- [ ] `namba queue start` accepts existing SPEC ranges such as `SPEC-010..SPEC-014` and explicit lists such as `SPEC-010 SPEC-012 SPEC-014`.
+- [ ] Queue start rejects missing, malformed, duplicated, or ambiguous SPEC targets and never creates a new `.namba/specs/<SPEC>/` package.
+- [ ] Queue state is durably persisted under `.namba/logs/queue/` with atomic writes and enough data to resume after process interruption.
+- [ ] Queue state separates queue-level state from per-SPEC phase state and persists `pause_requested`, `stop_requested`, `active_spec_id`, `expected_branch`, `current_run_log_id`, `last_observed_head_sha`, and `last_safe_checkpoint`.
+- [ ] Queue branch resolution for existing SPECs prefers persisted `expected_branch`, accepts exactly one local `spec/<SPEC-ID>-*` match, persists a deterministic fallback branch before creating it, and blocks on multiple or ambiguous matching branches.
+- [ ] Only one active queue and one active SPEC are allowed at a time.
+- [ ] The conveyor processes target SPECs in deterministic order.
+- [ ] Completed phases are skipped only when local, Git, or GitHub evidence proves they are complete.
+- [ ] A whole SPEC is skipped only when landed evidence proves the v1 terminal target is satisfied; implemented-only and PR-ready states skip completed phases but do not skip the whole SPEC.
+- [ ] Failed validation, failed checks, non-mergeable PRs, dirty Git state, GitHub auth failures, missing `gh`, diverged branches, and ambiguous PR or check state stop the queue as `blocked` instead of being skipped.
+- [ ] `resume` recomputes Git and GitHub truth before continuing and does not duplicate branches, commits, PRs, review comments, validation artifacts, or merges.
+- [ ] Product, engineering, and design review tracks can run in parallel, but `.namba/specs/<SPEC>/reviews/readiness.md` is refreshed once, serially, after all three review artifacts are complete.
+- [ ] Review status `clear-with-followups` permits progress only when every follow-up bullet is machine-tagged with `[non-blocking]` or `[post-implementation]`; blocked, missing, untagged, or ambiguous review states stop the queue as `blocked`.
+- [ ] Implementation uses the existing team execution path equivalent to `namba run --team SPEC-XXX` and preserves validation behavior.
+- [ ] Queue sync and PR support are active-SPEC-aware and do not accidentally reference the repository's latest SPEC when processing an older queued SPEC.
+- [ ] Queue PR handling creates or reuses a PR, avoids duplicate `@codex review` marker comments, and supports a queue-scoped option to skip creating a new review request marker comment.
+- [ ] Auto-land happens only when explicitly enabled and only when required checks are proven green, the PR is mergeable, the PR is not a draft, the base branch is expected, and GitHub state is unambiguous.
+- [ ] The queue records which check proof strategy was used: explicit GitHub required-check data, or the stricter tested fallback that all surfaced PR checks must be green.
+- [ ] If the selected check proof strategy cannot produce trustworthy evidence, the queue blocks as ambiguous.
+- [ ] Without auto-land, the queue stops in `waiting_for_land` after PR/check evidence and does not start the next SPEC until the current SPEC is landed or resume proves it was already landed.
+- [ ] After a successful land, local `main` is refreshed before the next SPEC begins.
+- [ ] `pause` records a cooperative pause request and stops at the next safe checkpoint; `stop` marks the queue stopped without deleting branches, PRs, or worktrees.
+- [ ] `status` leads with one operator-facing state (`running`, `waiting`, `blocked`, or `done`), active SPEC, internal detail, blocker or wait reason, PR link, evidence path, and next command.
+- [ ] Default `status` summarizes completed and skipped targets by count while preserving detailed skip reasons in the report artifact or verbose output.
+- [ ] `blocked` output includes the exact gate, evidence path, and recovery action.
+- [ ] `pause_requested`, `paused`, `stopped`, `waiting_for_checks`, `ready_to_land`, and `waiting_for_land` use distinct operator-facing language.
+- [ ] Tests cover range/list parsing, durable state read/write, branch resolution, active-queue locking, phase skip logic, blocked states, cooperative pause and stop, idempotent resume, active-SPEC-aware sync/PR artifacts, review comment skip, auto-land gates, required-check ambiguity, and local main refresh.
+- [ ] Validation passes: `go test ./...`, `gofmt -l "cmd" "internal" "namba_test.go"`, and `go vet ./...`.

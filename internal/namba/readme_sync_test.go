@@ -23,14 +23,14 @@ func TestRunSyncWritesRunModeDocs(t *testing.T) {
 	}
 
 	readme := mustReadFile(t, filepath.Join(tmp, "README.md"))
-	for _, want := range []string{"`--solo` for a single runner in one workspace", "`--team` for same-workspace multi-agent execution", "`--parallel` for worktree fan-out/fan-in", "## Command Skills In Codex", "## 🗺️ Skill To Command Mapping", "## Custom Agents In Codex", "`$namba-help`", "`$namba-run`", "`$namba-harness`", "`$namba-plan-review`", "`$namba-review-resolve`", "`$namba-release`", "`$namba-sync`", "`$namba-pr`", "`$namba-regen`", "`$namba-plan-pm-review`", "`$namba-plan-eng-review`", "`$namba-plan-design-review`", "`namba-product-manager`", "`namba-plan-reviewer`", "`namba-mobile-engineer`", "`namba-designer`", "`namba-data-engineer`", "`namba-security-engineer`", "`namba harness \"description\"`", "`namba fix --command plan \"issue description\"`", "direct repair in the current workspace", "frontend-brief.md", "`frontend-major`"} {
+	for _, want := range []string{"`--solo` for a single runner in one workspace", "`--team` for same-workspace multi-agent execution", "`--parallel` for worktree fan-out/fan-in", "`namba queue start SPEC-001..SPEC-003`", "## Command Skills In Codex", "## 🗺️ Skill To Command Mapping", "## Custom Agents In Codex", "`$namba-help`", "`$namba-run`", "`$namba-harness`", "`$namba-plan-review`", "`$namba-review-resolve`", "`$namba-release`", "`$namba-sync`", "`$namba-pr`", "`$namba-regen`", "`$namba-plan-pm-review`", "`$namba-plan-eng-review`", "`$namba-plan-design-review`", "`namba-product-manager`", "`namba-plan-reviewer`", "`namba-mobile-engineer`", "`namba-designer`", "`namba-data-engineer`", "`namba-security-engineer`", "`namba harness \"description\"`", "`namba fix --command plan \"issue description\"`", "direct repair in the current workspace", "frontend-brief.md", "`frontend-major`"} {
 		if !strings.Contains(readme, want) {
 			t.Fatalf("expected README to contain %q, got %q", want, readme)
 		}
 	}
 
 	workflowGuide := mustReadFile(t, filepath.Join(tmp, "docs", "workflow-guide.md"))
-	for _, want := range []string{"## Run modes", "## Role routing", "## Review readiness", "## Planning commands", "## PR and merge flow", "`$namba-help`", "`namba project`: refresh current repository docs and codemaps without creating a SPEC package.", "`namba codex access`", "`namba harness \"description\"`: create the next harness-oriented SPEC package", "`namba run SPEC-XXX --solo`: a single runner in one workspace.", "`namba run SPEC-XXX --team`: same-workspace multi-agent execution.", "`namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.", "`namba fix \"issue description\"`: direct repair in the current workspace.", "`namba fix --command plan \"issue description\"`: create a bugfix SPEC package plus review artifacts.", "`namba plan`, `namba harness`, and `namba fix --command plan` seed", "fresh Codex session", "`namba-mobile-engineer`", "`namba-security-engineer`", "`$namba-plan-review`", "`$namba-plan-pm-review`", "frontend-brief.md", "`frontend-major`"} {
+	for _, want := range []string{"## Run modes", "## SPEC queue conveyor", "## Role routing", "## Review readiness", "## Planning commands", "## PR and merge flow", "`$namba-help`", "`namba project`: refresh current repository docs and codemaps without creating a SPEC package.", "`namba codex access`", "`namba harness \"description\"`: create the next harness-oriented SPEC package", "`namba run SPEC-XXX --solo`: a single runner in one workspace.", "`namba run SPEC-XXX --team`: same-workspace multi-agent execution.", "`namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.", "`namba queue status`", "`waiting_for_land`", "`namba fix \"issue description\"`: direct repair in the current workspace.", "`namba fix --command plan \"issue description\"`: create a bugfix SPEC package plus review artifacts.", "`namba plan`, `namba harness`, and `namba fix --command plan` seed", "fresh Codex session", "`namba-mobile-engineer`", "`namba-security-engineer`", "`$namba-plan-review`", "`$namba-plan-pm-review`", "frontend-brief.md", "`frontend-major`"} {
 		if !strings.Contains(workflowGuide, want) {
 			t.Fatalf("expected workflow guide to contain %q, got %q", want, workflowGuide)
 		}
@@ -39,7 +39,7 @@ func TestRunSyncWritesRunModeDocs(t *testing.T) {
 
 func TestRenderNambaCLIWorkflowGuideIncludesRoleRouting(t *testing.T) {
 	guide := renderReadmeGuide("en", "workflow-guide", projectConfig{}, initProfile{}, docsConfig{ReadmeProfile: readmeProfileNambaCLI})
-	for _, want := range []string{"## Role routing", "## Planning commands", "## PR and merge flow", "`$namba-help`", "`namba codex access`", "`namba harness \"description\"`: create the next harness-oriented SPEC package", "`namba run SPEC-XXX --team`: same-workspace multi-agent execution.", "`namba run SPEC-XXX --solo`: a single runner in one workspace.", "`namba fix --command plan \"issue description\"`: create a bugfix SPEC package plus review artifacts.", "`namba-mobile-engineer`", "`namba-security-engineer`", "`namba-reviewer`", "`$namba-plan-review`", "fresh Codex session"} {
+	for _, want := range []string{"## Role routing", "## SPEC queue conveyor", "## Planning commands", "## PR and merge flow", "`$namba-help`", "`namba codex access`", "`namba harness \"description\"`: create the next harness-oriented SPEC package", "`namba run SPEC-XXX --team`: same-workspace multi-agent execution.", "`namba run SPEC-XXX --solo`: a single runner in one workspace.", "`namba queue start SPEC-001..SPEC-003`", "`namba fix --command plan \"issue description\"`: create a bugfix SPEC package plus review artifacts.", "`namba-mobile-engineer`", "`namba-security-engineer`", "`namba-reviewer`", "`$namba-plan-review`", "fresh Codex session"} {
 		if !strings.Contains(guide, want) {
 			t.Fatalf("expected namba-cli workflow guide to contain %q, got %q", want, guide)
 		}
@@ -205,6 +205,8 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 			"`$namba-help`",
 			"`$namba-plan-review`",
 			"`namba run SPEC-XXX --team`",
+			"`namba queue status`",
+			"`waiting_for_land`",
 			"`namba fix --command plan",
 			"`namba fix --command run",
 			"`namba-reviewer`",

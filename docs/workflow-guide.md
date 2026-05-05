@@ -12,6 +12,7 @@
 - `codex update`: update the upstream Codex CLI; this is separate from `namba update`
 - `namba regen`: regenerate AGENTS, skills, custom agents, and repo Codex config
 - `namba sync`: refresh README, project docs, codemaps, advisory review readiness, PR checklists, and release notes
+- `namba queue`: process existing SPEC packages in order without creating new SPECs, using durable state plus Git/GitHub gates to resume or block safely
 - `namba pr`: run sync plus validation by default, commit and push the current branch, open or reuse the PR, and ensure the Codex review marker exists
 - `namba land`: optionally wait for checks, merge only when the PR is clean, and update local `main` safely
 
@@ -40,6 +41,15 @@
 - `namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.
 - Codex subagent threads are controlled by `.codex/config.toml [agents].max_threads = 5`; Namba worktree workers stay separate at `.namba/config/sections/workflow.yaml max_parallel_workers: 3`.
 - Persisted Codex `/goal` workflows are a future orchestration candidate, not a required Namba runtime dependency.
+
+## SPEC queue conveyor
+
+- `namba queue start SPEC-001..SPEC-003`: process existing SPEC packages in order without creating new SPECs.
+- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: target an explicit SPEC list and optionally skip the `@codex review` marker.
+- `namba queue status`: show the active SPEC, durable state, blocker or wait reason, report path, and next safe command.
+- `namba queue resume`, `pause`, and `stop`: continue or halt from durable state under `.namba/logs/queue/`.
+- Queue automation allows one active SPEC at a time. Failed validation, failed checks, non-mergeable PRs, and ambiguous Git/GitHub state stop as blocked instead of being skipped.
+- Without `--auto-land`, green+mergeable PRs stop at `waiting_for_land` so an operator can confirm the merge.
 
 ## Role routing
 
