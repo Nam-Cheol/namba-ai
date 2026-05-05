@@ -27,6 +27,7 @@ Routing rules:
 - Review-thread cleanup and reply/resolve loop: `$namba-review-resolve`
 - NambaAI release orchestration and release-note handoff: `$namba-release`
 - Existing SPEC execution: `namba run SPEC-XXX`
+- Sequential execution of multiple existing SPEC packages: `$namba-queue` or `namba queue start SPEC-001..SPEC-003`
 - Usage or onboarding explanation: `$namba-help`
 - Implementation finished and artifacts need refresh: `namba sync`
 - Review handoff is ready: `namba pr "<Korean title>"`

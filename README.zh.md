@@ -116,6 +116,7 @@ continue_on_failure = false
 - `$namba-plan-review`: 想从 product / engineering / design 角度一起检查计划时使用。
 - `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: 只需要单独检查 product、engineering 或 design 其中一类时使用。
 - `$namba-run`: 在当前 Codex 会话中执行已经创建好的 SPEC 包时使用。
+- `$namba-queue`: 用 queue 按顺序处理多个已有 SPEC 包，并操作 status / resume / pause / stop。
 - `$namba-sync`: 刷新 README 套件、项目文档、codemap 和 PR 交接产物时使用。
 - `$namba-pr` / `$namba-land`: 提交 GitHub 评审，并在通过后安全合并时使用。
 - `$namba-review-resolve`: 检查 PR review thread，只处理有意义的反馈，完成修复、回复、resolve，并带验证证据再次请求评审时使用。
@@ -135,6 +136,7 @@ continue_on_failure = false
 - `$namba-plan-review` -> `namba plan "description"` 或 `namba harness "description"` + 并行 review + aggregate validation loop
 - `$namba-fix` -> `namba fix "issue description"` 或 `namba fix --command plan "issue description"`
 - `$namba-run` -> `namba run SPEC-XXX`
+- `$namba-queue` -> `namba queue start <SPEC-RANGE|SPEC-LIST>` / `status` / `resume` / `pause` / `stop`
 - `$namba-sync` -> `namba sync`
 - `$namba-pr` -> `namba pr "title"`
 - `$namba-land` -> `namba land`

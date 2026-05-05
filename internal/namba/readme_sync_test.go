@@ -23,7 +23,7 @@ func TestRunSyncWritesRunModeDocs(t *testing.T) {
 	}
 
 	readme := mustReadFile(t, filepath.Join(tmp, "README.md"))
-	for _, want := range []string{"`--solo` for a single runner in one workspace", "`--team` for same-workspace multi-agent execution", "`--parallel` for worktree fan-out/fan-in", "`namba queue start SPEC-001..SPEC-003`", "## Command Skills In Codex", "## 🗺️ Skill To Command Mapping", "## Custom Agents In Codex", "`$namba-help`", "`$namba-run`", "`$namba-harness`", "`$namba-plan-review`", "`$namba-review-resolve`", "`$namba-release`", "`$namba-sync`", "`$namba-pr`", "`$namba-regen`", "`$namba-plan-pm-review`", "`$namba-plan-eng-review`", "`$namba-plan-design-review`", "`namba-product-manager`", "`namba-plan-reviewer`", "`namba-mobile-engineer`", "`namba-designer`", "`namba-data-engineer`", "`namba-security-engineer`", "`namba harness \"description\"`", "`namba fix --command plan \"issue description\"`", "direct repair in the current workspace", "frontend-brief.md", "`frontend-major`"} {
+	for _, want := range []string{"`--solo` for a single runner in one workspace", "`--team` for same-workspace multi-agent execution", "`--parallel` for worktree fan-out/fan-in", "`namba queue start SPEC-001..SPEC-003`", "## Command Skills In Codex", "## 🗺️ Skill To Command Mapping", "## Custom Agents In Codex", "`$namba-help`", "`$namba-run`", "`$namba-queue`", "`$namba-harness`", "`$namba-plan-review`", "`$namba-review-resolve`", "`$namba-release`", "`$namba-sync`", "`$namba-pr`", "`$namba-regen`", "`$namba-plan-pm-review`", "`$namba-plan-eng-review`", "`$namba-plan-design-review`", "`namba-product-manager`", "`namba-plan-reviewer`", "`namba-mobile-engineer`", "`namba-designer`", "`namba-data-engineer`", "`namba-security-engineer`", "`namba harness \"description\"`", "`namba fix --command plan \"issue description\"`", "direct repair in the current workspace", "frontend-brief.md", "`frontend-major`"} {
 		if !strings.Contains(readme, want) {
 			t.Fatalf("expected README to contain %q, got %q", want, readme)
 		}
@@ -591,7 +591,7 @@ func TestRenderManagedProjectRootWhatYouCanDoSectionFallbackToEnglish(t *testing
 
 func TestRenderManagedProjectRootEnglishCommandSurfaceHelpersPreserveAnchors(t *testing.T) {
 	commandSkills := strings.Join(renderManagedProjectRootCommandSkillsSection("en"), "\n")
-	for _, want := range []string{"## Command Skills In Codex", "`$namba-help`", "`$namba-plan-review`", "`$namba-review-resolve`", "`$namba-release`", "`$namba-update`", "right Namba entry point", "reviewable bugfix SPEC"} {
+	for _, want := range []string{"## Command Skills In Codex", "`$namba-help`", "`$namba-queue`", "`$namba-plan-review`", "`$namba-review-resolve`", "`$namba-release`", "`$namba-update`", "right Namba entry point", "reviewable bugfix SPEC"} {
 		if !strings.Contains(commandSkills, want) {
 			t.Fatalf("managed-project command-skills section missing %q: %q", want, commandSkills)
 		}
@@ -1381,14 +1381,14 @@ func TestRenderNambaCLIRootCommandSurfaceSectionHelpersPreserveLocalizedAnchors(
 
 	for _, tc := range cases {
 		commandSkills := strings.Join(renderNambaCLIRootCommandSkillsSection(tc.lang), "\n")
-		for _, want := range []string{tc.commandSkillsHeading, "`$namba-help`", "`$namba-run`", "`$namba-plan-review`", "`$namba-review-resolve`", "`$namba-release`", "`$namba-update`"} {
+		for _, want := range []string{tc.commandSkillsHeading, "`$namba-help`", "`$namba-run`", "`$namba-queue`", "`$namba-plan-review`", "`$namba-review-resolve`", "`$namba-release`", "`$namba-update`"} {
 			if !strings.Contains(commandSkills, want) {
 				t.Fatalf("%s command-skills section missing %q: %q", tc.lang, want, commandSkills)
 			}
 		}
 
 		mapping := strings.Join(renderNambaCLIRootSkillMappingSection(tc.lang), "\n")
-		for _, want := range []string{tc.skillMappingHeading, "`$namba-project` -> `namba project`", "`$namba-run` -> `namba run SPEC-XXX`", "`$namba-review-resolve`", "`$namba-release`", "`$namba-update` -> `namba update [--version vX.Y.Z]`"} {
+		for _, want := range []string{tc.skillMappingHeading, "`$namba-project` -> `namba project`", "`$namba-run` -> `namba run SPEC-XXX`", "`$namba-queue` -> `namba queue start <SPEC-RANGE|SPEC-LIST>`", "`$namba-review-resolve`", "`$namba-release`", "`$namba-update` -> `namba update [--version vX.Y.Z]`"} {
 			if !strings.Contains(mapping, want) {
 				t.Fatalf("%s skill-mapping section missing %q: %q", tc.lang, want, mapping)
 			}
