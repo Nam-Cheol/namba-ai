@@ -226,6 +226,9 @@ func TestQueueMergedPullRequestEvidenceRequiresSpecBaseCommitInMergeCommit(t *te
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 		switch {
 		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list" && hasArg(args, "--state", "merged"):
+			if !hasArg(args, "--limit", "1000") {
+				t.Fatalf("expected merged PR list to request full history, got %v", args)
+			}
 			return mustMarshalJSON(t, []githubPullRequest{{Number: 23, URL: "https://github.com/example/repo/pull/23", State: "MERGED", MergedAt: "2026-05-05T10:00:00Z", MergeCommit: githubCommitRef{OID: "old-merge"}}}), nil
 		case name == "git" && strings.Join(args, " ") == "log -1 --format=%H main -- .namba/specs/SPEC-001":
 			return "new-spec-base", nil
@@ -240,6 +243,86 @@ func TestQueueMergedPullRequestEvidenceRequiresSpecBaseCommitInMergeCommit(t *te
 	landed, evidence := app.queueMergedPullRequestEvidence(context.Background(), tmp, "SPEC-001", "spec/SPEC-001-queue-fixture", "main")
 	if landed || evidence != "" {
 		t.Fatalf("expected stale merged PR history not to be landed evidence, landed=%v evidence=%q", landed, evidence)
+	}
+}
+
+func TestQueueResumePostPRPhaseSkipsSyncAndPRPreparation(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+
+	branch := "spec/SPEC-001-queue-fixture"
+	state := queueState{
+		ID:             "queue-test",
+		Status:         queueStateWaiting,
+		OperatorState:  queueOperatorWaiting,
+		Detail:         queuePhaseChecksPending,
+		Targets:        []string{"SPEC-001"},
+		ActiveSpecID:   "SPEC-001",
+		ExpectedBranch: branch,
+		Options:        queueOptions{Remote: defaultGitRemote},
+		Specs: map[string]queueSpec{"SPEC-001": {
+			SpecID:             "SPEC-001",
+			Status:             queueStateActive,
+			OperatorState:      queueOperatorWaiting,
+			Phase:              queuePhaseChecksPending,
+			Branch:             branch,
+			PRNumber:           17,
+			PRURL:              "https://github.com/example/repo/pull/17",
+			ValidationEvidence: queueRunEvidencePath("SPEC-001"),
+		}},
+	}
+	if err := app.writeQueueState(tmp, state); err != nil {
+		t.Fatalf("write queue state: %v", err)
+	}
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "git" && strings.Join(args, " ") == "branch --list "+branch:
+			return "  " + branch, nil
+		case name == "git" && strings.Join(args, " ") == "merge-base --is-ancestor "+branch+" main":
+			return "", errors.New("not ancestor")
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list" && hasArg(args, "--state", "merged"):
+			return "[]", nil
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return branch, nil
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return "", nil
+		case name == "git" && strings.Join(args, " ") == "rev-parse HEAD":
+			return "abc123", nil
+		case name == "gh" && len(args) >= 3 && args[0] == "pr" && args[1] == "view" && args[2] == "17":
+			return mustMarshalJSON(t, githubPullRequest{
+				Number:           17,
+				URL:              "https://github.com/example/repo/pull/17",
+				Title:            "SPEC-001",
+				HeadRefName:      branch,
+				HeadRefOID:       "abc123",
+				BaseRefName:      "main",
+				ReviewDecision:   "APPROVED",
+				MergeStateStatus: "CLEAN",
+				StatusChecks:     []githubStatusCheck{{Name: "ci", Status: "COMPLETED", Conclusion: "SUCCESS"}},
+			}), nil
+		case name == "git" && strings.Join(args, " ") == "add -A":
+			t.Fatalf("resume in checks_pending must not stage regenerated output")
+		case name == "git" && len(args) >= 2 && args[0] == "push":
+			t.Fatalf("resume in checks_pending must not push a new PR head")
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "create":
+			t.Fatalf("resume in checks_pending must not recreate PR")
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+		}
+		return "", nil
+	}
+
+	if err := app.Run(context.Background(), []string{"queue", "resume"}); err != nil {
+		t.Fatalf("queue resume failed: %v", err)
+	}
+	got, err := readQueueState(tmp)
+	if err != nil {
+		t.Fatalf("read queue state: %v", err)
+	}
+	if got.Status != queueStateWaiting || got.Detail != queuePhaseWaitingLand {
+		t.Fatalf("expected resume to validate existing PR and wait for land, got %+v", got)
 	}
 }
 

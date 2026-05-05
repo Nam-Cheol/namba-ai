@@ -392,6 +392,7 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 	}
 	specState := state.Specs[specID]
 	specState.SpecID = specID
+	resumeSpecState := specState
 
 	branch, err := a.resolveQueueBranch(ctx, root, state, specPkg, specState)
 	if err != nil {
@@ -442,7 +443,7 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 		currentHead, _ = a.gitHeadSHA(ctx, root)
 		currentHead = strings.TrimSpace(currentHead)
 	}
-	executionReady, validationEvidence := queueExecutionSatisfied(root, specID, currentHead, specState)
+	executionReady, validationEvidence := queueExecutionSatisfied(root, specID, currentHead, resumeSpecState)
 	if !executionReady {
 		runCtx, err := a.loadRunExecutionContext(root, runExecuteOptions{specID: specID, mode: executionModeTeam})
 		if err != nil {
@@ -474,35 +475,52 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 			return blockQueueSpec(a, root, state, specID, "validation_ambiguous", queueRunEvidencePath(specID), "inspect run evidence and run `namba queue resume`", "run completed but validation evidence is missing or failed")
 		}
 	}
+	hasPullRequestCheckpoint := queueSpecHasPullRequestCheckpoint(resumeSpecState)
 	specState.ValidationEvidence = validationEvidence
-	specState.Phase = queuePhasePRReady
-	state, err = updateQueueSpecState(a, root, state, specID, specState, queueOperatorRunning, queuePhasePRReady)
-	if err != nil {
-		return state, false, err
-	}
-	if state, done, err := a.honorQueueControlRequests(root, state); err != nil || done {
-		return state, false, err
-	}
+	var pr githubPullRequest
+	if hasPullRequestCheckpoint {
+		specState.Phase = resumeSpecState.Phase
+		specState.PRNumber = resumeSpecState.PRNumber
+		specState.PRURL = resumeSpecState.PRURL
+		pr = githubPullRequest{Number: specState.PRNumber, URL: specState.PRURL}
+		state.Specs[specID] = specState
+		state.UpdatedAt = a.now().Format(time.RFC3339)
+		if err := a.writeQueueState(root, state); err != nil {
+			return state, false, err
+		}
+		if state, done, err := a.honorQueueControlRequests(root, state); err != nil || done {
+			return state, false, err
+		}
+	} else {
+		specState.Phase = queuePhasePRReady
+		state, err = updateQueueSpecState(a, root, state, specID, specState, queueOperatorRunning, queuePhasePRReady)
+		if err != nil {
+			return state, false, err
+		}
+		if state, done, err := a.honorQueueControlRequests(root, state); err != nil || done {
+			return state, false, err
+		}
 
-	if err := a.runActiveSpecSync(ctx, root, specID); err != nil {
-		return blockQueueSpec(a, root, state, specID, "sync_failed", "", "fix active-SPEC sync and run `namba queue resume`", err.Error())
-	}
-	pr, err := a.prepareQueuePullRequest(ctx, root, state, specPkg, branch)
-	if err != nil {
-		return blockQueueSpec(a, root, state, specID, "pr_failed", "", "fix PR state and run `namba queue resume`", err.Error())
-	}
-	if postPRHead, err := a.gitHeadSHA(ctx, root); err == nil {
-		state.LastObservedHeadSHA = strings.TrimSpace(postPRHead)
-	}
-	specState.PRNumber = pr.Number
-	specState.PRURL = pr.URL
-	specState.Phase = queuePhaseChecksPending
-	state, err = updateQueueSpecState(a, root, state, specID, specState, queueOperatorRunning, queuePhaseChecksPending)
-	if err != nil {
-		return state, false, err
-	}
-	if state, done, err := a.honorQueueControlRequests(root, state); err != nil || done {
-		return state, false, err
+		if err := a.runActiveSpecSync(ctx, root, specID); err != nil {
+			return blockQueueSpec(a, root, state, specID, "sync_failed", "", "fix active-SPEC sync and run `namba queue resume`", err.Error())
+		}
+		pr, err = a.prepareQueuePullRequest(ctx, root, state, specPkg, branch)
+		if err != nil {
+			return blockQueueSpec(a, root, state, specID, "pr_failed", "", "fix PR state and run `namba queue resume`", err.Error())
+		}
+		if postPRHead, err := a.gitHeadSHA(ctx, root); err == nil {
+			state.LastObservedHeadSHA = strings.TrimSpace(postPRHead)
+		}
+		specState.PRNumber = pr.Number
+		specState.PRURL = pr.URL
+		specState.Phase = queuePhaseChecksPending
+		state, err = updateQueueSpecState(a, root, state, specID, specState, queueOperatorRunning, queuePhaseChecksPending)
+		if err != nil {
+			return state, false, err
+		}
+		if state, done, err := a.honorQueueControlRequests(root, state); err != nil || done {
+			return state, false, err
+		}
 	}
 
 	pr, err = a.loadPullRequest(ctx, root, strconv.Itoa(pr.Number), landPullRequestFields()...)
@@ -758,7 +776,7 @@ func (a *App) queueLandedEvidence(ctx context.Context, root, specID, branch stri
 }
 
 func (a *App) queueMergedPullRequestEvidence(ctx context.Context, root, specID, branch, base string) (bool, string) {
-	out, err := a.runBinary(ctx, "gh", []string{"pr", "list", "--head", branch, "--base", base, "--state", "merged", "--json", "number,url,mergedAt,mergeCommit,headRefName,baseRefName,state"}, root)
+	out, err := a.runBinary(ctx, "gh", []string{"pr", "list", "--head", branch, "--base", base, "--state", "merged", "--limit", "1000", "--json", "number,url,mergedAt,mergeCommit,headRefName,baseRefName,state"}, root)
 	if err != nil {
 		return false, ""
 	}
@@ -894,13 +912,20 @@ func queueExecutionSatisfied(root, specID, currentHead string, specState queueSp
 	return queueExecutionSucceeded(root, specID, currentHead)
 }
 
-func queueSpecHasPostExecutionCheckpoint(specState queueSpec) bool {
+func queueSpecHasPullRequestCheckpoint(specState queueSpec) bool {
+	if specState.PRNumber <= 0 {
+		return false
+	}
 	switch specState.Phase {
 	case queuePhaseChecksPending, queuePhaseReadyToLand, queuePhaseWaitingLand, queuePhaseLanding, queuePhaseLanded:
-		return specState.PRNumber > 0 && strings.TrimSpace(specState.ValidationEvidence) != ""
+		return true
 	default:
 		return false
 	}
+}
+
+func queueSpecHasPostExecutionCheckpoint(specState queueSpec) bool {
+	return queueSpecHasPullRequestCheckpoint(specState) && strings.TrimSpace(specState.ValidationEvidence) != ""
 }
 
 func stampQueueRunEvidenceHead(root, specID, currentHead string) error {
