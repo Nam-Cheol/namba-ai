@@ -746,7 +746,6 @@ func (a *App) queueLandedEvidence(ctx context.Context, root, specID, branch stri
 		if _, err := a.runBinary(ctx, "git", []string{"merge-base", "--is-ancestor", branch, base}, root); err == nil {
 			return true, fmt.Sprintf("branch %s is already merged into %s", branch, base)
 		}
-		return false, ""
 	}
 	if landed, evidence := a.queueMergedPullRequestEvidence(ctx, root, specID, branch, base); landed {
 		return true, evidence

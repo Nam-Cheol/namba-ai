@@ -151,6 +151,12 @@ func TestQueueLandedEvidenceDoesNotUseMergedPRFallbackForLiveUnmergedBranch(t *t
 			return "  spec/SPEC-001-queue-fixture", nil
 		case name == "git" && strings.Join(args, " ") == "merge-base --is-ancestor spec/SPEC-001-queue-fixture main":
 			return "", errors.New("not ancestor")
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list" && hasArg(args, "--state", "merged"):
+			return mustMarshalJSON(t, []githubPullRequest{{Number: 23, State: "MERGED", MergedAt: "2026-05-05T10:00:00Z", MergeCommit: githubCommitRef{OID: "old-merge"}}}), nil
+		case name == "git" && strings.Join(args, " ") == "log -1 --format=%H main -- .namba/specs/SPEC-001":
+			return "new-spec-base", nil
+		case name == "git" && strings.Join(args, " ") == "merge-base --is-ancestor new-spec-base old-merge":
+			return "", errors.New("stale merged PR does not contain latest SPEC package commit")
 		default:
 			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
 			return "", nil
@@ -160,6 +166,34 @@ func TestQueueLandedEvidenceDoesNotUseMergedPRFallbackForLiveUnmergedBranch(t *t
 	landed, evidence := app.queueLandedEvidence(context.Background(), tmp, "SPEC-001", "spec/SPEC-001-queue-fixture")
 	if landed || evidence != "" {
 		t.Fatalf("expected live unmerged branch not to use stale merged PR fallback, landed=%v evidence=%q", landed, evidence)
+	}
+}
+
+func TestQueueLandedEvidenceUsesMergedPRFallbackForSquashMergedBranch(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "git" && strings.Join(args, " ") == "branch --list spec/SPEC-001-queue-fixture":
+			return "  spec/SPEC-001-queue-fixture", nil
+		case name == "git" && strings.Join(args, " ") == "merge-base --is-ancestor spec/SPEC-001-queue-fixture main":
+			return "", errors.New("squash merge leaves branch tip outside base ancestry")
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list" && hasArg(args, "--state", "merged"):
+			return mustMarshalJSON(t, []githubPullRequest{{Number: 23, State: "MERGED", MergedAt: "2026-05-05T10:00:00Z", MergeCommit: githubCommitRef{OID: "squash-merge"}}}), nil
+		case name == "git" && strings.Join(args, " ") == "log -1 --format=%H main -- .namba/specs/SPEC-001":
+			return "spec-base", nil
+		case name == "git" && strings.Join(args, " ") == "merge-base --is-ancestor spec-base squash-merge":
+			return "", nil
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	landed, evidence := app.queueLandedEvidence(context.Background(), tmp, "SPEC-001", "spec/SPEC-001-queue-fixture")
+	if !landed || !strings.Contains(evidence, "PR #23 merged") {
+		t.Fatalf("expected squash-merged branch to use merged PR evidence, landed=%v evidence=%q", landed, evidence)
 	}
 }
 
