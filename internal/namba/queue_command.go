@@ -316,6 +316,11 @@ func (a *App) advanceQueue(ctx context.Context, root string, state queueState) e
 		state.Specs = map[string]queueSpec{}
 	}
 	for _, specID := range state.Targets {
+		var err error
+		state, err = refreshQueueControlRequests(root, state)
+		if err != nil {
+			return err
+		}
 		if state.PauseRequested {
 			state.Status = queueStatePaused
 			state.OperatorState = queueOperatorWaiting
@@ -416,6 +421,9 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 	if err != nil {
 		return state, false, err
 	}
+	if state, done, err := a.honorQueueControlRequests(root, state); err != nil || done {
+		return state, false, err
+	}
 
 	if err := a.ensureQueueReviewReady(root, specID); err != nil {
 		return blockQueueSpec(a, root, state, specID, "review_blocked", specReviewReadinessPath(specID), "update review artifacts and run `namba queue resume`", err.Error())
@@ -425,8 +433,16 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 	if err != nil {
 		return state, false, err
 	}
+	if state, done, err := a.honorQueueControlRequests(root, state); err != nil || done {
+		return state, false, err
+	}
 
-	executionReady, validationEvidence := queueExecutionSucceeded(root, specID)
+	currentHead := strings.TrimSpace(state.LastObservedHeadSHA)
+	if currentHead == "" {
+		currentHead, _ = a.gitHeadSHA(ctx, root)
+		currentHead = strings.TrimSpace(currentHead)
+	}
+	executionReady, validationEvidence := queueExecutionSucceeded(root, specID, currentHead)
 	if !executionReady {
 		runCtx, err := a.loadRunExecutionContext(root, runExecuteOptions{specID: specID, mode: executionModeTeam})
 		if err != nil {
@@ -441,10 +457,19 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 		if err != nil {
 			return state, false, err
 		}
+		if state, done, err := a.honorQueueControlRequests(root, state); err != nil || done {
+			return state, false, err
+		}
 		if err := a.dispatchRunExecution(ctx, runExecuteOptions{specID: specID, mode: executionModeTeam}, runCtx); err != nil {
 			return blockQueueSpec(a, root, state, specID, "validation_failed", queueRunEvidencePath(specID), "fix implementation or validation and run `namba queue resume`", err.Error())
 		}
-		executionReady, validationEvidence = queueExecutionSucceeded(root, specID)
+		currentHead, _ = a.gitHeadSHA(ctx, root)
+		currentHead = strings.TrimSpace(currentHead)
+		state.LastObservedHeadSHA = currentHead
+		if err := stampQueueRunEvidenceHead(root, specID, currentHead); err != nil {
+			return blockQueueSpec(a, root, state, specID, "validation_ambiguous", queueRunEvidencePath(specID), "inspect run evidence and run `namba queue resume`", err.Error())
+		}
+		executionReady, validationEvidence = queueExecutionSucceeded(root, specID, currentHead)
 		if !executionReady {
 			return blockQueueSpec(a, root, state, specID, "validation_ambiguous", queueRunEvidencePath(specID), "inspect run evidence and run `namba queue resume`", "run completed but validation evidence is missing or failed")
 		}
@@ -453,6 +478,9 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 	specState.Phase = queuePhasePRReady
 	state, err = updateQueueSpecState(a, root, state, specID, specState, queueOperatorRunning, queuePhasePRReady)
 	if err != nil {
+		return state, false, err
+	}
+	if state, done, err := a.honorQueueControlRequests(root, state); err != nil || done {
 		return state, false, err
 	}
 
@@ -468,6 +496,9 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 	specState.Phase = queuePhaseChecksPending
 	state, err = updateQueueSpecState(a, root, state, specID, specState, queueOperatorRunning, queuePhaseChecksPending)
 	if err != nil {
+		return state, false, err
+	}
+	if state, done, err := a.honorQueueControlRequests(root, state); err != nil || done {
 		return state, false, err
 	}
 
@@ -513,6 +544,9 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 	specState.Phase = queuePhaseReadyToLand
 	state, err = updateQueueSpecState(a, root, state, specID, specState, queueOperatorRunning, queuePhaseReadyToLand)
 	if err != nil {
+		return state, false, err
+	}
+	if state, done, err := a.honorQueueControlRequests(root, state); err != nil || done {
 		return state, false, err
 	}
 
@@ -697,18 +731,36 @@ func (a *App) queueLandedEvidence(ctx context.Context, root, branch string) (boo
 	if strings.TrimSpace(branch) == "" {
 		return false, ""
 	}
-	exists, err := a.localBranchExists(ctx, root, branch)
-	if err != nil || !exists {
-		return false, ""
-	}
 	base := "main"
 	if profile, err := a.loadInitProfileFromConfig(root); err == nil {
 		base = branchBase(profile)
 	}
-	if _, err := a.runBinary(ctx, "git", []string{"merge-base", "--is-ancestor", branch, base}, root); err != nil {
+	if exists, err := a.localBranchExists(ctx, root, branch); err == nil && exists {
+		if _, err := a.runBinary(ctx, "git", []string{"merge-base", "--is-ancestor", branch, base}, root); err == nil {
+			return true, fmt.Sprintf("branch %s is already merged into %s", branch, base)
+		}
+	}
+	if landed, evidence := a.queueMergedPullRequestEvidence(ctx, root, branch, base); landed {
+		return true, evidence
+	}
+	return false, ""
+}
+
+func (a *App) queueMergedPullRequestEvidence(ctx context.Context, root, branch, base string) (bool, string) {
+	out, err := a.runBinary(ctx, "gh", []string{"pr", "list", "--head", branch, "--base", base, "--state", "merged", "--json", "number,url,mergedAt,headRefName,baseRefName,state"}, root)
+	if err != nil {
 		return false, ""
 	}
-	return true, fmt.Sprintf("branch %s is already merged into %s", branch, base)
+	var prs []githubPullRequest
+	if err := json.Unmarshal([]byte(firstNonBlank(out, "[]")), &prs); err != nil || len(prs) == 0 {
+		return false, ""
+	}
+	pr := prs[0]
+	when := strings.TrimSpace(pr.MergedAt)
+	if when != "" {
+		return true, fmt.Sprintf("PR #%d merged at %s", pr.Number, when)
+	}
+	return true, fmt.Sprintf("PR #%d is merged", pr.Number)
 }
 
 func (a *App) ensureQueueReviewReady(root, specID string) error {
@@ -764,7 +816,11 @@ func reviewFollowupsAreTagged(body string) bool {
 	return found
 }
 
-func queueExecutionSucceeded(root, specID string) (bool, string) {
+func queueExecutionSucceeded(root, specID, currentHead string) (bool, string) {
+	currentHead = strings.TrimSpace(currentHead)
+	if currentHead == "" {
+		return false, ""
+	}
 	logID := strings.ToLower(specID)
 	executionPath := filepath.Join(root, logsDir, "runs", logID+"-execution.json")
 	validationPath := filepath.Join(root, logsDir, "runs", logID+"-validation.json")
@@ -773,7 +829,7 @@ func queueExecutionSucceeded(root, specID string) (bool, string) {
 		return false, ""
 	}
 	var execution executionResult
-	if err := json.Unmarshal(executionBytes, &execution); err != nil || !execution.Succeeded {
+	if err := json.Unmarshal(executionBytes, &execution); err != nil || !execution.Succeeded || strings.TrimSpace(execution.HeadSHA) != currentHead {
 		return false, filepath.ToSlash(filepath.Join(logsDir, "runs", logID+"-execution.json"))
 	}
 	validationBytes, err := os.ReadFile(validationPath)
@@ -781,10 +837,44 @@ func queueExecutionSucceeded(root, specID string) (bool, string) {
 		return false, filepath.ToSlash(filepath.Join(logsDir, "runs", logID+"-validation.json"))
 	}
 	var validation validationReport
-	if err := json.Unmarshal(validationBytes, &validation); err != nil || !validation.Passed {
+	if err := json.Unmarshal(validationBytes, &validation); err != nil || !validation.Passed || strings.TrimSpace(validation.HeadSHA) != currentHead {
 		return false, filepath.ToSlash(filepath.Join(logsDir, "runs", logID+"-validation.json"))
 	}
 	return true, filepath.ToSlash(filepath.Join(logsDir, "runs", logID+"-validation.json"))
+}
+
+func stampQueueRunEvidenceHead(root, specID, currentHead string) error {
+	currentHead = strings.TrimSpace(currentHead)
+	if currentHead == "" {
+		return errors.New("current HEAD is unknown")
+	}
+	logID := strings.ToLower(specID)
+	executionPath := filepath.Join(root, logsDir, "runs", logID+"-execution.json")
+	validationPath := filepath.Join(root, logsDir, "runs", logID+"-validation.json")
+
+	executionBytes, err := os.ReadFile(executionPath)
+	if err != nil {
+		return err
+	}
+	var execution executionResult
+	if err := json.Unmarshal(executionBytes, &execution); err != nil {
+		return err
+	}
+	execution.HeadSHA = currentHead
+	if err := writeJSONFile(executionPath, execution); err != nil {
+		return err
+	}
+
+	validationBytes, err := os.ReadFile(validationPath)
+	if err != nil {
+		return err
+	}
+	var validation validationReport
+	if err := json.Unmarshal(validationBytes, &validation); err != nil {
+		return err
+	}
+	validation.HeadSHA = currentHead
+	return writeJSONFile(validationPath, validation)
 }
 
 func queueRunEvidencePath(specID string) string {
@@ -990,6 +1080,53 @@ func queueIsActive(state queueState) bool {
 	default:
 		return false
 	}
+}
+
+func refreshQueueControlRequests(root string, state queueState) (queueState, error) {
+	latest, err := readQueueState(root)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return state, nil
+		}
+		return state, err
+	}
+	if state.ID != "" && latest.ID != "" && latest.ID != state.ID {
+		return state, fmt.Errorf("queue state changed from %s to %s", state.ID, latest.ID)
+	}
+	if latest.PauseRequested {
+		state.PauseRequested = true
+	}
+	if latest.StopRequested {
+		state.StopRequested = true
+	}
+	return state, nil
+}
+
+func (a *App) honorQueueControlRequests(root string, state queueState) (queueState, bool, error) {
+	refreshed, err := refreshQueueControlRequests(root, state)
+	if err != nil {
+		return state, false, err
+	}
+	state = refreshed
+	switch {
+	case state.StopRequested:
+		state.Status = queueStateStopped
+		state.OperatorState = queueOperatorBlocked
+		state.Detail = queuePhaseStopped
+		state.LastRecoveryAction = "start a new queue when ready"
+	case state.PauseRequested:
+		state.Status = queueStatePaused
+		state.OperatorState = queueOperatorWaiting
+		state.Detail = queuePhasePaused
+		state.LastRecoveryAction = "run `namba queue resume` when ready"
+	default:
+		return state, false, nil
+	}
+	state.UpdatedAt = a.now().Format(time.RFC3339)
+	if err := a.writeQueueState(root, state); err != nil {
+		return state, true, err
+	}
+	return state, true, nil
 }
 
 func updateQueueSpecState(a *App, root string, state queueState, specID string, specState queueSpec, operatorState, detail string) (queueState, error) {

@@ -103,6 +103,40 @@ func TestQueueStartSkipsSpecAlreadyMergedIntoBase(t *testing.T) {
 	}
 }
 
+func TestQueueStartSkipsMergedPullRequestWhenLocalBranchIsMissing(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "git" && strings.Join(args, " ") == "for-each-ref --format=%(refname:short) refs/heads":
+			return "main", nil
+		case name == "git" && len(args) == 3 && args[0] == "branch" && args[1] == "--list":
+			return "", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list" && hasArg(args, "--state", "merged"):
+			return mustMarshalJSON(t, []githubPullRequest{{Number: 23, URL: "https://github.com/example/repo/pull/23", State: "MERGED", MergedAt: "2026-05-05T10:00:00Z", HeadRefName: "spec/SPEC-001-queue-fixture", BaseRefName: "main"}}), nil
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"queue", "start", "SPEC-001"}); err != nil {
+		t.Fatalf("queue start failed: %v", err)
+	}
+	state, err := readQueueState(tmp)
+	if err != nil {
+		t.Fatalf("read queue state: %v", err)
+	}
+	if state.Status != queueStateDone || state.SkippedSpecCount != 1 {
+		t.Fatalf("expected merged PR skip, got %+v", state)
+	}
+	if got := state.Specs["SPEC-001"]; got.Phase != queuePhaseSkipped || !strings.Contains(got.SkipReason, "PR #23 merged") {
+		t.Fatalf("expected merged PR skip evidence, got %+v", got)
+	}
+}
+
 func TestQueueStartPreparesActiveSpecPRAndSkipsReviewComment(t *testing.T) {
 	tmp, stdout, app, restore := prepareQueueProject(t)
 	defer restore()
@@ -210,6 +244,8 @@ func TestQueueStartBlocksDraftPullRequest(t *testing.T) {
 			return "", nil
 		case name == "gh" && strings.Join(args, " ") == "auth status":
 			return "", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list" && hasArg(args, "--state", "merged"):
+			return "[]", nil
 		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list":
 			return mustMarshalJSON(t, []githubPullRequest{{Number: 17}}), nil
 		case name == "gh" && len(args) >= 3 && args[0] == "pr" && args[1] == "view" && args[2] == "17":
@@ -267,6 +303,52 @@ func TestClassifyQueueCheckProofRequiresSurfacedChecks(t *testing.T) {
 	proof, err := classifyQueueCheckProof(githubPullRequest{StatusChecks: []githubStatusCheck{{Name: "ci", Status: "COMPLETED", Conclusion: "SUCCESS"}}})
 	if err != nil || proof != "all_surfaced_checks_green" {
 		t.Fatalf("unexpected check proof: proof=%q err=%v", proof, err)
+	}
+}
+
+func TestQueueExecutionSucceededRequiresCurrentHead(t *testing.T) {
+	t.Parallel()
+
+	tmp := canonicalTempDir(t)
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+	writeQueueRunEvidenceWithHead(t, tmp, "SPEC-001", "abc123")
+
+	ok, evidence := queueExecutionSucceeded(tmp, "SPEC-001", "abc123")
+	if !ok || !strings.Contains(evidence, "spec-001-validation.json") {
+		t.Fatalf("expected matching head evidence to pass, ok=%v evidence=%q", ok, evidence)
+	}
+	ok, evidence = queueExecutionSucceeded(tmp, "SPEC-001", "def456")
+	if ok || !strings.Contains(evidence, "spec-001-execution.json") {
+		t.Fatalf("expected mismatched head evidence to fail on execution evidence, ok=%v evidence=%q", ok, evidence)
+	}
+}
+
+func TestHonorQueueControlRequestsReloadsPauseFromStateFile(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	state := queueState{
+		ID:            "queue-test",
+		Status:        queueStateActive,
+		OperatorState: queueOperatorRunning,
+		Detail:        queuePhaseRunning,
+		Targets:       []string{"SPEC-001"},
+		Specs:         map[string]queueSpec{"SPEC-001": {SpecID: "SPEC-001", Status: queueStateActive, Phase: queuePhaseRunning}},
+	}
+	if err := app.writeQueueState(tmp, state); err != nil {
+		t.Fatalf("write queue state: %v", err)
+	}
+	latest := state
+	latest.PauseRequested = true
+	if err := app.writeQueueState(tmp, latest); err != nil {
+		t.Fatalf("write pause request: %v", err)
+	}
+
+	got, done, err := app.honorQueueControlRequests(tmp, state)
+	if err != nil {
+		t.Fatalf("honor control requests: %v", err)
+	}
+	if !done || got.Status != queueStatePaused || got.Detail != queuePhasePaused {
+		t.Fatalf("expected reloaded pause request, done=%v state=%+v", done, got)
 	}
 }
 
@@ -363,11 +445,25 @@ func writeQueueSpecFixture(t *testing.T, root, specID string) {
 
 func writeQueueRunEvidence(t *testing.T, root, specID string) {
 	t.Helper()
+	writeQueueRunEvidenceWithHead(t, root, specID, "abc123")
+}
+
+func writeQueueRunEvidenceWithHead(t *testing.T, root, specID, headSHA string) {
+	t.Helper()
 	logID := strings.ToLower(specID)
-	if err := writeJSONFile(filepath.Join(root, ".namba", "logs", "runs", logID+"-execution.json"), executionResult{SpecID: specID, Succeeded: true}); err != nil {
+	if err := writeJSONFile(filepath.Join(root, ".namba", "logs", "runs", logID+"-execution.json"), executionResult{SpecID: specID, HeadSHA: headSHA, Succeeded: true}); err != nil {
 		t.Fatalf("write execution evidence: %v", err)
 	}
-	if err := writeJSONFile(filepath.Join(root, ".namba", "logs", "runs", logID+"-validation.json"), validationReport{SpecID: specID, Passed: true}); err != nil {
+	if err := writeJSONFile(filepath.Join(root, ".namba", "logs", "runs", logID+"-validation.json"), validationReport{SpecID: specID, HeadSHA: headSHA, Passed: true}); err != nil {
 		t.Fatalf("write validation evidence: %v", err)
 	}
+}
+
+func hasArg(args []string, key, value string) bool {
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == key && args[i+1] == value {
+			return true
+		}
+	}
+	return false
 }

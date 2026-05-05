@@ -32,6 +32,8 @@ type githubPullRequest struct {
 	Number           int                 `json:"number"`
 	URL              string              `json:"url"`
 	Title            string              `json:"title"`
+	State            string              `json:"state"`
+	MergedAt         string              `json:"mergedAt"`
 	BaseRefName      string              `json:"baseRefName"`
 	HeadRefName      string              `json:"headRefName"`
 	ReviewDecision   string              `json:"reviewDecision"`
