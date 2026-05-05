@@ -59,7 +59,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(agents, "dedicated branch from `develop`") || !strings.Contains(agents, "`@codex review`") {
 		t.Fatalf("expected regenerated AGENTS to reflect git collaboration policy, got %q", agents)
 	}
-	for _, want := range []string{"$namba-review-resolve", "$namba-release", "namba release"} {
+	for _, want := range []string{"$namba-queue", "$namba-review-resolve", "$namba-release", "namba queue", "namba release"} {
 		if !strings.Contains(agents, want) {
 			t.Fatalf("expected regenerated AGENTS to contain %q, got %q", want, agents)
 		}
@@ -75,6 +75,12 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	for _, want := range []string{"`namba-frontend-architect`", "generic-section redesign"} {
 		if !strings.Contains(runSkill, want) {
 			t.Fatalf("expected run skill to contain %q, got %q", want, runSkill)
+		}
+	}
+	queueSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-queue", "SKILL.md"))
+	for _, want := range []string{"$namba-queue", "namba queue start <SPEC-RANGE|SPEC-LIST>", "`SPEC-001..SPEC-003`", "`namba queue status [--verbose]`", ".namba/logs/queue/", "one active SPEC at a time", "Block instead of skipping", "waiting_for_land"} {
+		if !strings.Contains(queueSkill, want) {
+			t.Fatalf("expected queue skill to contain %q, got %q", want, queueSkill)
 		}
 	}
 	pmReviewSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-plan-pm-review", "SKILL.md"))
@@ -200,7 +206,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 			t.Fatalf("expected codex README to contain %q, got %q", want, codexReadme)
 		}
 	}
-	if !strings.Contains(codexReadme, "$namba-help") || !strings.Contains(codexReadme, "$namba-create") || !strings.Contains(codexReadme, "$namba-run") || !strings.Contains(codexReadme, "$namba-harness") || !strings.Contains(codexReadme, "$namba-plan-review") || !strings.Contains(codexReadme, "$namba-plan-pm-review") || !strings.Contains(codexReadme, "$namba-review-resolve") || !strings.Contains(codexReadme, "$namba-release") || !strings.Contains(codexReadme, "reviews/readiness.md") || strings.Contains(codexReadme, ".codex/skills/") {
+	if !strings.Contains(codexReadme, "$namba-help") || !strings.Contains(codexReadme, "$namba-create") || !strings.Contains(codexReadme, "$namba-run") || !strings.Contains(codexReadme, "$namba-queue") || !strings.Contains(codexReadme, "$namba-harness") || !strings.Contains(codexReadme, "$namba-plan-review") || !strings.Contains(codexReadme, "$namba-plan-pm-review") || !strings.Contains(codexReadme, "$namba-review-resolve") || !strings.Contains(codexReadme, "$namba-release") || !strings.Contains(codexReadme, "reviews/readiness.md") || strings.Contains(codexReadme, ".codex/skills/") {
 		t.Fatalf("expected codex README to describe command-entry skills without codex skill mirror, got %q", codexReadme)
 	}
 	if !strings.Contains(codexReadme, "`namba harness \"<description>\"`") {

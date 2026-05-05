@@ -116,6 +116,7 @@ continue_on_failure = false
 - `$namba-plan-review`: use when you want one Codex entry point that checks the plan from product, engineering, and design angles.
 - `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: use when a SPEC needs product, engineering, or design review artifacts plus an updated advisory readiness summary.
 - `$namba-run`: use when you want to execute an existing SPEC package through the Namba workflow in the current Codex session.
+- `$namba-queue`: use when you want to process multiple existing SPEC packages in order and operate queue status, resume, pause, or stop.
 - `$namba-sync`: use when you need README bundles, project docs, codemaps, and PR-ready artifacts refreshed.
 - `$namba-pr` / `$namba-land`: use when you are ready to hand off the current branch for GitHub review, inspect PR checks, and then merge it safely after checks pass.
 - `$namba-review-resolve`: use when you need PR review threads inspected, meaningful feedback fixed, original threads answered and resolved, validation plus relevant CI/check evidence recorded, and review requested again.
@@ -135,6 +136,7 @@ This is a quick translation table: the `$...` names are what you ask Codex for, 
 - `$namba-plan-review` -> `namba plan "description"` or `namba harness "description"` + parallel reviews + aggregate validation loop
 - `$namba-fix` -> `namba fix "issue description"` or `namba fix --command plan "issue description"`
 - `$namba-run` -> `namba run SPEC-XXX`
+- `$namba-queue` -> `namba queue start <SPEC-RANGE|SPEC-LIST>` / `status` / `resume` / `pause` / `stop`
 - `$namba-sync` -> `namba sync`
 - `$namba-pr` -> `namba pr "title"`
 - `$namba-land` -> `namba land`

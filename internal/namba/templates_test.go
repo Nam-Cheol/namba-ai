@@ -587,10 +587,10 @@ func TestRenderCodexUsageTailSectionsPreserveDynamicAnchors(t *testing.T) {
 	}
 }
 
-func TestManagedCodexSkillRegistryIncludesReviewResolveAndRelease(t *testing.T) {
+func TestManagedCodexSkillRegistryIncludesQueueReviewResolveAndRelease(t *testing.T) {
 	t.Parallel()
 
-	for _, name := range []string{"namba-review-resolve", "namba-release"} {
+	for _, name := range []string{"namba-queue", "namba-review-resolve", "namba-release"} {
 		found := false
 		for _, managed := range managedCodexSkillNames() {
 			if managed == name {
@@ -610,6 +610,7 @@ func TestManagedCodexSkillRegistryIncludesReviewResolveAndRelease(t *testing.T) 
 
 	templates := codexSkillTemplates(initProfile{})
 	for _, rel := range []string{
+		filepath.ToSlash(filepath.Join("namba-queue", "SKILL.md")),
 		filepath.ToSlash(filepath.Join("namba-review-resolve", "SKILL.md")),
 		filepath.ToSlash(filepath.Join("namba-release", "SKILL.md")),
 	} {
@@ -751,6 +752,7 @@ func TestRenderCodexUsageFrontSectionsPreserveAnchors(t *testing.T) {
 		"`.namba/codex/output-contract.md`",
 		"`namba-review-resolve`",
 		"`namba-release`",
+		"`namba-queue`",
 		"Creates `.namba/` project state, configs, docs, and SPEC storage.",
 	} {
 		if !strings.Contains(initEnables, want) {
@@ -765,7 +767,8 @@ func TestRenderCodexUsageFrontSectionsPreserveAnchors(t *testing.T) {
 		"WSL workspace",
 		"Codex loads `AGENTS.md` and repo skills.",
 		"`default`, `worker`, and `explorer`",
-		"`namba project`, `namba regen`, `namba update`, `namba codex access`, `namba plan`, `namba harness`, `namba fix`, `namba run SPEC-XXX`, `namba sync`, `namba pr`, `namba land`, and `namba release`",
+		"`namba project`, `namba regen`, `namba update`, `namba codex access`, `namba plan`, `namba harness`, `namba fix`, `namba run SPEC-XXX`, `namba queue`, `namba sync`, `namba pr`, `namba land`, and `namba release`",
+		"`$namba-queue`",
 		"`$namba-review-resolve`",
 		"`$namba-release`",
 	} {
@@ -783,6 +786,7 @@ func TestRenderCodexUsageWorkflowCommandSemanticsSectionPreservesAnchors(t *test
 		"## Workflow Command Semantics",
 		"`$namba-help` explains how to use NambaAI",
 		"`$namba-create` is the preview-first creation path",
+		"`$namba-queue` operates the existing-SPEC queue conveyor",
 		"`$namba-review-resolve` resolves GitHub review threads one by one",
 		"`$namba-release` handles NambaAI release orchestration",
 		"`namba codex access` inspects the current repo-owned Codex access defaults",
@@ -790,6 +794,7 @@ func TestRenderCodexUsageWorkflowCommandSemanticsSectionPreservesAnchors(t *test
 		"Avoid deprecated Codex full-auto style flags",
 		"`codex update` updates the upstream Codex CLI itself",
 		"`namba fix --command plan \"<issue description>\"` creates the next bugfix SPEC package plus review scaffolds.",
+		"`namba queue start <SPEC-RANGE|SPEC-LIST>` processes existing SPEC packages",
 		"`frontend-brief.md`",
 		"`frontend-major`",
 		"`namba run SPEC-XXX --parallel` still refers to the standalone worktree runner path.",
@@ -943,6 +948,7 @@ func TestRenderNambaSkillSectionsPreserveAnchors(t *testing.T) {
 		"`namba codex access`",
 		"`$namba-plan-review`",
 		"`namba run SPEC-XXX --solo|--team|--parallel`",
+		"`namba queue start <SPEC-RANGE|SPEC-LIST>`",
 		"`namba doctor`",
 	} {
 		if !strings.Contains(commandMapping, want) {
@@ -959,7 +965,7 @@ func TestRenderNambaSkillSectionsPreserveAnchors(t *testing.T) {
 		"Execution rules:",
 		"Treat `.namba/` as the source of truth.",
 		"Prefer repo-local skills in `.agents/skills/`.",
-		"`project`, `regen`, `update`, `codex access`, `plan`, `harness`, `fix`, `pr`, `land`, `release`, and `sync`",
+		"`project`, `regen`, `update`, `codex access`, `plan`, `harness`, `fix`, `queue`, `pr`, `land`, `release`, and `sync`",
 		"`--solo`, `--team`, `--parallel`, or `--dry-run`",
 		"Prepare PRs against `release`, write the title/body in Korean, and request GitHub Codex review with `@codex review`",
 	} {
@@ -998,6 +1004,28 @@ func TestRenderReviewResolveAndReleaseCommandSkillsPreserveContracts(t *testing.
 	} {
 		if !strings.Contains(release, want) {
 			t.Fatalf("release skill missing %q: %q", want, release)
+		}
+	}
+}
+
+func TestRenderQueueCommandSkillPreservesContract(t *testing.T) {
+	t.Parallel()
+
+	queue := renderQueueCommandSkill()
+	for _, want := range []string{
+		"name: namba-queue",
+		"$namba-queue",
+		"namba queue start <SPEC-RANGE|SPEC-LIST>",
+		"`SPEC-001..SPEC-003`",
+		"`namba queue status [--verbose]`",
+		"`.namba/logs/queue/`",
+		"one active SPEC at a time",
+		"Block instead of skipping",
+		"`waiting_for_land`",
+		"`--skip-codex-review`",
+	} {
+		if !strings.Contains(queue, want) {
+			t.Fatalf("queue skill missing %q: %q", want, queue)
 		}
 	}
 }
@@ -1138,6 +1166,7 @@ func TestRenderNambaSkillRouterSectionsReserveCoachForAdvisoryRouting(t *testing
 		"`namba fix --command plan \"<issue description>\"`",
 		"`namba fix \"<issue description>\"` or `namba fix --command run \"<issue description>\"`",
 		"`namba run SPEC-XXX`",
+		"`namba queue start <SPEC-RANGE|SPEC-LIST>`",
 		"`namba sync`",
 		"`namba pr \"<title>\"`",
 		"`namba land`",
@@ -1154,6 +1183,7 @@ func TestRenderNambaSkillRouterSectionsReserveCoachForAdvisoryRouting(t *testing
 		"`$namba-coach`",
 		"`$namba-create`",
 		"`$namba-run`",
+		"`$namba-queue`",
 		"`$namba-pr`",
 		"`$namba-land`",
 		"`$namba-plan`",

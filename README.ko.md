@@ -116,6 +116,7 @@ continue_on_failure = false
 - `$namba-plan-review`: 계획을 만든 뒤 product / engineering / design 관점에서 한 번에 점검하고 싶을 때 씁니다.
 - `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: 제품, 엔지니어링, 디자인 중 필요한 관점만 따로 점검할 때 씁니다.
 - `$namba-run`: 이미 만든 SPEC 패키지를 현재 Codex 세션에서 실행할 때 씁니다.
+- `$namba-queue`: 이미 존재하는 여러 SPEC 패키지를 queue로 순서대로 처리하고, status/resume/pause/stop을 다룰 때 씁니다.
 - `$namba-sync`: README 묶음, 프로젝트 문서, codemap, PR 준비 산출물을 최신 상태로 맞출 때 씁니다.
 - `$namba-pr` / `$namba-land`: GitHub 리뷰로 넘기고, 통과한 뒤 안전하게 머지할 때 씁니다.
 - `$namba-review-resolve`: PR review thread를 확인하고, 의미 있는 지적만 수정/답변/resolve한 뒤 검증 증거와 함께 다시 review를 요청할 때 씁니다.
@@ -135,6 +136,7 @@ Codex에서 `$...` 형태로 부르는 skill이 실제로는 어떤 Namba 명령
 - `$namba-plan-review` -> `namba plan "description"` 또는 `namba harness "description"` + 병렬 review + aggregate validation loop
 - `$namba-fix` -> `namba fix "issue description"` 또는 `namba fix --command plan "issue description"`
 - `$namba-run` -> `namba run SPEC-XXX`
+- `$namba-queue` -> `namba queue start <SPEC-RANGE|SPEC-LIST>` / `status` / `resume` / `pause` / `stop`
 - `$namba-sync` -> `namba sync`
 - `$namba-pr` -> `namba pr "title"`
 - `$namba-land` -> `namba land`
