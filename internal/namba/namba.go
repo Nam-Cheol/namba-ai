@@ -2883,7 +2883,7 @@ func shouldSkipDiscoveryDir(root, path string) bool {
 	}
 	for _, segment := range strings.Split(rel, "/") {
 		switch segment {
-		case ".git", ".namba", ".codex", ".agents", "dist", "external", "node_modules":
+		case ".git", ".namba", ".codex", ".agents", "dist", "external", "node_modules", "vendor":
 			return true
 		}
 	}

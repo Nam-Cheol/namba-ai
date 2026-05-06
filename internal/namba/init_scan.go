@@ -23,7 +23,13 @@ func scanInitRepository(root string) initRepositoryScan {
 	hasJava := false
 
 	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if shouldSkipDiscoveryDir(root, path) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
