@@ -23,6 +23,30 @@ func TestDefaultGoFormatCommandUsesSingleInventoryTargets(t *testing.T) {
 	}
 }
 
+func TestScanInitRepositorySkipsGeneratedAndDependencyTrees(t *testing.T) {
+	t.Parallel()
+
+	root := canonicalTempDir(t)
+	writeScanFixture(t, filepath.Join(root, "src", "app.ts"), "export const app = true\n")
+	writeScanFixture(t, filepath.Join(root, "src", "app.test.ts"), "test('app', () => {})\n")
+	writeScanFixture(t, filepath.Join(root, "node_modules", ".pnpm", "dep", "index.ts"), "export const dep = true\n")
+	writeScanFixture(t, filepath.Join(root, "vendor", "dep", "dep.go"), "package dep\n")
+	writeScanFixture(t, filepath.Join(root, ".namba", "generated.go"), "package ignored\n")
+	writeScanFixture(t, filepath.Join(root, ".codex", "agents", "generated.ts"), "export const ignored = true\n")
+	writeScanFixture(t, filepath.Join(root, ".agents", "skills", "generated.ts"), "export const ignored = true\n")
+
+	scan := scanInitRepository(root)
+	if scan.sourceFiles != 2 {
+		t.Fatalf("expected only source files outside generated/dependency trees, got %+v", scan)
+	}
+	if scan.testFiles != 1 {
+		t.Fatalf("expected only real test files outside generated/dependency trees, got %+v", scan)
+	}
+	if len(scan.goFormatTargets) != 0 {
+		t.Fatalf("expected dependency Go files to be ignored for formatting targets, got %+v", scan.goFormatTargets)
+	}
+}
+
 func BenchmarkScanInitRepositoryLargeWorkspace(b *testing.B) {
 	root := b.TempDir()
 	for i := 0; i < 250; i++ {
