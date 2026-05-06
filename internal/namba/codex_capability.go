@@ -247,6 +247,10 @@ func resolveSingleExecInvocation(invocation resolvedCodexInvocation, req executi
 	if !req.ResumeSession && !codexSessionStateful(sessionMode) {
 		invocation.Args = append(invocation.Args, "--ephemeral")
 	}
+	if surface.JSONFlag {
+		invocation.Args = append(invocation.Args, "--json")
+		invocation.DirectFlags = append(invocation.DirectFlags, "json_output")
+	}
 	invocation.Args = append(invocation.Args, req.Prompt)
 	return invocation, nil
 }
@@ -342,6 +346,15 @@ func resolveResumeInvocation(invocation resolvedCodexInvocation, req executionRe
 		default:
 			return resolvedCodexInvocation{}, fmt.Errorf("%s: add_dirs cannot be represented by the installed Codex CLI", invocation.CommandShape)
 		}
+	}
+
+	switch {
+	case capabilities.Exec.JSONFlag:
+		prefix = append(prefix, "--json")
+		invocation.DirectFlags = append(invocation.DirectFlags, "json_output")
+	case capabilities.Resume.JSONFlag:
+		suffix = append(suffix, "--json")
+		invocation.DirectFlags = append(invocation.DirectFlags, "json_output")
 	}
 
 	invocation.Args = append(prefix, suffix...)

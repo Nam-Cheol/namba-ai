@@ -13,15 +13,23 @@ import (
 func TestParseQueueInvocationStartRangeAndOptions(t *testing.T) {
 	t.Parallel()
 
-	inv, err := parseQueueInvocation([]string{"start", "SPEC-001..SPEC-003", "SPEC-005", "--auto-land", "--skip-codex-review", "--remote", "upstream"})
+	inv, err := parseQueueInvocation([]string{"start", "SPEC-001..SPEC-003", "SPEC-005", "--runner=desktop", "--auto-land", "--skip-codex-review", "--remote", "upstream"})
 	if err != nil {
 		t.Fatalf("parseQueueInvocation returned error: %v", err)
 	}
-	if inv.Subcommand != "start" || !inv.Options.AutoLand || !inv.Options.SkipCodexReview || inv.Options.Remote != "upstream" {
+	if inv.Subcommand != "start" || !inv.Options.AutoLand || !inv.Options.SkipCodexReview || inv.Options.Remote != "upstream" || inv.Options.Runner != queueRunnerDesktop {
 		t.Fatalf("unexpected invocation: %+v", inv)
 	}
 	if got := strings.Join(inv.Targets, ","); got != "SPEC-001..SPEC-003,SPEC-005" {
 		t.Fatalf("targets = %s", got)
+	}
+}
+
+func TestParseQueueInvocationRejectsUnknownRunner(t *testing.T) {
+	t.Parallel()
+
+	if _, err := parseQueueInvocation([]string{"start", "SPEC-001", "--runner=spaceship"}); err == nil || !strings.Contains(err.Error(), "runner") {
+		t.Fatalf("expected runner validation error, got %v", err)
 	}
 }
 
@@ -326,6 +334,197 @@ func TestQueueResumePostPRPhaseSkipsSyncAndPRPreparation(t *testing.T) {
 	}
 }
 
+func TestQueueResumePostRunCheckpointDoesNotStaleBlock(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+
+	branch := "spec/SPEC-001-queue-fixture"
+	state := queueState{
+		ID:                  "queue-test",
+		Status:              queueStateActive,
+		OperatorState:       queueOperatorRunning,
+		Detail:              queuePhaseChecksPending,
+		Targets:             []string{"SPEC-001"},
+		ActiveSpecID:        "SPEC-001",
+		ExpectedBranch:      branch,
+		LastObservedHeadSHA: "abc123",
+		Options:             queueOptions{Remote: defaultGitRemote, Runner: queueRunnerCLI},
+		Specs: map[string]queueSpec{"SPEC-001": {
+			SpecID:             "SPEC-001",
+			Status:             queueStateActive,
+			OperatorState:      queueOperatorRunning,
+			Phase:              queuePhaseChecksPending,
+			Branch:             branch,
+			PRNumber:           17,
+			PRURL:              "https://github.com/example/repo/pull/17",
+			ValidationEvidence: queueRunEvidencePath("SPEC-001"),
+			Runner:             queueRunnerCLI,
+		}},
+	}
+	if err := app.writeQueueState(tmp, state); err != nil {
+		t.Fatalf("write queue state: %v", err)
+	}
+	if err := writeQueueRunnerHeartbeat(tmp, "SPEC-001", queueRunnerCLI, "completed", "2026-05-06T00:00:00Z", "2026-05-06T00:05:00Z"); err != nil {
+		t.Fatalf("write runner heartbeat: %v", err)
+	}
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "git" && strings.Join(args, " ") == "branch --list "+branch:
+			return "  " + branch, nil
+		case name == "git" && strings.Join(args, " ") == "merge-base --is-ancestor "+branch+" main":
+			return "", errors.New("not ancestor")
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list" && hasArg(args, "--state", "merged"):
+			return "[]", nil
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return branch, nil
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return "", nil
+		case name == "git" && strings.Join(args, " ") == "rev-parse HEAD":
+			return "abc123", nil
+		case name == "gh" && len(args) >= 3 && args[0] == "pr" && args[1] == "view" && args[2] == "17":
+			return mustMarshalJSON(t, githubPullRequest{
+				Number:           17,
+				URL:              "https://github.com/example/repo/pull/17",
+				Title:            "SPEC-001",
+				HeadRefName:      branch,
+				HeadRefOID:       "abc123",
+				BaseRefName:      "main",
+				ReviewDecision:   "APPROVED",
+				MergeStateStatus: "CLEAN",
+				StatusChecks:     []githubStatusCheck{{Name: "ci", Status: "COMPLETED", Conclusion: "SUCCESS"}},
+			}), nil
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"queue", "resume"}); err != nil {
+		t.Fatalf("queue resume failed: %v", err)
+	}
+	got, err := readQueueState(tmp)
+	if err != nil {
+		t.Fatalf("read queue state: %v", err)
+	}
+	if got.Detail == "runner_stale" || got.Status == queueStateBlocked {
+		t.Fatalf("post-run checkpoint must not be stale-blocked, got %+v", got)
+	}
+	if got.Status != queueStateWaiting || got.Detail != queuePhaseWaitingLand {
+		t.Fatalf("expected post-run checkpoint to continue to land wait, got %+v", got)
+	}
+}
+
+func TestQueueResumeRefreshesHeadBeforeStaleRecovery(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+	if err := writeQueueRunnerEvidence(tmp, queueRunnerEvidence{
+		SpecID:     "SPEC-001",
+		Status:     "completed",
+		Runner:     queueRunnerCLI,
+		HeadSHA:    "def456",
+		StartedAt:  "2026-05-06T00:00:00Z",
+		FinishedAt: "2026-05-06T00:05:00Z",
+		Validation: queueRunnerValidationEvidence{Passed: true, Path: ".namba/logs/runs/spec-001-validation.json"},
+	}); err != nil {
+		t.Fatalf("write queue evidence: %v", err)
+	}
+	if err := writeQueueRunnerHeartbeat(tmp, "SPEC-001", queueRunnerCLI, "completed", "2026-05-06T00:00:00Z", "2026-05-06T00:05:00Z"); err != nil {
+		t.Fatalf("write runner heartbeat: %v", err)
+	}
+
+	branch := "spec/SPEC-001-queue-fixture"
+	state := queueState{
+		ID:                  "queue-test",
+		Status:              queueStateActive,
+		OperatorState:       queueOperatorRunning,
+		Detail:              queuePhaseRunning,
+		Targets:             []string{"SPEC-001"},
+		ActiveSpecID:        "SPEC-001",
+		ExpectedBranch:      branch,
+		LastObservedHeadSHA: "abc123",
+		Options:             queueOptions{Remote: defaultGitRemote, Runner: queueRunnerCLI},
+		Specs: map[string]queueSpec{"SPEC-001": {
+			SpecID:        "SPEC-001",
+			Status:        queueStateActive,
+			OperatorState: queueOperatorRunning,
+			Phase:         queuePhaseRunning,
+			Branch:        branch,
+			Runner:        queueRunnerCLI,
+		}},
+	}
+	if err := app.writeQueueState(tmp, state); err != nil {
+		t.Fatalf("write queue state: %v", err)
+	}
+
+	currentBranch := branch
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "git" && strings.Join(args, " ") == "branch --list "+branch:
+			return "  " + branch, nil
+		case name == "git" && strings.Join(args, " ") == "merge-base --is-ancestor "+branch+" main":
+			return "", errors.New("not ancestor")
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list" && hasArg(args, "--state", "merged"):
+			return "[]", nil
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return currentBranch, nil
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return "", nil
+		case name == "git" && strings.Join(args, " ") == "rev-parse HEAD":
+			return "def456", nil
+		case name == "git" && strings.Join(args, " ") == strings.Join(queueGitAddArgs(), " "):
+			return "", nil
+		case name == "git" && len(args) == 3 && args[0] == "commit" && args[1] == "-m":
+			return "", nil
+		case name == "git" && len(args) == 4 && args[0] == "push" && args[1] == "--set-upstream":
+			return "", nil
+		case name == "gh" && strings.Join(args, " ") == "auth status":
+			return "", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list":
+			return "[]", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "create":
+			return "https://github.com/example/repo/pull/17", nil
+		case name == "gh" && len(args) >= 3 && args[0] == "pr" && args[1] == "view" && args[2] == currentBranch:
+			return mustMarshalJSON(t, githubPullRequest{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "SPEC-001", HeadRefName: currentBranch, BaseRefName: "main"}), nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "comment":
+			return "", nil
+		case name == "gh" && len(args) >= 3 && args[0] == "pr" && args[1] == "view" && args[2] == "17":
+			return mustMarshalJSON(t, githubPullRequest{
+				Number:           17,
+				URL:              "https://github.com/example/repo/pull/17",
+				Title:            "SPEC-001",
+				HeadRefName:      currentBranch,
+				BaseRefName:      "main",
+				ReviewDecision:   "APPROVED",
+				MergeStateStatus: "CLEAN",
+				StatusChecks:     []githubStatusCheck{{Name: "ci", Status: "COMPLETED", Conclusion: "SUCCESS"}},
+			}), nil
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"queue", "resume"}); err != nil {
+		t.Fatalf("queue resume failed: %v", err)
+	}
+	got, err := readQueueState(tmp)
+	if err != nil {
+		t.Fatalf("read queue state: %v", err)
+	}
+	if got.Detail == "runner_stale" || got.Status == queueStateBlocked {
+		t.Fatalf("completed evidence at fresh HEAD must not be stale-blocked, got %+v", got)
+	}
+	if got.LastObservedHeadSHA != "def456" {
+		t.Fatalf("expected stale recovery to refresh head before evidence check, got %+v", got)
+	}
+	if got.Status != queueStateWaiting || got.Detail != queuePhaseWaitingLand {
+		t.Fatalf("expected completed CLI evidence to advance to land wait, got %+v", got)
+	}
+}
+
 func TestQueueStartPreparesActiveSpecPRAndSkipsReviewComment(t *testing.T) {
 	tmp, stdout, app, restore := prepareQueueProject(t)
 	defer restore()
@@ -354,7 +553,7 @@ func TestQueueStartPreparesActiveSpecPRAndSkipsReviewComment(t *testing.T) {
 				return "", nil
 			}
 			return " M .namba/project/change-summary.md", nil
-		case name == "git" && strings.Join(args, " ") == "add -A":
+		case name == "git" && strings.Join(args, " ") == strings.Join(queueGitAddArgs(), " "):
 			return "", nil
 		case name == "git" && len(args) == 3 && args[0] == "commit" && args[1] == "-m":
 			return "", nil
@@ -372,6 +571,8 @@ func TestQueueStartPreparesActiveSpecPRAndSkipsReviewComment(t *testing.T) {
 			return "https://github.com/example/repo/pull/17", nil
 		case name == "gh" && len(args) >= 3 && args[0] == "pr" && args[1] == "view" && args[2] == currentBranch:
 			return mustMarshalJSON(t, githubPullRequest{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "SPEC-001", HeadRefName: currentBranch, BaseRefName: "main"}), nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "comment":
+			return "", nil
 		case name == "gh" && len(args) >= 3 && args[0] == "pr" && args[1] == "view" && args[2] == "17":
 			return mustMarshalJSON(t, githubPullRequest{
 				Number:           17,
@@ -404,6 +605,226 @@ func TestQueueStartPreparesActiveSpecPRAndSkipsReviewComment(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "waiting_for_land") {
 		t.Fatalf("expected waiting output, got %q", stdout.String())
+	}
+}
+
+func TestQueueStartDesktopRunnerWritesHandoffWithoutCodexExec(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+
+	currentBranch := "main"
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if name == "codex" {
+			t.Fatalf("desktop queue runner must not launch nested codex exec: %v", args)
+		}
+		switch {
+		case name == "git" && strings.Join(args, " ") == "for-each-ref --format=%(refname:short) refs/heads":
+			return "main", nil
+		case name == "git" && len(args) == 3 && args[0] == "branch" && args[1] == "--list":
+			return "", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list" && hasArg(args, "--state", "merged"):
+			return "[]", nil
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return currentBranch, nil
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return "", nil
+		case name == "git" && len(args) == 4 && args[0] == "checkout" && args[1] == "-b":
+			currentBranch = args[2]
+			return "", nil
+		case name == "git" && strings.Join(args, " ") == "rev-parse HEAD":
+			return "abc123", nil
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"queue", "start", "SPEC-001", "--runner=desktop", "--skip-codex-review"}); err != nil {
+		t.Fatalf("queue start failed: %v", err)
+	}
+	state, err := readQueueState(tmp)
+	if err != nil {
+		t.Fatalf("read queue state: %v", err)
+	}
+	if state.Status != queueStateWaiting || state.Detail != queuePhaseDesktopWait {
+		t.Fatalf("expected desktop handoff wait, got %+v", state)
+	}
+	if got := state.Specs["SPEC-001"]; got.Runner != queueRunnerDesktop || got.Phase != queuePhaseDesktopWait {
+		t.Fatalf("expected desktop spec wait state, got %+v", got)
+	}
+	if _, err := os.Stat(filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-request.json")); err != nil {
+		t.Fatalf("expected desktop request json: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-execution.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("desktop handoff must not write child execution result, stat err=%v", err)
+	}
+}
+
+func TestQueueResumeDesktopRunnerWithoutEvidenceKeepsWaiting(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+
+	branch := "spec/SPEC-001-queue-fixture"
+	state := queueState{
+		ID:                  "queue-test",
+		Status:              queueStateWaiting,
+		OperatorState:       queueOperatorWaiting,
+		Detail:              queuePhaseDesktopWait,
+		Targets:             []string{"SPEC-001"},
+		ActiveSpecID:        "SPEC-001",
+		ExpectedBranch:      branch,
+		LastObservedHeadSHA: "abc123",
+		Options:             queueOptions{Remote: defaultGitRemote, Runner: queueRunnerDesktop},
+		Specs: map[string]queueSpec{"SPEC-001": {
+			SpecID:        "SPEC-001",
+			Status:        queueStateActive,
+			OperatorState: queueOperatorWaiting,
+			Phase:         queuePhaseDesktopWait,
+			Branch:        branch,
+			Runner:        queueRunnerDesktop,
+		}},
+	}
+	if err := app.writeQueueState(tmp, state); err != nil {
+		t.Fatalf("write queue state: %v", err)
+	}
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if name == "codex" {
+			t.Fatalf("desktop queue resume must not launch nested codex exec: %v", args)
+		}
+		switch {
+		case name == "git" && strings.Join(args, " ") == "branch --list "+branch:
+			return "  " + branch, nil
+		case name == "git" && strings.Join(args, " ") == "merge-base --is-ancestor "+branch+" main":
+			return "", errors.New("not ancestor")
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list" && hasArg(args, "--state", "merged"):
+			return "[]", nil
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return branch, nil
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return "", nil
+		case name == "git" && strings.Join(args, " ") == "rev-parse HEAD":
+			return "abc123", nil
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"queue", "resume"}); err != nil {
+		t.Fatalf("queue resume failed: %v", err)
+	}
+	got, err := readQueueState(tmp)
+	if err != nil {
+		t.Fatalf("read queue state: %v", err)
+	}
+	if got.Status != queueStateWaiting || got.Detail != queuePhaseDesktopWait {
+		t.Fatalf("expected resume to keep desktop handoff waiting, got %+v", got)
+	}
+}
+
+func TestQueueResumeDesktopRunnerRefreshesHeadBeforeEvidenceCheck(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+	if err := writeQueueRunnerEvidence(tmp, queueRunnerEvidence{
+		SpecID:     "SPEC-001",
+		Status:     "completed",
+		Runner:     queueRunnerDesktop,
+		HeadSHA:    "def456",
+		StartedAt:  "2026-05-06T00:00:00Z",
+		FinishedAt: "2026-05-06T00:05:00Z",
+		Validation: queueRunnerValidationEvidence{Passed: true, Path: ".namba/logs/runs/spec-001-validation.json"},
+	}); err != nil {
+		t.Fatalf("write queue evidence: %v", err)
+	}
+
+	branch := "spec/SPEC-001-queue-fixture"
+	state := queueState{
+		ID:                  "queue-test",
+		Status:              queueStateWaiting,
+		OperatorState:       queueOperatorWaiting,
+		Detail:              queuePhaseDesktopWait,
+		Targets:             []string{"SPEC-001"},
+		ActiveSpecID:        "SPEC-001",
+		ExpectedBranch:      branch,
+		LastObservedHeadSHA: "abc123",
+		Options:             queueOptions{Remote: defaultGitRemote, Runner: queueRunnerDesktop},
+		Specs: map[string]queueSpec{"SPEC-001": {
+			SpecID:        "SPEC-001",
+			Status:        queueStateActive,
+			OperatorState: queueOperatorWaiting,
+			Phase:         queuePhaseDesktopWait,
+			Branch:        branch,
+			Runner:        queueRunnerDesktop,
+		}},
+	}
+	if err := app.writeQueueState(tmp, state); err != nil {
+		t.Fatalf("write queue state: %v", err)
+	}
+
+	currentBranch := branch
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "git" && strings.Join(args, " ") == "branch --list "+branch:
+			return "  " + branch, nil
+		case name == "git" && strings.Join(args, " ") == "merge-base --is-ancestor "+branch+" main":
+			return "", errors.New("not ancestor")
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list" && hasArg(args, "--state", "merged"):
+			return "[]", nil
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return currentBranch, nil
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return "", nil
+		case name == "git" && strings.Join(args, " ") == "rev-parse HEAD":
+			return "def456", nil
+		case name == "git" && strings.Join(args, " ") == strings.Join(queueGitAddArgs(), " "):
+			return "", nil
+		case name == "git" && len(args) == 3 && args[0] == "commit" && args[1] == "-m":
+			return "", nil
+		case name == "git" && len(args) == 4 && args[0] == "push" && args[1] == "--set-upstream":
+			return "", nil
+		case name == "gh" && strings.Join(args, " ") == "auth status":
+			return "", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list":
+			return "[]", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "create":
+			return "https://github.com/example/repo/pull/17", nil
+		case name == "gh" && len(args) >= 3 && args[0] == "pr" && args[1] == "view" && args[2] == currentBranch:
+			return mustMarshalJSON(t, githubPullRequest{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "SPEC-001", HeadRefName: currentBranch, BaseRefName: "main"}), nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "comment":
+			return "", nil
+		case name == "gh" && len(args) >= 3 && args[0] == "pr" && args[1] == "view" && args[2] == "17":
+			return mustMarshalJSON(t, githubPullRequest{
+				Number:           17,
+				URL:              "https://github.com/example/repo/pull/17",
+				Title:            "SPEC-001",
+				HeadRefName:      currentBranch,
+				BaseRefName:      "main",
+				ReviewDecision:   "APPROVED",
+				MergeStateStatus: "CLEAN",
+				StatusChecks:     []githubStatusCheck{{Name: "ci", Status: "COMPLETED", Conclusion: "SUCCESS"}},
+			}), nil
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"queue", "resume"}); err != nil {
+		t.Fatalf("queue resume failed: %v", err)
+	}
+	got, err := readQueueState(tmp)
+	if err != nil {
+		t.Fatalf("read queue state: %v", err)
+	}
+	if got.LastObservedHeadSHA != "def456" {
+		t.Fatalf("expected refreshed head to be persisted, got %+v", got)
+	}
+	if got.Status != queueStateWaiting || got.Detail != queuePhaseWaitingLand {
+		t.Fatalf("expected desktop evidence to advance to land wait, got %+v", got)
 	}
 }
 
@@ -528,6 +949,33 @@ func TestQueueExecutionSucceededRequiresCurrentHead(t *testing.T) {
 	}
 }
 
+func TestQueueExecutionSucceededAcceptsCommonRunnerEvidence(t *testing.T) {
+	t.Parallel()
+
+	tmp := canonicalTempDir(t)
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+	if err := writeQueueRunnerEvidence(tmp, queueRunnerEvidence{
+		SpecID:     "SPEC-001",
+		Status:     "completed",
+		Runner:     queueRunnerDesktop,
+		HeadSHA:    "abc123",
+		StartedAt:  "2026-05-06T00:00:00Z",
+		FinishedAt: "2026-05-06T00:05:00Z",
+		Validation: queueRunnerValidationEvidence{Passed: true, Path: ".namba/logs/runs/spec-001-validation.json"},
+	}); err != nil {
+		t.Fatalf("write queue evidence: %v", err)
+	}
+
+	ok, evidence := queueExecutionSucceeded(tmp, "SPEC-001", "abc123")
+	if !ok || !strings.Contains(evidence, "spec-001-validation.json") {
+		t.Fatalf("expected common runner evidence to pass, ok=%v evidence=%q", ok, evidence)
+	}
+	ok, evidence = queueExecutionSucceeded(tmp, "SPEC-001", "def456")
+	if ok || !strings.Contains(evidence, "spec-001-queue-evidence.json") {
+		t.Fatalf("expected mismatched common evidence to fail, ok=%v evidence=%q", ok, evidence)
+	}
+}
+
 func TestQueueExecutionSatisfiedTrustsPostExecutionCheckpoint(t *testing.T) {
 	t.Parallel()
 
@@ -551,6 +999,96 @@ func TestQueueExecutionSatisfiedTrustsPostExecutionCheckpoint(t *testing.T) {
 	ok, evidence = queueExecutionSatisfied(tmp, "SPEC-001", "post-pr-head", specState)
 	if ok || !strings.Contains(evidence, "spec-001-execution.json") {
 		t.Fatalf("expected pre-PR checkpoint to keep enforcing current HEAD evidence, ok=%v evidence=%q", ok, evidence)
+	}
+}
+
+func TestQueueResumeRecoversStaleRunningState(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+
+	state := queueState{
+		ID:            "queue-test",
+		Status:        queueStateActive,
+		OperatorState: queueOperatorRunning,
+		Detail:        queuePhaseRunning,
+		Targets:       []string{"SPEC-001"},
+		ActiveSpecID:  "SPEC-001",
+		Options:       queueOptions{Remote: defaultGitRemote, Runner: queueRunnerCLI},
+		Specs:         map[string]queueSpec{"SPEC-001": {SpecID: "SPEC-001", Status: queueStateActive, Phase: queuePhaseRunning, Runner: queueRunnerCLI}},
+	}
+	if err := app.writeQueueState(tmp, state); err != nil {
+		t.Fatalf("write queue state: %v", err)
+	}
+
+	if err := app.Run(context.Background(), []string{"queue", "resume"}); err != nil {
+		t.Fatalf("queue resume should block stale state without command failure: %v", err)
+	}
+	got, err := readQueueState(tmp)
+	if err != nil {
+		t.Fatalf("read queue state: %v", err)
+	}
+	if got.Status != queueStateBlocked || got.Detail != "runner_stale" {
+		t.Fatalf("expected stale runner blocker, got %+v", got)
+	}
+}
+
+func TestQueueRecoverBlocksStaleRunningState(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+
+	state := queueState{
+		ID:            "queue-test",
+		Status:        queueStateActive,
+		OperatorState: queueOperatorRunning,
+		Detail:        queuePhaseRunning,
+		Targets:       []string{"SPEC-001"},
+		ActiveSpecID:  "SPEC-001",
+		Options:       queueOptions{Remote: defaultGitRemote, Runner: queueRunnerCLI},
+		Specs:         map[string]queueSpec{"SPEC-001": {SpecID: "SPEC-001", Status: queueStateActive, Phase: queuePhaseRunning, Runner: queueRunnerCLI}},
+	}
+	if err := app.writeQueueState(tmp, state); err != nil {
+		t.Fatalf("write queue state: %v", err)
+	}
+	if err := app.Run(context.Background(), []string{"queue", "recover"}); err != nil {
+		t.Fatalf("queue recover failed: %v", err)
+	}
+	got, err := readQueueState(tmp)
+	if err != nil {
+		t.Fatalf("read queue state: %v", err)
+	}
+	if got.Status != queueStateBlocked || got.Detail != "runner_stale" {
+		t.Fatalf("expected recover to block stale runner, got %+v", got)
+	}
+}
+
+func TestQueueRuntimeFilesDoNotDirtyWorkingTreeGate(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return "spec/SPEC-001-queue-fixture", nil
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return strings.Join([]string{
+				"?? .namba/logs/queue/state.json",
+				"?? .namba/logs/queue/report.md",
+				"?? .namba/logs/runs/spec-001-request.json",
+				"?? .namba/logs/runs/spec-001-request.md",
+				"?? .namba/logs/runs/spec-001-heartbeat.json",
+				"?? .namba/logs/runs/spec-001-validation.json",
+				"?? .namba/logs/runs/spec-001-queue-evidence.json",
+			}, "\n"), nil
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	if err := app.ensureQueueBranch(context.Background(), tmp, queueState{}, "spec/SPEC-001-queue-fixture"); err != nil {
+		t.Fatalf("queue-owned runtime files should not block branch readiness: %v", err)
 	}
 }
 

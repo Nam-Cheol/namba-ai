@@ -30,6 +30,7 @@ const (
 	queuePhaseReviewed      = "reviewed"
 	queuePhaseBranchReady   = "branch_ready"
 	queuePhaseRunning       = "running"
+	queuePhaseDesktopWait   = "waiting_for_desktop_runner"
 	queuePhasePRReady       = "pr_ready"
 	queuePhaseChecksPending = "checks_pending"
 	queuePhaseReadyToLand   = "ready_to_land"
@@ -40,6 +41,10 @@ const (
 	queuePhaseBlocked       = "blocked"
 	queuePhasePaused        = "paused"
 	queuePhaseStopped       = "stopped"
+	queueRunnerAuto         = "auto"
+	queueRunnerCLI          = "cli"
+	queueRunnerDesktop      = "desktop"
+	queueRunnerStaleAfter   = 30 * time.Minute
 )
 
 var specRangePattern = regexp.MustCompile(`^(SPEC-\d{3})\.\.(SPEC-\d{3})$`)
@@ -48,6 +53,7 @@ type queueOptions struct {
 	AutoLand        bool   `json:"auto_land"`
 	SkipCodexReview bool   `json:"skip_codex_review"`
 	Remote          string `json:"remote"`
+	Runner          string `json:"runner,omitempty"`
 }
 
 type queueInvocation struct {
@@ -100,6 +106,35 @@ type queueSpec struct {
 	EvidencePath       string `json:"evidence_path,omitempty"`
 	RecoveryAction     string `json:"recovery_action,omitempty"`
 	LastCheckpoint     string `json:"last_checkpoint,omitempty"`
+	Runner             string `json:"runner,omitempty"`
+}
+
+type queueRunnerValidationEvidence struct {
+	Passed bool   `json:"passed"`
+	Path   string `json:"path,omitempty"`
+	Error  string `json:"error,omitempty"`
+}
+
+type queueRunnerEvidence struct {
+	SchemaVersion string                        `json:"schema_version"`
+	SpecID        string                        `json:"spec_id"`
+	Status        string                        `json:"status"`
+	Runner        string                        `json:"runner"`
+	HeadSHA       string                        `json:"head_sha,omitempty"`
+	StartedAt     string                        `json:"started_at,omitempty"`
+	FinishedAt    string                        `json:"finished_at,omitempty"`
+	Validation    queueRunnerValidationEvidence `json:"validation"`
+	Error         string                        `json:"error,omitempty"`
+	Message       string                        `json:"message,omitempty"`
+}
+
+type queueRunnerHeartbeat struct {
+	SpecID    string `json:"spec_id"`
+	Runner    string `json:"runner"`
+	Status    string `json:"status"`
+	StartedAt string `json:"started_at,omitempty"`
+	UpdatedAt string `json:"updated_at"`
+	PID       int    `json:"pid,omitempty"`
 }
 
 func queueUsageText() string {
@@ -107,9 +142,11 @@ func queueUsageText() string {
 		"namba queue",
 		"",
 		"Usage:",
-		"  namba queue start <SPEC-RANGE|SPEC-LIST> [--auto-land] [--skip-codex-review] [--remote origin]",
+		"  namba queue start <SPEC-RANGE|SPEC-LIST> [--runner=auto|cli|desktop] [--auto-land] [--skip-codex-review] [--remote origin]",
 		"  namba queue status [--verbose]",
 		"  namba queue resume",
+		"  namba queue doctor",
+		"  namba queue recover",
 		"  namba queue pause",
 		"  namba queue stop",
 		"",
@@ -142,6 +179,10 @@ func (a *App) runQueue(ctx context.Context, args []string) error {
 		return a.printQueueStatus(root, inv.Verbose)
 	case "resume":
 		return a.resumeQueue(ctx, root)
+	case "doctor":
+		return a.doctorQueue(ctx, root)
+	case "recover":
+		return a.recoverQueue(ctx, root)
 	case "pause":
 		return a.pauseQueue(root)
 	case "stop":
@@ -158,7 +199,7 @@ func parseQueueInvocation(args []string) (queueInvocation, error) {
 	if len(args) == 0 {
 		return queueInvocation{}, errors.New("queue requires a subcommand")
 	}
-	inv := queueInvocation{Subcommand: strings.TrimSpace(args[0]), Options: queueOptions{Remote: defaultGitRemote}}
+	inv := queueInvocation{Subcommand: strings.TrimSpace(args[0]), Options: queueOptions{Remote: defaultGitRemote, Runner: queueRunnerAuto}}
 	switch inv.Subcommand {
 	case "start":
 		for i := 1; i < len(args); i++ {
@@ -173,7 +214,17 @@ func parseQueueInvocation(args []string) (queueInvocation, error) {
 					return queueInvocation{}, err
 				}
 				inv.Options.Remote = strings.TrimSpace(value)
+			case "--runner":
+				value, err := consumeFlagValue(args, &i, args[i])
+				if err != nil {
+					return queueInvocation{}, err
+				}
+				inv.Options.Runner = normalizeQueueRunner(value)
 			default:
+				if strings.HasPrefix(args[i], "--runner=") {
+					inv.Options.Runner = normalizeQueueRunner(strings.TrimPrefix(args[i], "--runner="))
+					continue
+				}
 				if strings.HasPrefix(args[i], "--") {
 					return queueInvocation{}, fmt.Errorf("unknown flag %q", args[i])
 				}
@@ -185,6 +236,9 @@ func parseQueueInvocation(args []string) (queueInvocation, error) {
 		}
 		if inv.Options.Remote == "" {
 			return queueInvocation{}, errors.New("queue remote is required")
+		}
+		if !isAllowedQueueRunner(inv.Options.Runner) {
+			return queueInvocation{}, fmt.Errorf("unsupported queue runner %q", inv.Options.Runner)
 		}
 	case "status":
 		for i := 1; i < len(args); i++ {
@@ -198,7 +252,7 @@ func parseQueueInvocation(args []string) (queueInvocation, error) {
 				return queueInvocation{}, errors.New("queue status does not accept SPEC targets")
 			}
 		}
-	case "resume", "pause", "stop":
+	case "resume", "doctor", "recover", "pause", "stop":
 		if len(args) > 1 {
 			return queueInvocation{}, fmt.Errorf("queue %s does not accept arguments", inv.Subcommand)
 		}
@@ -206,6 +260,50 @@ func parseQueueInvocation(args []string) (queueInvocation, error) {
 		return queueInvocation{}, fmt.Errorf("unknown queue subcommand %q", inv.Subcommand)
 	}
 	return inv, nil
+}
+
+func normalizeQueueRunner(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", queueRunnerAuto:
+		return queueRunnerAuto
+	case queueRunnerCLI, "codex":
+		return queueRunnerCLI
+	case queueRunnerDesktop, "codex-desktop":
+		return queueRunnerDesktop
+	default:
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+}
+
+func isAllowedQueueRunner(value string) bool {
+	switch normalizeQueueRunner(value) {
+	case queueRunnerAuto, queueRunnerCLI, queueRunnerDesktop:
+		return true
+	default:
+		return false
+	}
+}
+
+func (a *App) resolveQueueRunner(root string, options queueOptions) string {
+	if runner := normalizeQueueRunner(options.Runner); runner != "" && runner != queueRunnerAuto {
+		return runner
+	}
+	for _, key := range []string{"NAMBA_QUEUE_RUNNER", "NAMBA_RUNNER"} {
+		if runner := normalizeQueueRunner(a.getenv(key)); runner != "" && runner != queueRunnerAuto && isAllowedQueueRunner(runner) {
+			return runner
+		}
+	}
+	if values, err := readKeyValueFile(filepath.Join(root, configDir, "queue.yaml")); err == nil {
+		if runner := normalizeQueueRunner(values["runner"]); runner != "" && runner != queueRunnerAuto && isAllowedQueueRunner(runner) {
+			return runner
+		}
+	}
+	for _, key := range []string{"NAMBA_CODEX_DESKTOP", "CODEX_DESKTOP", "CODEX_APP"} {
+		if parseBoolValue(a.getenv(key), false) {
+			return queueRunnerDesktop
+		}
+	}
+	return queueRunnerCLI
 }
 
 func (a *App) startQueue(ctx context.Context, root string, inv queueInvocation) error {
@@ -217,6 +315,7 @@ func (a *App) startQueue(ctx context.Context, root string, inv queueInvocation) 
 		return err
 	}
 	now := a.now().Format(time.RFC3339)
+	inv.Options.Runner = normalizeQueueRunner(inv.Options.Runner)
 	state := queueState{
 		ID:            "queue-" + a.now().Format("20060102-150405"),
 		Status:        queueStateActive,
@@ -242,6 +341,14 @@ func (a *App) resumeQueue(ctx context.Context, root string) error {
 	if err != nil {
 		return err
 	}
+	var recovered bool
+	state, recovered, err = a.recoverStaleQueueRunning(ctx, root, state)
+	if err != nil || recovered {
+		if err != nil {
+			return err
+		}
+		return a.printQueueState(root, state, false)
+	}
 	if state.Status == queueStateDone {
 		return a.printQueueState(root, state, false)
 	}
@@ -259,6 +366,37 @@ func (a *App) resumeQueue(ctx context.Context, root string) error {
 		return err
 	}
 	return a.advanceQueue(ctx, root, state)
+}
+
+func (a *App) doctorQueue(ctx context.Context, root string) error {
+	state, err := readQueueState(root)
+	if err != nil {
+		return err
+	}
+	status := "ok"
+	state = a.refreshQueueStaleRecoveryHead(ctx, root, state)
+	if isStaleQueueRunning(root, state, a.now()) {
+		status = "stale_running"
+	}
+	fmt.Fprintf(a.stdout, "Queue doctor: %s\n", status)
+	return a.printQueueState(root, state, false)
+}
+
+func (a *App) recoverQueue(ctx context.Context, root string) error {
+	state, err := readQueueState(root)
+	if err != nil {
+		return err
+	}
+	recovered, changed, err := a.recoverStaleQueueRunning(ctx, root, state)
+	if err != nil {
+		return err
+	}
+	if !changed {
+		fmt.Fprintln(a.stdout, "Queue recover: no stale running state detected")
+		return a.printQueueState(root, state, false)
+	}
+	fmt.Fprintln(a.stdout, "Queue recover: stale running state blocked")
+	return a.printQueueState(root, recovered, false)
 }
 
 func (a *App) pauseQueue(root string) error {
@@ -439,12 +577,16 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 	}
 
 	currentHead := strings.TrimSpace(state.LastObservedHeadSHA)
-	if currentHead == "" {
+	if queueSpecNeedsFreshExecutionHead(resumeSpecState) || currentHead == "" {
 		currentHead, _ = a.gitHeadSHA(ctx, root)
 		currentHead = strings.TrimSpace(currentHead)
+		if currentHead != "" {
+			state.LastObservedHeadSHA = currentHead
+		}
 	}
 	executionReady, validationEvidence := queueExecutionSatisfied(root, specID, currentHead, resumeSpecState)
 	if !executionReady {
+		queueRunner := a.resolveQueueRunner(root, state.Options)
 		runCtx, err := a.loadRunExecutionContext(root, runExecuteOptions{specID: specID, mode: executionModeTeam})
 		if err != nil {
 			return blockQueueSpec(a, root, state, specID, "run_context_failed", "", "fix run context and run `namba queue resume`", err.Error())
@@ -453,6 +595,7 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 			return blockQueueSpec(a, root, state, specID, "run_prompt_failed", "", "fix run prompt output and run `namba queue resume`", err.Error())
 		}
 		specState.Phase = queuePhaseRunning
+		specState.Runner = queueRunner
 		state.CurrentRunLogID = strings.ToLower(specID)
 		state, err = updateQueueSpecState(a, root, state, specID, specState, queueOperatorRunning, queuePhaseRunning)
 		if err != nil {
@@ -461,8 +604,45 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 		if state, done, err := a.honorQueueControlRequests(root, state); err != nil || done {
 			return state, false, err
 		}
+		if queueRunner == queueRunnerDesktop {
+			if err := a.prepareDesktopQueueRun(root, specID, runCtx); err != nil {
+				return blockQueueSpec(a, root, state, specID, "desktop_runner_request_failed", queueRunRequestPath(specID), "fix desktop runner request output and run `namba queue resume`", err.Error())
+			}
+			specState.Phase = queuePhaseDesktopWait
+			specState.OperatorState = queueOperatorWaiting
+			specState.EvidencePath = queueRunnerEvidencePath(specID)
+			specState.RecoveryAction = "complete implementation and validation in the current Codex Desktop session, write queue evidence, then run `namba queue resume`"
+			state.Specs[specID] = specState
+			state.Status = queueStateWaiting
+			state.OperatorState = queueOperatorWaiting
+			state.Detail = queuePhaseDesktopWait
+			state.LastEvidencePath = queueRunnerEvidencePath(specID)
+			state.LastRecoveryAction = specState.RecoveryAction
+			state.LastSafeCheckpoint = specID + ":" + queuePhaseDesktopWait
+			state.UpdatedAt = a.now().Format(time.RFC3339)
+			if err := a.writeQueueState(root, state); err != nil {
+				return state, false, err
+			}
+			return state, false, nil
+		}
+		startedAt := a.now().Format(time.RFC3339)
+		if err := writeQueueRunnerHeartbeat(root, specID, queueRunnerCLI, "running", startedAt, startedAt); err != nil {
+			return blockQueueSpec(a, root, state, specID, "runner_heartbeat_failed", queueRunnerHeartbeatPath(specID), "inspect run heartbeat and run `namba queue resume`", err.Error())
+		}
 		if err := a.dispatchRunExecution(ctx, runExecuteOptions{specID: specID, mode: executionModeTeam}, runCtx); err != nil {
-			return blockQueueSpec(a, root, state, specID, "validation_failed", queueRunEvidencePath(specID), "fix implementation or validation and run `namba queue resume`", err.Error())
+			finishedAt := a.now().Format(time.RFC3339)
+			_ = writeQueueRunnerHeartbeat(root, specID, queueRunnerCLI, "failed", startedAt, finishedAt)
+			_ = writeQueueRunnerEvidence(root, queueRunnerEvidence{
+				SchemaVersion: "queue-runner-evidence/v1",
+				SpecID:        specID,
+				Status:        "runner_failed",
+				Runner:        queueRunnerCLI,
+				StartedAt:     startedAt,
+				FinishedAt:    finishedAt,
+				Validation:    queueRunnerValidationEvidence{Passed: false, Path: queueRunEvidencePath(specID), Error: err.Error()},
+				Error:         err.Error(),
+			})
+			return blockQueueSpec(a, root, state, specID, "runner_failed", queueRunnerEvidencePath(specID), "fix implementation or validation and run `namba queue resume`", err.Error())
 		}
 		currentHead, _ = a.gitHeadSHA(ctx, root)
 		currentHead = strings.TrimSpace(currentHead)
@@ -472,7 +652,36 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 		}
 		executionReady, validationEvidence = queueExecutionSucceeded(root, specID, currentHead)
 		if !executionReady {
+			finishedAt := a.now().Format(time.RFC3339)
+			_ = writeQueueRunnerHeartbeat(root, specID, queueRunnerCLI, "ambiguous", startedAt, finishedAt)
+			_ = writeQueueRunnerEvidence(root, queueRunnerEvidence{
+				SchemaVersion: "queue-runner-evidence/v1",
+				SpecID:        specID,
+				Status:        "validation_ambiguous",
+				Runner:        queueRunnerCLI,
+				HeadSHA:       currentHead,
+				StartedAt:     startedAt,
+				FinishedAt:    finishedAt,
+				Validation:    queueRunnerValidationEvidence{Passed: false, Path: validationEvidence, Error: "run completed but validation evidence is missing or failed"},
+				Message:       "run completed but validation evidence is missing or failed",
+			})
 			return blockQueueSpec(a, root, state, specID, "validation_ambiguous", queueRunEvidencePath(specID), "inspect run evidence and run `namba queue resume`", "run completed but validation evidence is missing or failed")
+		}
+		finishedAt := a.now().Format(time.RFC3339)
+		if err := writeQueueRunnerHeartbeat(root, specID, queueRunnerCLI, "completed", startedAt, finishedAt); err != nil {
+			return blockQueueSpec(a, root, state, specID, "runner_heartbeat_failed", queueRunnerHeartbeatPath(specID), "inspect run heartbeat and run `namba queue resume`", err.Error())
+		}
+		if err := writeQueueRunnerEvidence(root, queueRunnerEvidence{
+			SchemaVersion: "queue-runner-evidence/v1",
+			SpecID:        specID,
+			Status:        "completed",
+			Runner:        queueRunnerCLI,
+			HeadSHA:       currentHead,
+			StartedAt:     startedAt,
+			FinishedAt:    finishedAt,
+			Validation:    queueRunnerValidationEvidence{Passed: true, Path: validationEvidence},
+		}); err != nil {
+			return blockQueueSpec(a, root, state, specID, "validation_ambiguous", queueRunnerEvidencePath(specID), "inspect run evidence and run `namba queue resume`", err.Error())
 		}
 	}
 	hasPullRequestCheckpoint := queueSpecHasPullRequestCheckpoint(resumeSpecState)
@@ -878,12 +1087,27 @@ func reviewFollowupsAreTagged(body string) bool {
 	return found
 }
 
+func (a *App) prepareDesktopQueueRun(root, specID string, runCtx runExecutionContext) error {
+	request := a.newExecutionRequest(runCtx.SpecPkg.ID, runCtx.Root, runCtx.Prompt, executionModeTeam, runCtx.Delegation, runCtx.SystemCfg, runCtx.CodexCfg)
+	if err := writeJSONFile(filepath.Join(root, logsDir, "runs", strings.ToLower(specID)+"-request.json"), request); err != nil {
+		return err
+	}
+	if err := a.writeExecutionPrompt(filepath.Join(root, logsDir, "runs", strings.ToLower(specID)+"-request.md"), runCtx.Prompt+"\n\n## Queue Desktop Handoff\n\n- Runner: desktop\n- After implementation and validation, write `"+queueRunnerEvidencePath(specID)+"` with status `completed` and the current HEAD SHA.\n- Then run `namba queue resume`.\n"); err != nil {
+		return err
+	}
+	now := a.now().Format(time.RFC3339)
+	return writeQueueRunnerHeartbeat(root, specID, queueRunnerDesktop, "waiting_for_desktop_runner", now, now)
+}
+
 func queueExecutionSucceeded(root, specID, currentHead string) (bool, string) {
 	currentHead = strings.TrimSpace(currentHead)
 	if currentHead == "" {
 		return false, ""
 	}
 	logID := strings.ToLower(specID)
+	if ok, evidence := queueRunnerEvidenceSucceeded(root, specID, currentHead); ok || evidence != "" {
+		return ok, evidence
+	}
 	executionPath := filepath.Join(root, logsDir, "runs", logID+"-execution.json")
 	validationPath := filepath.Join(root, logsDir, "runs", logID+"-validation.json")
 	executionBytes, err := os.ReadFile(executionPath)
@@ -905,11 +1129,49 @@ func queueExecutionSucceeded(root, specID, currentHead string) (bool, string) {
 	return true, filepath.ToSlash(filepath.Join(logsDir, "runs", logID+"-validation.json"))
 }
 
+func queueRunnerEvidenceSucceeded(root, specID, currentHead string) (bool, string) {
+	path := filepath.Join(root, logsDir, "runs", strings.ToLower(specID)+"-queue-evidence.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false, ""
+	}
+	var evidence queueRunnerEvidence
+	if err := json.Unmarshal(data, &evidence); err != nil {
+		return false, queueRunnerEvidencePath(specID)
+	}
+	if !strings.EqualFold(strings.TrimSpace(evidence.SpecID), specID) {
+		return false, queueRunnerEvidencePath(specID)
+	}
+	if !queueRunnerEvidenceStatusSucceeded(evidence.Status) {
+		return false, queueRunnerEvidencePath(specID)
+	}
+	if strings.TrimSpace(evidence.HeadSHA) != currentHead {
+		return false, queueRunnerEvidencePath(specID)
+	}
+	if !evidence.Validation.Passed {
+		return false, queueRunnerEvidencePath(specID)
+	}
+	return true, firstNonBlank(evidence.Validation.Path, queueRunnerEvidencePath(specID))
+}
+
+func queueRunnerEvidenceStatusSucceeded(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "completed", "succeeded", "passed":
+		return true
+	default:
+		return false
+	}
+}
+
 func queueExecutionSatisfied(root, specID, currentHead string, specState queueSpec) (bool, string) {
 	if queueSpecHasPostExecutionCheckpoint(specState) {
 		return true, firstNonBlank(specState.ValidationEvidence, queueRunEvidencePath(specID))
 	}
 	return queueExecutionSucceeded(root, specID, currentHead)
+}
+
+func queueSpecNeedsFreshExecutionHead(specState queueSpec) bool {
+	return specState.Phase == queuePhaseDesktopWait || normalizeQueueRunner(specState.Runner) == queueRunnerDesktop
 }
 
 func queueSpecHasPullRequestCheckpoint(specState queueSpec) bool {
@@ -964,6 +1226,37 @@ func stampQueueRunEvidenceHead(root, specID, currentHead string) error {
 
 func queueRunEvidencePath(specID string) string {
 	return filepath.ToSlash(filepath.Join(logsDir, "runs", strings.ToLower(specID)+"-validation.json"))
+}
+
+func queueRunnerEvidencePath(specID string) string {
+	return filepath.ToSlash(filepath.Join(logsDir, "runs", strings.ToLower(specID)+"-queue-evidence.json"))
+}
+
+func queueRunRequestPath(specID string) string {
+	return filepath.ToSlash(filepath.Join(logsDir, "runs", strings.ToLower(specID)+"-request.json"))
+}
+
+func queueRunnerHeartbeatPath(specID string) string {
+	return filepath.ToSlash(filepath.Join(logsDir, "runs", strings.ToLower(specID)+"-heartbeat.json"))
+}
+
+func writeQueueRunnerEvidence(root string, evidence queueRunnerEvidence) error {
+	evidence.SchemaVersion = firstNonBlank(evidence.SchemaVersion, "queue-runner-evidence/v1")
+	return writeJSONFile(filepath.Join(root, logsDir, "runs", strings.ToLower(evidence.SpecID)+"-queue-evidence.json"), evidence)
+}
+
+func writeQueueRunnerHeartbeat(root, specID, runner, status, startedAt, updatedAt string) error {
+	if strings.TrimSpace(updatedAt) == "" {
+		updatedAt = time.Now().Format(time.RFC3339)
+	}
+	return writeJSONFile(filepath.Join(root, logsDir, "runs", strings.ToLower(specID)+"-heartbeat.json"), queueRunnerHeartbeat{
+		SpecID:    specID,
+		Runner:    runner,
+		Status:    status,
+		StartedAt: startedAt,
+		UpdatedAt: updatedAt,
+		PID:       os.Getpid(),
+	})
 }
 
 func (a *App) runActiveSpecSync(ctx context.Context, root, specID string) error {
@@ -1042,7 +1335,7 @@ func (a *App) prepareQueuePullRequest(ctx context.Context, root string, state qu
 	}
 	title := queuePullRequestTitle(specPkg)
 	if dirty {
-		if _, err := a.runBinary(ctx, "git", []string{"add", "-A"}, root); err != nil {
+		if _, err := a.runBinary(ctx, "git", queueGitAddArgs(), root); err != nil {
 			return githubPullRequest{}, fmt.Errorf("stage changes: %w", err)
 		}
 		if _, err := a.runBinary(ctx, "git", []string{"commit", "-m", title}, root); err != nil {
@@ -1063,6 +1356,10 @@ func (a *App) prepareQueuePullRequest(ctx context.Context, root string, state qu
 		}
 	}
 	return pr, nil
+}
+
+func queueGitAddArgs() []string {
+	return []string{"add", "-A", "--", ".", ":(exclude).namba/logs/queue/*", ":(exclude).namba/logs/runs/*"}
 }
 
 func queuePullRequestTitle(specPkg specPackage) string {
@@ -1139,6 +1436,95 @@ func readQueueState(root string) (queueState, error) {
 		state.Specs = map[string]queueSpec{}
 	}
 	return state, nil
+}
+
+func (a *App) recoverStaleQueueRunning(ctx context.Context, root string, state queueState) (queueState, bool, error) {
+	state = a.refreshQueueStaleRecoveryHead(ctx, root, state)
+	if !isStaleQueueRunning(root, state, a.now()) {
+		return state, false, nil
+	}
+	specID := strings.TrimSpace(state.ActiveSpecID)
+	if specID == "" {
+		specID = firstRunningQueueSpecID(state)
+	}
+	if specID == "" {
+		return state, false, nil
+	}
+	recovered, _, err := blockQueueSpec(a, root, state, specID, "runner_stale", queueRunnerHeartbeatPath(specID), "inspect runner logs or write completed evidence, then run `namba queue resume`", "queue was left running without fresh heartbeat or completed evidence")
+	return recovered, true, err
+}
+
+func (a *App) refreshQueueStaleRecoveryHead(ctx context.Context, root string, state queueState) queueState {
+	specID := strings.TrimSpace(state.ActiveSpecID)
+	if specID == "" {
+		specID = firstRunningQueueSpecID(state)
+	}
+	if specID == "" {
+		return state
+	}
+	if state.Detail != queuePhaseRunning && state.Specs[specID].Phase != queuePhaseRunning {
+		return state
+	}
+	currentHead, err := a.gitHeadSHA(ctx, root)
+	if err != nil {
+		return state
+	}
+	currentHead = strings.TrimSpace(currentHead)
+	if currentHead != "" {
+		state.LastObservedHeadSHA = currentHead
+	}
+	return state
+}
+
+func isStaleQueueRunning(root string, state queueState, now time.Time) bool {
+	specID := strings.TrimSpace(state.ActiveSpecID)
+	if specID == "" {
+		specID = firstRunningQueueSpecID(state)
+	}
+	if specID == "" {
+		return false
+	}
+	if state.Detail != queuePhaseRunning && state.Specs[specID].Phase != queuePhaseRunning {
+		return false
+	}
+	if ok, _ := queueExecutionSucceeded(root, specID, strings.TrimSpace(state.LastObservedHeadSHA)); ok {
+		return false
+	}
+	heartbeat, err := readQueueRunnerHeartbeat(root, specID)
+	if err != nil {
+		return true
+	}
+	status := strings.ToLower(strings.TrimSpace(heartbeat.Status))
+	if status == "completed" || status == "failed" || status == "ambiguous" {
+		return true
+	}
+	updatedAt, err := time.Parse(time.RFC3339, strings.TrimSpace(heartbeat.UpdatedAt))
+	if err != nil {
+		return true
+	}
+	return now.Sub(updatedAt) > queueRunnerStaleAfter
+}
+
+func firstRunningQueueSpecID(state queueState) string {
+	for _, specID := range state.Targets {
+		specState := state.Specs[specID]
+		if specState.Phase == queuePhaseRunning {
+			return specID
+		}
+	}
+	return ""
+}
+
+func readQueueRunnerHeartbeat(root, specID string) (queueRunnerHeartbeat, error) {
+	data, err := os.ReadFile(filepath.Join(root, logsDir, "runs", strings.ToLower(specID)+"-heartbeat.json"))
+	if err != nil {
+		return queueRunnerHeartbeat{}, err
+	}
+	var heartbeat queueRunnerHeartbeat
+	if err := json.Unmarshal(data, &heartbeat); err != nil {
+		return queueRunnerHeartbeat{}, err
+	}
+	return heartbeat, nil
 }
 
 func (a *App) writeQueueState(root string, state queueState) error {
