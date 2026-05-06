@@ -574,9 +574,12 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 	}
 
 	currentHead := strings.TrimSpace(state.LastObservedHeadSHA)
-	if currentHead == "" {
+	if queueSpecNeedsFreshExecutionHead(resumeSpecState) || currentHead == "" {
 		currentHead, _ = a.gitHeadSHA(ctx, root)
 		currentHead = strings.TrimSpace(currentHead)
+		if currentHead != "" {
+			state.LastObservedHeadSHA = currentHead
+		}
 	}
 	executionReady, validationEvidence := queueExecutionSatisfied(root, specID, currentHead, resumeSpecState)
 	if !executionReady {
@@ -1162,6 +1165,10 @@ func queueExecutionSatisfied(root, specID, currentHead string, specState queueSp
 		return true, firstNonBlank(specState.ValidationEvidence, queueRunEvidencePath(specID))
 	}
 	return queueExecutionSucceeded(root, specID, currentHead)
+}
+
+func queueSpecNeedsFreshExecutionHead(specState queueSpec) bool {
+	return specState.Phase == queuePhaseDesktopWait || normalizeQueueRunner(specState.Runner) == queueRunnerDesktop
 }
 
 func queueSpecHasPullRequestCheckpoint(specState queueSpec) bool {

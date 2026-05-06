@@ -380,6 +380,8 @@ func TestQueueStartPreparesActiveSpecPRAndSkipsReviewComment(t *testing.T) {
 			return "https://github.com/example/repo/pull/17", nil
 		case name == "gh" && len(args) >= 3 && args[0] == "pr" && args[1] == "view" && args[2] == currentBranch:
 			return mustMarshalJSON(t, githubPullRequest{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "SPEC-001", HeadRefName: currentBranch, BaseRefName: "main"}), nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "comment":
+			return "", nil
 		case name == "gh" && len(args) >= 3 && args[0] == "pr" && args[1] == "view" && args[2] == "17":
 			return mustMarshalJSON(t, githubPullRequest{
 				Number:           17,
@@ -529,6 +531,109 @@ func TestQueueResumeDesktopRunnerWithoutEvidenceKeepsWaiting(t *testing.T) {
 	}
 	if got.Status != queueStateWaiting || got.Detail != queuePhaseDesktopWait {
 		t.Fatalf("expected resume to keep desktop handoff waiting, got %+v", got)
+	}
+}
+
+func TestQueueResumeDesktopRunnerRefreshesHeadBeforeEvidenceCheck(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+	if err := writeQueueRunnerEvidence(tmp, queueRunnerEvidence{
+		SpecID:     "SPEC-001",
+		Status:     "completed",
+		Runner:     queueRunnerDesktop,
+		HeadSHA:    "def456",
+		StartedAt:  "2026-05-06T00:00:00Z",
+		FinishedAt: "2026-05-06T00:05:00Z",
+		Validation: queueRunnerValidationEvidence{Passed: true, Path: ".namba/logs/runs/spec-001-validation.json"},
+	}); err != nil {
+		t.Fatalf("write queue evidence: %v", err)
+	}
+
+	branch := "spec/SPEC-001-queue-fixture"
+	state := queueState{
+		ID:                  "queue-test",
+		Status:              queueStateWaiting,
+		OperatorState:       queueOperatorWaiting,
+		Detail:              queuePhaseDesktopWait,
+		Targets:             []string{"SPEC-001"},
+		ActiveSpecID:        "SPEC-001",
+		ExpectedBranch:      branch,
+		LastObservedHeadSHA: "abc123",
+		Options:             queueOptions{Remote: defaultGitRemote, Runner: queueRunnerDesktop},
+		Specs: map[string]queueSpec{"SPEC-001": {
+			SpecID:        "SPEC-001",
+			Status:        queueStateActive,
+			OperatorState: queueOperatorWaiting,
+			Phase:         queuePhaseDesktopWait,
+			Branch:        branch,
+			Runner:        queueRunnerDesktop,
+		}},
+	}
+	if err := app.writeQueueState(tmp, state); err != nil {
+		t.Fatalf("write queue state: %v", err)
+	}
+
+	currentBranch := branch
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "git" && strings.Join(args, " ") == "branch --list "+branch:
+			return "  " + branch, nil
+		case name == "git" && strings.Join(args, " ") == "merge-base --is-ancestor "+branch+" main":
+			return "", errors.New("not ancestor")
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list" && hasArg(args, "--state", "merged"):
+			return "[]", nil
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return currentBranch, nil
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return "", nil
+		case name == "git" && strings.Join(args, " ") == "rev-parse HEAD":
+			return "def456", nil
+		case name == "git" && strings.Join(args, " ") == strings.Join(queueGitAddArgs(), " "):
+			return "", nil
+		case name == "git" && len(args) == 3 && args[0] == "commit" && args[1] == "-m":
+			return "", nil
+		case name == "git" && len(args) == 4 && args[0] == "push" && args[1] == "--set-upstream":
+			return "", nil
+		case name == "gh" && strings.Join(args, " ") == "auth status":
+			return "", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list":
+			return "[]", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "create":
+			return "https://github.com/example/repo/pull/17", nil
+		case name == "gh" && len(args) >= 3 && args[0] == "pr" && args[1] == "view" && args[2] == currentBranch:
+			return mustMarshalJSON(t, githubPullRequest{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "SPEC-001", HeadRefName: currentBranch, BaseRefName: "main"}), nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "comment":
+			return "", nil
+		case name == "gh" && len(args) >= 3 && args[0] == "pr" && args[1] == "view" && args[2] == "17":
+			return mustMarshalJSON(t, githubPullRequest{
+				Number:           17,
+				URL:              "https://github.com/example/repo/pull/17",
+				Title:            "SPEC-001",
+				HeadRefName:      currentBranch,
+				BaseRefName:      "main",
+				ReviewDecision:   "APPROVED",
+				MergeStateStatus: "CLEAN",
+				StatusChecks:     []githubStatusCheck{{Name: "ci", Status: "COMPLETED", Conclusion: "SUCCESS"}},
+			}), nil
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"queue", "resume"}); err != nil {
+		t.Fatalf("queue resume failed: %v", err)
+	}
+	got, err := readQueueState(tmp)
+	if err != nil {
+		t.Fatalf("read queue state: %v", err)
+	}
+	if got.LastObservedHeadSHA != "def456" {
+		t.Fatalf("expected refreshed head to be persisted, got %+v", got)
+	}
+	if got.Status != queueStateWaiting || got.Detail != queuePhaseWaitingLand {
+		t.Fatalf("expected desktop evidence to advance to land wait, got %+v", got)
 	}
 }
 
