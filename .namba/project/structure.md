@@ -88,6 +88,7 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/releases/v0.5.6.md
 .namba/releases/v0.5.7.md
 .namba/releases/v0.5.8.md
+.namba/releases/v0.5.9.md
 .namba/specs/.gitkeep
 .namba/specs/SPEC-001/acceptance.md
 .namba/specs/SPEC-001/plan.md
