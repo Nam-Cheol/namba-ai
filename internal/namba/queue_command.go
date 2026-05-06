@@ -1451,14 +1451,14 @@ func (a *App) recoverStaleQueueRunning(root string, state queueState) (queueStat
 }
 
 func isStaleQueueRunning(root string, state queueState, now time.Time) bool {
-	if state.Detail != queuePhaseRunning && state.OperatorState != queueOperatorRunning {
-		return false
-	}
 	specID := strings.TrimSpace(state.ActiveSpecID)
 	if specID == "" {
 		specID = firstRunningQueueSpecID(state)
 	}
 	if specID == "" {
+		return false
+	}
+	if state.Detail != queuePhaseRunning && state.Specs[specID].Phase != queuePhaseRunning {
 		return false
 	}
 	if ok, _ := queueExecutionSucceeded(root, specID, strings.TrimSpace(state.LastObservedHeadSHA)); ok {
