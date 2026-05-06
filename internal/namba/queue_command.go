@@ -180,9 +180,9 @@ func (a *App) runQueue(ctx context.Context, args []string) error {
 	case "resume":
 		return a.resumeQueue(ctx, root)
 	case "doctor":
-		return a.doctorQueue(root)
+		return a.doctorQueue(ctx, root)
 	case "recover":
-		return a.recoverQueue(root)
+		return a.recoverQueue(ctx, root)
 	case "pause":
 		return a.pauseQueue(root)
 	case "stop":
@@ -341,11 +341,13 @@ func (a *App) resumeQueue(ctx context.Context, root string) error {
 	if err != nil {
 		return err
 	}
-	if recovered, changed, err := a.recoverStaleQueueRunning(root, state); err != nil || changed {
+	var recovered bool
+	state, recovered, err = a.recoverStaleQueueRunning(ctx, root, state)
+	if err != nil || recovered {
 		if err != nil {
 			return err
 		}
-		return a.printQueueState(root, recovered, false)
+		return a.printQueueState(root, state, false)
 	}
 	if state.Status == queueStateDone {
 		return a.printQueueState(root, state, false)
@@ -366,12 +368,13 @@ func (a *App) resumeQueue(ctx context.Context, root string) error {
 	return a.advanceQueue(ctx, root, state)
 }
 
-func (a *App) doctorQueue(root string) error {
+func (a *App) doctorQueue(ctx context.Context, root string) error {
 	state, err := readQueueState(root)
 	if err != nil {
 		return err
 	}
 	status := "ok"
+	state = a.refreshQueueStaleRecoveryHead(ctx, root, state)
 	if isStaleQueueRunning(root, state, a.now()) {
 		status = "stale_running"
 	}
@@ -379,12 +382,12 @@ func (a *App) doctorQueue(root string) error {
 	return a.printQueueState(root, state, false)
 }
 
-func (a *App) recoverQueue(root string) error {
+func (a *App) recoverQueue(ctx context.Context, root string) error {
 	state, err := readQueueState(root)
 	if err != nil {
 		return err
 	}
-	recovered, changed, err := a.recoverStaleQueueRunning(root, state)
+	recovered, changed, err := a.recoverStaleQueueRunning(ctx, root, state)
 	if err != nil {
 		return err
 	}
@@ -1435,7 +1438,8 @@ func readQueueState(root string) (queueState, error) {
 	return state, nil
 }
 
-func (a *App) recoverStaleQueueRunning(root string, state queueState) (queueState, bool, error) {
+func (a *App) recoverStaleQueueRunning(ctx context.Context, root string, state queueState) (queueState, bool, error) {
+	state = a.refreshQueueStaleRecoveryHead(ctx, root, state)
 	if !isStaleQueueRunning(root, state, a.now()) {
 		return state, false, nil
 	}
@@ -1448,6 +1452,28 @@ func (a *App) recoverStaleQueueRunning(root string, state queueState) (queueStat
 	}
 	recovered, _, err := blockQueueSpec(a, root, state, specID, "runner_stale", queueRunnerHeartbeatPath(specID), "inspect runner logs or write completed evidence, then run `namba queue resume`", "queue was left running without fresh heartbeat or completed evidence")
 	return recovered, true, err
+}
+
+func (a *App) refreshQueueStaleRecoveryHead(ctx context.Context, root string, state queueState) queueState {
+	specID := strings.TrimSpace(state.ActiveSpecID)
+	if specID == "" {
+		specID = firstRunningQueueSpecID(state)
+	}
+	if specID == "" {
+		return state
+	}
+	if state.Detail != queuePhaseRunning && state.Specs[specID].Phase != queuePhaseRunning {
+		return state
+	}
+	currentHead, err := a.gitHeadSHA(ctx, root)
+	if err != nil {
+		return state
+	}
+	currentHead = strings.TrimSpace(currentHead)
+	if currentHead != "" {
+		state.LastObservedHeadSHA = currentHead
+	}
+	return state
 }
 
 func isStaleQueueRunning(root string, state queueState, now time.Time) bool {
