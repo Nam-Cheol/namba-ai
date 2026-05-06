@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -22,6 +23,10 @@ type executionTurnResult struct {
 	SessionAction   string   `json:"session_action,omitempty"`
 	ReasoningEffort string   `json:"reasoning_effort,omitempty"`
 	Output          string   `json:"output,omitempty"`
+	CommandArgs     []string `json:"command_args,omitempty"`
+	StdoutPath      string   `json:"stdout_path,omitempty"`
+	StderrPath      string   `json:"stderr_path,omitempty"`
+	ExitCode        int      `json:"exit_code,omitempty"`
 	Succeeded       bool     `json:"succeeded"`
 	StartedAt       string   `json:"started_at"`
 	FinishedAt      string   `json:"finished_at"`
@@ -83,6 +88,7 @@ type runner interface {
 type codexRunner struct {
 	lookPath  func(string) (string, error)
 	runBinary func(context.Context, string, []string, string) (string, error)
+	runCmd    func(context.Context, string, []string, string, string) (string, string, error)
 	now       func() time.Time
 }
 
@@ -117,10 +123,26 @@ func (r codexRunner) Execute(ctx context.Context, req executionRequest, capabili
 		return result, fmt.Errorf(result.Error)
 	}
 
-	output, err := r.runBinary(ctx, "codex", args, req.WorkDir)
-	result.Output = output
+	result.CommandArgs = append([]string{"codex"}, args...)
+	var stdout, stderr string
+	if r.runCmd != nil {
+		stdout, stderr, err = r.runCmd(ctx, "codex", args, req.WorkDir, "")
+		output := strings.TrimSpace(strings.Join(nonEmptyArgs([]string{stdout, stderr}), "\n"))
+		result.Output = output
+		if writeErr := writeRunnerStreamArtifacts(req.WorkDir, req.SpecID, result.Name, stdout, stderr, &result); writeErr != nil && err == nil {
+			err = writeErr
+		}
+	} else {
+		var output string
+		output, err = r.runBinary(ctx, "codex", args, req.WorkDir)
+		result.Output = output
+		if writeErr := writeRunnerStreamArtifacts(req.WorkDir, req.SpecID, result.Name, output, "", &result); writeErr != nil && err == nil {
+			err = writeErr
+		}
+	}
 	result.FinishedAt = r.now().Format(time.RFC3339)
 	if err != nil {
+		result.ExitCode = commandExitCode(err)
 		result.Error = err.Error()
 		return result, err
 	}
@@ -135,6 +157,57 @@ func buildCodexExecArgs(req executionRequest, capabilities codexCapabilityMatrix
 		return nil, err
 	}
 	return invocation.Args, nil
+}
+
+func writeRunnerStreamArtifacts(workDir, specID, turnName, stdout, stderr string, result *executionTurnResult) error {
+	logID := strings.ToLower(strings.TrimSpace(specID))
+	if logID == "" {
+		return nil
+	}
+	turn := normalizeArtifactToken(firstNonBlank(turnName, "implement"))
+	stdoutRel := filepath.ToSlash(filepath.Join(logsDir, "runs", logID+"-"+turn+"-stdout.txt"))
+	stderrRel := filepath.ToSlash(filepath.Join(logsDir, "runs", logID+"-"+turn+"-stderr.txt"))
+	if err := writeRunText(filepath.Join(workDir, stdoutRel), stdout); err != nil {
+		return err
+	}
+	if err := writeRunText(filepath.Join(workDir, stderrRel), stderr); err != nil {
+		return err
+	}
+	result.StdoutPath = stdoutRel
+	result.StderrPath = stderrRel
+	return nil
+}
+
+func normalizeArtifactToken(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "turn"
+	}
+	var b strings.Builder
+	lastDash := false
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}
+
+func commandExitCode(err error) int {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return exitErr.ExitCode()
+	}
+	if err != nil {
+		return -1
+	}
+	return 0
 }
 
 func (a *App) runnerFor(cfg systemConfig) (runner, error) {
