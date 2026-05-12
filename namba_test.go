@@ -16,7 +16,8 @@ func TestInitCreatesScaffold(t *testing.T) {
 	t.Setenv("NAMBA_LANG", "ko")
 
 	tmp := t.TempDir()
-	app := namba.NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	var stdout bytes.Buffer
+	app := namba.NewApp(&stdout, &bytes.Buffer{})
 
 	if err := app.Run(context.Background(), []string{"init", tmp}); err != nil {
 		t.Fatalf("init failed: %v", err)
@@ -36,6 +37,8 @@ func TestInitCreatesScaffold(t *testing.T) {
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-foundation-core", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".agents", "skills", "namba-workflow-init", "SKILL.md"))
 	mustExist(t, filepath.Join(tmp, ".codex", "config.toml"))
+	mustExist(t, filepath.Join(tmp, ".codex", "hooks.json"))
+	mustExist(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.py"))
 	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.md"))
 	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.toml"))
 	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-plan-reviewer.md"))
@@ -67,9 +70,18 @@ func TestInitCreatesScaffold(t *testing.T) {
 		t.Fatalf("expected AGENTS to avoid stale stop-hook wording, got: %s", agents)
 	}
 
+	initOutput := stdout.String()
+	for _, want := range []string{"Codex hook review:", "`6 hooks need review`", "`/hooks`", ".codex/hooks/namba_codex_guard.py", "ambiguous Namba prompt"} {
+		if !strings.Contains(initOutput, want) {
+			t.Fatalf("expected init output to include hook review next step %q, got: %s", want, initOutput)
+		}
+	}
+
 	gettingStarted := mustRead(t, filepath.Join(tmp, "docs", "getting-started.md"))
-	if !strings.Contains(gettingStarted, "WSL workspace") {
-		t.Fatalf("expected getting started guide to describe current Windows WSL guidance, got: %s", gettingStarted)
+	for _, want := range []string{"WSL workspace", "`6 hooks need review`", "`/hooks`", ".codex/hooks/namba_codex_guard.py"} {
+		if !strings.Contains(gettingStarted, want) {
+			t.Fatalf("expected getting started guide to include %q, got: %s", want, gettingStarted)
+		}
 	}
 
 	plannerAgent := mustRead(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.toml"))

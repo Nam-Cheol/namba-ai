@@ -1,0 +1,80 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "timeout": 10,
+            "statusMessage": "Loading NambaAI context"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "timeout": 10,
+            "statusMessage": "Checking NambaAI shell safety"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "timeout": 10,
+            "statusMessage": "Checking NambaAI approval policy"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "timeout": 10,
+            "statusMessage": "Refining NambaAI prompt"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^(Bash|apply_patch|Edit|Write)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "timeout": 10,
+            "statusMessage": "Reviewing NambaAI surface changes"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "timeout": 10,
+            "statusMessage": "Checking NambaAI report format"
+          }
+        ]
+      }
+    ]
+  }
+}

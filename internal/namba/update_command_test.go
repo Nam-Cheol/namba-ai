@@ -175,8 +175,20 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	}
 
 	config := mustReadFile(t, filepath.Join(tmp, ".codex", "config.toml"))
-	if !strings.Contains(config, "#:schema https://developers.openai.com/codex/config-schema.json") || !strings.Contains(config, "repo-safe Codex defaults under version control") || !strings.Contains(config, "max_threads = 5") || !strings.Contains(config, `approval_policy = "never"`) || !strings.Contains(config, `sandbox_mode = "read-only"`) {
+	if !strings.Contains(config, "#:schema https://developers.openai.com/codex/config-schema.json") || !strings.Contains(config, "repo-safe Codex defaults under version control") || !strings.Contains(config, "[features]") || !strings.Contains(config, "hooks = true") || !strings.Contains(config, "max_threads = 5") || !strings.Contains(config, `approval_policy = "never"`) || !strings.Contains(config, `sandbox_mode = "read-only"`) {
 		t.Fatalf("expected multi-agent Codex config, got %q", config)
+	}
+	hooksJSON := mustReadFile(t, filepath.Join(tmp, ".codex", "hooks.json"))
+	for _, want := range []string{"SessionStart", "PreToolUse", "PermissionRequest", "UserPromptSubmit", "PostToolUse", "Stop", ".codex/hooks/namba_codex_guard.py"} {
+		if !strings.Contains(hooksJSON, want) {
+			t.Fatalf("expected generated Codex hooks.json to contain %q, got %q", want, hooksJSON)
+		}
+	}
+	hookGuard := mustReadFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.py"))
+	for _, want := range []string{"git reset --hard", "permissionDecision", "prompt-refinement gate", "approval_risk_note", "Namba-managed instruction or config surfaces are changed", "NAMBA-AI 작업 결과 보고"} {
+		if !strings.Contains(hookGuard, want) {
+			t.Fatalf("expected generated Namba Codex hook guard to contain %q, got %q", want, hookGuard)
+		}
 	}
 	workflowConfig := mustReadFile(t, filepath.Join(tmp, ".namba", "config", "sections", "workflow.yaml"))
 	if !strings.Contains(workflowConfig, "max_parallel_workers: 3") {
@@ -220,7 +232,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(codexReadme, "NAMBA-AI 작업 결과 보고") || !strings.Contains(codexReadme, "validate-output-contract.py") || !strings.Contains(codexReadme, "selected language palette") {
 		t.Fatalf("expected codex README to describe output contract fallback validation, got %q", codexReadme)
 	}
-	if !strings.Contains(codexReadme, "WSL workspace") || !strings.Contains(codexReadme, "documented config and hook surface evolves") || strings.Contains(codexReadme, "do not document a repository-configurable stop-hook surface") {
+	if !strings.Contains(codexReadme, "WSL workspace") || !strings.Contains(codexReadme, "documented config and hook surface evolves") || !strings.Contains(codexReadme, ".codex/hooks.json") || !strings.Contains(codexReadme, "guardrails, not a complete security boundary") || strings.Contains(codexReadme, "do not document a repository-configurable stop-hook surface") {
 		t.Fatalf("expected codex README to describe current Windows guidance and explicit validator positioning, got %q", codexReadme)
 	}
 	if !strings.Contains(codexReadme, "PR titles and bodies should be written in Korean") || !strings.Contains(codexReadme, "`@codex review`") {

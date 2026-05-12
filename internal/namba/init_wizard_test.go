@@ -73,6 +73,90 @@ func TestProjectTypeOptions(t *testing.T) {
 	}
 }
 
+func TestPromptProjectScaffoldUsesDetectedStackForExistingCode(t *testing.T) {
+	t.Parallel()
+
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+	app.stdin = strings.NewReader("\n")
+
+	profile, back := app.promptProjectScaffold(bufio.NewReader(app.stdin), initProfile{
+		ProjectName: "demo",
+		ProjectType: "existing",
+		Language:    "go",
+		Framework:   "gin",
+	}, true)
+
+	if back {
+		t.Fatal("did not expect back navigation")
+	}
+	if profile.Language != "go" || profile.Framework != "gin" {
+		t.Fatalf("expected detected stack to be kept, got %+v", profile)
+	}
+	got := stdout.String()
+	for _, want := range []string{"감지된 코드베이스", "감지값을 사용"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected existing-code scaffold prompt to include %q, got %q", want, got)
+		}
+	}
+	if strings.Contains(got, "직접 선택") || strings.Contains(got, "주 사용 언어") {
+		t.Fatalf("existing-code flow should not ask for early language/framework override, got %q", got)
+	}
+}
+
+func TestPromptProjectScaffoldNewProjectSkipsStarterStack(t *testing.T) {
+	t.Parallel()
+
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+	app.stdin = strings.NewReader("\n")
+
+	profile, back := app.promptProjectScaffold(bufio.NewReader(app.stdin), initProfile{
+		ProjectName: "demo",
+		ProjectType: "new",
+		Language:    "unknown",
+		Framework:   "none",
+	}, true)
+
+	if back {
+		t.Fatal("did not expect back navigation")
+	}
+	if profile.Language != "unknown" || profile.Framework != "none" {
+		t.Fatalf("expected empty repository to keep stack unselected, got %+v", profile)
+	}
+	got := stdout.String()
+	for _, want := range []string{"앱 스택을 묻지 않습니다", "첫 `namba plan`"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected new-project scaffold prompt to include %q, got %q", want, got)
+		}
+	}
+	if strings.Contains(got, "시작할 앱 스택") || strings.Contains(got, "Next.js") {
+		t.Fatalf("new-project flow should not ask for starter stack, got %q", got)
+	}
+}
+
+func TestPromptProjectScaffoldSupportsBackFromProjectName(t *testing.T) {
+	t.Parallel()
+
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+	app.stdin = strings.NewReader("back\n")
+
+	_, back := app.promptProjectScaffold(bufio.NewReader(app.stdin), initProfile{
+		ProjectName: "demo",
+		ProjectType: "new",
+		Language:    "unknown",
+		Framework:   "none",
+	}, true)
+
+	if !back {
+		t.Fatal("expected back navigation from project name")
+	}
+	if got := stdout.String(); !strings.Contains(got, "이전 단계") {
+		t.Fatalf("expected back hint in output, got %q", got)
+	}
+}
+
 func TestParseInitArgsProjectType(t *testing.T) {
 	t.Parallel()
 
@@ -155,6 +239,7 @@ func TestReadMenuAction(t *testing.T) {
 		{name: "windows up", input: []byte{0xe0, 72}, want: menuActionUp},
 		{name: "windows down", input: []byte{0xe0, 80}, want: menuActionDown},
 		{name: "enter", input: []byte{'\r'}, want: menuActionSubmit},
+		{name: "back", input: []byte{'b'}, want: menuActionBack},
 	}
 
 	for _, tt := range tests {
@@ -194,6 +279,64 @@ func TestPromptSelectLineUsesKoreanPrompt(t *testing.T) {
 	}
 }
 
+func TestPromptSelectWizardResultEchoesSelectionAndSupportsBack(t *testing.T) {
+	t.Parallel()
+
+	var selectedOut bytes.Buffer
+	reader := bufio.NewReader(strings.NewReader("2\n"))
+	value, back := promptSelectWizardResult(strings.NewReader(""), reader, &selectedOut, "\U0001f310 \uc791\uc5c5 \uc5b8\uc5b4", languageOptions(), "ko", true)
+	if back || value != "en" {
+		t.Fatalf("promptSelectWizardResult() = (%q, %v), want en,false", value, back)
+	}
+	if got := selectedOut.String(); !strings.Contains(got, "✅") || !strings.Contains(got, "\U0001f1fa\U0001f1f8 \uc601\uc5b4") || !strings.Contains(got, "b. \uc774\uc804") {
+		t.Fatalf("expected echoed selection and back option, got %q", got)
+	}
+
+	var backOut bytes.Buffer
+	reader = bufio.NewReader(strings.NewReader("back\n"))
+	value, back = promptSelectWizardResult(strings.NewReader(""), reader, &backOut, "\U0001f310 \uc791\uc5c5 \uc5b8\uc5b4", languageOptions(), "ko", true)
+	if !back || value != "ko" {
+		t.Fatalf("promptSelectWizardResult(back) = (%q, %v), want ko,true", value, back)
+	}
+	if got := backOut.String(); !strings.Contains(got, "\uc774\uc804 \ub2e8\uacc4") {
+		t.Fatalf("expected back navigation output, got %q", got)
+	}
+}
+
+func TestWizardVisibleStepNumberSkipsConditionalGitSteps(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		profile initProfile
+		want    int
+	}{
+		{
+			name:    "manual git skips provider steps",
+			profile: initProfile{GitMode: "manual"},
+			want:    9,
+		},
+		{
+			name:    "github git skips gitlab url",
+			profile: initProfile{GitMode: "personal", GitProvider: "github"},
+			want:    10,
+		},
+		{
+			name:    "gitlab git includes instance url",
+			profile: initProfile{GitMode: "team", GitProvider: "gitlab"},
+			want:    11,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := wizardVisibleStepNumber(wizardStepDisplayName, tt.profile); got != tt.want {
+				t.Fatalf("wizardVisibleStepNumber(display name) = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestRenderInteractiveSelectUsesShortLocalizedHint(t *testing.T) {
 	t.Parallel()
 
@@ -201,7 +344,7 @@ func TestRenderInteractiveSelectUsesShortLocalizedHint(t *testing.T) {
 	lines := renderInteractiveSelect(&out, "\U0001f9ea \uac1c\ubc1c \ubc29\ubc95\ub860", []option{
 		{Value: "tdd", Label: "TDD", Description: "\uc0c8 \uae30\ub2a5 RED-GREEN"},
 		{Value: "ddd", Label: "DDD", Description: "\uae30\uc874 \ucf54\ub4dc \ubd84\uc11d/\uac1c\uc120"},
-	}, 1)
+	}, 1, true)
 	if lines != 4 {
 		t.Fatalf("renderInteractiveSelect lines = %d, want %d", lines, 4)
 	}
@@ -209,10 +352,13 @@ func TestRenderInteractiveSelectUsesShortLocalizedHint(t *testing.T) {
 	if !strings.Contains(output, "\u2191/\u2193 \uc774\ub3d9 \u00b7 Enter \uc120\ud0dd") {
 		t.Fatalf("expected localized interactive hint, got %q", output)
 	}
+	if !strings.Contains(output, "b \uc774\uc804") {
+		t.Fatalf("expected back navigation hint, got %q", output)
+	}
 	if strings.Contains(output, "Use arrow keys") {
 		t.Fatalf("expected long English hint to be removed, got %q", output)
 	}
-	if !strings.Contains(output, "\u276f 2. DDD - \uae30\uc874 \ucf54\ub4dc \ubd84\uc11d/\uac1c\uc120") {
+	if !strings.Contains(output, "\U0001f449 2. DDD - \uae30\uc874 \ucf54\ub4dc \ubd84\uc11d/\uac1c\uc120") {
 		t.Fatalf("expected selected marker output, got %q", output)
 	}
 }

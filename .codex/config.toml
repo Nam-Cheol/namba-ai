@@ -9,6 +9,9 @@
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 
+[features]
+hooks = true
+
 [agents]
 max_threads = 5
 

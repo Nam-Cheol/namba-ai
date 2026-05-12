@@ -2,12 +2,15 @@
 
 `namba-ai` is configured for Codex-native Namba workflow.
 
+NambaAI's differentiator is prompt refinement before execution: ambiguous ideas should become clearer goals, scope, constraints, and acceptance criteria before Codex starts coding.
+
 ## What `namba init .` Enables
 
 - Creates `AGENTS.md` with Namba orchestration rules.
 - Creates repo-local skills under `.agents/skills/`, including read-only guidance plus command-entry skills such as `namba-help`, `namba-coach`, `namba-create`, `namba-run`, `namba-queue`, `namba-pr`, `namba-land`, `namba-release`, `namba-plan`, `namba-plan-review`, `namba-harness`, `namba-plan-pm-review`, `namba-plan-eng-review`, `namba-plan-design-review`, `namba-review-resolve`, and `namba-sync`.
 - Creates task-oriented Codex custom agents under `.codex/agents/*.toml` and readable `.md` role-card mirrors.
 - Creates repo-local Codex config under `.codex/config.toml`, keeping a narrow repo-safe baseline such as `approval_policy`, `sandbox_mode`, and agent thread limits, plus an allow-listed set of repo-managed MCP presets when configured.
+- Creates repo-local Codex lifecycle hooks under `.codex/hooks.json` and `.codex/hooks/` with `features.hooks = true`, providing Namba context, prompt-refinement blocking for ambiguous prompts, approval-risk notes, final-report format checks, destructive-command guardrails, and generated-surface reminders. Codex will ask you to review these hooks in `/hooks` before they run.
 - Creates `.namba/codex/output-contract.md` plus `.namba/codex/validate-output-contract.py` for NambaAI response-shape guidance and fallback validation.
 - Creates `.namba/` project state, configs, docs, and SPEC storage.
 
@@ -15,11 +18,13 @@
 
 1. Open Codex in the initialized project directory.
    On Windows, the current official Codex docs recommend using a WSL workspace for the best CLI experience.
-2. Codex loads `AGENTS.md` and repo skills.
-3. Invoke `$namba` for routing, `$namba-coach` for read-only current-goal command coaching, `$namba-help` for read-only Namba usage guidance, or command-entry skills such as `$namba-create`, `$namba-run`, `$namba-queue`, `$namba-pr`, `$namba-land`, `$namba-release`, `$namba-plan`, `$namba-plan-review`, `$namba-harness`, `$namba-fix`, `$namba-review-resolve`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, and `$namba-sync` for direct command-style execution.
-4. Use built-in Codex subagents such as `default`, `worker`, and `explorer`, plus project-scoped custom agents under `.codex/agents/*.toml`, when multi-agent work is appropriate. The matching `.md` files remain readable mirrors.
-5. Use the plan-review skills to update `.namba/specs/<SPEC>/reviews/*.md` and keep `.namba/specs/<SPEC>/reviews/readiness.md` current when a SPEC needs product, engineering, or design critique before implementation, or use `$namba-plan-review` when you want the create-plus-review loop bundled into one Codex entry point.
-6. Use `namba project`, `namba regen`, `namba update`, `namba codex access`, `namba plan`, `namba harness`, `namba fix`, `namba run SPEC-XXX`, `namba queue`, `namba sync`, `namba pr`, `namba land`, and `namba release` as workflow commands.
+2. If Codex reports `6 hooks need review`, open `/hooks`, inspect that each generated command resolves to this repository's `.codex/hooks/namba_codex_guard.py`, and approve before expecting prompt-refinement hooks to run.
+3. Codex loads `AGENTS.md` and repo skills.
+4. Let the repo-local Codex lifecycle hook refine ambiguous Namba prompts before execution. When the goal, target surface, constraints, or acceptance criteria are underspecified, Codex should ask concise clarifying questions and restate the improved prompt before planning or editing.
+5. Invoke `$namba` for routing, `$namba-coach` for read-only current-goal command coaching, `$namba-help` for read-only Namba usage guidance, or command-entry skills such as `$namba-create`, `$namba-run`, `$namba-queue`, `$namba-pr`, `$namba-land`, `$namba-release`, `$namba-plan`, `$namba-plan-review`, `$namba-harness`, `$namba-fix`, `$namba-review-resolve`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, and `$namba-sync` for direct command-style execution.
+6. Use built-in Codex subagents such as `default`, `worker`, and `explorer`, plus project-scoped custom agents under `.codex/agents/*.toml`, when multi-agent work is appropriate. The matching `.md` files remain readable mirrors.
+7. Use the plan-review skills to update `.namba/specs/<SPEC>/reviews/*.md` and keep `.namba/specs/<SPEC>/reviews/readiness.md` current when a SPEC needs product, engineering, or design critique before implementation, or use `$namba-plan-review` when you want the create-plus-review loop bundled into one Codex entry point.
+8. Use `namba project`, `namba regen`, `namba update`, `namba codex access`, `namba plan`, `namba harness`, `namba fix`, `namba run SPEC-XXX`, `namba queue`, `namba sync`, `namba pr`, `namba land`, and `namba release` as workflow commands.
 ## Workflow Command Semantics
 
 - `$namba-help` explains how to use NambaAI, which command to choose next, and where the authoritative docs live. It should stay read-only.
@@ -32,6 +37,8 @@
 - `namba codex access` inspects the current repo-owned Codex access defaults and mutates them only when explicit approval_policy / sandbox_mode flags are present.
 - Permission profiles, models, auth, apps, web search, and platform sandbox choices stay user-owned unless NambaAI explicitly widens repo-managed config.
 - Avoid deprecated Codex full-auto style flags; prefer explicit `approval_policy`, `sandbox_mode`, sandbox profile, and permission profile settings.
+- Generated Codex lifecycle hooks are repo-local guardrails, not a complete security boundary: they add Namba context, block ambiguous Namba prompts with clarification questions, add approval-risk notes, check final-report format, deny destructive shell commands, and remind Codex about managed-surface changes.
+- Codex requires repo-local hooks to be reviewed before they run. In the first interactive session after init or regen, open `/hooks`, inspect the generated commands, and approve them only if they resolve to `.codex/hooks/namba_codex_guard.py` in the current repository.
 - `namba regen` regenerates `AGENTS.md`, repo skills under `.agents/skills/`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.
 - `namba update` self-updates the installed `namba` binary from GitHub Release assets. Use `--version vX.Y.Z` for a specific release.
 - `codex update` updates the upstream Codex CLI itself. Keep it separate from `namba update`.
@@ -100,11 +107,12 @@
 - Claude skills become repo-local Codex skills under `.agents/skills/`.
 - Claude command wrappers become command-entry skills such as `$namba-create`, `$namba-run`, `$namba-queue`, `$namba-pr`, `$namba-land`, `$namba-plan`, `$namba-sync`, `$namba-review-resolve`, and `$namba-release`.
 - Claude subagents map to Codex built-in subagents plus project-scoped `.toml` custom agents, with `.md` mirrors kept for readability.
-- Claude hooks become explicit validator scripts, documented response contracts, and sync steps in Namba.
+- Claude hooks split into repo-local Codex lifecycle hooks under `.codex/hooks.json` plus Namba run hooks under `.namba/hooks.toml`, explicit validator scripts, documented response contracts, and sync steps.
 - Claude custom workflow commands become `$namba`, command-entry repo skills, built-in Codex slash commands, and the `namba` CLI.
 
 ## Important Distinction
 
 - In interactive Codex sessions, `namba run SPEC-XXX` means Codex should execute the SPEC directly in-session.
 - The standalone `namba run` CLI supports the default runner flow plus explicit `--solo`, `--team`, and worktree-based `--parallel` modes.
+- `.codex/hooks.json` configures Codex lifecycle hooks for interactive guardrails; `.namba/hooks.toml` configures Namba runner lifecycle hooks for `namba run` evidence and validation boundaries.
 - Tokens and PATs are intentionally excluded from generated config. Use `gh auth login` or `glab auth login` instead.

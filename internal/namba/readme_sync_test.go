@@ -284,7 +284,7 @@ func TestRenderNambaCLIGettingStartedSectionHelpersPreserveLocalizedAnchors(t *t
 		}
 
 		bootstrap := strings.Join(renderNambaCLIGettingStartedBootstrapSection(tc.lang), "\n")
-		for _, want := range []string{tc.bootstrapHeading, "mkdir my-project", "namba init .", "namba codex access"} {
+		for _, want := range []string{tc.bootstrapHeading, "mkdir my-project", "namba init .", "namba codex access", "`/hooks`", "`6 hooks need review`", ".codex/hooks/namba_codex_guard.py"} {
 			if !strings.Contains(bootstrap, want) {
 				t.Fatalf("%s bootstrap section missing %q: %q", tc.lang, want, bootstrap)
 			}
@@ -375,7 +375,7 @@ func TestRenderManagedProjectGettingStartedSectionHelpersPreserveLocalizedAnchor
 
 	for _, tc := range cases {
 		open := strings.Join(renderManagedProjectGettingStartedOpenSection(tc.lang, tc.projectName), "\n")
-		for _, want := range []string{tc.openHeading, tc.projectName, "`namba doctor`"} {
+		for _, want := range []string{tc.openHeading, tc.projectName, "`namba doctor`", "`/hooks`", "`6 hooks need review`", ".codex/hooks/namba_codex_guard.py"} {
 			if !strings.Contains(open, want) {
 				t.Fatalf("%s open section missing %q: %q", tc.lang, want, open)
 			}
@@ -420,7 +420,7 @@ func TestRenderManagedProjectGettingStartedSectionHelpersPreserveLocalizedAnchor
 
 func TestRenderManagedProjectGettingStartedSectionHelpersFallbackToEnglish(t *testing.T) {
 	open := strings.Join(renderManagedProjectGettingStartedOpenSection("fr", "demo-repo"), "\n")
-	for _, want := range []string{"## 1. Open the repository", "demo-repo", "`namba doctor`"} {
+	for _, want := range []string{"## 1. Open the repository", "demo-repo", "`namba doctor`", "`/hooks`", "`6 hooks need review`"} {
 		if !strings.Contains(open, want) {
 			t.Fatalf("open section fallback missing %q: %q", want, open)
 		}
