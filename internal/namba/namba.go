@@ -395,7 +395,10 @@ func initUsageText() string {
 		"",
 		"Behavior:",
 		"  Initialize the NambaAI scaffold, config, and repo-local Codex assets in the target directory.",
-		"  The wizard leads with Codex access presets and previews the resulting approval_policy / sandbox_mode pair.",
+		"  The wizard starts from repository state: existing code keeps detected stack defaults, while empty repositories leave the app stack unset until the first planned request.",
+		"  Selections are echoed before moving on, `b`/`back` returns to the previous step, and the wizard does not ask for a GitHub username.",
+		"  Codex access presets preview the resulting approval_policy / sandbox_mode pair.",
+		"  The scaffold includes Codex lifecycle hooks; first interactive Codex use must review them with `/hooks` before prompt-refinement guardrails run.",
 		"  After bootstrap, use `namba codex access` from the project root to inspect or change repo-owned Codex access defaults.",
 	}
 	return strings.Join(lines, "\n") + "\n"
@@ -526,6 +529,11 @@ func (a *App) runInit(_ context.Context, args []string) error {
 	fmt.Fprintf(a.stdout, "Initialized NambaAI in %s\n", root)
 	fmt.Fprintf(a.stdout, "Project: %s | Type: %s | Mode: %s | Agent mode: %s\n", profile.ProjectName, profile.ProjectType, profile.DevelopmentMode, profile.AgentMode)
 	fmt.Fprintln(a.stdout, "Codex-native mode is ready. Open Codex in this directory and invoke `$namba`, `$namba-run`, or ask to use the Namba workflow.")
+	fmt.Fprintln(a.stdout, "Codex hook review:")
+	fmt.Fprintln(a.stdout, "  1. Open an interactive Codex session in this directory.")
+	fmt.Fprintln(a.stdout, "  2. If Codex shows `6 hooks need review`, run `/hooks`.")
+	fmt.Fprintln(a.stdout, "  3. Approve only after confirming every command points to this repository's `.codex/hooks/namba_codex_guard.py`.")
+	fmt.Fprintln(a.stdout, "  4. Re-run an ambiguous Namba prompt to confirm Codex asks clarification questions before planning.")
 	return nil
 }
 
@@ -3643,132 +3651,366 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 
 	renderInitBanner(a.stdout)
 	fmt.Fprintln(a.stdout, wizardHeading(a.stdout, "\U0001f680 NambaAI \ucd08\uae30\ud654 \ub9c8\ubc95\uc0ac"))
-	fmt.Fprintln(a.stdout, wizardHint(a.stdout, "MoAI init \ud750\ub984\uc744 Codex \ub124\uc774\ud2f0\ube0c \uc790\uc0b0\uc5d0 \ub9de\uac8c \uad6c\uc131\ud569\ub2c8\ub2e4."))
+	fmt.Fprintln(a.stdout, wizardHint(a.stdout, "\U0001f9ed \uba3c\uc800 \ucf54\ub4dc\uac00 \uc788\ub294\uc9c0\ub97c \ud655\uc778\ud558\uace0, \uc2a4\ud0dd\uc740 \uac10\uc9c0\ud558\uac70\ub098 \ub098\uc911\uc5d0 \uc694\uad6c\uc0ac\ud56d\uc73c\ub85c \uc815\ud569\ub2c8\ub2e4."))
+	fmt.Fprintln(a.stdout, wizardHint(a.stdout, "\U0001f4a1 \uc120\ud0dd \ud6c4\uc5d0\ub294 \uacb0\uacfc\ub97c \ud45c\uc2dc\ud558\uace0, \u21a9\ufe0f `b` \ub610\ub294 `back`\uc73c\ub85c \uc774\uc804 \ub2e8\uacc4\ub97c \uc218\uc815\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4."))
 	fmt.Fprintln(a.stdout)
 
-	profile.DevelopmentMode = promptSelect(
-		a.stdin,
-		a.stdout,
-		"\U0001f9ea \uac1c\ubc1c \ubc29\ubc95\ub860",
-		[]option{
-			{Value: "tdd", Label: "TDD", Description: "\uc0c8 \uae30\ub2a5 RED-GREEN"},
-			{Value: "ddd", Label: "DDD", Description: "\uae30\uc874 \ucf54\ub4dc \ubd84\uc11d/\uac1c\uc120"},
-		},
-		profile.DevelopmentMode,
-	)
-	profile.ProjectType = promptSelect(a.stdin, a.stdout, "\U0001f4e6 \ud504\ub85c\uc81d\ud2b8 \uc720\ud615", projectTypeOptions(), profile.ProjectType)
-	profile = a.promptProjectScaffold(reader, profile)
-	applyHumanLanguage(&profile, promptSelect(a.stdin, a.stdout, "\U0001f310 \uc791\uc5c5 \uc5b8\uc5b4", languageOptions(), profile.ConversationLanguage))
-	profile.AgentMode = promptSelect(
-		a.stdin,
-		a.stdout,
-		"\U0001f916 Codex \uc5d0\uc774\uc804\ud2b8 \ubaa8\ub4dc",
-		[]option{
-			{Value: "single", Label: "\uc2f1\uae00", Description: "\uc548\uc815\uc801\uc778 \ub2e8\uc77c \ud750\ub984"},
-			{Value: "multi", Label: "\uba40\ud2f0", Description: "\ubcd1\ub82c \uc791\uc5c5 \uc900\ube44"},
-		},
-		profile.AgentMode,
-	)
-	profile.StatusLinePreset = promptSelect(
-		a.stdin,
-		a.stdout,
-		"\U0001f39b\ufe0f \uc0c1\ud0dc\uc904 \ud504\ub9ac\uc14b",
-		[]option{
-			{Value: "namba", Label: "Namba", Description: "\ud504\ub85c\uc81d\ud2b8 \uc911\uc2ec \ud45c\uc2dc"},
-			{Value: "off", Label: "\ub044\uae30", Description: "\ucd94\ucc9c \uc124\uc815 \uc0dd\uc131 \uc548 \ud568"},
-		},
-		profile.StatusLinePreset,
-	)
-	profile, err := a.promptCodexAccess(reader, profile)
-	if err != nil {
-		return initProfile{}, err
-	}
-	profile.GitMode = promptSelect(
-		a.stdin,
-		a.stdout,
-		"\U0001f33f Git \uc790\ub3d9\ud654 \ubaa8\ub4dc",
-		[]option{
-			{Value: "manual", Label: "\uc218\ub3d9", Description: "push/PR \uc790\ub3d9\ud654 \uc5c6\uc74c"},
-			{Value: "personal", Label: "\uac1c\uc778", Description: "\ube0c\ub79c\uce58/\ucee4\ubc0b \ud5c8\uc6a9"},
-			{Value: "team", Label: "\ud300", Description: "PR \uc900\ube44 \uc0b0\ucd9c\ubb3c \uc0dd\uc131"},
-		},
-		profile.GitMode,
-	)
-	if profile.GitMode != "manual" {
-		profile.GitProvider = promptSelect(
-			a.stdin,
-			a.stdout,
-			"\u2601\ufe0f Git \uc81c\uacf5\uc790",
-			[]option{
-				{Value: "github", Label: "GitHub", Description: "gh CLI \ub610\ub294 \uae30\uc874 \uc778\uc99d"},
-				{Value: "gitlab", Label: "GitLab", Description: "glab CLI \ub610\ub294 \uae30\uc874 \uc778\uc99d"},
-			},
-			profile.GitProvider,
-		)
-		if profile.GitProvider == "gitlab" {
-			profile.GitLabInstanceURL = promptInput(reader, a.stdout, "\U0001f517 GitLab \uc778\uc2a4\ud134\uc2a4 URL", profile.GitLabInstanceURL)
+	for step := wizardStepProjectType; step < wizardStepDone; {
+		allowBack := step != wizardStepProjectType
+		switch step {
+		case wizardStepProjectType:
+			renderWizardStepHeader(a.stdout, step, profile, "\uc800\uc7a5\uc18c \uc0c1\ud0dc")
+			value, back := promptSelectWizardResult(a.stdin, reader, a.stdout, "\U0001f4e6 \uc800\uc7a5\uc18c \uc0c1\ud0dc", projectTypeOptions(), profile.ProjectType, allowBack)
+			if back {
+				step = previousWizardStep(step, profile)
+				continue
+			}
+			profile.ProjectType = value
+			step = nextWizardStep(step, profile)
+		case wizardStepProjectDetails:
+			renderWizardStepHeader(a.stdout, step, profile, "\ud504\ub85c\uc81d\ud2b8 \uae30\ubcf8\uac12")
+			next, back := a.promptProjectScaffold(reader, profile, allowBack)
+			if back {
+				step = previousWizardStep(step, profile)
+				continue
+			}
+			profile = next
+			step = nextWizardStep(step, profile)
+		case wizardStepHumanLanguage:
+			renderWizardStepHeader(a.stdout, step, profile, "\uc0ac\uc6a9 \uc5b8\uc5b4")
+			value, back := promptSelectWizardResult(a.stdin, reader, a.stdout, "\U0001f310 \uc791\uc5c5 \uc5b8\uc5b4", languageOptions(), profile.ConversationLanguage, allowBack)
+			if back {
+				step = previousWizardStep(step, profile)
+				continue
+			}
+			applyHumanLanguage(&profile, value)
+			step = nextWizardStep(step, profile)
+		case wizardStepDevelopmentMode:
+			renderWizardStepHeader(a.stdout, step, profile, "\uc791\uc5c5 \ubc29\uc2dd")
+			value, back := promptSelectWizardResult(
+				a.stdin,
+				reader,
+				a.stdout,
+				"\U0001f9ea \uae30\ubcf8 \uc791\uc5c5 \ubc29\uc2dd",
+				[]option{
+					{Value: "tdd", Label: "\U0001f9ea TDD", Description: "\uc0c8 \uae30\ub2a5\uc744 \uc791\uc740 \uac80\uc99d \ub2e8\uc704\ub85c \uc9c4\ud589"},
+					{Value: "ddd", Label: "\U0001f9ed DDD", Description: "\uae30\uc874 \ub3c4\uba54\uc778/\ucf54\ub4dc \ubd84\uc11d\uc744 \uba3c\uc800 \uc815\ub82c"},
+				},
+				profile.DevelopmentMode,
+				allowBack,
+			)
+			if back {
+				step = previousWizardStep(step, profile)
+				continue
+			}
+			profile.DevelopmentMode = value
+			step = nextWizardStep(step, profile)
+		case wizardStepAgentMode:
+			renderWizardStepHeader(a.stdout, step, profile, "Codex \uc5d0\uc774\uc804\ud2b8")
+			value, back := promptSelectWizardResult(
+				a.stdin,
+				reader,
+				a.stdout,
+				"\U0001f916 Codex \uc5d0\uc774\uc804\ud2b8 \ubaa8\ub4dc",
+				[]option{
+					{Value: "single", Label: "\U0001f464 \uc2f1\uae00", Description: "\uc548\uc815\uc801\uc778 \ub2e8\uc77c \ud750\ub984"},
+					{Value: "multi", Label: "\U0001f465 \uba40\ud2f0", Description: "\ubcd1\ub82c \uc791\uc5c5 \uc900\ube44"},
+				},
+				profile.AgentMode,
+				allowBack,
+			)
+			if back {
+				step = previousWizardStep(step, profile)
+				continue
+			}
+			profile.AgentMode = value
+			step = nextWizardStep(step, profile)
+		case wizardStepStatusLine:
+			renderWizardStepHeader(a.stdout, step, profile, "\uc0c1\ud0dc\uc904")
+			value, back := promptSelectWizardResult(
+				a.stdin,
+				reader,
+				a.stdout,
+				"\U0001f39b\ufe0f \uc0c1\ud0dc\uc904 \ud504\ub9ac\uc14b",
+				[]option{
+					{Value: "namba", Label: "\U0001f39b\ufe0f Namba", Description: "\ud504\ub85c\uc81d\ud2b8 \uc911\uc2ec \ud45c\uc2dc"},
+					{Value: "off", Label: "\U0001f515 \ub044\uae30", Description: "\ucd94\ucc9c \uc124\uc815 \uc0dd\uc131 \uc548 \ud568"},
+				},
+				profile.StatusLinePreset,
+				allowBack,
+			)
+			if back {
+				step = previousWizardStep(step, profile)
+				continue
+			}
+			profile.StatusLinePreset = value
+			step = nextWizardStep(step, profile)
+		case wizardStepCodexAccess:
+			renderWizardStepHeader(a.stdout, step, profile, "Codex access")
+			next, back, err := a.promptCodexAccessStep(reader, profile, allowBack)
+			if err != nil {
+				return initProfile{}, err
+			}
+			if back {
+				step = previousWizardStep(step, profile)
+				continue
+			}
+			profile = next
+			step = nextWizardStep(step, profile)
+		case wizardStepGitMode:
+			renderWizardStepHeader(a.stdout, step, profile, "Git")
+			value, back := promptSelectWizardResult(
+				a.stdin,
+				reader,
+				a.stdout,
+				"\U0001f33f Git \uc790\ub3d9\ud654 \ubaa8\ub4dc",
+				[]option{
+					{Value: "manual", Label: "\u270b \uc218\ub3d9", Description: "push/PR \uc790\ub3d9\ud654 \uc5c6\uc74c"},
+					{Value: "personal", Label: "\U0001f464 \uac1c\uc778", Description: "\ube0c\ub79c\uce58/\ucee4\ubc0b \ud5c8\uc6a9"},
+					{Value: "team", Label: "\U0001f465 \ud300", Description: "PR \uc900\ube44 \uc0b0\ucd9c\ubb3c \uc0dd\uc131"},
+				},
+				profile.GitMode,
+				allowBack,
+			)
+			if back {
+				step = previousWizardStep(step, profile)
+				continue
+			}
+			profile.GitMode = value
+			step = nextWizardStep(step, profile)
+		case wizardStepGitProvider:
+			renderWizardStepHeader(a.stdout, step, profile, "Git provider")
+			value, back := promptSelectWizardResult(
+				a.stdin,
+				reader,
+				a.stdout,
+				"\u2601\ufe0f Git \uc81c\uacf5\uc790",
+				[]option{
+					{Value: "github", Label: "\U0001f419 GitHub", Description: "gh CLI \ub610\ub294 \uae30\uc874 \uc778\uc99d"},
+					{Value: "gitlab", Label: "\U0001f98a GitLab", Description: "glab CLI \ub610\ub294 \uae30\uc874 \uc778\uc99d"},
+				},
+				profile.GitProvider,
+				allowBack,
+			)
+			if back {
+				step = previousWizardStep(step, profile)
+				continue
+			}
+			profile.GitProvider = value
+			step = nextWizardStep(step, profile)
+		case wizardStepGitLabURL:
+			renderWizardStepHeader(a.stdout, step, profile, "GitLab URL")
+			value, back := promptInputResult(reader, a.stdout, "\U0001f517 GitLab \uc778\uc2a4\ud134\uc2a4 URL", profile.GitLabInstanceURL, allowBack)
+			if back {
+				step = previousWizardStep(step, profile)
+				continue
+			}
+			profile.GitLabInstanceURL = value
+			step = nextWizardStep(step, profile)
+		case wizardStepDisplayName:
+			renderWizardStepHeader(a.stdout, step, profile, "\ud45c\uc2dc \uc774\ub984")
+			value, back := promptInputResult(reader, a.stdout, "\U0001f64b \ud45c\uc2dc \uc774\ub984", profile.UserName, allowBack)
+			if back {
+				step = previousWizardStep(step, profile)
+				continue
+			}
+			profile.UserName = value
+			step = nextWizardStep(step, profile)
 		}
-		profile.GitUsername = promptInput(reader, a.stdout, "\U0001f464 Git \uc0ac\uc6a9\uc790\uba85", profile.GitUsername)
 	}
-	profile.UserName = promptInput(reader, a.stdout, "\U0001f64b \ud45c\uc2dc \uc774\ub984", profile.UserName)
 
+	fmt.Fprintln(a.stdout)
+	renderInitWizardSummary(a.stdout, profile)
 	fmt.Fprintln(a.stdout)
 	fmt.Fprintln(a.stdout, wizardHint(a.stdout, "\U0001f510 \ud1a0\ud070\uacfc \ube44\ubc00\uac12\uc740 \uc124\uc815 \ud30c\uc77c\uc5d0 \uc800\uc7a5\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4. gh/glab login\uc744 \uc0ac\uc6a9\ud558\uc138\uc694."))
 	return profile, nil
 }
 
-func (a *App) promptProjectScaffold(reader *bufio.Reader, profile initProfile) initProfile {
-	profile.ProjectName = promptInput(reader, a.stdout, "\U0001f4db \ud504\ub85c\uc81d\ud2b8 \uc774\ub984", profile.ProjectName)
+const (
+	wizardStepProjectType = iota
+	wizardStepProjectDetails
+	wizardStepHumanLanguage
+	wizardStepDevelopmentMode
+	wizardStepAgentMode
+	wizardStepStatusLine
+	wizardStepCodexAccess
+	wizardStepGitMode
+	wizardStepGitProvider
+	wizardStepGitLabURL
+	wizardStepDisplayName
+	wizardStepDone
+)
+
+func nextWizardStep(step int, profile initProfile) int {
+	switch step {
+	case wizardStepGitMode:
+		if profile.GitMode == "manual" {
+			return wizardStepDisplayName
+		}
+		return wizardStepGitProvider
+	case wizardStepGitProvider:
+		if profile.GitProvider == "gitlab" {
+			return wizardStepGitLabURL
+		}
+		return wizardStepDisplayName
+	case wizardStepGitLabURL:
+		return wizardStepDisplayName
+	case wizardStepDisplayName:
+		return wizardStepDone
+	default:
+		return step + 1
+	}
+}
+
+func previousWizardStep(step int, profile initProfile) int {
+	switch step {
+	case wizardStepDisplayName:
+		if profile.GitMode == "manual" {
+			return wizardStepGitMode
+		}
+		if profile.GitProvider == "gitlab" {
+			return wizardStepGitLabURL
+		}
+		return wizardStepGitProvider
+	case wizardStepGitLabURL:
+		return wizardStepGitProvider
+	case wizardStepGitProvider:
+		return wizardStepGitMode
+	default:
+		if step <= wizardStepProjectType {
+			return wizardStepProjectType
+		}
+		return step - 1
+	}
+}
+
+func renderWizardStepHeader(out io.Writer, step int, profile initProfile, title string) {
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, wizardHeading(out, fmt.Sprintf("%s Step %02d · %s", wizardStepEmoji(step), wizardVisibleStepNumber(step, profile), title)))
+}
+
+func wizardVisibleStepNumber(target int, profile initProfile) int {
+	if target <= wizardStepProjectType {
+		return 1
+	}
+	step := wizardStepProjectType
+	visible := 1
+	for guard := 0; step < wizardStepDone && guard < wizardStepDone+1; guard++ {
+		if step == target {
+			return visible
+		}
+		step = nextWizardStep(step, profile)
+		visible++
+	}
+	if target == wizardStepDone {
+		return visible
+	}
+	return target + 1
+}
+
+func wizardStepEmoji(step int) string {
+	switch step {
+	case wizardStepProjectType:
+		return "\U0001f9ed"
+	case wizardStepProjectDetails:
+		return "\U0001f4e6"
+	case wizardStepHumanLanguage:
+		return "\U0001f310"
+	case wizardStepDevelopmentMode:
+		return "\U0001f9ea"
+	case wizardStepAgentMode:
+		return "\U0001f916"
+	case wizardStepStatusLine:
+		return "\U0001f39b\ufe0f"
+	case wizardStepCodexAccess:
+		return "\U0001f510"
+	case wizardStepGitMode, wizardStepGitProvider, wizardStepGitLabURL:
+		return "\U0001f33f"
+	case wizardStepDisplayName:
+		return "\U0001f64b"
+	default:
+		return "\u2728"
+	}
+}
+
+func (a *App) promptProjectScaffold(reader *bufio.Reader, profile initProfile, allowBack bool) (initProfile, bool) {
+	projectName, back := promptInputResult(reader, a.stdout, "\U0001f4db \ud504\ub85c\uc81d\ud2b8 \uc774\ub984", profile.ProjectName, allowBack)
+	if back {
+		return profile, true
+	}
+	profile.ProjectName = projectName
 
 	if profile.ProjectType == "existing" {
-		fmt.Fprintln(a.stdout, wizardHint(a.stdout, fmt.Sprintf("\U0001f50e \uac10\uc9c0\ub41c \uae30\ubcf8\uac12: \uc5b8\uc5b4=%s, \ud504\ub808\uc784\uc6cc\ud06c=%s", profile.Language, normalizeFramework(profile.Framework))))
-		keepDetected := promptSelect(
-			a.stdin,
-			a.stdout,
-			"\U0001f9ed \uc5b8\uc5b4/\ud504\ub808\uc784\uc6cc\ud06c \uc124\uc815",
-			[]option{
-				{Value: "keep", Label: "\uac10\uc9c0\uac12 \uc720\uc9c0", Description: "\ud604\uc7ac \uc800\uc7a5\uc18c \uae30\uc900 \uc0ac\uc6a9"},
-				{Value: "override", Label: "\uc9c1\uc811 \uc120\ud0dd", Description: "\uc5b8\uc5b4\uc640 \ud504\ub808\uc784\uc6cc\ud06c \ub2e4\uc2dc \uace0\ub984"},
-			},
-			"keep",
-		)
-		if keepDetected == "keep" {
-			return profile
-		}
+		profile.Framework = normalizeFramework(profile.Framework)
+		fmt.Fprintln(a.stdout, wizardHint(a.stdout, fmt.Sprintf("\U0001f50e \uac10\uc9c0\ub41c \ucf54\ub4dc\ubca0\uc774\uc2a4: %s", formatInitStack(profile))))
+		fmt.Fprintln(a.stdout, wizardHint(a.stdout, "\U0001f6e0\ufe0f \uae30\uc874 \ucf54\ub4dc\uc758 \uc5b8\uc5b4/\ud504\ub808\uc784\uc6cc\ud06c\ub294 \ubb3b\uc9c0 \uc54a\uace0 \uac10\uc9c0\uac12\uc744 \uc0ac\uc6a9\ud569\ub2c8\ub2e4. \ud544\uc694\ud558\uba74 init flag\ub85c override\ud558\uc138\uc694."))
+		return profile, false
 	}
 
-	profile.Language = promptSelect(
-		a.stdin,
-		a.stdout,
-		"\U0001f4a1 \uc8fc \uc0ac\uc6a9 \uc5b8\uc5b4",
-		[]option{
-			{Value: "go", Label: "Go", Description: "CLI/\uc11c\ube44\uc2a4"},
-			{Value: "java", Label: "Java", Description: "JVM \uc571"},
-			{Value: "typescript", Label: "TypeScript", Description: "Node/\ud504\ub860\ud2b8"},
-			{Value: "python", Label: "Python", Description: "\uc2a4\ud06c\ub9bd\ud2b8/API"},
-			{Value: "unknown", Label: "\ubbf8\uc815", Description: "\uc77c\ubc18 \ud504\ub85c\uc81d\ud2b8"},
-		},
-		profile.Language,
-	)
-	profile.Framework = promptSelect(a.stdin, a.stdout, "\U0001f9e9 \ud504\ub808\uc784\uc6cc\ud06c", frameworkOptions(profile.Language), normalizeFramework(profile.Framework))
-	return profile
+	profile.Language = firstNonBlank(profile.Language, "unknown")
+	profile.Framework = normalizeFramework(profile.Framework)
+	fmt.Fprintln(a.stdout, wizardHint(a.stdout, "\U0001f331 \ube48 \uc800\uc7a5\uc18c\uc5d0\uc11c\ub294 \uc571 \uc2a4\ud0dd\uc744 \ubb3b\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4. NambaAI\ub9cc \uc900\ube44\ud558\uace0, \uccab `namba plan`\uc5d0\uc11c \ubaa9\ud45c/\uc81c\uc57d\uc5d0 \ub9de\uac8c \uc2a4\ud0dd\uc744 \uc815\ud569\ub2c8\ub2e4."))
+	return profile, false
 }
+
+func formatInitStack(profile initProfile) string {
+	language := firstNonBlank(profile.Language, "unknown")
+	framework := normalizeFramework(profile.Framework)
+	if language == "unknown" && framework == "none" {
+		return "not selected yet"
+	}
+	if framework == "none" {
+		return language
+	}
+	return language + " / " + framework
+}
+
+func renderInitWizardSummary(out io.Writer, profile initProfile) {
+	fmt.Fprintln(out, wizardHeading(out, "\U0001f4cb \ucd08\uae30\ud654 \uc694\uc57d"))
+	fmt.Fprintf(out, "  \U0001f4e6 Project: %s (%s)\n", profile.ProjectName, profile.ProjectType)
+	fmt.Fprintf(out, "  \U0001f9f1 Stack: %s\n", formatInitStack(profile))
+	fmt.Fprintf(out, "  \U0001f310 Working language: %s\n", humanLanguageName(profile.ConversationLanguage))
+	fmt.Fprintf(out, "  \U0001f510 Codex access: approval_policy=%s, sandbox_mode=%s\n", profile.ApprovalPolicy, profile.SandboxMode)
+	fmt.Fprintf(out, "  \U0001f33f Git automation: %s", profile.GitMode)
+	if profile.GitMode != "manual" {
+		fmt.Fprintf(out, " via %s", profile.GitProvider)
+	}
+	fmt.Fprintln(out)
+}
+
 func promptInput(reader *bufio.Reader, out io.Writer, label, defaultValue string) string {
+	value, _ := promptInputResult(reader, out, label, defaultValue, false)
+	return value
+}
+
+func promptInputResult(reader *bufio.Reader, out io.Writer, label, defaultValue string, allowBack bool) (string, bool) {
 	prompt := wizardPrompt(out, label)
 	if strings.TrimSpace(defaultValue) == "" {
 		fmt.Fprintf(out, "%s: ", prompt)
 	} else {
 		fmt.Fprintf(out, "%s [%s]: ", prompt, defaultValue)
 	}
+	if allowBack {
+		fmt.Fprintf(out, "%s ", wizardHint(out, "(\u21a9\ufe0f b/back: \uc774\uc804)"))
+	}
 	line, err := reader.ReadString('\n')
 	if err != nil {
-		return strings.TrimSpace(defaultValue)
+		value := strings.TrimSpace(defaultValue)
+		printWizardSelection(out, label, value)
+		return value, false
 	}
 	line = strings.TrimSpace(line)
-	if line == "" {
-		return strings.TrimSpace(defaultValue)
+	if allowBack && isWizardBackInput(line) {
+		printWizardBack(out)
+		return strings.TrimSpace(defaultValue), true
 	}
-	return line
+	if line == "" {
+		value := strings.TrimSpace(defaultValue)
+		printWizardSelection(out, label, value)
+		return value, false
+	}
+	printWizardSelection(out, label, line)
+	return line, false
 }
 
 func renderInitBanner(out io.Writer) {
@@ -3811,18 +4053,70 @@ func formatWizardChoice(choice option) string {
 	return fmt.Sprintf("%s - %s", choice.Label, choice.Description)
 }
 
-func promptSelect(in io.Reader, out io.Writer, label string, choices []option, defaultValue string) string {
-	if file, ok := in.(*os.File); ok && isTerminalReader(in) && isTerminalWriter(out) {
-		if value, ok := promptSelectInteractive(file, out, label, choices, defaultValue); ok {
-			return value
+func choiceLabel(choices []option, value string) string {
+	for _, choice := range choices {
+		if choice.Value == value {
+			return choice.Label
 		}
 	}
+	return value
+}
 
-	reader := bufio.NewReader(in)
-	return promptSelectLine(reader, out, label, choices, defaultValue)
+func isWizardBackInput(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "b", "back", "<", "\uc774\uc804":
+		return true
+	default:
+		return false
+	}
+}
+
+func printWizardSelection(out io.Writer, label, value string) {
+	if strings.TrimSpace(value) == "" {
+		value = "(empty)"
+	}
+	fmt.Fprintf(out, "%s\n", wizardSelected(out, fmt.Sprintf("\u2705 %s: %s", label, value)))
+}
+
+func printWizardBack(out io.Writer) {
+	fmt.Fprintln(out, wizardHint(out, "\u21a9\ufe0f \uc774\uc804 \ub2e8\uacc4\ub85c \ub3cc\uc544\uac11\ub2c8\ub2e4."))
+}
+
+func promptSelect(in io.Reader, out io.Writer, label string, choices []option, defaultValue string) string {
+	return promptSelectWizard(in, bufio.NewReader(in), out, label, choices, defaultValue)
+}
+
+func promptSelectWizard(in io.Reader, reader *bufio.Reader, out io.Writer, label string, choices []option, defaultValue string) string {
+	value, _ := promptSelectWizardResult(in, reader, out, label, choices, defaultValue, false)
+	return value
+}
+
+func promptSelectWizardResult(in io.Reader, reader *bufio.Reader, out io.Writer, label string, choices []option, defaultValue string, allowBack bool) (string, bool) {
+	if file, ok := in.(*os.File); ok && isTerminalReader(in) && isTerminalWriter(out) {
+		if value, back, ok := promptSelectInteractive(file, out, label, choices, defaultValue, allowBack); ok {
+			if back {
+				printWizardBack(out)
+				return defaultValue, true
+			}
+			printWizardSelection(out, label, choiceLabel(choices, value))
+			return value, false
+		}
+	}
+	value, back := promptSelectLineResult(reader, out, label, choices, defaultValue, allowBack)
+	if back {
+		printWizardBack(out)
+		return defaultValue, true
+	}
+	printWizardSelection(out, label, choiceLabel(choices, value))
+	return value, false
 }
 
 func promptSelectLine(reader *bufio.Reader, out io.Writer, label string, choices []option, defaultValue string) string {
+	value, _ := promptSelectLineResult(reader, out, label, choices, defaultValue, false)
+	return value
+}
+
+func promptSelectLineResult(reader *bufio.Reader, out io.Writer, label string, choices []option, defaultValue string, allowBack bool) (string, bool) {
 	fmt.Fprintln(out, wizardHeading(out, label))
 	defaultIndex := 0
 	for i, choice := range choices {
@@ -3831,26 +4125,32 @@ func promptSelectLine(reader *bufio.Reader, out io.Writer, label string, choices
 		}
 		fmt.Fprintf(out, "  %d. %s\n", i+1, formatWizardChoice(choice))
 	}
+	if allowBack {
+		fmt.Fprintln(out, "  \u21a9\ufe0f b. \uc774\uc804 \ub2e8\uacc4\ub85c")
+	}
 	fmt.Fprintf(out, "%s [%d]: ", wizardPrompt(out, "\uc120\ud0dd"), defaultIndex+1)
 
 	line, err := reader.ReadString('\n')
 	if err != nil {
-		return defaultValue
+		return defaultValue, false
 	}
 	line = strings.TrimSpace(line)
+	if allowBack && isWizardBackInput(line) {
+		return defaultValue, true
+	}
 	if line == "" {
-		return defaultValue
+		return defaultValue, false
 	}
 	index, err := strconv.Atoi(line)
 	if err == nil && index >= 1 && index <= len(choices) {
-		return choices[index-1].Value
+		return choices[index-1].Value, false
 	}
 	for _, choice := range choices {
 		if strings.EqualFold(choice.Value, line) || strings.EqualFold(choice.Label, line) {
-			return choice.Value
+			return choice.Value, false
 		}
 	}
-	return defaultValue
+	return defaultValue, false
 }
 
 type menuAction int
@@ -3860,12 +4160,13 @@ const (
 	menuActionUp
 	menuActionDown
 	menuActionSubmit
+	menuActionBack
 )
 
-func promptSelectInteractive(in *os.File, out io.Writer, label string, choices []option, defaultValue string) (string, bool) {
+func promptSelectInteractive(in *os.File, out io.Writer, label string, choices []option, defaultValue string, allowBack bool) (string, bool, bool) {
 	restoreInput, err := enableRawConsoleInput(in)
 	if err != nil {
-		return "", false
+		return "", false, false
 	}
 	defer restoreInput()
 
@@ -3889,12 +4190,12 @@ func promptSelectInteractive(in *os.File, out io.Writer, label string, choices [
 		if lines > 0 {
 			fmt.Fprintf(out, "\x1b[%dA", lines)
 		}
-		lines = renderInteractiveSelect(out, label, choices, selected)
+		lines = renderInteractiveSelect(out, label, choices, selected, allowBack)
 
 		action, err := readMenuAction(reader)
 		if err != nil {
 			fmt.Fprintln(out)
-			return defaultValue, true
+			return defaultValue, false, true
 		}
 
 		switch action {
@@ -3902,23 +4203,32 @@ func promptSelectInteractive(in *os.File, out io.Writer, label string, choices [
 			selected = (selected - 1 + len(choices)) % len(choices)
 		case menuActionDown:
 			selected = (selected + 1) % len(choices)
+		case menuActionBack:
+			if allowBack {
+				fmt.Fprintln(out)
+				return defaultValue, true, true
+			}
 		case menuActionSubmit:
 			fmt.Fprintln(out)
-			return choices[selected].Value, true
+			return choices[selected].Value, false, true
 		}
 	}
 }
 
-func renderInteractiveSelect(out io.Writer, label string, choices []option, selected int) int {
+func renderInteractiveSelect(out io.Writer, label string, choices []option, selected int, allowBack bool) int {
 	lines := 0
 	fmt.Fprintf(out, "\r\x1b[2K%s\n", wizardHeading(out, label))
 	lines++
-	fmt.Fprintf(out, "\r\x1b[2K%s\n", wizardHint(out, "\u2191/\u2193 \uc774\ub3d9 \u00b7 Enter \uc120\ud0dd"))
+	hint := "\u2191/\u2193 \uc774\ub3d9 \u00b7 Enter \uc120\ud0dd"
+	if allowBack {
+		hint += " \u00b7 \u21a9\ufe0f b \uc774\uc804"
+	}
+	fmt.Fprintf(out, "\r\x1b[2K%s\n", wizardHint(out, hint))
 	lines++
 	for i, choice := range choices {
 		line := fmt.Sprintf("%d. %s", i+1, formatWizardChoice(choice))
 		if i == selected {
-			fmt.Fprintf(out, "\r\x1b[2K%s\n", wizardSelected(out, "\u276f "+line))
+			fmt.Fprintf(out, "\r\x1b[2K%s\n", wizardSelected(out, "\U0001f449 "+line))
 		} else {
 			fmt.Fprintf(out, "\r\x1b[2K  %s\n", line)
 		}
@@ -3936,6 +4246,8 @@ func readMenuAction(reader *bufio.Reader) (menuAction, error) {
 	switch b {
 	case '\r', '\n':
 		return menuActionSubmit, nil
+	case 'b', 'B', 0x7f:
+		return menuActionBack, nil
 	case 0x1b:
 		next, err := reader.ReadByte()
 		if err != nil {
@@ -3976,8 +4288,8 @@ func readMenuAction(reader *bufio.Reader) (menuAction, error) {
 
 func projectTypeOptions() []option {
 	return []option{
-		{Value: "new", Label: "\uc0c8 \ud504\ub85c\uc81d\ud2b8", Description: "\ube48 \uc800\uc7a5\uc18c/\uc0c8 \ud3f4\ub354"},
-		{Value: "existing", Label: "\uae30\uc874 \ud504\ub85c\uc81d\ud2b8", Description: "\ucf54\ub4dc\uac00 \uc788\ub294 \uc800\uc7a5\uc18c"},
+		{Value: "new", Label: "\U0001f331 \uc0c8 \ud504\ub85c\uc81d\ud2b8", Description: "\ube48 \uc800\uc7a5\uc18c/\uc0c8 \ud3f4\ub354"},
+		{Value: "existing", Label: "\U0001f4e6 \uae30\uc874 \ud504\ub85c\uc81d\ud2b8", Description: "\ucf54\ub4dc\uac00 \uc788\ub294 \uc800\uc7a5\uc18c"},
 	}
 }
 
@@ -4019,26 +4331,26 @@ func frameworkOptions(language string) []option {
 
 func languageOptions() []option {
 	return []option{
-		{Value: "ko", Label: "\ud55c\uad6d\uc5b4", Description: "ko"},
-		{Value: "en", Label: "\uc601\uc5b4", Description: "en"},
-		{Value: "ja", Label: "\uc77c\ubcf8\uc5b4", Description: "ja"},
-		{Value: "zh", Label: "\uc911\uad6d\uc5b4", Description: "zh"},
+		{Value: "ko", Label: "\U0001f1f0\U0001f1f7 \ud55c\uad6d\uc5b4", Description: "ko"},
+		{Value: "en", Label: "\U0001f1fa\U0001f1f8 \uc601\uc5b4", Description: "en"},
+		{Value: "ja", Label: "\U0001f1ef\U0001f1f5 \uc77c\ubcf8\uc5b4", Description: "ja"},
+		{Value: "zh", Label: "\U0001f1e8\U0001f1f3 \uc911\uad6d\uc5b4", Description: "zh"},
 	}
 }
 
 func approvalPolicyOptions() []option {
 	return []option{
-		{Value: "on-request", Label: "on-request", Description: "\ud544\uc694\ud560 \ub54c Codex\uac00 \uc2b9\uc778 \uc694\uccad"},
-		{Value: "untrusted", Label: "untrusted", Description: "\ubbff\uc744 \uc218 \uc5c6\ub294 \uc791\uc5c5\ub9cc \uc2b9\uc778 \ud655\uc778"},
-		{Value: "never", Label: "never", Description: "\uc2b9\uc778 \uc5c6\uc774 \uacc4\uc18d \uc9c4\ud589"},
+		{Value: "on-request", Label: "\U0001f6ce\ufe0f on-request", Description: "\ud544\uc694\ud560 \ub54c Codex\uac00 \uc2b9\uc778 \uc694\uccad"},
+		{Value: "untrusted", Label: "\U0001f6a7 untrusted", Description: "\ubbff\uc744 \uc218 \uc5c6\ub294 \uc791\uc5c5\ub9cc \uc2b9\uc778 \ud655\uc778"},
+		{Value: "never", Label: "\u26a1 never", Description: "\uc2b9\uc778 \uc5c6\uc774 \uacc4\uc18d \uc9c4\ud589"},
 	}
 }
 
 func sandboxModeOptions() []option {
 	return []option{
-		{Value: "workspace-write", Label: "workspace-write", Description: "\ud604\uc7ac \uc791\uc5c5 \uacf5\uac04\ub9cc \uc4f0\uae30 \ud5c8\uc6a9"},
-		{Value: "read-only", Label: "read-only", Description: "\ud30c\uc77c \uc4f0\uae30 \uc5c6\uc774 \uc77d\uae30 \uc804\uc6a9"},
-		{Value: "danger-full-access", Label: "danger-full-access", Description: "\uc0cc\ub4dc\ubc15\uc2a4 \uc81c\ud55c \uc5c6\uc774 \uc804\uccb4 \uc811\uadfc"},
+		{Value: "workspace-write", Label: "\U0001f4dd workspace-write", Description: "\ud604\uc7ac \uc791\uc5c5 \uacf5\uac04\ub9cc \uc4f0\uae30 \ud5c8\uc6a9"},
+		{Value: "read-only", Label: "\U0001f441\ufe0f read-only", Description: "\ud30c\uc77c \uc4f0\uae30 \uc5c6\uc774 \uc77d\uae30 \uc804\uc6a9"},
+		{Value: "danger-full-access", Label: "\U0001f525 danger-full-access", Description: "\uc0cc\ub4dc\ubc15\uc2a4 \uc81c\ud55c \uc5c6\uc774 \uc804\uccb4 \uc811\uadfc"},
 	}
 }
 

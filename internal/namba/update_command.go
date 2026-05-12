@@ -67,6 +67,8 @@ func isOwnedRegenManagedPath(entry ManifestEntry) bool {
 		return true
 	case rel == repoCodexConfigPath:
 		return true
+	case isManagedRepoCodexHookPath(rel):
+		return true
 	case strings.HasPrefix(rel, repoSkillsDir+"/"):
 		return true
 	case strings.HasPrefix(rel, ".codex/skills/"):
@@ -85,6 +87,8 @@ func isRegenManagedPath(rel string) bool {
 	case rel == "AGENTS.md":
 		return true
 	case rel == repoCodexConfigPath:
+		return true
+	case isManagedRepoCodexHookPath(rel):
 		return true
 	case isManagedRepoSkillPath(rel):
 		return true

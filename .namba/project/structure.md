@@ -60,6 +60,8 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .codex/agents/namba-test-engineer.md
 .codex/agents/namba-test-engineer.toml
 .codex/config.toml
+.codex/hooks.json
+.codex/hooks/namba_codex_guard.py
 .gitattributes
 .github/PULL_REQUEST_TEMPLATE.md
 .github/dependabot.yml
@@ -83,6 +85,7 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/config/sections/user.yaml
 .namba/config/sections/workflow.yaml
 .namba/manifest.json
+.namba/releases/v0.5.10.md
 .namba/releases/v0.5.4.md
 .namba/releases/v0.5.5.md
 .namba/releases/v0.5.6.md

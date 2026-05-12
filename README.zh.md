@@ -6,7 +6,7 @@
 
 # NambaAI
 
-NambaAI 是一份给 Codex 工作流用的操作指南，帮助你少纠结“下一步该做什么”。它会帮你准备仓库、选择当前该用的命令、把较大的工作拆成可评审的计划，并在完成后同步文档和清单。
+NambaAI 是一份给 Codex 工作流用的操作指南，帮助你少纠结“下一步该做什么”。核心差异点是执行前的 prompt refinement：先把模糊想法整理成目标、范围、约束和验收标准，再让 Codex 开始编码。它会帮你准备仓库、选择当前该用的命令、把较大的工作拆成可评审的计划，并在完成后同步文档和清单。
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [中文](README.zh.md)
 
@@ -68,6 +68,9 @@ namba land
 ## 🪝 Hook Runtime
 
 - 如果你刚开始使用，可以先跳过这一节。Hook 用来在执行过程中的特定时机自动运行检查或通知。
+- Codex lifecycle hook 会由 `namba init .` 预生成到 `.codex/hooks.json` 和 `.codex/hooks/namba_codex_guard.py`。这个 hook 会注入 Namba context，对模糊 prompt 先阻止执行并要求提问和整理，说明权限请求风险，并在 final response 格式或 managed instruction surface 改动后提醒 `namba regen` 和 validation。
+- Codex 在执行 repo-local hook 之前会要求 review。第一次 interactive Codex session 看到 `6 hooks need review` 时，请打开 `/hooks`，确认命令只指向当前仓库的 `.codex/hooks/namba_codex_guard.py` 后再批准。
+- `.codex/hooks.json` 是 Codex interactive guardrail；`.namba/hooks.toml` 是 `namba run` 的 evidence/validation boundary。
 - 📍 注册位置: 在仓库根目录放置 `.namba/hooks.toml` 后，`namba run SPEC-XXX` 会在执行过程中自动读取。
 - 🧩 注册格式: 添加 `[hooks.<hook_name>]` 表，并填写 `event`、`command`、`cwd`、`timeout`、`enabled`、`continue_on_failure`。
 - 🧾 执行证据: 每个 hook 的 stdout/stderr 会保存到 `.namba/logs/runs/<log-id>-hooks/`，结果会写入 `<log-id>-evidence.json` 的 `hooks` 数组。

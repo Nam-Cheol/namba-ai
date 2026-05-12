@@ -62,21 +62,21 @@ func TestResolveCodexAccessChoicePreservesPresetsAndCustomFallback(t *testing.T)
 			approvalPolicy: "on-request",
 			sandboxMode:    "workspace-write",
 			wantPresetID:   "balanced",
-			wantLabel:      "Balanced workspace",
+			wantLabel:      "⚖️ Balanced workspace",
 		},
 		{
 			name:           "full access preset",
 			approvalPolicy: "never",
 			sandboxMode:    "danger-full-access",
 			wantPresetID:   "full-access",
-			wantLabel:      "Full access",
+			wantLabel:      "🔥 Full access",
 		},
 		{
 			name:           "custom fallback",
 			approvalPolicy: "never",
 			sandboxMode:    "read-only",
 			wantPresetID:   codexAccessPresetCustom,
-			wantLabel:      "Custom access",
+			wantLabel:      "🧩 Custom access",
 		},
 	}
 
@@ -315,7 +315,7 @@ func TestRunInitWizardIncludesGuidedCodexAccessStep(t *testing.T) {
 		CommentLanguage:       "en",
 		ApprovalPolicy:        "on-request",
 		SandboxMode:           "workspace-write",
-		GitMode:               "manual",
+		GitMode:               "personal",
 		GitProvider:           "github",
 		GitLabInstanceURL:     "https://gitlab.com",
 		BranchPerWork:         true,
@@ -337,9 +337,17 @@ func TestRunInitWizardIncludesGuidedCodexAccessStep(t *testing.T) {
 	}
 
 	got := stdout.String()
-	for _, want := range []string{"Codex access preset", "Balanced workspace", "approval_policy=on-request", "sandbox_mode=workspace-write"} {
+	for _, want := range []string{"🧭 Step 01", "저장소 상태", "🌱 새 프로젝트", "앱 스택을 묻지 않습니다", "🧪 기본 작업 방식", "🔐 Codex access preset", "⚖️ Balanced workspace", "approval_policy=on-request", "sandbox_mode=workspace-write", "🙋 Step 10", "📋 초기화 요약", "✅"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected wizard output to contain %q, got %q", want, got)
+		}
+	}
+	if strings.Contains(got, "Step 11") {
+		t.Fatalf("wizard should avoid skipped step numbering for github mode, got %q", got)
+	}
+	for _, unwanted := range []string{"Git 사용자명", "시작할 앱 스택", "Next.js"} {
+		if strings.Contains(got, unwanted) {
+			t.Fatalf("wizard should not contain %q anymore, got %q", unwanted, got)
 		}
 	}
 }

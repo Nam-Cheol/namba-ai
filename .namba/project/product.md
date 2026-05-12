@@ -8,11 +8,11 @@
 
 ## System Landscape
 
-- `workspace`: NambaAI is a practical guide for working with Codex without guessing the next step. It sets up the repository, helps you choose the right command, turns bigger work into reviewable plans, and refreshes docs and checklists after the work is done. (`.namba/project/systems/workspace.md`)
+- `workspace`: NambaAI is a practical guide for working with Codex without guessing the next step. Its differentiator is prompt refinement before execution: vague ideas are shaped into goals, scope, constraints, and acceptance criteria before Codex starts coding. It sets up the repository, helps you choose the right command, turns bigger work into reviewable plans, and refreshes docs and checklists after the work is done. (`.namba/project/systems/workspace.md`)
 
 ## Evidence Highlights
 
-- NambaAI is a practical guide for working with Codex without guessing the next step. It sets up the repository, helps you choose the right command, turns bigger work into reviewable plans, and refreshes docs and checklists after the work is done. Confidence: medium. Evidence: `README.md`.
+- NambaAI is a practical guide for working with Codex without guessing the next step. Its differentiator is prompt refinement before execution: vague ideas are shaped into goals, scope, constraints, and acceptance criteria before Codex starts coding. It sets up the repository, helps you choose the right command, turns bigger work into reviewable plans, and refreshes docs and checklists after the work is done. Confidence: medium. Evidence: `README.md`.
 - `cmd/namba/main.go`: Go command entry point Confidence: high. Evidence: `cmd/namba/main.go`.
 
 ## Quality And Drift
@@ -23,5 +23,5 @@
 ## Source Snapshot
 
 - Source: `README.md`
-- Summary excerpt: NambaAI is a practical guide for working with Codex without guessing the next step. It sets up the repository, helps you choose the right command, turns bigger work into reviewable plans, and refreshes docs and checklists after the work is done.
+- Summary excerpt: NambaAI is a practical guide for working with Codex without guessing the next step. Its differentiator is prompt refinement before execution: vague ideas are shaped into goals, scope, constraints, and acceptance criteria before Codex starts coding. It sets up the repository, helps you choose the right command, turns bigger work into reviewable plans, and refreshes docs and checklists after the work is done.
 
