@@ -40,16 +40,19 @@ Use `openai/codex` as a secondary reference when working on:
 This reference is for maintaining `namba-ai` itself.
 Do not assume it belongs in generated project templates unless that decision is made explicitly for NambaAI templates.
 
-## Codex CLI `0.124.0`-`0.128.0` compatibility baseline
+## Codex CLI `0.124.0`-`0.130.0` compatibility baseline
 
 NambaAI can target this Codex range with capability-based compatibility rather than fixed version gating. The maintained contract is:
 
 - probe `codex --version`, `codex exec --help`, and `codex exec resume --help` where resume is planned
 - tolerate additive `codex exec --json` event fields because NambaAI does not currently own a Codex JSONL output consumer
 - keep `codex update` and `namba update` separate: `codex update` updates the upstream Codex CLI, while `namba update` updates NambaAI
-- prefer explicit `approval_policy`, `sandbox_mode`, sandbox profile, and permission profile settings over deprecated full-auto style flags
+- prefer explicit `approval_policy`, `sandbox_mode`, sandbox profile, and permission profile settings over deprecated full-auto style flags; treat `approval_policy = "on-failure"` as compatibility-only and avoid recommending it for new Namba defaults
 - keep user-specific permission profiles, models, auth, apps, web search, and platform sandbox choices out of repo-managed `.codex/config.toml`
 - keep Codex subagent threads and Namba worktree workers separate: `.codex/config.toml [agents].max_threads = 5` is same-workspace Codex capacity, while `.namba/config/sections/workflow.yaml max_parallel_workers: 3` is Namba-managed git worktree fan-out
 - treat persisted Codex `/goal` workflows as a future orchestration candidate, not a required Namba runtime primitive
+- enable repo-local Codex lifecycle hooks through `.codex/hooks.json` plus `features.hooks = true` only for lightweight guardrails: Namba context injection, prompt-refinement blocking for ambiguous Namba workflows, permission-request risk notes, final-report format checks, obvious destructive-shell denial, and generated-surface reminders. Treat hooks as guardrails, not a complete enforcement boundary.
+- require an explicit `/hooks` review in the first interactive Codex session before relying on repo-local hooks. Generated hooks must be inspected as executable code, and Namba should document that unreviewed hooks are discovered but not run.
+- keep Namba runner hooks separate from Codex lifecycle hooks: `.namba/hooks.toml` belongs to `namba run` evidence and validation boundaries, while `.codex/hooks.json` belongs to interactive Codex lifecycle behavior.
 
-Local validation evidence for this repo was captured on 2026-05-01 with `codex-cli 0.128.0`: `codex exec --help` and `codex exec resume --help` expose config/model/sandbox/profile/add-dir/ephemeral/json surfaces as expected, and `CODEX_HOME=/private/tmp/namba-codex-home codex debug prompt-input -c agents.max_threads=5 test` accepted the repo-managed `[agents].max_threads` shape.
+Local validation evidence for this repo was refreshed on 2026-05-12 with `codex-cli 0.130.0`: `codex exec --help` and `codex exec resume --help` expose config/model/sandbox/profile/add-dir/ephemeral/json surfaces as expected, `codex remote-control --help` and `codex app-server --help` expose the new headless app-server entry points, the runtime reports `features.codex_hooks` as deprecated in favor of `features.hooks`, and the upstream hooks documentation describes repo-local `.codex/hooks.json`, inline `[hooks]`, plugin-bundled lifecycle config, `PreToolUse`/`PermissionRequest`/`PostToolUse` support for Bash, `apply_patch`, and MCP tools. An interactive CLI probe on the same date discovered the generated repo hooks but displayed `6 hooks need review before they can run`, confirming that first-run hook review is part of the real activation path.

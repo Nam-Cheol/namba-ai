@@ -10,6 +10,8 @@ const (
 	repoSkillsDir       = ".agents/skills"
 	repoCodexAgentsDir  = ".codex/agents"
 	repoCodexConfigPath = ".codex/config.toml"
+	repoCodexHooksPath  = ".codex/hooks.json"
+	repoCodexHooksDir   = ".codex/hooks"
 	codexStateDir       = ".namba/codex"
 )
 
@@ -21,6 +23,8 @@ func codexScaffoldFiles(profile initProfile) map[string]string {
 		filepath.ToSlash(filepath.Join(codexStateDir, "output-contract.md")):          renderOutputContractDocLocalized(profile),
 		filepath.ToSlash(filepath.Join(codexStateDir, "validate-output-contract.py")): renderOutputContractValidatorLocalized(profile),
 		filepath.ToSlash(repoCodexConfigPath):                                         renderRepoCodexConfig(profile),
+		filepath.ToSlash(repoCodexHooksPath):                                          renderNambaCodexHooksJSON(),
+		filepath.ToSlash(filepath.Join(repoCodexHooksDir, "namba_codex_guard.py")):    renderNambaCodexHookGuardScript(),
 	}
 	for rel, content := range codexAgentTemplates() {
 		files[filepath.ToSlash(filepath.Join(repoCodexAgentsDir, rel))] = content
@@ -166,6 +170,17 @@ func isManagedRepoCodexAgentPath(rel string) bool {
 	return ok
 }
 
+func isManagedRepoCodexHookPath(rel string) bool {
+	switch rel {
+	case repoCodexHooksPath:
+		return true
+	case filepath.ToSlash(filepath.Join(repoCodexHooksDir, "namba_codex_guard.py")):
+		return true
+	default:
+		return false
+	}
+}
+
 func codexNativeIssues(root string) []string {
 	checks := []struct {
 		label string
@@ -178,6 +193,8 @@ func codexNativeIssues(root string) []string {
 		{label: ".agents/skills/namba-run/SKILL.md", path: filepath.Join(root, ".agents", "skills", "namba-run", "SKILL.md")},
 		{label: ".agents/skills/namba-queue/SKILL.md", path: filepath.Join(root, ".agents", "skills", "namba-queue", "SKILL.md")},
 		{label: ".codex/config.toml", path: filepath.Join(root, ".codex", "config.toml")},
+		{label: ".codex/hooks.json", path: filepath.Join(root, ".codex", "hooks.json")},
+		{label: ".codex/hooks/namba_codex_guard.py", path: filepath.Join(root, ".codex", "hooks", "namba_codex_guard.py")},
 		{label: ".namba/codex/output-contract.md", path: filepath.Join(root, ".namba", "codex", "output-contract.md")},
 		{label: ".namba/codex/validate-output-contract.py", path: filepath.Join(root, ".namba", "codex", "validate-output-contract.py")},
 		{label: ".namba/config/sections/codex.yaml", path: filepath.Join(root, ".namba", "config", "sections", "codex.yaml")},

@@ -1,6 +1,7 @@
 package namba
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -634,6 +635,8 @@ func TestRenderCodexUsageTailSectionsStayOrderedInIntegratedDoc(t *testing.T) {
 
 	lastIndex := -1
 	for _, want := range []string{
+		"prompt refinement before execution",
+		"goals, scope, constraints, and acceptance criteria",
 		"## Output Contract",
 		"## Git Collaboration Defaults",
 		"## Claude to Codex Mapping",
@@ -740,6 +743,17 @@ func TestDesignerContractStaysDesignSpecificAndDoesNotLeakIntoSharedSurfaces(t *
 	}
 }
 
+func TestRenderInitCommandSkillMentionsHookReview(t *testing.T) {
+	t.Parallel()
+
+	skill := renderInitCommandSkill()
+	for _, want := range []string{"repository-state-first", "should not ask for a starter app stack", "approachable emoji cues", "`b`/`back`", "do not ask the user for a GitHub username", "`/hooks`", "`6 hooks need review`", ".codex/hooks/namba_codex_guard.py", "prompt-refinement hooks"} {
+		if !strings.Contains(skill, want) {
+			t.Fatalf("init command skill missing hook-review guidance %q: %q", want, skill)
+		}
+	}
+}
+
 func TestRenderCodexUsageFrontSectionsPreserveAnchors(t *testing.T) {
 	t.Parallel()
 
@@ -765,6 +779,9 @@ func TestRenderCodexUsageFrontSectionsPreserveAnchors(t *testing.T) {
 		"## How Codex Uses Namba After Init",
 		"Open Codex in the initialized project directory.",
 		"WSL workspace",
+		"`6 hooks need review`",
+		"`/hooks`",
+		".codex/hooks/namba_codex_guard.py",
 		"Codex loads `AGENTS.md` and repo skills.",
 		"`default`, `worker`, and `explorer`",
 		"`namba project`, `namba regen`, `namba update`, `namba codex access`, `namba plan`, `namba harness`, `namba fix`, `namba run SPEC-XXX`, `namba queue`, `namba sync`, `namba pr`, `namba land`, and `namba release`",
@@ -1193,6 +1210,56 @@ func TestRenderNambaSkillRouterSectionsReserveCoachForAdvisoryRouting(t *testing
 	} {
 		if !strings.Contains(executionRules, want) {
 			t.Fatalf("namba skill execution-rules section missing %q: %q", want, executionRules)
+		}
+	}
+}
+
+func TestRenderNambaCodexHooksScaffold(t *testing.T) {
+	t.Parallel()
+
+	var parsed map[string]any
+	hooksJSON := renderNambaCodexHooksJSON()
+	if err := json.Unmarshal([]byte(hooksJSON), &parsed); err != nil {
+		t.Fatalf("hooks JSON should be valid: %v\n%s", err, hooksJSON)
+	}
+	for _, want := range []string{
+		`"SessionStart"`,
+		`"PreToolUse"`,
+		`"PermissionRequest"`,
+		`"UserPromptSubmit"`,
+		`"PostToolUse"`,
+		`"Stop"`,
+		`.codex/hooks/namba_codex_guard.py`,
+		`Checking NambaAI shell safety`,
+		`Refining NambaAI prompt`,
+		`Reviewing NambaAI surface changes`,
+		`Checking NambaAI report format`,
+	} {
+		if !strings.Contains(hooksJSON, want) {
+			t.Fatalf("hooks JSON missing %q: %q", want, hooksJSON)
+		}
+	}
+
+	script := renderNambaCodexHookGuardScript()
+	for _, want := range []string{
+		"permissionDecision",
+		"PermissionRequest",
+		"UserPromptSubmit",
+		"prompt-refinement gate",
+		"prompt_refinement_block_reason",
+		`"decision": "block"`,
+		"REPORT_SECTIONS",
+		"approval_risk_note",
+		"NAMBA_HOOK_TRACE_PATH",
+		`record["prompt_refinement"]`,
+		"git reset --hard",
+		"git clean",
+		"force-pushing requires an explicit human decision",
+		"Namba-managed instruction or config surfaces are changed",
+		"guardrails, not a complete security boundary",
+	} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("hook guard script missing %q: %q", want, script)
 		}
 	}
 }

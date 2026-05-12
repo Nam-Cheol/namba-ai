@@ -6,7 +6,7 @@
 
 # NambaAI
 
-NambaAI は、Codex と一緒に作業するときに「次に何をすればいいか」を迷いにくくするための作業ガイドです。リポジトリを準備し、今の状況に合うコマンドを選び、大きな作業をレビューしやすい計画に分け、完了後の文書やチェックリストも整えます。
+NambaAI は、Codex と一緒に作業するときに「次に何をすればいいか」を迷いにくくするための作業ガイドです。中核の差別化は実行前の prompt refinement です。曖昧なアイデアを目標、範囲、制約、受け入れ基準に整えてから Codex が実装を始めます。リポジトリを準備し、今の状況に合うコマンドを選び、大きな作業をレビューしやすい計画に分け、完了後の文書やチェックリストも整えます。
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [中文](README.zh.md)
 
@@ -68,6 +68,9 @@ namba land
 ## 🪝 Hook Runtime
 
 - 初めて使う場合、このセクションは読み飛ばしても大丈夫です。Hook は、実行中の特定のタイミングで自動チェックや通知を走らせたいときに使います。
+- Codex lifecycle hook は `namba init .` が `.codex/hooks.json` と `.codex/hooks/namba_codex_guard.py` として事前生成します。この hook は Namba context を追加し、曖昧な prompt は先にブロックして質問と整理を要求し、権限要求のリスクを説明し、final response 形式と managed instruction surface 変更後の `namba regen` / validation を思い出させます。
+- Codex は repo-local hook の実行前に review を要求します。最初の interactive Codex session で `6 hooks need review` が表示されたら `/hooks` を開き、command が現在の repository の `.codex/hooks/namba_codex_guard.py` だけを指すことを確認してから承認してください。
+- `.codex/hooks.json` は Codex interactive guardrail、`.namba/hooks.toml` は `namba run` の evidence/validation boundary です。
 - 📍 登録場所: リポジトリルートに `.namba/hooks.toml` を置くと、`namba run SPEC-XXX` が実行中に自動で読み込みます。
 - 🧩 登録形式: `[hooks.<hook_name>]` テーブルを追加し、`event`、`command`、`cwd`、`timeout`、`enabled`、`continue_on_failure` を設定します。
 - 🧾 実行証跡: 各 hook の stdout/stderr は `.namba/logs/runs/<log-id>-hooks/` に保存され、結果は `<log-id>-evidence.json` の `hooks` 配列に記録されます。

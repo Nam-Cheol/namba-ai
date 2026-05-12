@@ -530,6 +530,17 @@ func TestSingleUsageLineCommandUsageTextPreservesSimpleCommandShapes(t *testing.
 	}
 }
 
+func TestInitUsageMentionsCodexHookReview(t *testing.T) {
+	t.Parallel()
+
+	got := initUsageText()
+	for _, want := range []string{"app stack unset", "`b`/`back` returns", "does not ask for a GitHub username", "Codex lifecycle hooks", "`/hooks`", "prompt-refinement guardrails"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("init usage missing hook review guidance %q in %q", want, got)
+		}
+	}
+}
+
 func TestHandleNoArgTopLevelCommandKeepsHelpAndUsageErrorContracts(t *testing.T) {
 	t.Parallel()
 

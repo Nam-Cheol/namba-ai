@@ -231,7 +231,7 @@ func codexAccessPresets() []codexAccessPreset {
 	return []codexAccessPreset{
 		{
 			ID:                "cautious-read-only",
-			Label:             "Cautious read-only",
+			Label:             "🛡️ Cautious read-only",
 			WizardDescription: "승인을 묻고 파일 쓰기는 막습니다",
 			Consequence:       "Codex asks before risky actions and cannot write files.",
 			ApprovalPolicy:    "on-request",
@@ -239,7 +239,7 @@ func codexAccessPresets() []codexAccessPreset {
 		},
 		{
 			ID:                "balanced",
-			Label:             "Balanced workspace",
+			Label:             "⚖️ Balanced workspace",
 			WizardDescription: "필요할 때만 승인하고 저장소 파일은 수정할 수 있습니다",
 			Consequence:       "Codex asks when needed and can edit files in the repo workspace.",
 			ApprovalPolicy:    "on-request",
@@ -247,7 +247,7 @@ func codexAccessPresets() []codexAccessPreset {
 		},
 		{
 			ID:                "full-access",
-			Label:             "Full access",
+			Label:             "🔥 Full access",
 			WizardDescription: "승인 없이 진행하고 전체 파일시스템에 접근합니다",
 			Consequence:       "Codex keeps moving without approval prompts and can access the full filesystem.",
 			ApprovalPolicy:    "never",
@@ -277,7 +277,7 @@ func resolveCodexAccessChoice(approvalValue, sandboxValue string) (codexAccessCh
 
 	return codexAccessChoice{
 		PresetID:       codexAccessPresetCustom,
-		Label:          "Custom access",
+		Label:          "🧩 Custom access",
 		Consequence:    buildCustomCodexAccessConsequence(approvalValue, sandboxValue),
 		ApprovalPolicy: approvalValue,
 		SandboxMode:    sandboxValue,
@@ -333,7 +333,7 @@ func codexAccessPresetOptions() []option {
 	}
 	options = append(options, option{
 		Value:       codexAccessPresetCustom,
-		Label:       "Custom access",
+		Label:       "🧩 Custom access",
 		Description: "approval_policy와 sandbox_mode를 직접 조합합니다",
 	})
 	return options
@@ -362,46 +362,68 @@ func applyCodexAccessPreset(profile *initProfile, presetID string) error {
 }
 
 func (a *App) promptCodexAccess(reader *bufio.Reader, profile initProfile) (initProfile, error) {
-	presetID := promptSelect(
+	next, _, err := a.promptCodexAccessStep(reader, profile, false)
+	return next, err
+}
+
+func (a *App) promptCodexAccessStep(reader *bufio.Reader, profile initProfile, allowBack bool) (initProfile, bool, error) {
+	presetID, back := promptSelectWizardResult(
 		a.stdin,
+		reader,
 		a.stdout,
 		"\U0001f510 Codex access preset",
 		codexAccessPresetOptions(),
 		defaultCodexAccessPreset(profile),
+		allowBack,
 	)
+	if back {
+		return profile, true, nil
+	}
 
 	if presetID == codexAccessPresetCustom {
-		profile.ApprovalPolicy = promptSelect(
+		approvalPolicyValue, back := promptSelectWizardResult(
 			a.stdin,
+			reader,
 			a.stdout,
 			"\u2705 approval_policy",
 			approvalPolicyOptions(),
 			approvalPolicy(profile),
+			true,
 		)
-		profile.SandboxMode = promptSelect(
+		if back {
+			return a.promptCodexAccessStep(reader, profile, allowBack)
+		}
+		profile.ApprovalPolicy = approvalPolicyValue
+		sandboxModeValue, back := promptSelectWizardResult(
 			a.stdin,
+			reader,
 			a.stdout,
 			"\U0001f512 sandbox_mode",
 			sandboxModeOptions(),
 			sandboxMode(profile),
+			true,
 		)
+		if back {
+			return a.promptCodexAccessStep(reader, profile, allowBack)
+		}
+		profile.SandboxMode = sandboxModeValue
 	} else if err := applyCodexAccessPreset(&profile, presetID); err != nil {
-		return initProfile{}, err
+		return initProfile{}, false, err
 	}
 
 	choice, err := resolveCodexAccessChoice(approvalPolicy(profile), sandboxMode(profile))
 	if err != nil {
-		return initProfile{}, err
+		return initProfile{}, false, err
 	}
 	writeWizardCodexAccessPreview(a.stdout, choice)
-	return profile, nil
+	return profile, false, nil
 }
 
 func writeWizardCodexAccessPreview(out io.Writer, choice codexAccessChoice) {
-	fmt.Fprintln(out, wizardHint(out, fmt.Sprintf("-> %s", choice.Label)))
-	fmt.Fprintln(out, wizardHint(out, "   "+choice.Consequence))
-	fmt.Fprintln(out, wizardHint(out, fmt.Sprintf("   approval_policy=%s", choice.ApprovalPolicy)))
-	fmt.Fprintln(out, wizardHint(out, fmt.Sprintf("   sandbox_mode=%s", choice.SandboxMode)))
+	fmt.Fprintln(out, wizardHint(out, fmt.Sprintf("🔎 %s", choice.Label)))
+	fmt.Fprintln(out, wizardHint(out, "   💬 "+choice.Consequence))
+	fmt.Fprintln(out, wizardHint(out, fmt.Sprintf("   🛎️ approval_policy=%s", choice.ApprovalPolicy)))
+	fmt.Fprintln(out, wizardHint(out, fmt.Sprintf("   🧱 sandbox_mode=%s", choice.SandboxMode)))
 }
 
 func writeCodexAccessSummary(out io.Writer, heading string, choice codexAccessChoice) {
