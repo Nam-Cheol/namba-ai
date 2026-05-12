@@ -1049,7 +1049,8 @@ func TestRunPlanCreatesReviewArtifacts(t *testing.T) {
 	t.Parallel()
 
 	tmp := t.TempDir()
-	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
 	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
@@ -1059,6 +1060,9 @@ func TestRunPlanCreatesReviewArtifacts(t *testing.T) {
 
 	if err := app.Run(context.Background(), []string{"plan", "improve", "review", "workflow"}); err != nil {
 		t.Fatalf("plan failed: %v", err)
+	}
+	if got := stdout.String(); !strings.Contains(got, "Auto review: `$namba-plan-review SPEC-001`") || !strings.Contains(got, "Pass --no-review to scaffold only.") {
+		t.Fatalf("expected plan output to include auto-review handoff, got %q", got)
 	}
 
 	plan := mustReadFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "plan.md"))
@@ -1072,4 +1076,31 @@ func TestRunPlanCreatesReviewArtifacts(t *testing.T) {
 			t.Fatalf("expected readiness scaffold to contain %q, got %q", want, readiness)
 		}
 	}
+}
+
+func TestRunPlanNoReviewSuppressesAutoReviewHandoff(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"plan", "--no-review", "improve", "review", "workflow"}); err != nil {
+		t.Fatalf("plan --no-review failed: %v", err)
+	}
+	got := stdout.String()
+	if strings.Contains(got, "$namba-plan-review SPEC-001") {
+		t.Fatalf("expected --no-review to suppress auto-review handoff, got %q", got)
+	}
+	if !strings.Contains(got, "Auto review skipped by --no-review.") {
+		t.Fatalf("expected --no-review skip message, got %q", got)
+	}
+
+	mustReadFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "spec.md"))
 }

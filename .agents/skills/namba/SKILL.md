@@ -13,7 +13,7 @@ Command mapping:
 - `namba codex access`: inspect the current repo-owned Codex access defaults, or update `approval_policy` / `sandbox_mode` with explicit flags after initialization.
 - `namba regen`: regenerate AGENTS, repo-local skills, command-entry skills, Codex custom agents, readable role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.
 - `namba update [--version vX.Y.Z]`: self-update the installed `namba` binary from GitHub Release assets.
-- `namba plan "<description>"`: create the next feature SPEC package under `.namba/specs/`, and when branch-per-work is enabled create or switch to the dedicated `spec/...` branch in the current workspace.
+- `namba plan "<description>"`: create the next feature SPEC package under `.namba/specs/`, and when branch-per-work is enabled create or switch to the dedicated `spec/...` branch in the current workspace; unless `--no-review` is present, continue immediately with `$namba-plan-review SPEC-XXX` after creation.
 - `$namba-plan-review`: create or resolve a SPEC, run the three plan-review tracks in parallel when possible, and drive the advisory readiness loop before implementation starts.
 - `namba harness "<description>"`: create the next harness-oriented SPEC package under `.namba/specs/` through the same dedicated-branch planning contract for reusable agent, skill, workflow, or orchestration work.
 - `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: update product, engineering, or design review artifacts under `.namba/specs/<SPEC>/reviews/` and refresh advisory readiness.

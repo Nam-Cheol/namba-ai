@@ -1162,6 +1162,7 @@ func TestRenderNambaSkillRouterSectionsReserveCoachForAdvisoryRouting(t *testing
 		"`$namba-help`",
 		"`$namba-create`",
 		"`namba plan \"<description>\"`",
+		"`--no-review`",
 		"`namba harness \"<description>\"`",
 		"`namba fix --command plan \"<issue description>\"`",
 		"`namba fix \"<issue description>\"` or `namba fix --command run \"<issue description>\"`",
@@ -1193,6 +1194,21 @@ func TestRenderNambaSkillRouterSectionsReserveCoachForAdvisoryRouting(t *testing
 	} {
 		if !strings.Contains(executionRules, want) {
 			t.Fatalf("namba skill execution-rules section missing %q: %q", want, executionRules)
+		}
+	}
+}
+
+func TestRenderPlanCommandSkillDefaultsToAutoReviewHandoff(t *testing.T) {
+	t.Parallel()
+
+	content := renderPlanCommandSkill()
+	for _, want := range []string{
+		"`--no-review`",
+		"automatic handoff",
+		"`$namba-plan-review SPEC-XXX`",
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("plan command skill missing %q: %q", want, content)
 		}
 	}
 }

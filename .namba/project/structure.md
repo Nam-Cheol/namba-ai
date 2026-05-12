@@ -83,6 +83,7 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/config/sections/user.yaml
 .namba/config/sections/workflow.yaml
 .namba/manifest.json
+.namba/releases/v0.5.10.md
 .namba/releases/v0.5.4.md
 .namba/releases/v0.5.5.md
 .namba/releases/v0.5.6.md

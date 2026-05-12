@@ -107,6 +107,11 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(planSkill, "namba harness") {
 		t.Fatalf("expected plan skill to distinguish harness-oriented planning, got %q", planSkill)
 	}
+	for _, want := range []string{"--no-review", "$namba-plan-review SPEC-XXX", "automatic handoff"} {
+		if !strings.Contains(planSkill, want) {
+			t.Fatalf("expected plan skill to describe auto-review opt-out %q, got %q", want, planSkill)
+		}
+	}
 	planReviewSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-plan-review", "SKILL.md"))
 	for _, want := range []string{"$namba-plan-review", "parallel", "namba-plan-reviewer", "aggregate validation", "readiness.md"} {
 		if !strings.Contains(planReviewSkill, want) {
