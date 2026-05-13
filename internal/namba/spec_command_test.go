@@ -82,9 +82,17 @@ func TestRunPlanClarificationGateBlocksAmbiguousKoreanPrompt(t *testing.T) {
 func TestEvaluatePlanClarificationAllowsStructuredPrompt(t *testing.T) {
 	t.Parallel()
 
-	description := "Goal: 로그인 사용자가 글 CRUD와 댓글을 사용할 수 있는 게시판. Scope: 목록/상세/작성/수정/삭제와 기본 검색 포함, 관리자 기능 제외. Constraints: 기존 웹 앱 구조 유지. Acceptance: Go 테스트와 브라우저 흐름 검증."
-	if output, ok := evaluatePlanClarification(description); ok {
-		t.Fatalf("expected structured prompt to pass clarification gate, got %q", output)
+	for _, description := range []string{
+		"Goal: 로그인 사용자가 글 CRUD와 댓글을 사용할 수 있는 게시판. Scope: 목록/상세/작성/수정/삭제와 기본 검색 포함, 관리자 기능 제외. Constraints: 기존 웹 앱 구조 유지. Acceptance: Go 테스트와 브라우저 흐름 검증.",
+		"목표: 로그인 사용자가 글 CRUD와 댓글을 사용할 수 있는 게시판. 범위: 목록/상세/작성/수정/삭제. 제약: 기존 웹 앱 구조 유지. 검증: Go 테스트와 브라우저 흐름 확인.",
+	} {
+		description := description
+		t.Run(description, func(t *testing.T) {
+			t.Parallel()
+			if output, ok := evaluatePlanClarification(description); ok {
+				t.Fatalf("expected structured prompt to pass clarification gate, got %q", output)
+			}
+		})
 	}
 }
 

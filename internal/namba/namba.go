@@ -862,7 +862,7 @@ func planClarificationEvidenceGroups() [][]string {
 		{"goal:", "goal -", "목표"},
 		{"scope:", "scope -", "범위"},
 		{"constraints:", "constraint:", "constraints -", "constraint -", "제약"},
-		{"acceptance:", "validation:", "acceptance -", "validation -", "완료 기준", "성공 기준"},
+		{"acceptance:", "validation:", "acceptance -", "validation -", "완료 기준", "성공 기준", "검증"},
 	}
 }
 
