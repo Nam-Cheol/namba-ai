@@ -1,0 +1,18 @@
+# Acceptance
+
+- [x] `frontend-major` scaffolds include a required Do-Not Design Contract in `frontend-brief.md`.
+- [x] The Do-Not Design Contract includes a default anti-pattern library, context-specific banned patterns, allowed replacement patterns, brand/category/trust reasoning, visual grammar contract, most-generic-section redesign proof, frontend architecture handoff, and post-implementation violation-check expectations.
+- [x] Default anti-pattern coverage includes generic card grids, bento fallback, card-inside-card nesting, decorative glass/gradient treatments, stock SaaS hero formulas, interchangeable feature-card walls, generic testimonial/FAQ/pricing/stats sections, dashboard KPI-card rows used against task needs, weak empty states, weak typography defaults, one-note palettes, and low-fidelity stock-like imagery misuse.
+- [x] Context-specific banned patterns require rationale, detection hints, allowed replacements, and an exception path instead of vague "avoid generic UI" prose.
+- [x] `reviews/design.md` explicitly reviews negative-first contract completeness, default-library fit, context-specific bans, allowed replacements, brand/category/trust reasoning, visual grammar, most-generic-section proof, architecture handoff, and violation-check plan.
+- [x] `reviews/readiness.md` surfaces missing, insufficient, failed, or unresolved negative-first contract state separately from the existing five-gate evidence state.
+- [x] `namba run SPEC-XXX` blocks `frontend-major` work before runner dispatch when the Do-Not Design Contract is missing, pending, insufficient, or contradicted by design review.
+- [x] A `frontend-major` brief with all original five gates complete and design review marked approved still blocks when the negative-first contract is absent or insufficient.
+- [x] `namba run SPEC-XXX` requires post-implementation Do-Not Design Violation Check evidence for `frontend-major` work and fails when the result reports reliance on banned generic UI fallbacks.
+- [x] Exception-path usage passes only when implementation evidence cites the contract field that allows the exception.
+- [x] `namba-frontend-architect` guidance requires the architecture handoff before planning component boundaries, state ownership, file structure, or responsive behavior for `frontend-major`.
+- [x] `namba-frontend-implementer` guidance requires implementation within the visual grammar and violation-check evidence before claiming completion.
+- [x] `frontend-minor`, non-frontend, and legacy no-brief work remain outside the full negative-first hard gate unless explicitly classified as `frontend-major`.
+- [x] Generated skills, custom agents, README/workflow docs, and managed mirrors stay Codex-native and exclude Claude-only primitives such as `.claude/*`, `TeamCreate`, `SendMessage`, `TaskCreate`, and mandatory `model: "opus"` requirements.
+- [x] Tests cover scaffold generation, parser/readiness behavior, pre-execution blocking, post-implementation violation failure, exception-path success, template regeneration, and existing frontend-gate regressions.
+- [x] Validation commands pass.

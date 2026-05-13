@@ -1534,7 +1534,7 @@ func (a *App) loadRunExecutionContext(root string, options runExecuteOptions) (r
 				return runExecutionContext{}, frontendGateExecutionError(specPkg.ID, frontend)
 			}
 		} else if frontend.Header.TaskClassification == frontendTaskClassificationMajor {
-			frontendReady := frontend.Header.FrontendGateStatus == frontendGateStatusApproved && frontend.EvidenceStatus == frontendEvidenceStatusComplete && len(frontend.Mismatches) == 0
+			frontendReady := frontend.Header.FrontendGateStatus == frontendGateStatusApproved && frontend.EvidenceStatus == frontendEvidenceStatusComplete && frontend.NegativeContractStatus == frontendNegativeContractStatusComplete && len(frontend.Mismatches) == 0
 			if !frontendReady {
 				return runExecutionContext{}, frontendGateExecutionError(specPkg.ID, frontend)
 			}
@@ -1800,6 +1800,18 @@ func (a *App) buildExecutionPrompt(root string, specPkg specPackage, qualityCfg 
 			"## Frontend Brief",
 			string(frontendBytes),
 		)
+		frontendReport := parseFrontendBrief(string(frontendBytes))
+		if frontendReport.Header.TaskClassification == frontendTaskClassificationMajor {
+			promptLines = append(promptLines,
+				"",
+				"## Frontend Major Negative-First Execution Contract",
+				"- Implement only within the approved Do-Not Design Contract, visual grammar, and frontend architecture handoff.",
+				"- Before claiming completion, include a `## Do-Not Design Violation Check` section in the runner result.",
+				"- The section must cite changed files and screenshot, DOM, or local inspection evidence when available.",
+				"- If a banned pattern appears, report `Status: failed`, name the banned pattern, and provide the remediation path.",
+				"- If an exception path is used, report `Status: passed` only when the exception evidence cites the contract field that allows it.",
+			)
+		}
 	}
 	if specReviewReadinessExists(root, specPkg.ID) {
 		readinessBytes, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(specReviewReadinessPath(specPkg.ID))))

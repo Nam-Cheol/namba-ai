@@ -178,6 +178,49 @@ func writeRunnerStreamArtifacts(workDir, specID, turnName, stdout, stderr string
 	return nil
 }
 
+func frontendViolationCheckFailure(root, specID, output string) error {
+	report := loadFrontendBriefReport(root, specID)
+	if !report.Exists || !report.Valid || report.Header.TaskClassification != frontendTaskClassificationMajor {
+		return nil
+	}
+
+	section, ok := markdownSection(output, "Do-Not Design Violation Check", 2)
+	if !ok {
+		return errors.New("Do-Not Design Violation Check failed: frontend-major runner result must include `## Do-Not Design Violation Check` with changed-file evidence and banned-pattern findings.")
+	}
+
+	status := normalizeFrontendBriefEnum(parseLooseLabel(section, "Status"))
+	if status == "" {
+		return errors.New("Do-Not Design Violation Check failed: missing Status field.")
+	}
+	switch status {
+	case "passed", "pass", "clear", "complete", "completed", "success", "succeeded":
+		if frontendViolationCheckUsesException(section) && !frontendViolationCheckCitesException(section) {
+			return errors.New("Do-Not Design Violation Check failed: exception-path usage must cite the contract evidence that allows the exception.")
+		}
+		return nil
+	case "failed", "fail", "blocked", "violation", "violated", "unresolved":
+		pattern := firstNonBlank(parseLooseLabel(section, "Banned pattern"), parseLooseLabel(section, "Banned Pattern"), "unspecified banned pattern")
+		remediation := firstNonBlank(parseLooseLabel(section, "Remediation"), parseLooseLabel(section, "Remediation path"), "follow the allowed replacement or exception path in `frontend-brief.md`")
+		return fmt.Errorf("Do-Not Design Violation Check failed: %s. Remediation: %s", pattern, remediation)
+	default:
+		return fmt.Errorf("Do-Not Design Violation Check failed: unsupported Status %q.", status)
+	}
+}
+
+func frontendViolationCheckUsesException(section string) bool {
+	return strings.Contains(strings.ToLower(section), "exception")
+}
+
+func frontendViolationCheckCitesException(section string) bool {
+	for _, label := range []string{"Exception path cited", "Exception evidence", "Contract evidence"} {
+		if !isPendingMarkdownValue(parseLooseLabel(section, label)) {
+			return true
+		}
+	}
+	return false
+}
+
 func normalizeArtifactToken(value string) string {
 	value = strings.ToLower(strings.TrimSpace(value))
 	if value == "" {
@@ -426,6 +469,39 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			}
 			return result, validationReport{}, errors.Join(err, afterExecutionErr, publishErr)
 		}
+	}
+
+	result.Output = joinExecutionOutputs(result.Turns)
+	if violationErr := frontendViolationCheckFailure(projectRoot, req.SpecID, result.Output); violationErr != nil {
+		result.FinishedAt = a.now().Format(time.RFC3339)
+		result.Error = violationErr.Error()
+		if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
+			return result, validationReport{}, writeErr
+		}
+		afterExecutionErr := hooks.Trigger(ctx, hookTrigger{
+			Event:        hookEventAfterExecution,
+			StageStatus:  "failed",
+			ErrorSummary: violationErr.Error(),
+			EventData: map[string]any{
+				"execution_path": filepath.ToSlash(filepath.Join(logsDir, "runs", logID+"-execution.json")),
+			},
+		})
+		if writeErr := writeRunEvidence("execution_failed", 0, result.Error); writeErr != nil {
+			return result, validationReport{}, errors.Join(violationErr, afterExecutionErr, writeErr)
+		}
+		publishErr := publishProgress(
+			"failed",
+			"execution_failed",
+			"Worker execution failed",
+			violationErr.Error(),
+			map[string]any{"session_id": logID},
+		)
+		if publishErr != nil {
+			if writeErr := writeRunEvidenceWithProgressFailure("execution_failed", 0, result.Error); writeErr != nil {
+				return result, validationReport{}, errors.Join(violationErr, publishErr, writeErr)
+			}
+		}
+		return result, validationReport{}, errors.Join(violationErr, afterExecutionErr, publishErr)
 	}
 
 	if err := hooks.Trigger(ctx, hookTrigger{

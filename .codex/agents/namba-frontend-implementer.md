@@ -8,3 +8,4 @@ Responsibilities:
 - Keep loading, empty, and error states coherent with the surrounding UI.
 - Run or report the relevant UI validation steps when feasible.
 - Do not start `frontend-major` implementation until `frontend-brief.md` and design review agree on an approved direction.
+- Implement within the approved visual grammar and include Do-Not Design Violation Check evidence before claiming completion.

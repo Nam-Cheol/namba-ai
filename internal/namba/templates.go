@@ -505,8 +505,9 @@ func renderRunCommandSkill(profile initProfile) string {
 			"- For `--team`, prefer one specialist when one domain dominates, expand to two or three only when acceptance spans multiple domains, and keep one integrator plus final validation owner in the workspace.",
 			"- For `--team`, honor each selected role's `model` and `model_reasoning_effort` metadata from `.codex/agents/*.toml` so planner/reviewer/security roles can think harder without making every delivery role heavy.",
 			"- Route art direction, palette/tone logic, composition, motion intent, Figma critique, and generic-section redesign work to `namba-designer`; route component boundaries, state ownership, and UI delivery planning to `namba-frontend-architect`; route approved UI implementation to `namba-frontend-implementer`; route mobile-specific UI delivery to `namba-mobile-engineer`; route API, schema, and pipeline work to backend/data; route auth, secrets, and compliance work to security; route deployment and runtime work to devops.",
-			"- `frontend-major` work must not move into architecture or implementation until `frontend-brief.md` shows coherent problem, reference, critique, decision, and prototype evidence plus aligned design clearance; `frontend-minor` keeps the lightweight advisory path.",
-			"- Treat review readiness as advisory by default for non-frontend and `frontend-minor` work, but block explicit `frontend-major` execution when the frontend brief is missing required evidence, internally contradictory, or mismatched with design-review summaries.",
+			"- `frontend-major` work must not move into architecture or implementation until `frontend-brief.md` shows coherent problem, reference, critique, decision, prototype evidence, a complete Do-Not Design Contract, and aligned design clearance; `frontend-minor` keeps the lightweight advisory path.",
+			"- Treat review readiness as advisory by default for non-frontend and `frontend-minor` work, but block explicit `frontend-major` execution when the frontend brief is missing required evidence, internally contradictory, mismatched with design-review summaries, or missing/insufficient negative-first contract evidence.",
+			"- For `frontend-major` implementation results, require a `Do-Not Design Violation Check` that cites changed files, names any banned pattern found, and cites the exception path when one is used.",
 			"- For browser-rendered frontend work, use managed server lifecycle, wait for rendered DOM state, capture screenshots, inspect console errors, and prefer Playwright checks when the surface runs in a browser.",
 			"- Run validation commands from `.namba/config/sections/quality.yaml` and finish with `namba sync`. Use `namba pr` and `namba land` for the GitHub handoff and merge cycle instead of overloading `sync`.",
 			fmt.Sprintf("- Collaboration defaults: branch from `%s`, open the PR into `%s`, write the PR in %s, and request `%s` on GitHub after the PR is open.", branchBase(profile), prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
@@ -1764,6 +1765,8 @@ func frontendArchitectAgentTemplate() codexAgentTemplate {
 		"Highlight responsive, performance, and browser-risk considerations.",
 		"Recommend the smallest coherent UI implementation slice.",
 		"Verify that `frontend-major` synthesis and design clearance exist before planning hierarchy, file structure, or state ownership.",
+		"Use the Do-Not Design Contract architecture handoff before planning component boundaries, state ownership, responsive behavior, or file structure.",
+		"Refuse generic primitives that the contract bans unless an explicit exception path is cited.",
 	}
 	return codexAgentTemplate{
 		roleTitle:              "Namba Frontend Architect",
@@ -1798,6 +1801,7 @@ func renderFrontendImplementerRoleCard() string {
 			"Keep loading, empty, and error states coherent with the surrounding UI.",
 			"Run or report the relevant UI validation steps when feasible.",
 			"Do not start `frontend-major` implementation until `frontend-brief.md` and design review agree on an approved direction.",
+			"Implement within the approved visual grammar and include Do-Not Design Violation Check evidence before claiming completion.",
 		},
 	)
 }
@@ -1818,6 +1822,7 @@ func renderFrontendImplementerCustomAgent() string {
 			"- Keep loading, empty, and error states coherent with the surrounding UI.",
 			"- Run or report the relevant UI validation steps when feasible.",
 			"- Do not start `frontend-major` implementation until `frontend-brief.md` and design review agree on an approved direction.",
+			"- Implement within the approved visual grammar and include Do-Not Design Violation Check evidence before claiming completion.",
 		},
 	)
 }
@@ -1827,6 +1832,7 @@ func designerAgentTemplate() codexAgentTemplate {
 		"Lead with art direction: define the visual concept, hierarchy, and composition before defaulting to components or spacing tokens.",
 		"Set palette logic with explicit temperature and undertone discipline, restrained saturation, and deliberate accent use instead of trend-chasing or washed-out minimalism.",
 		"Choose semantic components and layout primitives that fit the content; do not default to interchangeable cards, border-heavy framing, or generic bento/grid patterns as the primary identity.",
+		"Own the Do-Not Design Contract: apply the default anti-pattern library, define context-specific bans, allowed replacements, visual grammar, architecture handoff, and generic-section proof.",
 		"Keep motion purposeful: use it only when it clarifies hierarchy, attention, or state change.",
 		"For screen-, page-, or section-scale work, identify the most generic-looking section and propose a concrete redesign; for component-scale work, call out the risk without forcing gratuitous scope creep.",
 		"Guard against overcorrection: do not flatten everything into gray minimalism, do not add novelty without payoff, and do not sacrifice accessibility, design-system fit, or implementation realism.",

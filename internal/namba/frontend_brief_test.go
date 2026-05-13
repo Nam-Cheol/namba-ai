@@ -137,6 +137,67 @@ func TestCompareFrontendBriefAndDesignReviewAcceptsMultilineDecisionFields(t *te
 	}
 }
 
+func TestParseFrontendBriefBlocksMajorWhenDoNotDesignContractMissing(t *testing.T) {
+	t.Parallel()
+
+	report := parseFrontendBrief(strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: Major dashboard restructure.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+	}, "\n"))
+
+	if !report.Valid {
+		t.Fatalf("expected original fixed-label contract to remain valid, got %+v", report)
+	}
+	if report.NegativeContractStatus != frontendNegativeContractStatusMissing {
+		t.Fatalf("expected missing negative-first contract, got %+v", report)
+	}
+	if !strings.Contains(strings.Join(report.NegativeContractIssues, "\n"), "Do-Not Design Contract section is missing") {
+		t.Fatalf("expected missing contract issue, got %+v", report.NegativeContractIssues)
+	}
+}
+
+func TestParseFrontendBriefAcceptsCompleteDoNotDesignContract(t *testing.T) {
+	t.Parallel()
+
+	report := parseFrontendBrief(validFrontendMajorBriefWithDoNotDesignContract())
+
+	if !report.Valid {
+		t.Fatalf("expected fixed-label contract to be valid, got %+v", report)
+	}
+	if report.NegativeContractStatus != frontendNegativeContractStatusComplete {
+		t.Fatalf("expected complete negative-first contract, got %+v", report)
+	}
+	if report.EvidenceStatus != frontendEvidenceStatusComplete {
+		t.Fatalf("expected original evidence status to stay complete, got %+v", report)
+	}
+	if len(report.NegativeContractIssues) != 0 {
+		t.Fatalf("expected no negative-first issues, got %+v", report.NegativeContractIssues)
+	}
+}
+
+func TestParseFrontendBriefRejectsContextBanWithoutReplacement(t *testing.T) {
+	t.Parallel()
+
+	body := strings.Replace(validFrontendMajorBriefWithDoNotDesignContract(), "Allowed replacement: Workflow lane with state chips and inline proof.", "Allowed replacement: Pending.", 1)
+	report := parseFrontendBrief(body)
+
+	if report.NegativeContractStatus != frontendNegativeContractStatusInsufficient {
+		t.Fatalf("expected insufficient negative-first contract, got %+v", report)
+	}
+	if !strings.Contains(strings.Join(report.NegativeContractIssues, "\n"), "allowed replacement") {
+		t.Fatalf("expected replacement issue, got %+v", report.NegativeContractIssues)
+	}
+}
+
 func TestCompareFrontendBriefAndDesignReviewBlocksPendingMarkdownMarkers(t *testing.T) {
 	t.Parallel()
 
@@ -305,4 +366,95 @@ func TestInferFrontendTaskClassificationIgnoresDocumentationSectionOnly(t *testi
 	if ok {
 		t.Fatalf("expected documentation-only section request to avoid frontend classification, got classification=%q rationale=%q", classification, rationale)
 	}
+}
+
+func validFrontendMajorBriefWithDoNotDesignContract() string {
+	return strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: Major dashboard restructure.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+		"",
+		"## Do-Not Design Contract",
+		"",
+		"Contract Status: complete",
+		"",
+		"### Default Anti-Pattern Library",
+		"",
+		"- Generic card grids as the primary page grammar.",
+		"- Bento grids used as identity substitute.",
+		"- Card-inside-card nesting and double backgrounds.",
+		"- Decorative glass, blurred blobs, gradient orbs, or unearned gradients.",
+		"- Stock SaaS hero formulas.",
+		"- Interchangeable feature-card walls.",
+		"- Generic testimonial, FAQ, pricing, and stats sections.",
+		"- Dashboard KPI-card rows used against task needs.",
+		"- Low-information empty states.",
+		"- Weak typography defaults.",
+		"- One-note palettes.",
+		"- Stock-like imagery where inspection is needed.",
+		"",
+		"### Context-Specific Banned Patterns",
+		"",
+		"- Banned pattern: Three-column feature-card wall for workflow explanation.",
+		"  Why banned here: The user compares state transitions rather than interchangeable claims.",
+		"  Detection hints: feature-card grid, repeated icon/title/body cards, grid-cols-3 marketing modules.",
+		"  Allowed replacement: Workflow lane with state chips and inline proof.",
+		"  Exception path: Allowed only for independent feature categories with distinct actions.",
+		"",
+		"### Allowed Replacement Patterns",
+		"",
+		"- Workflow lane with state chips, decision points, and inline proof.",
+		"",
+		"### Brand, Category, And Trust Reasoning",
+		"",
+		"- Brand: Existing product typography and repository tone favor direct engineering clarity.",
+		"- Category: Developer workflow tool with repeated operational scanning.",
+		"- Trust: Users must believe state transitions and gates are explicit before acting.",
+		"- Audience and workflow: Dense scanning, fast decisions, and accessible repeated use.",
+		"",
+		"### Visual Grammar Contract",
+		"",
+		"- Layout primitives: workflow lanes, tables, command surfaces, and inspectors.",
+		"- Hierarchy: Current state, blocker, next action, then supporting evidence.",
+		"- Typography: Stable scale with readable body-size floor.",
+		"- Color and palette roles: brand, surface, state, priority, danger, success, selected, disabled, focus.",
+		"- Density and spacing: Compact rhythm with responsive wrapping.",
+		"- Depth and containers: Borders only for semantic grouping.",
+		"- Imagery and icons: Functional icons only unless domain assets are inspectable.",
+		"- Motion: State-change attention only.",
+		"",
+		"### Most-Generic-Section Redesign Proof",
+		"",
+		"- Section: Dashboard overview.",
+		"- Obvious generic fallback: KPI card row above bento feature cards.",
+		"- Why weak: It hides workflow state behind interchangeable metrics.",
+		"- Replacement structure: Triage lane with state chips and inline validation evidence.",
+		"- Evidence source: Reference synthesis and product state model.",
+		"- Implementation implication: Build workflow primitives instead of metric cards.",
+		"",
+		"### Frontend Architecture Handoff",
+		"",
+		"- Allowed planning: Workflow lane components, state chips, validation evidence rows, responsive inspector.",
+		"- Out of scope: Marketing feature-card walls and decorative dashboard metrics.",
+		"- Encouraged primitives/components: lane, state chip, evidence row, command surface.",
+		"- Banned primitives/components: KPI card row, generic bento grid, card-inside-card.",
+		"- Required evidence: changed files and screenshot or DOM inspection when browser app is available.",
+		"- Responsive and accessibility constraints: no tiny body text; controls remain reachable on mobile.",
+		"- File/module planning notes: Keep state ownership near workflow data, not presentational cards.",
+		"",
+		"### Post-Implementation Violation Checks",
+		"",
+		"- Check: Inspect changed files for KPI card rows, generic bento grids, and feature-card walls.",
+		"- Evidence to cite: changed files and screenshot or browser evidence when available.",
+		"- Blocking result: Any banned pattern appears without exception evidence.",
+		"- Exception evidence: cite the exception path above before claiming pass.",
+	}, "\n")
 }
