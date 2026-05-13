@@ -53,6 +53,8 @@ func TestDesignReviewTemplateIncludesExplicitChecklist(t *testing.T) {
 		"- Gate Decision: pending",
 		"- Approved Direction: pending",
 		"- Banned Patterns: pending",
+		"- Reference-Driven Asset Manifest: pending",
+		"- Generated Image Plan: pending",
 		"- Open Questions: pending",
 		"- Unresolved Questions: pending",
 		"- Design Review Axes: evidence, assets, alternatives, hierarchy, craft, functionality, differentiation",
@@ -60,6 +62,7 @@ func TestDesignReviewTemplateIncludesExplicitChecklist(t *testing.T) {
 		"Art direction is clear and fits the task context.",
 		"Palette temperature and undertone logic are coherent",
 		"generic cards, border-heavy framing, or bento/grid fallback",
+		"Asset-led references define concrete image assets",
 		"The most generic section is redesigned",
 		"no novelty for novelty's sake",
 	} {

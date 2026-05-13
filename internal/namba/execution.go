@@ -198,6 +198,11 @@ func frontendViolationCheckFailure(root, specID, output string) error {
 		if frontendViolationCheckUsesException(section) && !frontendViolationCheckCitesException(section) {
 			return errors.New("Do-Not Design Violation Check failed: exception-path usage must cite the contract evidence that allows the exception.")
 		}
+		if report.AssetMode == frontendAssetModeGeneratedImages {
+			if err := frontendGeneratedAssetEvidenceFailure(output); err != nil {
+				return err
+			}
+		}
 		return nil
 	case "failed", "fail", "blocked", "violation", "violated", "unresolved":
 		pattern := firstNonBlank(parseLooseLabel(section, "Banned pattern"), parseLooseLabel(section, "Banned Pattern"), "unspecified banned pattern")
@@ -206,6 +211,19 @@ func frontendViolationCheckFailure(root, specID, output string) error {
 	default:
 		return fmt.Errorf("Do-Not Design Violation Check failed: unsupported Status %q.", status)
 	}
+}
+
+func frontendGeneratedAssetEvidenceFailure(output string) error {
+	section, ok := markdownSection(output, "Generated Asset Evidence", 2)
+	if !ok {
+		return errors.New("Generated Asset Evidence failed: frontend-major work with Asset mode `generated-images` must include `## Generated Asset Evidence` with manifest, generated file, prompt, and rendered-usage evidence.")
+	}
+	for _, label := range []string{"Manifest path", "Generated files", "Prompt summary", "Rendered usage evidence"} {
+		if isPendingMarkdownValue(parseLooseLabel(section, label)) {
+			return fmt.Errorf("Generated Asset Evidence failed: missing non-pending %s.", strings.ToLower(label))
+		}
+	}
+	return nil
 }
 
 func frontendViolationCheckUsesException(section string) bool {

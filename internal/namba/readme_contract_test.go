@@ -88,6 +88,8 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		"`namba-designer`",
 		"Do-Not Design Contract",
 		"Do-Not Design Violation Check",
+		"Generated Asset Evidence",
+		"asset manifest",
 		"`namba-backend-implementer`",
 		"`namba-data-engineer`",
 		"`namba-security-engineer`",

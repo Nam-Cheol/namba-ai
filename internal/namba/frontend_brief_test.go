@@ -179,6 +179,12 @@ func TestParseFrontendBriefAcceptsCompleteDoNotDesignContract(t *testing.T) {
 	if report.EvidenceStatus != frontendEvidenceStatusComplete {
 		t.Fatalf("expected original evidence status to stay complete, got %+v", report)
 	}
+	if report.AssetMode != frontendAssetModeGeneratedImages {
+		t.Fatalf("expected generated image asset mode, got %+v", report)
+	}
+	if report.GeneratedImagePlan != frontendNegativeContractStatusComplete {
+		t.Fatalf("expected complete generated image plan, got %+v", report)
+	}
 	if len(report.NegativeContractIssues) != 0 {
 		t.Fatalf("expected no negative-first issues, got %+v", report.NegativeContractIssues)
 	}
@@ -195,6 +201,20 @@ func TestParseFrontendBriefRejectsContextBanWithoutReplacement(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(report.NegativeContractIssues, "\n"), "allowed replacement") {
 		t.Fatalf("expected replacement issue, got %+v", report.NegativeContractIssues)
+	}
+}
+
+func TestParseFrontendBriefRejectsGeneratedImageModeWithoutAssetEvidence(t *testing.T) {
+	t.Parallel()
+
+	body := strings.Replace(validFrontendMajorBriefWithDoNotDesignContract(), "Output path: frontend/assets/workflow-state-hero.png", "Output path: Pending.", 1)
+	report := parseFrontendBrief(body)
+
+	if report.NegativeContractStatus != frontendNegativeContractStatusInsufficient {
+		t.Fatalf("expected insufficient generated-image contract, got %+v", report)
+	}
+	if !strings.Contains(strings.Join(report.NegativeContractIssues, "\n"), "output path") {
+		t.Fatalf("expected generated-image output path issue, got %+v", report.NegativeContractIssues)
 	}
 }
 
@@ -430,6 +450,29 @@ func validFrontendMajorBriefWithDoNotDesignContract() string {
 		"- Depth and containers: Borders only for semantic grouping.",
 		"- Imagery and icons: Functional icons only unless domain assets are inspectable.",
 		"- Motion: State-change attention only.",
+		"",
+		"### Reference-Driven Asset Manifest",
+		"",
+		"- Asset mode: generated-images",
+		"- Asset ID: workflow-state-hero",
+		"  Role in screen: first viewport workflow-state illustration that replaces generic KPI cards.",
+		"  Reference signal: reference synthesis requires visible workflow state proof instead of abstract SaaS cards.",
+		"  Generation prompt/spec: create an original high-fidelity workflow-state product visual with no logos, no watermark, and no decorative dashboard placeholder.",
+		"  Source asset path: n/a",
+		"  Output path: frontend/assets/workflow-state-hero.png",
+		"  Usage in implementation: hero media beside the workflow lane and above detailed evidence rows.",
+		"  Validation evidence: rendered screenshot confirms the generated asset appears in the first viewport.",
+		"- Not-applicable proof: n/a",
+		"",
+		"### Generated Image Execution Plan",
+		"",
+		"- Generation status: complete",
+		"- Tool path: Codex built-in image generation.",
+		"- Execution order: define asset manifest, generate bitmap, copy to frontend/assets, wire into layout, capture rendered screen.",
+		"- Prompt coverage: prompt names subject, reference signal, style, composition, output constraints, and banned logo/watermark/text drift.",
+		"- Output evidence: cite asset manifest and generated PNG paths.",
+		"- Rendered usage evidence: cite browser screenshot or local render showing the generated asset in context.",
+		"- Not-applicable proof: n/a",
 		"",
 		"### Most-Generic-Section Redesign Proof",
 		"",

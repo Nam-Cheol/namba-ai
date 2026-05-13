@@ -35,6 +35,10 @@ const (
 	frontendNegativeContractStatusMissing       = "missing"
 	frontendNegativeContractStatusInsufficient  = "insufficient"
 	frontendNegativeContractStatusNotApplicable = "not-applicable"
+
+	frontendAssetModeGeneratedImages = "generated-images"
+	frontendAssetModeExistingAssets  = "existing-assets"
+	frontendAssetModeNotApplicable   = "not-applicable"
 )
 
 var frontendBriefRequiredLabels = []string{
@@ -90,6 +94,8 @@ type frontendBriefReport struct {
 	ContractStatus         string
 	EvidenceStatus         string
 	NegativeContractStatus string
+	AssetMode              string
+	GeneratedImagePlan     string
 	MissingLabels          []string
 	ContractIssues         []string
 	NegativeContractIssues []string
@@ -388,6 +394,8 @@ func buildFrontendMajorBriefDoc(rationale string) string {
 		"",
 		"- Brand assets: Pending.",
 		"- Product or domain imagery: Pending.",
+		"- Generated image assets required: Pending.",
+		"- Asset manifest path: Pending.",
 		"- Existing UI screenshots: Pending.",
 		"- Asset constraints and gaps: Pending.",
 		"",
@@ -475,6 +483,29 @@ func buildFrontendMajorBriefDoc(rationale string) string {
 		"- Depth and containers: Pending.",
 		"- Imagery and icons: Pending.",
 		"- Motion: Pending.",
+		"",
+		"### Reference-Driven Asset Manifest",
+		"",
+		"- Asset mode: Pending. (`generated-images`, `existing-assets`, or `not-applicable`.)",
+		"- Asset ID: Pending.",
+		"  Role in screen: Pending.",
+		"  Reference signal: Pending.",
+		"  Generation prompt/spec: Pending.",
+		"  Source asset path: Pending.",
+		"  Output path: Pending.",
+		"  Usage in implementation: Pending.",
+		"  Validation evidence: Pending.",
+		"- Not-applicable proof: Pending.",
+		"",
+		"### Generated Image Execution Plan",
+		"",
+		"- Generation status: Pending.",
+		"- Tool path: Pending.",
+		"- Execution order: Pending.",
+		"- Prompt coverage: Pending.",
+		"- Output evidence: Pending.",
+		"- Rendered usage evidence: Pending.",
+		"- Not-applicable proof: Pending.",
 		"",
 		"### Most-Generic-Section Redesign Proof",
 		"",
@@ -663,6 +694,8 @@ func validateFrontendNegativeContract(report *frontendBriefReport, text string) 
 		"Allowed Replacement Patterns",
 		"Brand, Category, And Trust Reasoning",
 		"Visual Grammar Contract",
+		"Reference-Driven Asset Manifest",
+		"Generated Image Execution Plan",
 		"Most-Generic-Section Redesign Proof",
 		"Frontend Architecture Handoff",
 		"Post-Implementation Violation Checks",
@@ -693,11 +726,76 @@ func validateFrontendNegativeContract(report *frontendBriefReport, text string) 
 		}
 	}
 
+	validateFrontendReferenceDrivenAssets(report, section)
+
 	if report.NegativeContractStatus == frontendNegativeContractStatusComplete && len(report.NegativeContractIssues) > 0 {
 		report.NegativeContractStatus = frontendNegativeContractStatusInsufficient
 	}
 	if report.NegativeContractStatus == "" {
 		report.NegativeContractStatus = frontendNegativeContractStatusInsufficient
+	}
+}
+
+func validateFrontendReferenceDrivenAssets(report *frontendBriefReport, contractSection string) {
+	manifestSection, manifestExists := markdownSection(contractSection, "Reference-Driven Asset Manifest", 3)
+	if !manifestExists {
+		report.NegativeContractIssues = append(report.NegativeContractIssues, "Reference-driven asset manifest is missing.")
+		return
+	}
+	report.AssetMode = normalizeFrontendBriefEnum(parseLooseLabel(manifestSection, "Asset mode"))
+	switch report.AssetMode {
+	case frontendAssetModeGeneratedImages:
+		for _, label := range []string{"Asset ID", "Role in screen", "Reference signal", "Generation prompt/spec", "Output path", "Usage in implementation", "Validation evidence"} {
+			if isPendingMarkdownValue(parseLooseLabel(manifestSection, label)) {
+				report.NegativeContractIssues = append(report.NegativeContractIssues, fmt.Sprintf("Reference-driven asset manifest requires non-pending %s when Asset mode is generated-images.", strings.ToLower(label)))
+			}
+		}
+	case frontendAssetModeExistingAssets:
+		for _, label := range []string{"Asset ID", "Role in screen", "Reference signal", "Source asset path", "Usage in implementation", "Validation evidence"} {
+			if isPendingMarkdownValue(parseLooseLabel(manifestSection, label)) {
+				report.NegativeContractIssues = append(report.NegativeContractIssues, fmt.Sprintf("Reference-driven asset manifest requires non-pending %s when Asset mode is existing-assets.", strings.ToLower(label)))
+			}
+		}
+	case frontendAssetModeNotApplicable:
+		if isPendingMarkdownValue(parseLooseLabel(manifestSection, "Not-applicable proof")) {
+			report.NegativeContractIssues = append(report.NegativeContractIssues, "Reference-driven asset manifest requires a non-pending not-applicable proof.")
+		}
+	case "":
+		report.NegativeContractIssues = append(report.NegativeContractIssues, "Reference-driven asset manifest requires Asset mode.")
+	default:
+		report.NegativeContractIssues = append(report.NegativeContractIssues, fmt.Sprintf("Reference-driven asset manifest has unsupported Asset mode %q.", report.AssetMode))
+	}
+
+	planSection, planExists := markdownSection(contractSection, "Generated Image Execution Plan", 3)
+	if !planExists {
+		report.NegativeContractIssues = append(report.NegativeContractIssues, "Generated image execution plan is missing.")
+		return
+	}
+	report.GeneratedImagePlan = normalizeFrontendBriefEnum(parseLooseLabel(planSection, "Generation status"))
+	switch report.AssetMode {
+	case frontendAssetModeGeneratedImages:
+		if report.GeneratedImagePlan != frontendNegativeContractStatusComplete {
+			report.NegativeContractIssues = append(report.NegativeContractIssues, "Generated image execution plan requires Generation status: complete when Asset mode is generated-images.")
+		}
+		for _, label := range []string{"Tool path", "Execution order", "Prompt coverage", "Output evidence", "Rendered usage evidence"} {
+			if isPendingMarkdownValue(parseLooseLabel(planSection, label)) {
+				report.NegativeContractIssues = append(report.NegativeContractIssues, fmt.Sprintf("Generated image execution plan requires non-pending %s when Asset mode is generated-images.", strings.ToLower(label)))
+			}
+		}
+	case frontendAssetModeExistingAssets, frontendAssetModeNotApplicable:
+		if report.GeneratedImagePlan == "" {
+			report.NegativeContractIssues = append(report.NegativeContractIssues, "Generated image execution plan requires Generation status.")
+		}
+		if report.GeneratedImagePlan != frontendNegativeContractStatusNotApplicable && report.GeneratedImagePlan != frontendNegativeContractStatusComplete {
+			report.NegativeContractIssues = append(report.NegativeContractIssues, fmt.Sprintf("Generated image execution plan has unsupported Generation status %q for Asset mode %s.", report.GeneratedImagePlan, report.AssetMode))
+		}
+		if report.GeneratedImagePlan == frontendNegativeContractStatusNotApplicable && isPendingMarkdownValue(parseLooseLabel(planSection, "Not-applicable proof")) {
+			report.NegativeContractIssues = append(report.NegativeContractIssues, "Generated image execution plan requires a non-pending not-applicable proof when Generation status is not-applicable.")
+		}
+	default:
+		if report.GeneratedImagePlan == "" {
+			report.NegativeContractIssues = append(report.NegativeContractIssues, "Generated image execution plan requires Generation status.")
+		}
 	}
 }
 
@@ -1105,6 +1203,8 @@ func frontendGateReadinessLinesFromReport(report frontendBriefReport, specID str
 				fmt.Sprintf("- Prototype Gate: `%s`", report.Header.PrototypeGate),
 				fmt.Sprintf("- Prototype Evidence: `%s`", report.Header.PrototypeEvidence),
 				fmt.Sprintf("- Negative-First Contract Status: `%s`", report.NegativeContractStatus),
+				fmt.Sprintf("- Reference Asset Mode: `%s`", firstNonBlank(report.AssetMode, "unknown")),
+				fmt.Sprintf("- Generated Image Plan: `%s`", firstNonBlank(report.GeneratedImagePlan, "unknown")),
 			)
 			if len(report.MissingGates) > 0 {
 				lines = append(lines, fmt.Sprintf("- Missing gates: %s", quoteList(report.MissingGates)))
@@ -1189,6 +1289,8 @@ func frontendGateExecutionError(specID string, report frontendBriefReport) error
 	}
 	if report.Header.TaskClassification == frontendTaskClassificationMajor {
 		lines = append(lines, fmt.Sprintf("Negative-First Contract Status: `%s`", report.NegativeContractStatus))
+		lines = append(lines, fmt.Sprintf("Reference Asset Mode: `%s`", firstNonBlank(report.AssetMode, "unknown")))
+		lines = append(lines, fmt.Sprintf("Generated Image Plan: `%s`", firstNonBlank(report.GeneratedImagePlan, "unknown")))
 	}
 	if len(report.MissingGates) > 0 {
 		lines = append(lines, fmt.Sprintf("Missing gates: %s.", quoteList(report.MissingGates)))
@@ -1244,8 +1346,8 @@ func frontendGateRemediation(report frontendBriefReport) []string {
 	appendIf(hasInsufficient("Decision Gate"), "Tighten the approved direction and banned-pattern guidance so implementation scope is explicit.")
 	appendIf(hasMissing("Prototype Gate"), "Add reviewable prototype evidence such as a wireframe, annotated layout, or equivalent artifact.")
 	appendIf(hasInsufficient("Prototype Gate"), "Replace weak prototype evidence with a clearer structure or interaction artifact.")
-	appendIf(report.NegativeContractStatus == frontendNegativeContractStatusMissing, "Add the Do-Not Design Contract to `frontend-brief.md`, including default anti-patterns, context-specific bans, replacements, visual grammar, architecture handoff, and violation checks.")
-	appendIf(report.NegativeContractStatus == frontendNegativeContractStatusInsufficient, "Complete the Do-Not Design Contract with non-pending banned patterns, allowed replacements, brand/category/trust reasoning, visual grammar, architecture handoff, and post-implementation checks.")
+	appendIf(report.NegativeContractStatus == frontendNegativeContractStatusMissing, "Add the Do-Not Design Contract to `frontend-brief.md`, including default anti-patterns, context-specific bans, replacements, visual grammar, reference-driven asset manifest, generated image plan, architecture handoff, and violation checks.")
+	appendIf(report.NegativeContractStatus == frontendNegativeContractStatusInsufficient, "Complete the Do-Not Design Contract with non-pending banned patterns, allowed replacements, brand/category/trust reasoning, visual grammar, reference-driven asset manifest, generated image plan, architecture handoff, and post-implementation checks.")
 	switch report.Header.FrontendGateStatus {
 	case frontendGateStatusBlocked:
 		steps = append(steps, "Resolve the blocked frontend decision in `reviews/design.md`, update `frontend-brief.md` with the accepted direction and banned patterns, then mark the frontend gate approved only after design review clears.")

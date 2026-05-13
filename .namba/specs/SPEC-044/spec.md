@@ -36,6 +36,8 @@ This is a workflow failure, not a taste preference. The gate needs a required "d
 - Each banned pattern has an allowed replacement pattern or an explicit exception path, so the system blocks generic output without forcing novelty for novelty's sake.
 - The contract records brand, category, and trust reasoning before visual decisions are approved.
 - The contract records a visual grammar for layout primitives, type scale, color/palette role, density, depth, imagery/iconography, and motion.
+- Asset-led references such as "Apple iPhone page style" require a reference-driven asset manifest before implementation, so the system names which product, brand, object, place, person, gameplay, or state images the screen needs.
+- When the approved asset manifest calls for generated images, Namba requires actual image generation, persisted asset files, prompt summaries, and rendered usage evidence rather than allowing brand-color-only imitation around a generic SaaS/card landing page.
 - Page-, screen-, and section-scale work includes a most-generic-section redesign proof that names the weakest/generic section and explains the replacement.
 - `namba-frontend-architect` receives a concrete handoff from the design gate before planning component boundaries, state ownership, or file structure.
 - `namba-frontend-implementer` and `namba run` perform post-implementation violation checks against the contract.
@@ -53,6 +55,8 @@ Required content:
 - Allowed replacement patterns: acceptable layout, content, hierarchy, state, and interaction patterns that implementation may use instead.
 - Brand/category/trust reasoning: how the product category, user trust burden, brand assets, and audience expectations constrain visual choices.
 - Visual grammar contract: the approved grammar for layout primitives, typography scale, palette roles, density, depth/elevation, imagery/iconography, and motion.
+- Reference-driven asset manifest: asset mode (`generated-images`, `existing-assets`, or `not-applicable`), asset IDs, screen roles, reference signals, prompt/spec or source path, output paths, implementation usage, and validation evidence.
+- Generated image execution plan: generation status, tool path, execution order, prompt coverage, output evidence, and rendered usage evidence when `generated-images` is required.
 - Most-generic-section redesign proof: the section most likely to collapse into generic output, the rejected fallback, the replacement direction, and the evidence that makes the replacement better.
 - Frontend architecture handoff: what the frontend architect is allowed to plan, what must stay out of scope, which primitives/components are encouraged, and which are banned.
 - Post-implementation violation checks: the checks the implementer must run after coding, including which banned patterns to inspect, what file or screenshot evidence to cite, and what result blocks the run.
@@ -120,6 +124,22 @@ The approved direction must define a reusable visual grammar:
 
 Implementation should treat this grammar as the frontend architecture input, not as optional prose.
 
+## Reference-Driven Asset Manifest And Image Generation
+
+For asset-led visual references, the design gate must translate the reference into concrete assets before architecture or implementation starts. A request such as "build the frontend with Apple design" must not be interpreted as "use a similar white background, blue CTA, and cards." It must identify the image assets that make the reference work: first-viewport product imagery, detail shots, state imagery, or other inspectable media.
+
+The asset manifest must include:
+
+- Asset mode: `generated-images`, `existing-assets`, or `not-applicable`.
+- Asset ID and role in the screen.
+- Reference signal: what the reference proves this asset must do.
+- Generation prompt/spec for generated assets, or source asset path for existing assets.
+- Output path where the implementation will consume the asset.
+- Usage in implementation.
+- Validation evidence, such as rendered screenshot, DOM inspection, or local preview.
+
+When `Asset mode: generated-images` is used, implementation must generate the images before claiming the screen is complete, persist them to the planned asset paths, wire them into the rendered frontend, and report a `Generated Asset Evidence` section with manifest path, generated files, prompt summary, and rendered usage evidence.
+
 ## Most-Generic-Section Redesign Proof
 
 For page-, screen-, and section-scale `frontend-major` work, the synthesis must identify the section most likely to be generic and prove it was redesigned. The proof must include:
@@ -170,6 +190,7 @@ Minimum behavior:
 - Expanded execution contract: `namba run SPEC-XXX`
   - Block before implementation when the Do-Not Design Contract is missing or insufficient for `frontend-major`.
   - Block after implementation when the violation check reports banned generic UI fallback reliance.
+  - Block after implementation when `Asset mode: generated-images` is present but the runner result lacks `Generated Asset Evidence` proving generated file paths, prompt summary, manifest path, and rendered usage.
 - Expanded role and skill contracts:
   - `namba-designer`: owns negative-first synthesis, default library application, context-specific bans, replacements, visual grammar, and generic-section proof.
   - `namba-frontend-architect`: consumes the architecture handoff and refuses to plan from generic primitives alone.

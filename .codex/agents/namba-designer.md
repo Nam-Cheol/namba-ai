@@ -6,7 +6,8 @@ Responsibilities:
 - Lead with art direction: define the visual concept, hierarchy, and composition before defaulting to components or spacing tokens.
 - Set palette logic with explicit temperature and undertone discipline, restrained saturation, and deliberate accent use instead of trend-chasing or washed-out minimalism.
 - Choose semantic components and layout primitives that fit the content; do not default to interchangeable cards, border-heavy framing, or generic bento/grid patterns as the primary identity.
-- Own the Do-Not Design Contract: apply the default anti-pattern library, define context-specific bans, allowed replacements, visual grammar, architecture handoff, and generic-section proof.
+- Own the Do-Not Design Contract: apply the default anti-pattern library, define context-specific bans, allowed replacements, visual grammar, reference-driven asset manifest, generated-image plan, architecture handoff, and generic-section proof.
+- When a reference is asset-led, such as a premium product page, define the image assets and generation prompts needed for the first viewport instead of allowing brand-color-only imitation.
 - Keep motion purposeful: use it only when it clarifies hierarchy, attention, or state change.
 - For screen-, page-, or section-scale work, identify the most generic-looking section and propose a concrete redesign; for component-scale work, call out the risk without forcing gratuitous scope creep.
 - Guard against overcorrection: do not flatten everything into gray minimalism, do not add novelty without payoff, and do not sacrifice accessibility, design-system fit, or implementation realism.

@@ -827,21 +827,21 @@ func TestRunSkillAndUIRolesMentionFrontendGateContract(t *testing.T) {
 	t.Parallel()
 
 	runSkill := renderRunCommandSkill(initProfile{})
-	for _, want := range []string{"`frontend-brief.md`", "`frontend-major`", "canonical source for frontend task classification", "Do-Not Design Contract", "Do-Not Design Violation Check"} {
+	for _, want := range []string{"`frontend-brief.md`", "`frontend-major`", "canonical source for frontend task classification", "Do-Not Design Contract", "Do-Not Design Violation Check", "Generated Asset Evidence"} {
 		if !strings.Contains(runSkill, want) {
 			t.Fatalf("run skill missing %q: %q", want, runSkill)
 		}
 	}
 
 	frontendArchitect := renderFrontendArchitectRoleCard() + "\n" + renderFrontendArchitectCustomAgent()
-	for _, want := range []string{"`frontend-major` synthesis", "design clearance", "architecture handoff", "Do-Not Design Contract"} {
+	for _, want := range []string{"`frontend-major` synthesis", "design clearance", "architecture handoff", "Do-Not Design Contract", "asset manifest"} {
 		if !strings.Contains(frontendArchitect, want) {
 			t.Fatalf("frontend architect surface missing %q: %q", want, frontendArchitect)
 		}
 	}
 
 	frontendImplementer := renderFrontendImplementerRoleCard() + "\n" + renderFrontendImplementerCustomAgent()
-	for _, want := range []string{"frontend synthesis is cleared", "`frontend-brief.md`", "visual grammar", "Do-Not Design Violation Check"} {
+	for _, want := range []string{"frontend synthesis is cleared", "`frontend-brief.md`", "visual grammar", "Do-Not Design Violation Check", "Generated Asset Evidence"} {
 		if !strings.Contains(frontendImplementer, want) {
 			t.Fatalf("frontend implementer surface missing %q: %q", want, frontendImplementer)
 		}
@@ -851,7 +851,7 @@ func TestRunSkillAndUIRolesMentionFrontendGateContract(t *testing.T) {
 	if !strings.Contains(designer, "reference collection and synthesis") && !strings.Contains(designer, "Collect or critique references") {
 		t.Fatalf("designer surface should mention reference synthesis ownership: %q", designer)
 	}
-	for _, want := range []string{"Do-Not Design Contract", "allowed replacements", "visual grammar", "generic-section proof"} {
+	for _, want := range []string{"Do-Not Design Contract", "allowed replacements", "visual grammar", "asset manifest", "generated-image plan", "generic-section proof"} {
 		if !strings.Contains(designer, want) {
 			t.Fatalf("designer surface missing %q: %q", want, designer)
 		}
