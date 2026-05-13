@@ -53,6 +53,8 @@ func TestDesignReviewTemplateIncludesExplicitChecklist(t *testing.T) {
 		"- Gate Decision: pending",
 		"- Approved Direction: pending",
 		"- Banned Patterns: pending",
+		"- Reference-Driven Asset Manifest: pending",
+		"- Generated Image Plan: pending",
 		"- Open Questions: pending",
 		"- Unresolved Questions: pending",
 		"- Design Review Axes: evidence, assets, alternatives, hierarchy, craft, functionality, differentiation",
@@ -60,6 +62,7 @@ func TestDesignReviewTemplateIncludesExplicitChecklist(t *testing.T) {
 		"Art direction is clear and fits the task context.",
 		"Palette temperature and undertone logic are coherent",
 		"generic cards, border-heavy framing, or bento/grid fallback",
+		"Asset-led references define concrete image assets",
 		"The most generic section is redesigned",
 		"no novelty for novelty's sake",
 	} {
@@ -134,6 +137,68 @@ func TestRefreshSpecReviewReadinessIncludesFrontendGateMismatchSummary(t *testin
 	}
 	if strings.Contains(readiness, "Advisory status: all current review tracks are marked clear.") {
 		t.Fatalf("expected frontend blocker to prevent all-clear readiness summary, got %q", readiness)
+	}
+}
+
+func TestRefreshSpecReviewReadinessSurfacesNegativeFirstContractState(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+
+	specID := "SPEC-102"
+	specDir := filepath.Join(tmp, ".namba", "specs", specID)
+	reviewsDir := filepath.Join(specDir, "reviews")
+	if err := os.MkdirAll(reviewsDir, 0o755); err != nil {
+		t.Fatalf("mkdir reviews dir: %v", err)
+	}
+	for _, template := range specReviewTemplates() {
+		writeTestFile(t, filepath.Join(reviewsDir, template.Slug+".md"), strings.Join([]string{
+			"# " + template.Title,
+			"",
+			"- Status: clear",
+			"- Last Reviewed: 2026-04-23",
+			"- Reviewer: test",
+			"- Evidence Status: complete",
+			"- Gate Decision: approved",
+			"- Approved Direction: Approved dashboard workflow lane.",
+			"- Banned Patterns: Generic KPI card rows.",
+			"- Open Questions: none",
+			"- Unresolved Questions: none",
+			"",
+		}, "\n"))
+	}
+	writeTestFile(t, filepath.Join(specDir, frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: New dashboard hierarchy.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+	}, "\n"))
+
+	advisory, err := app.refreshSpecReviewReadiness(tmp, specID)
+	if err != nil {
+		t.Fatalf("refreshSpecReviewReadiness failed: %v", err)
+	}
+	if !strings.Contains(advisory, "frontend=negative-first-missing") {
+		t.Fatalf("expected negative-first advisory, got %q", advisory)
+	}
+
+	readiness := mustReadFile(t, filepath.Join(reviewsDir, "readiness.md"))
+	for _, want := range []string{
+		"Negative-First Contract Status: `missing`",
+		"Do-Not Design Contract section is missing",
+		"Advisory status: follow up on frontend=negative-first-missing",
+	} {
+		if !strings.Contains(readiness, want) {
+			t.Fatalf("expected readiness to contain %q, got %q", want, readiness)
+		}
 	}
 }
 

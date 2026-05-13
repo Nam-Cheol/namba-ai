@@ -1188,6 +1188,176 @@ func TestLoadRunExecutionContextBlocksFrontendMajorWhenDesignDecisionFieldsPendi
 	}
 }
 
+func TestLoadRunExecutionContextBlocksFrontendMajorWhenNegativeFirstContractMissing(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), strings.Join([]string{
+		"# Frontend Brief",
+		"",
+		"Task Classification: frontend-major",
+		"Classification Rationale: New dashboard hierarchy.",
+		"Frontend Gate Status: approved",
+		"Problem Gate: complete",
+		"Reference Gate: complete",
+		"Critique Gate: complete",
+		"Decision Gate: complete",
+		"Prototype Gate: complete",
+		"Prototype Evidence: wireframe",
+	}, "\n"))
+	writeApprovedDesignReview(t, tmp, "SPEC-001")
+
+	_, err := app.loadRunExecutionContext(tmp, runExecuteOptions{specID: "SPEC-001", mode: executionModeDefault})
+	if err == nil {
+		t.Fatal("expected missing negative-first contract to block frontend-major execution")
+	}
+	for _, want := range []string{
+		"blocked for frontend synthesis",
+		"Negative-First Contract Status: `missing`",
+		"Do-Not Design Contract section is missing",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("expected block message to contain %q, got %v", want, err)
+		}
+	}
+}
+
+func TestRunFailsFrontendMajorWhenViolationCheckReportsBannedPattern(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), validFrontendMajorBriefWithDoNotDesignContract())
+	writeApprovedDesignReview(t, tmp, "SPEC-001")
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			return strings.Join([]string{
+				"Implementation complete.",
+				"",
+				"## Do-Not Design Violation Check",
+				"- Status: failed",
+				"- Banned pattern: KPI card row",
+				"- Remediation: Replace with workflow lane from the contract.",
+			}, "\n"), nil
+		case isShellCommand(name):
+			t.Fatalf("validation should not run after failed Do-Not Design Violation Check: %s %v", name, args)
+			return "", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	err := app.Run(context.Background(), []string{"run", "SPEC-001"})
+	if err == nil {
+		t.Fatal("expected post-implementation violation check failure")
+	}
+	if !strings.Contains(err.Error(), "Do-Not Design Violation Check failed") || !strings.Contains(err.Error(), "KPI card row") {
+		t.Fatalf("expected violation check error, got %v", err)
+	}
+}
+
+func TestRunAllowsFrontendMajorWhenViolationCheckCitesExceptionPath(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), validFrontendMajorBriefWithDoNotDesignContract())
+	writeApprovedDesignReview(t, tmp, "SPEC-001")
+
+	var promptArg string
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			promptArg = args[len(args)-1]
+			return strings.Join([]string{
+				"Implementation complete.",
+				"",
+				"## Do-Not Design Violation Check",
+				"- Status: passed",
+				"- Changed files: internal/ui/dashboard.tsx",
+				"- Exception path cited: Allowed only for independent feature categories with distinct actions.",
+				"- Result: no banned fallback reliance remains.",
+				"",
+				"## Generated Asset Evidence",
+				"- Manifest path: frontend/assets/asset-manifest.json",
+				"- Generated files: frontend/assets/workflow-state-hero.png",
+				"- Prompt summary: original workflow-state product visual replacing KPI cards.",
+				"- Rendered usage evidence: screenshot confirms the generated asset appears in the first viewport.",
+			}, "\n"), nil
+		case isShellCommand(name):
+			return "validation ok", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"run", "SPEC-001"}); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+	if !strings.Contains(promptArg, "## Do-Not Design Violation Check") {
+		t.Fatalf("expected execution prompt to require violation check, got %q", promptArg)
+	}
+	if !strings.Contains(promptArg, "## Generated Asset Evidence") || !strings.Contains(promptArg, "Asset mode: generated-images") {
+		t.Fatalf("expected execution prompt to require generated asset evidence, got %q", promptArg)
+	}
+}
+
+func TestRunFailsFrontendMajorWhenGeneratedAssetEvidenceMissing(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", frontendBriefFileName), validFrontendMajorBriefWithDoNotDesignContract())
+	writeApprovedDesignReview(t, tmp, "SPEC-001")
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			return strings.Join([]string{
+				"Implementation complete.",
+				"",
+				"## Do-Not Design Violation Check",
+				"- Status: passed",
+				"- Changed files: internal/ui/dashboard.tsx",
+				"- Result: no banned fallback reliance remains.",
+			}, "\n"), nil
+		case isShellCommand(name):
+			t.Fatalf("validation should not run after missing Generated Asset Evidence: %s %v", name, args)
+			return "", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	err := app.Run(context.Background(), []string{"run", "SPEC-001"})
+	if err == nil {
+		t.Fatal("expected generated asset evidence failure")
+	}
+	if !strings.Contains(err.Error(), "Generated Asset Evidence failed") {
+		t.Fatalf("expected generated asset evidence error, got %v", err)
+	}
+}
+
 func TestRunUsesConfiguredApprovalAndSandbox(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
@@ -1220,6 +1390,31 @@ func TestRunUsesConfiguredApprovalAndSandbox(t *testing.T) {
 	if result.ApprovalPolicy != "never" || result.SandboxMode != "read-only" {
 		t.Fatalf("unexpected runtime modes: %+v", result)
 	}
+}
+
+func writeApprovedDesignReview(t *testing.T, root, specID string) {
+	t.Helper()
+	writeTestFile(t, filepath.Join(root, ".namba", "specs", specID, "reviews", "design.md"), strings.Join([]string{
+		"# Design Review",
+		"",
+		"- Status: approved",
+		"- Evidence Status: complete",
+		"- Gate Decision: approved",
+		"- Approved Direction: Workflow lane with state chips and inline proof.",
+		"- Banned Patterns: KPI card rows, generic bento grids, feature-card walls.",
+		"- Negative-First Contract: complete",
+		"- Default Library Fit: complete",
+		"- Context-Specific Bans And Replacements: complete",
+		"- Reference-Driven Asset Manifest: complete",
+		"- Generated Image Plan: complete",
+		"- Visual Grammar: complete",
+		"- Generic-Section Proof: complete",
+		"- Architecture Handoff: complete",
+		"- Violation-Check Plan: complete",
+		"- Open Questions: none",
+		"- Unresolved Questions: none",
+		"",
+	}, "\n"))
 }
 
 func TestRunRejectsUnsupportedRunner(t *testing.T) {

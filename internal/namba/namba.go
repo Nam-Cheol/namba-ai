@@ -1534,7 +1534,7 @@ func (a *App) loadRunExecutionContext(root string, options runExecuteOptions) (r
 				return runExecutionContext{}, frontendGateExecutionError(specPkg.ID, frontend)
 			}
 		} else if frontend.Header.TaskClassification == frontendTaskClassificationMajor {
-			frontendReady := frontend.Header.FrontendGateStatus == frontendGateStatusApproved && frontend.EvidenceStatus == frontendEvidenceStatusComplete && len(frontend.Mismatches) == 0
+			frontendReady := frontend.Header.FrontendGateStatus == frontendGateStatusApproved && frontend.EvidenceStatus == frontendEvidenceStatusComplete && frontend.NegativeContractStatus == frontendNegativeContractStatusComplete && len(frontend.Mismatches) == 0
 			if !frontendReady {
 				return runExecutionContext{}, frontendGateExecutionError(specPkg.ID, frontend)
 			}
@@ -1800,6 +1800,21 @@ func (a *App) buildExecutionPrompt(root string, specPkg specPackage, qualityCfg 
 			"## Frontend Brief",
 			string(frontendBytes),
 		)
+		frontendReport := parseFrontendBrief(string(frontendBytes))
+		if frontendReport.Header.TaskClassification == frontendTaskClassificationMajor {
+			promptLines = append(promptLines,
+				"",
+				"## Frontend Major Negative-First Execution Contract",
+				"- Implement only within the approved Do-Not Design Contract, visual grammar, and frontend architecture handoff.",
+				"- If the approved reference direction depends on product, brand, place, person, object, gameplay, or state imagery, define the asset manifest first, generate or source the required assets, persist them to the implementation asset paths, and wire those real assets into the first rendered screen.",
+				"- Do not satisfy asset-led references by imitating brand colors around a generic SaaS landing page, feature-card wall, placeholder image block, or abstract dashboard preview.",
+				"- When `Asset mode: generated-images` is present, use available image-generation capability before coding the final screen and include a `## Generated Asset Evidence` section with `Manifest path`, `Generated files`, `Prompt summary`, and `Rendered usage evidence`.",
+				"- Before claiming completion, include a `## Do-Not Design Violation Check` section in the runner result.",
+				"- The section must cite changed files and screenshot, DOM, or local inspection evidence when available.",
+				"- If a banned pattern appears, report `Status: failed`, name the banned pattern, and provide the remediation path.",
+				"- If an exception path is used, report `Status: passed` only when the exception evidence cites the contract field that allows it.",
+			)
+		}
 	}
 	if specReviewReadinessExists(root, specPkg.ID) {
 		readinessBytes, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(specReviewReadinessPath(specPkg.ID))))

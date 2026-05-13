@@ -2123,7 +2123,7 @@ func renderManagedProjectRootWorkSummarySection(lang string) []string {
 			"- Execute `namba run SPEC-XXX` for the default flow, or use `--solo` for a single runner in one workspace, `--team` for same-workspace multi-agent execution, and `--parallel` for worktree fan-out/fan-in execution.",
 			"- Use `namba queue start SPEC-001..SPEC-003` when existing SPECs should be completed in order; queue state resumes from `.namba/logs/queue/` and risky Git/GitHub states stop as blocked.",
 			"- Frontend-touching planning writes `.namba/specs/<SPEC>/frontend-brief.md`; explicit `frontend-major` work uses that brief as a canonical gate before implementation.",
-			"- Frontend-touching planning writes `.namba/specs/<SPEC>/frontend-brief.md`; explicit `frontend-major` work uses that brief as a canonical gate before implementation.",
+			"- `frontend-major` briefs include a Do-Not Design Contract with reference-driven asset manifest and generated-image plan, and run results must report a Do-Not Design Violation Check plus Generated Asset Evidence when generated images are required.",
 			"- Keep branch, PR, and Codex review flow consistent across contributors.",
 			"",
 		}
@@ -2341,6 +2341,7 @@ func renderManagedProjectRootWhatYouCanDoSection(lang string) []string {
 			"- Execute `namba run SPEC-XXX` for the default flow, or use `--solo` for a single runner in one workspace, `--team` for same-workspace multi-agent execution, and `--parallel` for worktree fan-out/fan-in execution.",
 			"- Use `namba queue start SPEC-001..SPEC-003` when existing SPECs should be completed in order; queue state resumes from `.namba/logs/queue/` and risky Git/GitHub states stop as blocked.",
 			"- Frontend-touching planning writes `.namba/specs/<SPEC>/frontend-brief.md`; explicit `frontend-major` work uses that brief as a canonical gate before implementation.",
+			"- `frontend-major` briefs include a Do-Not Design Contract with reference-driven asset manifest and generated-image plan, and run results must report a Do-Not Design Violation Check plus Generated Asset Evidence when generated images are required.",
 			"- Keep branch, PR, and Codex review flow consistent across contributors.",
 			"",
 		}
@@ -2387,6 +2388,7 @@ func renderManagedProjectRootCustomAgentsSection(lang string) []string {
 			"",
 			"- Strategy and readiness: `namba-product-manager` shapes scope and acceptance, `namba-planner` turns a SPEC into an execution plan, and `namba-plan-reviewer` validates whether the review set is coherent enough to start implementation.",
 			"- UI split: `namba-designer` owns art direction plus reference collection and synthesis, `namba-frontend-architect` plans hierarchy and state only after the frontend gate is satisfied, `namba-frontend-implementer` ships approved UI work only after synthesis plus design clearance, and `namba-mobile-engineer` handles mobile-specific constraints.",
+			"- For `frontend-major`, `namba-designer` owns the Do-Not Design Contract including the asset manifest and generated-image plan, `namba-frontend-architect` consumes the architecture handoff, and `namba-frontend-implementer` reports Do-Not Design Violation Check plus Generated Asset Evidence when required.",
 			"- Routing examples: `Redesign this landing page hero so it stops looking generic` -> `namba-designer`; `Plan the component/state split for this dashboard` -> `namba-frontend-architect`; `Implement the approved dashboard filters and responsive states` -> `namba-frontend-implementer`.",
 			"- Backend and data: `namba-backend-architect`, `namba-backend-implementer`, and `namba-data-engineer` cover APIs, persistence, migrations, and pipelines.",
 			"- Security and delivery: `namba-security-engineer`, `namba-test-engineer`, `namba-devops-engineer`, and `namba-reviewer` cover hardening, regression confidence, CI/CD, and final acceptance.",
@@ -2735,6 +2737,7 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- `namba run SPEC-XXX --solo`: a single runner in one workspace.",
 			"- `namba run SPEC-XXX --team`: same-workspace multi-agent execution.",
 			"- `namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.",
+			"- Explicit `frontend-major` runs block when the Do-Not Design Contract is missing or insufficient, and implementation output must include a Do-Not Design Violation Check plus Generated Asset Evidence when `Asset mode: generated-images` is required.",
 			"- Codex subagent threads are controlled by `.codex/config.toml [agents].max_threads = 5`; Namba worktree workers stay separate at `.namba/config/sections/workflow.yaml max_parallel_workers: 3`.",
 			"- Persisted Codex `/goal` workflows are a future orchestration candidate, not a required Namba runtime dependency.",
 			"",
@@ -2752,6 +2755,7 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- Default `namba run` stays in the standalone runner unless the prompt shows a strong specialist signal.",
 			"- `--solo` keeps the run inside one runner unless a single specialist would materially reduce risk; `--team` keeps the work in one workspace while coordinating multiple specialists plus a final reviewer when acceptance spans multiple domains.",
 			"- Route art direction, palette/tone logic, composition, motion intent, Figma critique, and generic-section redesign work to `namba-designer`; route component boundaries, state ownership, and UI delivery planning to `namba-frontend-architect`; route approved UI implementation to `namba-frontend-implementer`; route mobile-specific UI delivery to `namba-mobile-engineer`; route API, schema, and pipeline work to `namba-backend-implementer` or `namba-data-engineer`; route auth, secrets, and compliance work to `namba-security-engineer`; route deployment and runtime work to `namba-devops-engineer`.",
+			"- For `frontend-major`, `namba-designer` owns the Do-Not Design Contract including the asset manifest and generated-image plan, `namba-frontend-architect` consumes the architecture handoff, and `namba-frontend-implementer` reports Do-Not Design Violation Check plus Generated Asset Evidence against the approved visual grammar.",
 			"- Examples: `Redesign the hero so it stops looking generic` -> `namba-designer`; `Plan the component boundaries for this dashboard` -> `namba-frontend-architect`; `Implement the approved dashboard filters` -> `namba-frontend-implementer`.",
 			"- Keep the standalone runner as integrator and validation owner; use `namba-reviewer` for the final acceptance pass rather than growing an uncontrolled swarm.",
 			"",
@@ -2761,6 +2765,7 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- `namba plan` now hands off to `$namba-plan-review` automatically by default; use `--no-review` when you only want the scaffold. `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` remain available for targeted follow-up.",
 			"- `$namba-plan-review` inherits the same planning branch contract: by default it creates or switches to the dedicated `spec/...` branch in the current workspace, treats `--current-workspace` as the only explicit escape hatch, and does not create planning worktrees.",
 			"- If `namba regen` or `namba sync` changes generated instruction surfaces, start a fresh Codex session so the updated guidance is loaded before continuing a long repair loop.",
+			"- Frontend-touching planning writes `.namba/specs/<SPEC>/frontend-brief.md`; explicit `frontend-major` briefs include a Do-Not Design Contract with banned generic fallbacks, allowed replacements, visual grammar, reference-driven asset manifest, generated-image plan, architecture handoff, and violation checks.",
 			"- Missing review passes stay advisory by default: `namba run`, `namba sync`, and `namba pr` surface the current readiness summary without silently hard-blocking delivery.",
 			"",
 		)
@@ -3350,8 +3355,9 @@ func renderManagedProjectWorkflowGuideReviewReadinessSection(lang string) []stri
 			"- `$namba-plan-review` inherits the same planning branch contract: by default it creates or switches to the dedicated `spec/...` branch in the current workspace, treats `--current-workspace` as the only explicit escape hatch, and does not create planning worktrees.",
 			"- If `namba regen` or `namba sync` changes generated instruction surfaces, start a fresh Codex session so the updated guidance is loaded before continuing a long repair loop.",
 			"- Frontend-touching planning also seeds `.namba/specs/<SPEC>/frontend-brief.md`, and explicit `frontend-major` work uses that brief as the canonical gate contract.",
+			"- `frontend-major` briefs include a Do-Not Design Contract so banned generic fallbacks, allowed replacements, visual grammar, reference-driven asset manifest, generated-image plan, architecture handoff, and post-implementation violation checks are visible before coding.",
 			"- Review readiness is advisory by default: missing review passes are surfaced clearly by `namba run`, `namba sync`, and `namba pr`, but they do not silently become a hard gate.",
-			"- Explicit `frontend-major` runs can still block on missing, insufficient, invalid, or mismatched frontend evidence instead of silently proceeding.",
+			"- Explicit `frontend-major` runs can still block on missing, insufficient, invalid, mismatched, or negative-first contract evidence, and implementation results must include a Do-Not Design Violation Check plus Generated Asset Evidence when `Asset mode: generated-images` is required.",
 			"",
 		}
 	}
@@ -3400,6 +3406,7 @@ func renderManagedProjectWorkflowGuideRoleRoutingSection(lang string) []string {
 			"- `--solo` keeps the run inside one runner unless a single specialist would materially reduce risk.",
 			"- `--team` keeps the work in one workspace while coordinating multiple specialists plus a final reviewer when acceptance spans multiple domains.",
 			"- Route art direction plus reference synthesis to `namba-designer`; route component boundaries and state planning only after the frontend gate is satisfied to `namba-frontend-architect`; route approved UI implementation only after synthesis plus design clearance to `namba-frontend-implementer`; route mobile-specific UI delivery to `namba-mobile-engineer`; route API, schema, and pipeline work to `namba-backend-implementer` or `namba-data-engineer`; route auth, secrets, and compliance work to `namba-security-engineer`; route deployment and runtime work to `namba-devops-engineer`.",
+			"- For `frontend-major`, `namba-designer` owns the Do-Not Design Contract including the asset manifest and generated-image plan, `namba-frontend-architect` consumes the architecture handoff, and `namba-frontend-implementer` reports Do-Not Design Violation Check plus Generated Asset Evidence against the approved visual grammar.",
 			"- Examples: `Redesign the hero so it stops looking generic` -> `namba-designer`; `Plan the component boundaries for this dashboard` -> `namba-frontend-architect`; `Implement the approved dashboard filters` -> `namba-frontend-implementer`.",
 			"- Keep the standalone runner as integrator and validation owner, and use `namba-reviewer` last when multiple specialists contribute.",
 			"",
