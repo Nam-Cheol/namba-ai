@@ -33,6 +33,8 @@ const (
 	manifestPath = ".namba/manifest.json"
 
 	manifestOwnerManaged = "namba-managed"
+
+	noReviewPlanningFlag = "--no-review"
 )
 
 type App struct {
@@ -651,7 +653,7 @@ func (a *App) runPlan(ctx context.Context, args []string) error {
 	if options.help {
 		return a.printPlanUsage()
 	}
-	return a.createSpecPackage(ctx, "plan", options.description, options.currentWorkspace)
+	return a.createSpecPackage(ctx, "plan", options.description, options.currentWorkspace, !options.noReview)
 }
 
 func (a *App) runHarness(ctx context.Context, args []string) error {
@@ -662,7 +664,7 @@ func (a *App) runHarness(ctx context.Context, args []string) error {
 	if options.help {
 		return a.printHarnessUsage()
 	}
-	return a.createSpecPackage(ctx, "harness", options.description, options.currentWorkspace)
+	return a.createSpecPackage(ctx, "harness", options.description, options.currentWorkspace, false)
 }
 
 func (a *App) runFix(ctx context.Context, args []string) error {
@@ -686,7 +688,7 @@ func (a *App) runFix(ctx context.Context, args []string) error {
 	return subcommand.Run(a, ctx, root, options)
 }
 
-func (a *App) createSpecPackage(ctx context.Context, kind, description string, currentWorkspace bool) error {
+func (a *App) createSpecPackage(ctx context.Context, kind, description string, currentWorkspace, autoReview bool) error {
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
@@ -715,12 +717,21 @@ func (a *App) createSpecPackage(ctx context.Context, kind, description string, c
 
 	fmt.Fprint(a.stdout, formatPlanningStartSummary(start))
 	fmt.Fprintf(a.stdout, "Created %s\n", scaffoldCtx.SpecID)
+	if kind == "plan" {
+		if autoReview {
+			fmt.Fprintf(a.stdout, "Auto review: `$namba-plan-review %s`\n", scaffoldCtx.SpecID)
+			fmt.Fprintf(a.stdout, "Pass %s to scaffold only.\n", noReviewPlanningFlag)
+		} else {
+			fmt.Fprintf(a.stdout, "Auto review skipped by %s.\n", noReviewPlanningFlag)
+		}
+	}
 	return nil
 }
 
 type planInvocation struct {
 	help             bool
 	currentWorkspace bool
+	noReview         bool
 	description      string
 }
 
@@ -754,6 +765,11 @@ func parseDescriptionCommandArgs(command, field string, args []string) (planInvo
 			return planInvocation{help: true}, nil
 		case currentWorkspacePlanningFlag:
 			invocation.currentWorkspace = true
+		case noReviewPlanningFlag:
+			if command != "plan" {
+				return planInvocation{}, fmt.Errorf("unknown flag %q", arg)
+			}
+			invocation.noReview = true
 		default:
 			if isStandaloneFlagToken(arg) {
 				return planInvocation{}, fmt.Errorf("unknown flag %q", arg)
@@ -845,7 +861,7 @@ func (a *App) resolveFixSubcommand(name string) (fixSubcommandDefinition, bool) 
 }
 
 func (a *App) runFixPlanSubcommand(ctx context.Context, _ string, options fixInvocation) error {
-	return a.createSpecPackage(ctx, "fix", options.description, options.currentWorkspace)
+	return a.createSpecPackage(ctx, "fix", options.description, options.currentWorkspace, false)
 }
 
 func (a *App) runFixRunSubcommand(ctx context.Context, root string, options fixInvocation) error {
@@ -876,11 +892,21 @@ func (a *App) printFixUsage() error {
 }
 
 func planUsageText() string {
-	return descriptionScaffoldUsageText(
-		"plan",
+	lines := []string{
+		"namba plan",
+		"",
+		"Usage:",
+	}
+	lines = append(lines, descriptionScaffoldUsageLines("namba plan", "description")...)
+	lines = append(lines,
+		fmt.Sprintf("  namba plan %s \"<description>\"", noReviewPlanningFlag),
+		"",
+		"Behavior:",
 		"  Create the next feature SPEC package under .namba/specs/ and seed review artifacts.",
 		fmt.Sprintf("  Safe by default: create and switch to a dedicated SPEC branch in the current workspace unless you explicitly pass %s.", currentWorkspacePlanningFlag),
+		fmt.Sprintf("  Auto review by default: Codex should continue with `$namba-plan-review SPEC-XXX` unless you pass %s.", noReviewPlanningFlag),
 	)
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func harnessUsageText() string {

@@ -400,17 +400,21 @@ func TestDescriptionScaffoldUsageTextPreservesPlanAndHarnessShape(t *testing.T) 
 		commandLine1 string
 		commandLine2 string
 		commandLine3 string
+		commandLine4 string
 		behaviorLine string
 		safetyLine   string
+		autoLine     string
 	}{
 		{
 			name:         "plan",
 			got:          planUsageText(),
 			commandLine1: "  namba plan \"<description>\"",
 			commandLine2: "  namba plan -- \"<description with flag-like text>\"",
-			commandLine3: "  namba plan --current-workspace \"<description>\"",
+			commandLine3: "  namba plan --no-review \"<description>\"",
+			commandLine4: "  namba plan --current-workspace \"<description>\"",
 			behaviorLine: "  Create the next feature SPEC package under .namba/specs/ and seed review artifacts.",
 			safetyLine:   "  Safe by default: create and switch to a dedicated SPEC branch in the current workspace unless you explicitly pass --current-workspace.",
+			autoLine:     "  Auto review by default: Codex should continue with `$namba-plan-review SPEC-XXX` unless you pass --no-review.",
 		},
 		{
 			name:         "harness",
@@ -427,7 +431,10 @@ func TestDescriptionScaffoldUsageTextPreservesPlanAndHarnessShape(t *testing.T) 
 		if !strings.Contains(tc.got, "Usage:\n") || !strings.Contains(tc.got, "\n\nBehavior:\n") {
 			t.Fatalf("%s usage text missing section shape: %q", tc.name, tc.got)
 		}
-		for _, want := range []string{tc.commandLine1, tc.commandLine2, tc.commandLine3, tc.behaviorLine, tc.safetyLine} {
+		for _, want := range []string{tc.commandLine1, tc.commandLine2, tc.commandLine3, tc.commandLine4, tc.behaviorLine, tc.safetyLine, tc.autoLine} {
+			if want == "" {
+				continue
+			}
 			if !strings.Contains(tc.got, want) {
 				t.Fatalf("%s usage text missing %q in %q", tc.name, want, tc.got)
 			}

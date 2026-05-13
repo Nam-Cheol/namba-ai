@@ -23,7 +23,7 @@
 - `$namba-create`: repo-local skill や project-scoped custom agent が直接必要なときの preview-first 生成経路です。目的が SPEC パッケージなら `namba plan` または `namba harness` を選んでください。
 - `namba project`: 現在のリポジトリ docs と codemap を更新し、SPEC パッケージは作成しません。
 - `namba codex access`: 現在の repo-owned Codex access default を inspect-only で確認し、明示的な flag を渡したときだけ approval_policy / sandbox_mode を変更します。
-- `namba plan "description"`: 次の機能 SPEC パッケージと review artifact を作成します。
+- `namba plan "description"`: 次の機能 SPEC パッケージと review artifact を作成し、`--no-review` がなければ `$namba-plan-review` に続けます。
 - `namba harness "description"`: agent / skill / workflow / orchestration 再利用向けの harness-oriented SPEC パッケージと review artifact を作成します。
 - `namba fix --command plan "issue description"`: バグ修正 SPEC パッケージと review artifact を作成します。
 - planning の既定動作: 現在の workspace で専用 `spec/...` branch を作成または checkout して scaffold します。`--current-workspace` は新しい SPEC branch を作らず現在の branch に直接 scaffold したい場合だけ使い、worktree は一時的な `namba run SPEC-XXX --parallel` 実行にだけ使います。

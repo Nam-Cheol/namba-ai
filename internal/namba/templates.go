@@ -27,8 +27,8 @@ func renderAgents(profile initProfile) string {
 		"2. Run `namba project` to refresh project docs and codemaps.\n"+
 		"3. Use `$namba-coach` when the user's current goal is vague or a command choice may need correction before handing off to one workflow.\n"+
 		"4. Use `$namba-create` when you need to create a repo-local skill, a project-scoped custom agent, or both through the preview-first Codex-native creation flow.\n"+
-		"5. Run `namba plan \"<description>\"` for feature planning, `namba harness \"<description>\"` for harness-oriented planning, `namba fix --command plan \"<issue description>\"` for bugfix SPEC planning, or `namba fix \"<issue description>\"` for direct repair.\n"+
-		"6. Run the relevant plan-review skills, or use `$namba-plan-review` when you want the create-plus-review loop bundled, and keep `.namba/specs/<SPEC>/reviews/readiness.md` current when the SPEC needs product, engineering, or design sign-off.\n"+
+		"5. Run `namba plan \"<description>\"` for feature planning and, unless `--no-review` is present, continue immediately with `$namba-plan-review SPEC-XXX` after the SPEC is created. Use `namba harness \"<description>\"` for harness-oriented planning, `namba fix --command plan \"<issue description>\"` for bugfix SPEC planning, or `namba fix \"<issue description>\"` for direct repair.\n"+
+		"6. Run the relevant plan-review skills when review is not automatic, or use `$namba-plan-review` when you want the create-plus-review loop bundled, and keep `.namba/specs/<SPEC>/reviews/readiness.md` current when the SPEC needs product, engineering, or design sign-off.\n"+
 		"7. Run `namba run SPEC-XXX` to execute the SPEC with Codex-native workflow.\n"+
 		"8. Use `$namba-queue` or `namba queue start <SPEC-RANGE|SPEC-LIST>` when existing SPEC packages should move through the conveyor one active SPEC at a time.\n"+
 		"9. Run `namba sync` to refresh artifacts and PR-ready documents.\n"+
@@ -83,7 +83,7 @@ func renderNambaSkillCommandMappingSection() []string {
 		"- `namba codex access`: inspect the current repo-owned Codex access defaults, or update `approval_policy` / `sandbox_mode` with explicit flags after initialization.",
 		"- `namba regen`: regenerate AGENTS, repo-local skills, command-entry skills, Codex custom agents, readable role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
 		"- `namba update [--version vX.Y.Z]`: self-update the installed `namba` binary from GitHub Release assets.",
-		"- `namba plan \"<description>\"`: create the next feature SPEC package under `.namba/specs/`, and when branch-per-work is enabled create or switch to the dedicated `spec/...` branch in the current workspace.",
+		"- `namba plan \"<description>\"`: create the next feature SPEC package under `.namba/specs/`, and when branch-per-work is enabled create or switch to the dedicated `spec/...` branch in the current workspace; unless `--no-review` is present, continue immediately with `$namba-plan-review SPEC-XXX` after creation.",
 		"- `$namba-plan-review`: create or resolve a SPEC, run the three plan-review tracks in parallel when possible, and drive the advisory readiness loop before implementation starts.",
 		"- `namba harness \"<description>\"`: create the next harness-oriented SPEC package under `.namba/specs/` through the same dedicated-branch planning contract for reusable agent, skill, workflow, or orchestration work.",
 		"- `$namba-plan-pm-review` / `$namba-plan-eng-review` / `$namba-plan-design-review`: update product, engineering, or design review artifacts under `.namba/specs/<SPEC>/reviews/` and refresh advisory readiness.",
@@ -349,7 +349,8 @@ func renderPlanCommandSkill() string {
 			"- Do not create a planning worktree. Reserve temporary worktrees for overlapping `namba run SPEC-XXX --parallel` execution, and expect them to disappear after the run finishes cleanly.",
 			"- Create the next sequential `SPEC-XXX` package under `.namba/specs/` after that branch decision is explicit.",
 			"- Seed `.namba/specs/<SPEC>/reviews/` with product, engineering, design, and aggregate readiness artifacts.",
-			"- Point follow-up review work to `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review`, or use `$namba-plan-review` when the user wants the create-plus-review loop bundled into one skill.",
+			"- Unless the invocation includes `--no-review`, treat the created SPEC as an automatic handoff and immediately continue with `$namba-plan-review SPEC-XXX` after the CLI prints the new SPEC ID.",
+			"- When `--no-review` is present, stop after scaffold creation and point any later review work to `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review`, or `$namba-plan-review SPEC-XXX`.",
 			"- Keep the scope concrete and implementation-ready.",
 		},
 	)

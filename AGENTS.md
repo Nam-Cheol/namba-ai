@@ -18,8 +18,8 @@ When the user references `namba`, `namba help`, `namba project`, `namba regen`, 
 2. Run `namba project` to refresh project docs and codemaps.
 3. Use `$namba-coach` when the user's current goal is vague or a command choice may need correction before handing off to one workflow.
 4. Use `$namba-create` when you need to create a repo-local skill, a project-scoped custom agent, or both through the preview-first Codex-native creation flow.
-5. Run `namba plan "<description>"` for feature planning, `namba harness "<description>"` for harness-oriented planning, `namba fix --command plan "<issue description>"` for bugfix SPEC planning, or `namba fix "<issue description>"` for direct repair.
-6. Run the relevant plan-review skills, or use `$namba-plan-review` when you want the create-plus-review loop bundled, and keep `.namba/specs/<SPEC>/reviews/readiness.md` current when the SPEC needs product, engineering, or design sign-off.
+5. Run `namba plan "<description>"` for feature planning and, unless `--no-review` is present, continue immediately with `$namba-plan-review SPEC-XXX` after the SPEC is created. Use `namba harness "<description>"` for harness-oriented planning, `namba fix --command plan "<issue description>"` for bugfix SPEC planning, or `namba fix "<issue description>"` for direct repair.
+6. Run the relevant plan-review skills when review is not automatic, or use `$namba-plan-review` when you want the create-plus-review loop bundled, and keep `.namba/specs/<SPEC>/reviews/readiness.md` current when the SPEC needs product, engineering, or design sign-off.
 7. Run `namba run SPEC-XXX` to execute the SPEC with Codex-native workflow.
 8. Use `$namba-queue` or `namba queue start <SPEC-RANGE|SPEC-LIST>` when existing SPEC packages should move through the conveyor one active SPEC at a time.
 9. Run `namba sync` to refresh artifacts and PR-ready documents.

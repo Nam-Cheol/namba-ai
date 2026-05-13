@@ -25,7 +25,7 @@
 - `namba codex access`: inspect the current repo-owned Codex access defaults, and change approval_policy / sandbox_mode only when explicit flags are provided.
 - Codex permission profiles, models, auth, apps, web search, and platform sandbox choices remain user-owned unless NambaAI deliberately widens repo-managed config.
 - Avoid deprecated Codex full-auto style flags; prefer explicit `approval_policy`, `sandbox_mode`, sandbox profile, and permission profile settings.
-- `namba plan "description"`: create the next feature SPEC package and review artifacts.
+- `namba plan "description"`: create the next feature SPEC package and review artifacts, then continue with `$namba-plan-review` unless `--no-review` is present.
 - `namba harness "description"`: create the next harness-oriented SPEC package and review artifacts for reusable agent, skill, workflow, or orchestration work.
 - `namba fix --command plan "issue description"`: create a bugfix SPEC package plus review artifacts.
 - Planning defaults: create or switch to a dedicated `spec/...` branch in the current workspace, reserve `--current-workspace` for intentional current-branch scaffolding, and keep worktrees for temporary `namba run SPEC-XXX --parallel` execution only.
@@ -62,7 +62,7 @@
 ## Review readiness
 
 - `namba plan`, `namba harness`, and `namba fix --command plan` seed `.namba/specs/<SPEC>/reviews/product.md`, `engineering.md`, `design.md`, and `readiness.md`.
-- Use `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` to keep those artifacts current before implementation or PR handoff, or use `$namba-plan-review` when you want one skill to handle SPEC creation plus the parallel review loop.
+- `namba plan` now hands off to `$namba-plan-review` automatically by default; use `--no-review` when you only want the scaffold. `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` remain available for targeted follow-up.
 - `$namba-plan-review` inherits the same planning branch contract: by default it creates or switches to the dedicated `spec/...` branch in the current workspace, treats `--current-workspace` as the only explicit escape hatch, and does not create planning worktrees.
 - If `namba regen` or `namba sync` changes generated instruction surfaces, start a fresh Codex session so the updated guidance is loaded before continuing a long repair loop.
 - Missing review passes stay advisory by default: `namba run`, `namba sync`, and `namba pr` surface the current readiness summary without silently hard-blocking delivery.
