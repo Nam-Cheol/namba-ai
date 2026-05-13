@@ -653,6 +653,10 @@ func (a *App) runPlan(ctx context.Context, args []string) error {
 	if options.help {
 		return a.printPlanUsage()
 	}
+	if clarification, ok := evaluatePlanClarification(options.description); ok {
+		fmt.Fprint(a.stdout, clarification)
+		return errors.New("namba plan requires clarification before creating a SPEC")
+	}
 	return a.createSpecPackage(ctx, "plan", options.description, options.currentWorkspace, !options.noReview)
 }
 
@@ -785,6 +789,142 @@ func parseDescriptionCommandArgs(command, field string, args []string) (planInvo
 	return invocation, nil
 }
 
+func evaluatePlanClarification(description string) (string, bool) {
+	normalized := strings.Join(strings.Fields(description), " ")
+	if normalized == "" {
+		return "", false
+	}
+	lower := strings.ToLower(normalized)
+	if planDescriptionHasClarifyingEvidence(lower) {
+		return "", false
+	}
+	if planDescriptionHasPartialClarifyingEvidence(lower) {
+		return formatPlanClarificationQuestions(normalized, hasKorean(normalized)), true
+	}
+
+	runeCount := len([]rune(normalized))
+	vague := containsAnyFolded(lower, []string{
+		"만들어줘",
+		"만들어 줘",
+		"해줘",
+		"해 줘",
+		"알아서",
+		"대충",
+		"적당히",
+		"좋게",
+		"뭔가",
+		"create",
+		"build",
+		"make",
+		"implement",
+		"something",
+		"stuff",
+		"thing",
+	})
+	genericKoreanSurface := containsAnyFolded(lower, []string{
+		"게시판",
+		"대시보드",
+		"관리자",
+		"페이지",
+		"앱",
+		"웹",
+		"api",
+	})
+	if hasKorean(normalized) && runeCount < 70 && (vague || genericKoreanSurface) {
+		return formatPlanClarificationQuestions(normalized, true), true
+	}
+	if runeCount < 45 && vague {
+		return formatPlanClarificationQuestions(normalized, false), true
+	}
+	return "", false
+}
+
+func planDescriptionHasClarifyingEvidence(lower string) bool {
+	for _, group := range planClarificationEvidenceGroups() {
+		if !containsAnyFolded(lower, group) {
+			return false
+		}
+	}
+	return true
+}
+
+func planDescriptionHasPartialClarifyingEvidence(lower string) bool {
+	for _, group := range planClarificationEvidenceGroups() {
+		if containsAnyFolded(lower, group) {
+			return true
+		}
+	}
+	return false
+}
+
+func planClarificationEvidenceGroups() [][]string {
+	return [][]string{
+		{"goal:", "goal -", "목표"},
+		{"scope:", "scope -", "범위"},
+		{"constraints:", "constraint:", "constraints -", "constraint -", "제약"},
+		{"acceptance:", "validation:", "acceptance -", "validation -", "완료 기준", "성공 기준", "검증"},
+	}
+}
+
+func containsAnyFolded(value string, needles []string) bool {
+	for _, needle := range needles {
+		if strings.Contains(value, strings.ToLower(needle)) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasKorean(value string) bool {
+	for _, r := range value {
+		if r >= '\uAC00' && r <= '\uD7A3' {
+			return true
+		}
+	}
+	return false
+}
+
+func formatPlanClarificationQuestions(description string, korean bool) string {
+	if korean {
+		return strings.Join([]string{
+			"NambaAI clarification gate: SPEC을 만들기 전에 요구가 아직 너무 넓거나 모호합니다.",
+			"입력: " + description,
+			"",
+			"Codex에서는 가능하면 Plan mode 선택 UI로 답변을 먼저 정리한 뒤, 정리된 Goal/Scope/Constraints/Acceptance만 `namba plan`에 넘기세요.",
+			"",
+			"먼저 아래 질문에 답해주세요:",
+			"1. 대상 사용자는 누구이고 핵심 사용 흐름은 무엇인가요?",
+			"2. 이번 SPEC에 포함할 범위와 제외할 범위는 무엇인가요?",
+			"3. 완료 기준과 검증 방법은 무엇인가요?",
+			"",
+			"가능하면 다음 형식으로 답해주세요:",
+			"Goal: ...",
+			"Scope: ...",
+			"Constraints: ...",
+			"Acceptance: ...",
+			"",
+		}, "\n")
+	}
+	return strings.Join([]string{
+		"NambaAI clarification gate: the request is still too broad or ambiguous to turn into a SPEC.",
+		"Input: " + description,
+		"",
+		"In Codex, use native Plan mode choice UI first when it is available, then pass only the refined Goal/Scope/Constraints/Acceptance output to `namba plan`.",
+		"",
+		"Please answer these questions first:",
+		"1. Who is the target user, and what is the core user flow?",
+		"2. What is in scope and out of scope for this SPEC?",
+		"3. What acceptance criteria and validation define done?",
+		"",
+		"Use this shape when possible:",
+		"Goal: ...",
+		"Scope: ...",
+		"Constraints: ...",
+		"Acceptance: ...",
+		"",
+	}, "\n")
+}
+
 func parseFixArgs(args []string) (fixInvocation, error) {
 	if len(args) == 0 {
 		return fixInvocation{}, errors.New("fix requires an issue description")
@@ -903,6 +1043,7 @@ func planUsageText() string {
 		"",
 		"Behavior:",
 		"  Create the next feature SPEC package under .namba/specs/ and seed review artifacts.",
+		"  Clarification gate: vague requests such as \"게시판 만들어줘\" ask questions before any SPEC is created.",
 		fmt.Sprintf("  Safe by default: create and switch to a dedicated SPEC branch in the current workspace unless you explicitly pass %s.", currentWorkspacePlanningFlag),
 		fmt.Sprintf("  Auto review by default: Codex should continue with `$namba-plan-review SPEC-XXX` unless you pass %s.", noReviewPlanningFlag),
 	)

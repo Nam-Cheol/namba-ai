@@ -112,8 +112,13 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 			t.Fatalf("expected plan skill to describe auto-review opt-out %q, got %q", want, planSkill)
 		}
 	}
+	for _, want := range []string{"clarification gate", "`게시판 만들어줘`", "Goal, Scope, Constraints, and Acceptance", "Plan mode as the preferred clarification surface", "`namba plan` as the executor", "native Plan mode choice UI", "refined description"} {
+		if !strings.Contains(planSkill, want) {
+			t.Fatalf("expected plan skill to describe clarification gate %q, got %q", want, planSkill)
+		}
+	}
 	planReviewSkill := mustReadFile(t, filepath.Join(tmp, ".agents", "skills", "namba-plan-review", "SKILL.md"))
-	for _, want := range []string{"$namba-plan-review", "parallel", "namba-plan-reviewer", "aggregate validation", "readiness.md"} {
+	for _, want := range []string{"$namba-plan-review", "parallel", "namba-plan-reviewer", "aggregate validation", "readiness.md", "same clarification gate as `$namba-plan`"} {
 		if !strings.Contains(planReviewSkill, want) {
 			t.Fatalf("expected plan-review skill to contain %q, got %q", want, planReviewSkill)
 		}

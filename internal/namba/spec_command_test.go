@@ -46,6 +46,75 @@ func TestRunPlanHelpIsReadOnly(t *testing.T) {
 	}
 }
 
+func TestRunPlanClarificationGateBlocksAmbiguousKoreanPrompt(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	err := app.Run(context.Background(), []string{"plan", currentWorkspacePlanningFlag, "게시판", "만들어줘"})
+	if err == nil || !strings.Contains(err.Error(), "requires clarification") {
+		t.Fatalf("expected clarification error, got %v", err)
+	}
+	got := stdout.String()
+	for _, want := range []string{"NambaAI clarification gate", "Codex에서는 가능하면 Plan mode 선택 UI", "대상 사용자는", "포함할 범위", "완료 기준", "Goal:", "Acceptance:"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected clarification output to contain %q, got %q", want, got)
+		}
+	}
+
+	entries, err := os.ReadDir(filepath.Join(tmp, ".namba", "specs"))
+	if err != nil {
+		t.Fatalf("read specs dir: %v", err)
+	}
+	if got, want := len(entries), 1; got != want || entries[0].Name() != ".gitkeep" {
+		t.Fatalf("expected no SPEC write for ambiguous prompt, got entries=%v", entries)
+	}
+}
+
+func TestEvaluatePlanClarificationAllowsStructuredPrompt(t *testing.T) {
+	t.Parallel()
+
+	for _, description := range []string{
+		"Goal: 로그인 사용자가 글 CRUD와 댓글을 사용할 수 있는 게시판. Scope: 목록/상세/작성/수정/삭제와 기본 검색 포함, 관리자 기능 제외. Constraints: 기존 웹 앱 구조 유지. Acceptance: Go 테스트와 브라우저 흐름 검증.",
+		"목표: 로그인 사용자가 글 CRUD와 댓글을 사용할 수 있는 게시판. 범위: 목록/상세/작성/수정/삭제. 제약: 기존 웹 앱 구조 유지. 검증: Go 테스트와 브라우저 흐름 확인.",
+	} {
+		description := description
+		t.Run(description, func(t *testing.T) {
+			t.Parallel()
+			if output, ok := evaluatePlanClarification(description); ok {
+				t.Fatalf("expected structured prompt to pass clarification gate, got %q", output)
+			}
+		})
+	}
+}
+
+func TestEvaluatePlanClarificationBlocksPartialEvidence(t *testing.T) {
+	t.Parallel()
+
+	for _, description := range []string{
+		`Goal: build something`,
+		`make a forum with tests`,
+		`게시판 테스트 포함`,
+		`Goal: build forum. Scope: posts. Acceptance: tests pass.`,
+	} {
+		description := description
+		t.Run(description, func(t *testing.T) {
+			t.Parallel()
+			if output, ok := evaluatePlanClarification(description); !ok {
+				t.Fatalf("expected partial evidence prompt to require clarification, got ok=false output=%q", output)
+			}
+		})
+	}
+}
+
 func TestRunHarnessHelpIsReadOnly(t *testing.T) {
 	t.Parallel()
 
@@ -350,7 +419,7 @@ func TestRunPlanDoesNotWriteHarnessSidecarForCodexArtifactPlan(t *testing.T) {
 	restore := chdirExecution(t, tmp)
 	defer restore()
 
-	if err := app.Run(context.Background(), []string{"plan", "build", "codex", "agent", "for", "customer", "support"}); err != nil {
+	if err := app.Run(context.Background(), []string{"plan", "Goal:", "build", "codex", "agent", "for", "customer", "support.", "Scope:", "agent", "instruction", "surface", "only.", "Constraints:", "keep", "codex", "artifact", "routing.", "Acceptance:", "review", "artifact", "exists."}); err != nil {
 		t.Fatalf("plan failed: %v", err)
 	}
 

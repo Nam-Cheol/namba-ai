@@ -114,6 +114,7 @@ continue_on_failure = false
 - `$namba-create`: use when you want a preview-first flow that creates a repo-local skill, a project-scoped custom agent, or both directly inside Codex. You see the preview before anything is written.
 - `$namba-project`: use when you need project docs and codemaps refreshed before starting or after larger changes.
 - `$namba-plan`: use when you want to create the next feature SPEC package, meaning a clear plan for a feature or product change.
+- `$namba-plan` asks before running the CLI when the request is vague, repeating clarification until Goal/Scope/Constraints/Acceptance are clear. When available, Codex Plan mode choice UI is the clarification surface, and only its refined output is passed into `namba plan`.
 - `$namba-harness`: use when you want a harness-oriented SPEC package for reusable agent, skill, workflow, or orchestration work.
 - `$namba-fix`: use when you need direct repair in the current workspace, or choose `namba fix --command plan "issue description"` when you want a reviewable bugfix SPEC.
 - `$namba-plan-review`: use when you want one Codex entry point that checks the plan from product, engineering, and design angles.

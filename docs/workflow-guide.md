@@ -26,6 +26,7 @@
 - Codex permission profiles, models, auth, apps, web search, and platform sandbox choices remain user-owned unless NambaAI deliberately widens repo-managed config.
 - Avoid deprecated Codex full-auto style flags; prefer explicit `approval_policy`, `sandbox_mode`, sandbox profile, and permission profile settings.
 - `namba plan "description"`: create the next feature SPEC package and review artifacts, then continue with `$namba-plan-review` unless `--no-review` is present.
+- Clarification gate: vague plan requests such as `make a forum` ask questions before project-doc inspection or CLI execution. When Codex Plan mode choice UI is available, its output becomes the refined prompt passed into `namba plan`.
 - `namba harness "description"`: create the next harness-oriented SPEC package and review artifacts for reusable agent, skill, workflow, or orchestration work.
 - `namba fix --command plan "issue description"`: create a bugfix SPEC package plus review artifacts.
 - Planning defaults: create or switch to a dedicated `spec/...` branch in the current workspace, reserve `--current-workspace` for intentional current-branch scaffolding, and keep worktrees for temporary `namba run SPEC-XXX --parallel` execution only.
