@@ -6,6 +6,29 @@
 
 [スタートガイド](./getting-started.ja.md) | [ワークフローガイド](./workflow-guide.ja.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
+[Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](../SECURITY.md)
+
+NambaAI は、Codex の作業をすぐ実装へ進める前に、目標・範囲・制約・受け入れ条件へ整理するリポジトリ運用レイヤーです。この文書はインストールから最初の PR までを素早く選ぶための入口です。
+
+## 目次
+
+- [クイックスタート経路](#クイックスタート経路)
+- [インストール](#1-インストール)
+- [アップデート](#2-アップデート)
+- [アンインストール](#3-アンインストール)
+- [新しいリポジトリをブートストラップ](#4-新しいリポジトリをブートストラップ)
+- [基本の Codex フローを実行](#5-基本の-codex-フローを実行)
+- [次に読む文書](#6-次に読む文書)
+
+## クイックスタート経路
+
+| 状況 | 実行 | 次のステップ |
+| --- | --- | --- |
+| Windows にインストール | `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 \| iex` | 必要なら WSL workspace で repo を開きます。 |
+| macOS / Linux にインストール | `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh \| sh` | custom path には `NAMBA_INSTALL_DIR` を使います。 |
+| 新しい repo を準備 | `namba init .` | 最初の Codex session で `/hooks` review を承認します。 |
+| 最初の作業を実行 | `namba project` -> `namba plan "..."` -> `namba run SPEC-001` | `namba sync`、`namba pr`、`namba land` へ進みます。 |
+
 ## 1. インストール
 
 - Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
@@ -54,3 +77,4 @@ namba land
 
 - [ワークフローガイド](./workflow-guide.ja.md)
 - [Codex Upstream Reference](./codex-upstream-reference.md)
+- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md)

@@ -6,6 +6,29 @@
 
 [快速开始](./getting-started.zh.md) | [工作流指南](./workflow-guide.zh.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
+[Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](../SECURITY.md)
+
+NambaAI 是一个仓库工作流层，会在 Codex 直接实现前，把目标、范围、约束和验收标准整理清楚。本文档帮助你从安装快速走到第一个 PR。
+
+## 目录
+
+- [快速开始路径](#快速开始路径)
+- [安装](#1-安装)
+- [更新](#2-更新)
+- [卸载](#3-卸载)
+- [初始化新仓库](#4-初始化新仓库)
+- [运行基础 Codex 流程](#5-运行基础-codex-流程)
+- [接下来阅读](#6-接下来阅读)
+
+## 快速开始路径
+
+| 场景 | 运行 | 下一步 |
+| --- | --- | --- |
+| Windows 安装 | `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 \| iex` | 需要时在 WSL workspace 中打开 repo。 |
+| macOS / Linux 安装 | `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh \| sh` | 自定义路径使用 `NAMBA_INSTALL_DIR`。 |
+| 准备新 repo | `namba init .` | 在第一次 Codex session 中批准 `/hooks` review。 |
+| 执行第一项工作 | `namba project` -> `namba plan "..."` -> `namba run SPEC-001` | 继续运行 `namba sync`、`namba pr`、`namba land`。 |
+
 ## 1. 安装
 
 - Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
@@ -54,3 +77,4 @@ namba land
 
 - [工作流指南](./workflow-guide.zh.md)
 - [Codex Upstream Reference](./codex-upstream-reference.md)
+- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md)

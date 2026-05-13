@@ -87,6 +87,7 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/manifest.json
 .namba/releases/v0.5.10.md
 .namba/releases/v0.5.11.md
+.namba/releases/v0.5.12.md
 .namba/releases/v0.5.4.md
 .namba/releases/v0.5.5.md
 .namba/releases/v0.5.6.md
@@ -349,6 +350,14 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-042/reviews/product.md
 .namba/specs/SPEC-042/reviews/readiness.md
 .namba/specs/SPEC-042/spec.md
+.namba/specs/SPEC-043/acceptance.md
+.namba/specs/SPEC-043/frontend-brief.md
+.namba/specs/SPEC-043/plan.md
+.namba/specs/SPEC-043/reviews/design.md
+.namba/specs/SPEC-043/reviews/engineering.md
+.namba/specs/SPEC-043/reviews/product.md
+.namba/specs/SPEC-043/reviews/readiness.md
+.namba/specs/SPEC-043/spec.md
 AGENTS.md
 README.ja.md
 README.ko.md

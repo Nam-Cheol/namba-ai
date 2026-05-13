@@ -112,40 +112,65 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 	cases := []struct {
 		lang                    string
 		rootLifecycleHeading    string
+		gettingStartedContents  string
+		gettingStartedQuickPath string
 		gettingStartedUpdate    string
 		gettingStartedUninstall string
+		workflowChooser         string
+		workflowFlow            string
+		workflowReference       string
 		workflowModesHeading    string
 		workflowReviewHeading   string
 	}{
 		{
 			lang:                    "en",
 			rootLifecycleHeading:    "## 📦 Install, Update, and Uninstall",
+			gettingStartedContents:  "## Contents",
+			gettingStartedQuickPath: "## Quick start path",
 			gettingStartedUpdate:    "## 2. Update",
 			gettingStartedUninstall: "## 3. Uninstall",
+			workflowChooser:         "## Command chooser",
+			workflowFlow:            "## Workflow at a glance",
+			workflowReference:       "## Reference shelf",
 			workflowModesHeading:    "## `namba run` modes",
 			workflowReviewHeading:   "## Review readiness",
 		},
 		{
 			lang:                    "ko",
 			rootLifecycleHeading:    "## 📦 설치, 업데이트, 제거",
+			gettingStartedContents:  "## 목차",
+			gettingStartedQuickPath: "## 빠른 시작 경로",
 			gettingStartedUpdate:    "## 2. 업데이트",
 			gettingStartedUninstall: "## 3. 제거",
+			workflowChooser:         "## 명령 선택표",
+			workflowFlow:            "## 워크플로 한눈에 보기",
+			workflowReference:       "## 참고 문서",
 			workflowModesHeading:    "## `namba run` 모드",
 			workflowReviewHeading:   "## 리뷰 준비도",
 		},
 		{
 			lang:                    "ja",
 			rootLifecycleHeading:    "## 📦 インストール、アップデート、アンインストール",
+			gettingStartedContents:  "## 目次",
+			gettingStartedQuickPath: "## クイックスタート経路",
 			gettingStartedUpdate:    "## 2. アップデート",
 			gettingStartedUninstall: "## 3. アンインストール",
+			workflowChooser:         "## コマンド選択表",
+			workflowFlow:            "## ワークフロー早見表",
+			workflowReference:       "## 参考文書",
 			workflowModesHeading:    "## `namba run` モード",
 			workflowReviewHeading:   "## レビュー準備度",
 		},
 		{
 			lang:                    "zh",
 			rootLifecycleHeading:    "## 📦 安装、更新与卸载",
+			gettingStartedContents:  "## 目录",
+			gettingStartedQuickPath: "## 快速开始路径",
 			gettingStartedUpdate:    "## 2. 更新",
 			gettingStartedUninstall: "## 3. 卸载",
+			workflowChooser:         "## 命令选择表",
+			workflowFlow:            "## 工作流速览",
+			workflowReference:       "## 参考文档",
 			workflowModesHeading:    "## `namba run` 模式",
 			workflowReviewHeading:   "## 评审准备度",
 		},
@@ -179,8 +204,13 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 
 		gettingStarted := outputs[guidePath("getting-started", tc.lang)]
 		for _, want := range []string{
+			"[Latest Release]",
+			tc.gettingStartedContents,
+			tc.gettingStartedQuickPath,
+			"| --- | --- | --- |",
 			tc.gettingStartedUpdate,
 			tc.gettingStartedUninstall,
+			"`namba init .`",
 			"`namba update`",
 			"`namba update --version vX.Y.Z`",
 			"`codex update`",
@@ -188,6 +218,7 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 			"`NAMBA_INSTALL_DIR`",
 			"namba pr",
 			"namba land",
+			"moai-adk-codex-migration-analysis.md",
 			nambaWindowsBinaryPath,
 			nambaUnixBinaryPath,
 		} {
@@ -198,8 +229,15 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 
 		workflowGuide := outputs[guidePath("workflow-guide", tc.lang)]
 		for _, want := range []string{
+			"[Latest Release]",
+			tc.workflowChooser,
+			tc.workflowFlow,
+			tc.workflowReference,
+			"| --- | --- | --- |",
 			tc.workflowModesHeading,
 			tc.workflowReviewHeading,
+			"`namba project`",
+			"`namba plan \"description\"`",
 			"`namba codex access`",
 			"`namba harness",
 			"`$namba-help`",
@@ -214,6 +252,7 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 			"`namba pr`",
 			"`namba land`",
 			"`codex update`",
+			"moai-adk-codex-migration-analysis.md",
 		} {
 			if !strings.Contains(workflowGuide, want) {
 				t.Fatalf("%s workflow guide missing %q: %q", tc.lang, want, workflowGuide)

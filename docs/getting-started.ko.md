@@ -6,6 +6,29 @@
 
 [시작 가이드](./getting-started.ko.md) | [워크플로 가이드](./workflow-guide.ko.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
+[Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](../SECURITY.md)
+
+NambaAI는 Codex 작업을 바로 실행하기 전에 목표, 범위, 제약, 수용 기준으로 정리해 주는 저장소 운영 레이어입니다. 이 문서는 설치부터 첫 PR 흐름까지 빠르게 고르는 시작 지점입니다.
+
+## 목차
+
+- [빠른 시작 경로](#빠른-시작-경로)
+- [설치](#1-설치)
+- [업데이트](#2-업데이트)
+- [제거](#3-제거)
+- [새 저장소 부트스트랩](#4-새-저장소-부트스트랩)
+- [기본 Codex 흐름 실행](#5-기본-codex-흐름-실행)
+- [다음 문서](#6-다음-문서)
+
+## 빠른 시작 경로
+
+| 상황 | 실행 | 다음 단계 |
+| --- | --- | --- |
+| Windows 설치 | `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 \| iex` | 필요하면 WSL workspace에서 repo를 엽니다. |
+| macOS / Linux 설치 | `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh \| sh` | custom 경로는 `NAMBA_INSTALL_DIR`를 사용합니다. |
+| 새 repo 준비 | `namba init .` | 첫 Codex 세션에서 `/hooks` review를 승인합니다. |
+| 첫 작업 실행 | `namba project` -> `namba plan "..."` -> `namba run SPEC-001` | `namba sync`, `namba pr`, `namba land`로 인계합니다. |
+
 ## 1. 설치
 
 - Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
@@ -54,3 +77,4 @@ namba land
 
 - [워크플로 가이드](./workflow-guide.ko.md)
 - [Codex Upstream Reference](./codex-upstream-reference.md)
+- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md)
