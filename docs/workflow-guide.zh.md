@@ -24,6 +24,7 @@
 - `namba project`: 刷新当前仓库文档和 codemap，不会创建 SPEC 包。
 - `namba codex access`: 以 inspect-only 方式查看当前 repo-owned Codex access 默认值，只有传入明确 flag 时才会修改 approval_policy / sandbox_mode。
 - `namba plan "description"`: 创建下一个功能 SPEC 包和 review artifact；如果没有 `--no-review`，会继续交给 `$namba-plan-review`。
+- clarification gate：像“做个论坛”这样的模糊 plan request，会先继续提问，再检查项目文档或运行 CLI。若可使用 Codex Plan mode 选择 UI，则把其输出作为 refined prompt 传给 `namba plan`。
 - `namba harness "description"`: 创建面向 agent / skill / workflow / orchestration 复用的 harness-oriented SPEC 包和 review artifact。
 - `namba fix --command plan "issue description"`: 创建缺陷修复 SPEC 包和 review artifact。
 - planning 默认行为：在当前 workspace 中创建或切换到专用 `spec/...` branch 再 scaffold。`--current-workspace` 只用于明确要求直接在当前 branch 上 scaffold、不新建 SPEC branch；worktree 只用于临时的 `namba run SPEC-XXX --parallel` 执行。

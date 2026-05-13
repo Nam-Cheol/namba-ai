@@ -339,6 +339,12 @@ func renderPlanCommandSkill() string {
 			"Use this skill when the user explicitly says `$namba-plan`, `namba plan`, or asks to create a new feature SPEC package.",
 			"",
 			"Behavior:",
+			"- Before reading project docs, checking Git state, or running the CLI, run the Namba clarification gate on the user's raw request.",
+			"- If the request is short, broad, or missing target surface, user flow, scope boundaries, constraints, acceptance criteria, or validation, do not run `namba plan` yet. Ask 1-3 concise questions first; `게시판 만들어줘` is the canonical example that must ask questions before planning.",
+			"- Treat Codex Plan mode as the preferred clarification surface and `namba plan` as the executor: when native Plan mode choice UI is available, use it to ask the clarification questions before any CLI command.",
+			"- The Plan mode output must be converted into a refined description shaped as Goal, Scope, Constraints, and Acceptance, then passed to `namba plan \"<refined description>\"`.",
+			"- Repo hooks and skills cannot force Codex to switch modes by themselves; if native Plan mode UI is unavailable in the current session, fall back to concise text questions in chat instead of inventing a CLI wizard.",
+			"- Continue the clarification loop across turns until you can restate the request as Goal, Scope, Constraints, and Acceptance. Only then invoke the CLI with the refined description.",
 			"- Prefer the installed `namba plan` CLI when available.",
 			"- Keep `namba plan` for feature-oriented SPEC work; use `namba harness` when the request is about reusable agent, skill, workflow, or orchestration scaffolding; use `$namba-create` when the user wants the repo-local skill or custom-agent artifact itself instead of another SPEC.",
 			"- When repo-managed MCP presets are configured, prefer them for planning context before broader web search; for example, use `context7` for library and framework docs, `sequential-thinking` for deeper decomposition, and `playwright` for browser-verified flows.",
@@ -365,6 +371,7 @@ func renderPlanReviewLoopCommandSkill() string {
 			"",
 			"Behavior:",
 			"- Resolve the target SPEC from an explicit `SPEC-XXX`; otherwise create the next SPEC with `namba plan` for feature work, `namba harness` for reusable agent/skill/workflow/orchestration work, or `namba fix --command plan` for bugfix planning.",
+			"- When creating a new SPEC from a user request, inherit the same clarification gate as `$namba-plan`: ask first and do not run the CLI while the raw request is still vague, short, or missing Goal/Scope/Constraints/Acceptance.",
 			"- Prefer the installed `namba` CLI for the SPEC-creation step when it is available; keep `.namba/` as the source of truth if you need to do the setup manually.",
 			"- Inherit the same safe-by-default planning branch contract as `namba plan`: create or switch to the dedicated `spec/...` branch in the current workspace by default, treat `--current-workspace` as the explicit current-branch escape hatch, and do not create planning worktrees.",
 			"- Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md` before launching reviews or revising the planning artifacts.",
@@ -1394,8 +1401,9 @@ def prompt_refinement_context(prompt):
     return (
         "NambaAI prompt-refinement gate: treat this as a spec-first request before implementation. "
         "If the goal, target surface, constraints, acceptance criteria, or existing context are unclear, "
-        "ask 1-3 concise clarifying questions before running a Namba workflow or editing files. "
-        "Then restate the improved prompt as Goal, Scope, Constraints, Acceptance. "
+        "stop the current workflow and ask 1-3 concise clarifying questions before running any Namba workflow or editing files. "
+        "If native Codex Plan mode choice UI is available, use it as the clarification surface and feed its output into namba plan only after it is restated as Goal, Scope, Constraints, Acceptance. "
+        "Continue the question loop across turns until the improved prompt can be restated as Goal, Scope, Constraints, Acceptance. "
         "This is inspired by a Socratic/Ontology workflow: reduce ambiguity before code."
     )
 
@@ -1413,7 +1421,8 @@ def prompt_refinement_block_reason(prompt):
             "3. 완료 기준과 검증 방법은 무엇인가요?",
         ]
         return (
-            "NambaAI 프롬프트 교정 게이트: 실행 전에 모호함을 먼저 줄여야 합니다.\n"
+            "NambaAI 프롬프트 교정 게이트: 지금은 SPEC을 만들지 말고 모호함을 먼저 줄여야 합니다.\n"
+            "가능하면 Codex Plan mode 선택 UI로 아래 질문을 먼저 처리한 뒤, 정리된 Goal/Scope/Constraints/Acceptance만 namba plan에 넘기세요.\n"
             + "\n".join(questions)
             + "\n\n답변은 가능하면 다음 형식으로 주세요:\n"
             "Goal: ...\nScope: ...\nConstraints: ...\nAcceptance: ..."
@@ -1424,7 +1433,8 @@ def prompt_refinement_block_reason(prompt):
         "3. What acceptance criteria and validation should define done?",
     ]
     return (
-        "NambaAI prompt-refinement gate: reduce ambiguity before execution.\n"
+        "NambaAI prompt-refinement gate: do not create a SPEC yet; reduce ambiguity before execution.\n"
+        "When native Codex Plan mode choice UI is available, use it first, then feed the refined Goal/Scope/Constraints/Acceptance output into namba plan.\n"
         + "\n".join(questions)
         + "\n\nPlease answer in this shape when possible:\n"
         "Goal: ...\nScope: ...\nConstraints: ...\nAcceptance: ..."

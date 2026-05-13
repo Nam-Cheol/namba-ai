@@ -6,6 +6,12 @@ description: Command-style entry point for creating the next feature SPEC packag
 Use this skill when the user explicitly says `$namba-plan`, `namba plan`, or asks to create a new feature SPEC package.
 
 Behavior:
+- Before reading project docs, checking Git state, or running the CLI, run the Namba clarification gate on the user's raw request.
+- If the request is short, broad, or missing target surface, user flow, scope boundaries, constraints, acceptance criteria, or validation, do not run `namba plan` yet. Ask 1-3 concise questions first; `게시판 만들어줘` is the canonical example that must ask questions before planning.
+- Treat Codex Plan mode as the preferred clarification surface and `namba plan` as the executor: when native Plan mode choice UI is available, use it to ask the clarification questions before any CLI command.
+- The Plan mode output must be converted into a refined description shaped as Goal, Scope, Constraints, and Acceptance, then passed to `namba plan "<refined description>"`.
+- Repo hooks and skills cannot force Codex to switch modes by themselves; if native Plan mode UI is unavailable in the current session, fall back to concise text questions in chat instead of inventing a CLI wizard.
+- Continue the clarification loop across turns until you can restate the request as Goal, Scope, Constraints, and Acceptance. Only then invoke the CLI with the refined description.
 - Prefer the installed `namba plan` CLI when available.
 - Keep `namba plan` for feature-oriented SPEC work; use `namba harness` when the request is about reusable agent, skill, workflow, or orchestration scaffolding; use `$namba-create` when the user wants the repo-local skill or custom-agent artifact itself instead of another SPEC.
 - When repo-managed MCP presets are configured, prefer them for planning context before broader web search; for example, use `context7` for library and framework docs, `sequential-thinking` for deeper decomposition, and `playwright` for browser-verified flows.

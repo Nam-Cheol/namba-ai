@@ -114,6 +114,7 @@ continue_on_failure = false
 - `$namba-create`: 想直接创建 repo-local skill 或 custom agent 时使用。会先展示 preview，确认后再生成。
 - `$namba-project`: 开始前或较大改动后刷新项目文档和 codemap 时使用。
 - `$namba-plan`: 把新功能或产品变更整理成可评审的工作计划时使用。
+- `$namba-plan` 遇到含糊请求时，会在运行 CLI 前继续提问，先整理 Goal/Scope/Constraints/Acceptance。可用时优先把 Codex Plan mode 选择 UI 作为 clarification surface，并只把其输出传给 `namba plan`。
 - `$namba-harness`: 规划可复用的 agent、skill、workflow、orchestration 工作时使用。
 - `$namba-fix`: 在当前 workspace 直接修 bug 时使用；如果需要可评审的 bugfix SPEC，就选择 `namba fix --command plan "issue description"`。
 - `$namba-plan-review`: 想从 product / engineering / design 角度一起检查计划时使用。

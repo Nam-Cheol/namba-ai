@@ -1223,9 +1223,27 @@ func TestRenderPlanCommandSkillDefaultsToAutoReviewHandoff(t *testing.T) {
 		"`--no-review`",
 		"automatic handoff",
 		"`$namba-plan-review SPEC-XXX`",
+		"clarification gate",
+		"`게시판 만들어줘`",
+		"Goal, Scope, Constraints, and Acceptance",
+		"Plan mode as the preferred clarification surface",
+		"`namba plan` as the executor",
+		"native Plan mode choice UI",
+		"refined description",
 	} {
 		if !strings.Contains(content, want) {
 			t.Fatalf("plan command skill missing %q: %q", want, content)
+		}
+	}
+
+	planReview := renderPlanReviewLoopCommandSkill()
+	for _, want := range []string{
+		"same clarification gate as `$namba-plan`",
+		"do not run the CLI while the raw request is still vague",
+		"Goal/Scope/Constraints/Acceptance",
+	} {
+		if !strings.Contains(planReview, want) {
+			t.Fatalf("plan-review command skill missing %q: %q", want, planReview)
 		}
 	}
 }

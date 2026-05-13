@@ -24,6 +24,7 @@
 - `namba project`: 현재 저장소 문서와 codemap을 새로 고치며 SPEC 패키지를 만들지 않습니다.
 - `namba codex access`: 현재 repo-owned Codex access 기본값을 inspect-only로 확인하고, 명시적 flag를 줄 때만 approval_policy / sandbox_mode를 변경합니다.
 - `namba plan "description"`: 다음 기능 SPEC 패키지와 review artifact를 만들고, `--no-review`가 없으면 `$namba-plan-review`로 바로 이어갑니다.
+- clarification gate: `게시판 만들어줘`처럼 모호한 plan 요청은 project 문서 확인이나 CLI 실행 전에 질문부터 반복합니다. Codex Plan mode 선택 UI를 쓸 수 있으면 그 출력을 refined prompt로 삼아 `namba plan`에 넘깁니다.
 - `namba harness "description"`: agent, skill, workflow, orchestration 재사용을 위한 harness-oriented SPEC 패키지와 review artifact를 만듭니다.
 - `namba fix --command plan "issue description"`: 버그 수정 SPEC 패키지와 review artifact를 만듭니다.
 - planning 기본값: 현재 workspace에서 전용 `spec/...` 브랜치를 만들거나 전환해 scaffold합니다. `--current-workspace`는 새 SPEC 브랜치 없이 현재 브랜치에 바로 scaffold하려는 경우에만 쓰고, worktree는 임시 `namba run SPEC-XXX --parallel` 실행에만 사용합니다.

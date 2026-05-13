@@ -7,6 +7,7 @@ Use this skill when the user explicitly says `$namba-plan-review`, asks to creat
 
 Behavior:
 - Resolve the target SPEC from an explicit `SPEC-XXX`; otherwise create the next SPEC with `namba plan` for feature work, `namba harness` for reusable agent/skill/workflow/orchestration work, or `namba fix --command plan` for bugfix planning.
+- When creating a new SPEC from a user request, inherit the same clarification gate as `$namba-plan`: ask first and do not run the CLI while the raw request is still vague, short, or missing Goal/Scope/Constraints/Acceptance.
 - Prefer the installed `namba` CLI for the SPEC-creation step when it is available; keep `.namba/` as the source of truth if you need to do the setup manually.
 - Inherit the same safe-by-default planning branch contract as `namba plan`: create or switch to the dedicated `spec/...` branch in the current workspace by default, treat `--current-workspace` as the explicit current-branch escape hatch, and do not create planning worktrees.
 - Read `.namba/specs/<SPEC>/spec.md`, `plan.md`, and `acceptance.md` before launching reviews or revising the planning artifacts.
