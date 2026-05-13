@@ -306,10 +306,10 @@ func TestPlanCreatesSequentialSpecs(t *testing.T) {
 	restore := chdir(t, tmp)
 	defer restore()
 
-	if err := app.Run(context.Background(), []string{"plan", "Goal:", "build", "status", "page.", "Scope:", "service", "health", "summary.", "Acceptance:", "page", "renders", "status."}); err != nil {
+	if err := app.Run(context.Background(), []string{"plan", "Goal:", "build", "status", "page.", "Scope:", "service", "health", "summary.", "Constraints:", "reuse", "current", "docs.", "Acceptance:", "page", "renders", "status."}); err != nil {
 		t.Fatalf("first plan failed: %v", err)
 	}
-	if err := app.Run(context.Background(), []string{"plan", "Goal:", "add", "sync", "report.", "Scope:", "last", "sync", "summary.", "Acceptance:", "report", "is", "generated."}); err != nil {
+	if err := app.Run(context.Background(), []string{"plan", "Goal:", "add", "sync", "report.", "Scope:", "last", "sync", "summary.", "Constraints:", "reuse", "current", "docs.", "Acceptance:", "report", "is", "generated."}); err != nil {
 		t.Fatalf("second plan failed: %v", err)
 	}
 
@@ -334,7 +334,7 @@ func TestProjectRunDryRunAndSync(t *testing.T) {
 	if err := app.Run(context.Background(), []string{"project"}); err != nil {
 		t.Fatalf("project failed: %v", err)
 	}
-	if err := app.Run(context.Background(), []string{"plan", "Goal:", "implement", "healthcheck.", "Scope:", "basic", "endpoint.", "Acceptance:", "dry-run", "can", "execute."}); err != nil {
+	if err := app.Run(context.Background(), []string{"plan", "Goal:", "implement", "healthcheck.", "Scope:", "basic", "endpoint.", "Constraints:", "reuse", "current", "project.", "Acceptance:", "dry-run", "can", "execute."}); err != nil {
 		t.Fatalf("plan failed: %v", err)
 	}
 	if err := app.Run(context.Background(), []string{"run", "SPEC-001", "--dry-run"}); err != nil {

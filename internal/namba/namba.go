@@ -798,6 +798,9 @@ func evaluatePlanClarification(description string) (string, bool) {
 	if planDescriptionHasClarifyingEvidence(lower) {
 		return "", false
 	}
+	if planDescriptionHasPartialClarifyingEvidence(lower) {
+		return formatPlanClarificationQuestions(normalized, hasKorean(normalized)), true
+	}
 
 	runeCount := len([]rune(normalized))
 	vague := containsAnyFolded(lower, []string{
@@ -837,24 +840,30 @@ func evaluatePlanClarification(description string) (string, bool) {
 }
 
 func planDescriptionHasClarifyingEvidence(lower string) bool {
-	evidence := []string{
-		"goal:",
-		"scope:",
-		"constraints:",
-		"acceptance:",
-		"validation:",
-		"목표",
-		"범위",
-		"제약",
-		"완료 기준",
-		"성공 기준",
-		"검증",
-		"테스트",
-		"사용자 흐름",
-		"제외",
-		"포함",
+	for _, group := range planClarificationEvidenceGroups() {
+		if !containsAnyFolded(lower, group) {
+			return false
+		}
 	}
-	return containsAnyFolded(lower, evidence)
+	return true
+}
+
+func planDescriptionHasPartialClarifyingEvidence(lower string) bool {
+	for _, group := range planClarificationEvidenceGroups() {
+		if containsAnyFolded(lower, group) {
+			return true
+		}
+	}
+	return false
+}
+
+func planClarificationEvidenceGroups() [][]string {
+	return [][]string{
+		{"goal:", "goal -", "목표"},
+		{"scope:", "scope -", "범위"},
+		{"constraints:", "constraint:", "constraints -", "constraint -", "제약"},
+		{"acceptance:", "validation:", "acceptance -", "validation -", "완료 기준", "성공 기준"},
+	}
 }
 
 func containsAnyFolded(value string, needles []string) bool {

@@ -88,6 +88,25 @@ func TestEvaluatePlanClarificationAllowsStructuredPrompt(t *testing.T) {
 	}
 }
 
+func TestEvaluatePlanClarificationBlocksPartialEvidence(t *testing.T) {
+	t.Parallel()
+
+	for _, description := range []string{
+		`Goal: build something`,
+		`make a forum with tests`,
+		`게시판 테스트 포함`,
+		`Goal: build forum. Scope: posts. Acceptance: tests pass.`,
+	} {
+		description := description
+		t.Run(description, func(t *testing.T) {
+			t.Parallel()
+			if output, ok := evaluatePlanClarification(description); !ok {
+				t.Fatalf("expected partial evidence prompt to require clarification, got ok=false output=%q", output)
+			}
+		})
+	}
+}
+
 func TestRunHarnessHelpIsReadOnly(t *testing.T) {
 	t.Parallel()
 
@@ -392,7 +411,7 @@ func TestRunPlanDoesNotWriteHarnessSidecarForCodexArtifactPlan(t *testing.T) {
 	restore := chdirExecution(t, tmp)
 	defer restore()
 
-	if err := app.Run(context.Background(), []string{"plan", "Goal:", "build", "codex", "agent", "for", "customer", "support.", "Scope:", "agent", "instruction", "surface", "only.", "Acceptance:", "review", "artifact", "exists."}); err != nil {
+	if err := app.Run(context.Background(), []string{"plan", "Goal:", "build", "codex", "agent", "for", "customer", "support.", "Scope:", "agent", "instruction", "surface", "only.", "Constraints:", "keep", "codex", "artifact", "routing.", "Acceptance:", "review", "artifact", "exists."}); err != nil {
 		t.Fatalf("plan failed: %v", err)
 	}
 
