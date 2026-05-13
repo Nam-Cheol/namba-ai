@@ -6,6 +6,47 @@
 
 [시작 가이드](./getting-started.ko.md) | [워크플로 가이드](./workflow-guide.ko.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
+[Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](../SECURITY.md)
+
+NambaAI 워크플로는 먼저 저장소를 읽고, 작업을 SPEC로 정리하고, 구현/검증한 뒤, sync/PR/land로 인계하는 흐름입니다. 이 가이드는 비슷해 보이는 명령을 빠르게 구분하고 어느 단계에서 무엇을 실행할지 고르는 지도입니다.
+
+## 목차
+
+- [명령 선택표](#명령-선택표)
+- [워크플로 한눈에 보기](#워크플로-한눈에-보기)
+- [`update`, `regen`, `sync`, `pr`, `land`는 서로 다른 명령입니다](#update-regen-sync-pr-land는-서로-다른-명령입니다)
+- [계획 명령](#계획-명령)
+- [`namba run` 모드](#namba-run-모드)
+- [SPEC queue conveyor](#spec-queue-conveyor)
+- [리뷰 준비도](#리뷰-준비도)
+- [PR 및 머지 흐름](#pr-및-머지-흐름)
+- [참고 문서](#참고-문서)
+
+## 명령 선택표
+
+| 필요 | 명령 | 결과 |
+| --- | --- | --- |
+| 저장소 상태를 다시 읽기 | `namba project` | `.namba/project/*`와 codemap을 갱신합니다. |
+| 기능 또는 제품 변경을 계획 | `namba plan "description"` | 다음 `SPEC-XXX`와 review artifact를 만듭니다. |
+| skill/agent/workflow 재사용 작업을 계획 | `namba harness "description"` | harness-oriented SPEC를 만듭니다. |
+| 버그를 바로 고치기 | `namba fix "issue"` | 현재 workspace에서 direct repair를 시작합니다. |
+| 이미 만든 SPEC 실행 | `namba run SPEC-XXX` | 구현, 테스트, 검증을 진행합니다. |
+| 여러 SPEC을 순서대로 처리 | `namba queue start SPEC-001..SPEC-003` | durable queue state로 한 번에 하나씩 진행합니다. |
+| 산출물만 새로 고침 | `namba sync` | README, project docs, codemap, checklist, release notes를 갱신합니다. |
+| 리뷰 인계 | `namba pr "title"` | 검증, commit, push, PR, `@codex review` marker를 처리합니다. |
+| 승인된 PR merge | `namba land` | clean PR만 merge하고 local `main`을 갱신합니다. |
+
+## 워크플로 한눈에 보기
+
+| 단계 | 실행 | 확인할 것 |
+| --- | --- | --- |
+| 1. 상황 파악 | `namba project` | project docs와 codemap이 최신인지 확인합니다. |
+| 2. 계획 | `namba plan`, `namba harness`, `namba fix --command plan` | SPEC와 reviews/readiness가 생겼는지 확인합니다. |
+| 3. 실행 | `namba run SPEC-XXX` | acceptance, tests, validation 결과를 확인합니다. |
+| 4. 정리 | `namba sync` | generated docs와 checklist가 drift 없이 갱신됐는지 봅니다. |
+| 5. 인계 | `namba pr "title"` | PR 언어, checks, `@codex review` marker를 확인합니다. |
+| 6. 머지 | `namba land` | clean+approved PR만 `main`으로 merge합니다. |
+
 ## `update`, `regen`, `sync`, `pr`, `land`는 서로 다른 명령입니다
 
 - `namba update`: 설치된 CLI를 GitHub Release 자산 기준으로 self-update 합니다.
@@ -93,3 +134,9 @@
 - `namba release`는 `main`에서 clean working tree를 요구합니다.
 - `--push`는 새 태그와 `main`을 함께 push한 뒤 GitHub Release workflow를 트리거합니다.
 - GitHub Release body는 생성된 릴리스 노트를 사용하고, 기존 asset matrix와 `checksums.txt` publication은 유지됩니다.
+
+## 참고 문서
+
+- [시작 가이드](./getting-started.ko.md): 설치와 첫 실행 흐름
+- [Codex Upstream Reference](./codex-upstream-reference.md): 이 저장소가 따르는 Codex 기준
+- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration 배경과 설계 맥락

@@ -6,6 +6,47 @@
 
 [スタートガイド](./getting-started.ja.md) | [ワークフローガイド](./workflow-guide.ja.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
+[Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](../SECURITY.md)
+
+NambaAI workflow は、まずリポジトリを読み、作業を SPEC に整理し、実装と検証を行い、sync / PR / land へ渡す流れです。このガイドは似て見えるコマンドを素早く区別し、どの段階で何を実行するかを選ぶ地図です。
+
+## 目次
+
+- [コマンド選択表](#コマンド選択表)
+- [ワークフロー早見表](#ワークフロー早見表)
+- [`update`, `regen`, `sync`, `pr`, `land` はそれぞれ別のコマンドです](#update-regen-sync-pr-land-はそれぞれ別のコマンドです)
+- [計画コマンド](#計画コマンド)
+- [`namba run` モード](#namba-run-モード)
+- [SPEC queue conveyor](#spec-queue-conveyor)
+- [レビュー準備度](#レビュー準備度)
+- [PR とマージの流れ](#pr-とマージの流れ)
+- [参考文書](#参考文書)
+
+## コマンド選択表
+
+| 必要なこと | コマンド | 結果 |
+| --- | --- | --- |
+| リポジトリ状態を読み直す | `namba project` | `.namba/project/*` と codemap を更新します。 |
+| 機能またはプロダクト変更を計画する | `namba plan "description"` | 次の `SPEC-XXX` と review artifact を作ります。 |
+| skill / agent / workflow の再利用作業を計画する | `namba harness "description"` | harness-oriented SPEC を作ります。 |
+| バグをすぐ直す | `namba fix "issue"` | 現在の workspace で direct repair を始めます。 |
+| 作成済み SPEC を実行する | `namba run SPEC-XXX` | 実装、テスト、検証を進めます。 |
+| 複数 SPEC を順に処理する | `namba queue start SPEC-001..SPEC-003` | durable queue state で 1 件ずつ進めます。 |
+| 成果物だけ更新する | `namba sync` | README、project docs、codemap、checklist、release notes を更新します。 |
+| レビューへ渡す | `namba pr "title"` | validation、commit、push、PR、`@codex review` marker を処理します。 |
+| 承認済み PR を merge する | `namba land` | clean PR だけ merge し、local `main` を更新します。 |
+
+## ワークフロー早見表
+
+| 段階 | 実行 | 確認すること |
+| --- | --- | --- |
+| 1. 状況把握 | `namba project` | project docs と codemap が最新か確認します。 |
+| 2. 計画 | `namba plan`、`namba harness`、`namba fix --command plan` | SPEC と reviews/readiness が作られたか確認します。 |
+| 3. 実行 | `namba run SPEC-XXX` | acceptance、tests、validation 結果を確認します。 |
+| 4. 整理 | `namba sync` | generated docs と checklist が drift なく更新されたか確認します。 |
+| 5. 引き渡し | `namba pr "title"` | PR language、checks、`@codex review` marker を確認します。 |
+| 6. マージ | `namba land` | clean+approved PR だけを `main` に merge します。 |
+
 ## `update`, `regen`, `sync`, `pr`, `land` はそれぞれ別のコマンドです
 
 - `namba update`: インストール済み CLI を GitHub Release 資産から self-update します。
@@ -93,3 +134,9 @@
 - `namba release` は `main` 上の clean working tree を要求します。
 - `--push` は新しい tag と `main` をまとめて push し、その後 GitHub Release workflow を起動します。
 - GitHub Release body は生成済み release notes を使い、既存の asset matrix と `checksums.txt` publication は維持します。
+
+## 参考文書
+
+- [スタートガイド](./getting-started.ja.md): インストールと初回フロー
+- [Codex Upstream Reference](./codex-upstream-reference.md): このリポジトリが従う Codex 基準
+- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration の背景と設計文脈

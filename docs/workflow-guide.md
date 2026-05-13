@@ -6,6 +6,47 @@
 
 [Getting Started](./getting-started.md) | [Workflow Guide](./workflow-guide.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
+[Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](../SECURITY.md)
+
+NambaAI work starts by reading the repository, shaping a SPEC, implementing and validating it, then handing it off through sync, PR, and land. This guide is the command map for choosing the right step without mixing similar names.
+
+## Contents
+
+- [Command chooser](#command-chooser)
+- [Workflow at a glance](#workflow-at-a-glance)
+- [`update`, `regen`, `sync`, `pr`, and `land` are different commands](#update-regen-sync-pr-and-land-are-different-commands)
+- [Planning commands](#planning-commands)
+- [`namba run` modes](#namba-run-modes)
+- [SPEC queue conveyor](#spec-queue-conveyor)
+- [Review readiness](#review-readiness)
+- [PR and merge flow](#pr-and-merge-flow)
+- [Reference shelf](#reference-shelf)
+
+## Command chooser
+
+| Need | Command | Result |
+| --- | --- | --- |
+| Refresh repository context | `namba project` | Updates `.namba/project/*` and codemaps. |
+| Plan a feature or product change | `namba plan "description"` | Creates the next `SPEC-XXX` plus review artifacts. |
+| Plan reusable skill/agent/workflow work | `namba harness "description"` | Creates a harness-oriented SPEC. |
+| Fix a bug immediately | `namba fix "issue"` | Starts direct repair in the current workspace. |
+| Execute an existing SPEC | `namba run SPEC-XXX` | Implements, tests, and validates the work. |
+| Process several SPECs in order | `namba queue start SPEC-001..SPEC-003` | Advances one active SPEC at a time with durable queue state. |
+| Refresh generated artifacts only | `namba sync` | Updates README, project docs, codemaps, checklists, and release notes. |
+| Hand off for review | `namba pr "title"` | Handles validation, commit, push, PR, and the `@codex review` marker. |
+| Merge an approved PR | `namba land` | Merges only a clean PR and updates local `main`. |
+
+## Workflow at a glance
+
+| Phase | Run | Check |
+| --- | --- | --- |
+| 1. Read context | `namba project` | Project docs and codemaps are current. |
+| 2. Plan | `namba plan`, `namba harness`, or `namba fix --command plan` | SPEC and reviews/readiness artifacts exist. |
+| 3. Execute | `namba run SPEC-XXX` | Acceptance, tests, and validation evidence are complete. |
+| 4. Refresh | `namba sync` | Generated docs and checklists are refreshed without drift. |
+| 5. Handoff | `namba pr "title"` | PR language, checks, and `@codex review` marker are aligned. |
+| 6. Merge | `namba land` | Only a clean and approved PR lands on `main`. |
+
 ## `update`, `regen`, `sync`, `pr`, and `land` are different commands
 
 - `namba update`: self-update the installed CLI from GitHub Release assets
@@ -96,3 +137,9 @@
 - `namba release` requires a clean working tree on `main`.
 - `--push` pushes both the new tag and `main`, then triggers the GitHub Release workflow.
 - The GitHub Release body uses generated release notes while preserving the existing asset matrix and `checksums.txt` publication.
+
+## Reference shelf
+
+- [Getting Started](./getting-started.md): install and first-run flow
+- [Codex Upstream Reference](./codex-upstream-reference.md): Codex baseline this repository follows
+- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider-migration background and design context

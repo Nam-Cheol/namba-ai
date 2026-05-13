@@ -6,6 +6,29 @@
 
 [Getting Started](./getting-started.md) | [Workflow Guide](./workflow-guide.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
+[Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](../SECURITY.md)
+
+NambaAI is a repository workflow layer that turns Codex work into goal, scope, constraints, and acceptance criteria before implementation starts. Use this page to get from install to first PR without rereading the full manual.
+
+## Contents
+
+- [Quick start path](#quick-start-path)
+- [Install](#1-install)
+- [Update](#2-update)
+- [Uninstall](#3-uninstall)
+- [Bootstrap a new repository](#4-bootstrap-a-new-repository)
+- [Run the basic Codex flow](#5-run-the-basic-codex-flow)
+- [Read next](#6-read-next)
+
+## Quick start path
+
+| Situation | Run | Then |
+| --- | --- | --- |
+| Install on Windows | `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 \| iex` | Open the repo in a WSL workspace when you want the best Codex CLI behavior. |
+| Install on macOS / Linux | `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh \| sh` | Use `NAMBA_INSTALL_DIR` for a custom path. |
+| Prepare a new repo | `namba init .` | Approve `/hooks` review in the first Codex session. |
+| Run first work | `namba project` -> `namba plan "..."` -> `namba run SPEC-001` | Continue with `namba sync`, `namba pr`, and `namba land`. |
+
 ## 1. Install
 
 - Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
@@ -54,3 +77,4 @@ namba land
 
 - [Workflow Guide](./workflow-guide.md)
 - [Codex Upstream Reference](./codex-upstream-reference.md)
+- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md)

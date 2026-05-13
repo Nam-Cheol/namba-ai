@@ -236,6 +236,10 @@ func renderDocLinkBar(lang string) string {
 	}, " | ")
 }
 
+func renderDocStatusLinkBar() string {
+	return fmt.Sprintf("[Latest Release](%s/releases/latest) | [CI](%s/actions/workflows/ci.yml) | [Security](../SECURITY.md)", nambaRepositoryURL, nambaRepositoryURL)
+}
+
 func renderReadmeGuidePrelude(lang, guide string) []string {
 	return []string{
 		renderGeneratedDocHeader(),
@@ -245,6 +249,152 @@ func renderReadmeGuidePrelude(lang, guide string) []string {
 		"",
 		renderDocLinkBar(lang),
 		"",
+	}
+}
+
+func renderNambaCLIGuideStatusSection() []string {
+	return []string{
+		renderDocStatusLinkBar(),
+		"",
+	}
+}
+
+func markdownTableCode(value string) string {
+	return "`" + strings.ReplaceAll(value, "|", "\\|") + "`"
+}
+
+func renderNambaCLIGettingStartedOverviewSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"NambaAI는 Codex 작업을 바로 실행하기 전에 목표, 범위, 제약, 수용 기준으로 정리해 주는 저장소 운영 레이어입니다. 이 문서는 설치부터 첫 PR 흐름까지 빠르게 고르는 시작 지점입니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"NambaAI は、Codex の作業をすぐ実装へ進める前に、目標・範囲・制約・受け入れ条件へ整理するリポジトリ運用レイヤーです。この文書はインストールから最初の PR までを素早く選ぶための入口です。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"NambaAI 是一个仓库工作流层，会在 Codex 直接实现前，把目标、范围、约束和验收标准整理清楚。本文档帮助你从安装快速走到第一个 PR。",
+			"",
+		}
+	default:
+		return []string{
+			"NambaAI is a repository workflow layer that turns Codex work into goal, scope, constraints, and acceptance criteria before implementation starts. Use this page to get from install to first PR without rereading the full manual.",
+			"",
+		}
+	}
+}
+
+func renderNambaCLIGettingStartedContentsSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 목차",
+			"",
+			"- [빠른 시작 경로](#빠른-시작-경로)",
+			"- [설치](#1-설치)",
+			"- [업데이트](#2-업데이트)",
+			"- [제거](#3-제거)",
+			"- [새 저장소 부트스트랩](#4-새-저장소-부트스트랩)",
+			"- [기본 Codex 흐름 실행](#5-기본-codex-흐름-실행)",
+			"- [다음 문서](#6-다음-문서)",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 目次",
+			"",
+			"- [クイックスタート経路](#クイックスタート経路)",
+			"- [インストール](#1-インストール)",
+			"- [アップデート](#2-アップデート)",
+			"- [アンインストール](#3-アンインストール)",
+			"- [新しいリポジトリをブートストラップ](#4-新しいリポジトリをブートストラップ)",
+			"- [基本の Codex フローを実行](#5-基本の-codex-フローを実行)",
+			"- [次に読む文書](#6-次に読む文書)",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 目录",
+			"",
+			"- [快速开始路径](#快速开始路径)",
+			"- [安装](#1-安装)",
+			"- [更新](#2-更新)",
+			"- [卸载](#3-卸载)",
+			"- [初始化新仓库](#4-初始化新仓库)",
+			"- [运行基础 Codex 流程](#5-运行基础-codex-流程)",
+			"- [接下来阅读](#6-接下来阅读)",
+			"",
+		}
+	default:
+		return []string{
+			"## Contents",
+			"",
+			"- [Quick start path](#quick-start-path)",
+			"- [Install](#1-install)",
+			"- [Update](#2-update)",
+			"- [Uninstall](#3-uninstall)",
+			"- [Bootstrap a new repository](#4-bootstrap-a-new-repository)",
+			"- [Run the basic Codex flow](#5-run-the-basic-codex-flow)",
+			"- [Read next](#6-read-next)",
+			"",
+		}
+	}
+}
+
+func renderNambaCLIGettingStartedQuickStartSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 빠른 시작 경로",
+			"",
+			"| 상황 | 실행 | 다음 단계 |",
+			"| --- | --- | --- |",
+			fmt.Sprintf("| Windows 설치 | %s | 필요하면 WSL workspace에서 repo를 엽니다. |", markdownTableCode(nambaInstallPowerShell)),
+			fmt.Sprintf("| macOS / Linux 설치 | %s | custom 경로는 `NAMBA_INSTALL_DIR`를 사용합니다. |", markdownTableCode(nambaInstallShell)),
+			"| 새 repo 준비 | `namba init .` | 첫 Codex 세션에서 `/hooks` review를 승인합니다. |",
+			"| 첫 작업 실행 | `namba project` -> `namba plan \"...\"` -> `namba run SPEC-001` | `namba sync`, `namba pr`, `namba land`로 인계합니다. |",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## クイックスタート経路",
+			"",
+			"| 状況 | 実行 | 次のステップ |",
+			"| --- | --- | --- |",
+			fmt.Sprintf("| Windows にインストール | %s | 必要なら WSL workspace で repo を開きます。 |", markdownTableCode(nambaInstallPowerShell)),
+			fmt.Sprintf("| macOS / Linux にインストール | %s | custom path には `NAMBA_INSTALL_DIR` を使います。 |", markdownTableCode(nambaInstallShell)),
+			"| 新しい repo を準備 | `namba init .` | 最初の Codex session で `/hooks` review を承認します。 |",
+			"| 最初の作業を実行 | `namba project` -> `namba plan \"...\"` -> `namba run SPEC-001` | `namba sync`、`namba pr`、`namba land` へ進みます。 |",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 快速开始路径",
+			"",
+			"| 场景 | 运行 | 下一步 |",
+			"| --- | --- | --- |",
+			fmt.Sprintf("| Windows 安装 | %s | 需要时在 WSL workspace 中打开 repo。 |", markdownTableCode(nambaInstallPowerShell)),
+			fmt.Sprintf("| macOS / Linux 安装 | %s | 自定义路径使用 `NAMBA_INSTALL_DIR`。 |", markdownTableCode(nambaInstallShell)),
+			"| 准备新 repo | `namba init .` | 在第一次 Codex session 中批准 `/hooks` review。 |",
+			"| 执行第一项工作 | `namba project` -> `namba plan \"...\"` -> `namba run SPEC-001` | 继续运行 `namba sync`、`namba pr`、`namba land`。 |",
+			"",
+		}
+	default:
+		return []string{
+			"## Quick start path",
+			"",
+			"| Situation | Run | Then |",
+			"| --- | --- | --- |",
+			fmt.Sprintf("| Install on Windows | %s | Open the repo in a WSL workspace when you want the best Codex CLI behavior. |", markdownTableCode(nambaInstallPowerShell)),
+			fmt.Sprintf("| Install on macOS / Linux | %s | Use `NAMBA_INSTALL_DIR` for a custom path. |", markdownTableCode(nambaInstallShell)),
+			"| Prepare a new repo | `namba init .` | Approve `/hooks` review in the first Codex session. |",
+			"| Run first work | `namba project` -> `namba plan \"...\"` -> `namba run SPEC-001` | Continue with `namba sync`, `namba pr`, and `namba land`. |",
+			"",
+		}
 	}
 }
 
@@ -574,6 +724,7 @@ func renderNambaCLIGettingStartedNextDocsSection(lang string) []string {
 			"",
 			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
 			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
+			"- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md)",
 			"",
 		}
 	case "ja":
@@ -582,6 +733,7 @@ func renderNambaCLIGettingStartedNextDocsSection(lang string) []string {
 			"",
 			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
 			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
+			"- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md)",
 			"",
 		}
 	case "zh":
@@ -590,6 +742,7 @@ func renderNambaCLIGettingStartedNextDocsSection(lang string) []string {
 			"",
 			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
 			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
+			"- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md)",
 			"",
 		}
 	default:
@@ -598,6 +751,7 @@ func renderNambaCLIGettingStartedNextDocsSection(lang string) []string {
 			"",
 			fmt.Sprintf("- [%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
 			"- [Codex Upstream Reference](./codex-upstream-reference.md)",
+			"- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md)",
 			"",
 		}
 	}
@@ -1471,6 +1625,271 @@ func renderNambaCLIWorkflowGuideCommandDifferencesSection(lang string) []string 
 	}
 }
 
+func renderNambaCLIWorkflowGuideOverviewSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"NambaAI 워크플로는 먼저 저장소를 읽고, 작업을 SPEC로 정리하고, 구현/검증한 뒤, sync/PR/land로 인계하는 흐름입니다. 이 가이드는 비슷해 보이는 명령을 빠르게 구분하고 어느 단계에서 무엇을 실행할지 고르는 지도입니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"NambaAI workflow は、まずリポジトリを読み、作業を SPEC に整理し、実装と検証を行い、sync / PR / land へ渡す流れです。このガイドは似て見えるコマンドを素早く区別し、どの段階で何を実行するかを選ぶ地図です。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"NambaAI 工作流会先读取仓库，把工作整理成 SPEC，完成实现和验证，然后通过 sync / PR / land 交接。本文档是区分相似命令、选择每个阶段下一步动作的地图。",
+			"",
+		}
+	default:
+		return []string{
+			"NambaAI work starts by reading the repository, shaping a SPEC, implementing and validating it, then handing it off through sync, PR, and land. This guide is the command map for choosing the right step without mixing similar names.",
+			"",
+		}
+	}
+}
+
+func renderNambaCLIWorkflowGuideContentsSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 목차",
+			"",
+			"- [명령 선택표](#명령-선택표)",
+			"- [워크플로 한눈에 보기](#워크플로-한눈에-보기)",
+			"- [`update`, `regen`, `sync`, `pr`, `land`는 서로 다른 명령입니다](#update-regen-sync-pr-land는-서로-다른-명령입니다)",
+			"- [계획 명령](#계획-명령)",
+			"- [`namba run` 모드](#namba-run-모드)",
+			"- [SPEC queue conveyor](#spec-queue-conveyor)",
+			"- [리뷰 준비도](#리뷰-준비도)",
+			"- [PR 및 머지 흐름](#pr-및-머지-흐름)",
+			"- [참고 문서](#참고-문서)",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 目次",
+			"",
+			"- [コマンド選択表](#コマンド選択表)",
+			"- [ワークフロー早見表](#ワークフロー早見表)",
+			"- [`update`, `regen`, `sync`, `pr`, `land` はそれぞれ別のコマンドです](#update-regen-sync-pr-land-はそれぞれ別のコマンドです)",
+			"- [計画コマンド](#計画コマンド)",
+			"- [`namba run` モード](#namba-run-モード)",
+			"- [SPEC queue conveyor](#spec-queue-conveyor)",
+			"- [レビュー準備度](#レビュー準備度)",
+			"- [PR とマージの流れ](#pr-とマージの流れ)",
+			"- [参考文書](#参考文書)",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 目录",
+			"",
+			"- [命令选择表](#命令选择表)",
+			"- [工作流速览](#工作流速览)",
+			"- [`update`、`regen`、`sync`、`pr`、`land` 是不同的命令](#updateregensyncprland-是不同的命令)",
+			"- [规划命令](#规划命令)",
+			"- [`namba run` 模式](#namba-run-模式)",
+			"- [SPEC queue conveyor](#spec-queue-conveyor)",
+			"- [评审准备度](#评审准备度)",
+			"- [PR 与合并流程](#pr-与合并流程)",
+			"- [参考文档](#参考文档)",
+			"",
+		}
+	default:
+		return []string{
+			"## Contents",
+			"",
+			"- [Command chooser](#command-chooser)",
+			"- [Workflow at a glance](#workflow-at-a-glance)",
+			"- [`update`, `regen`, `sync`, `pr`, and `land` are different commands](#update-regen-sync-pr-and-land-are-different-commands)",
+			"- [Planning commands](#planning-commands)",
+			"- [`namba run` modes](#namba-run-modes)",
+			"- [SPEC queue conveyor](#spec-queue-conveyor)",
+			"- [Review readiness](#review-readiness)",
+			"- [PR and merge flow](#pr-and-merge-flow)",
+			"- [Reference shelf](#reference-shelf)",
+			"",
+		}
+	}
+}
+
+func renderNambaCLIWorkflowGuideCommandChooserSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 명령 선택표",
+			"",
+			"| 필요 | 명령 | 결과 |",
+			"| --- | --- | --- |",
+			"| 저장소 상태를 다시 읽기 | `namba project` | `.namba/project/*`와 codemap을 갱신합니다. |",
+			"| 기능 또는 제품 변경을 계획 | `namba plan \"description\"` | 다음 `SPEC-XXX`와 review artifact를 만듭니다. |",
+			"| skill/agent/workflow 재사용 작업을 계획 | `namba harness \"description\"` | harness-oriented SPEC를 만듭니다. |",
+			"| 버그를 바로 고치기 | `namba fix \"issue\"` | 현재 workspace에서 direct repair를 시작합니다. |",
+			"| 이미 만든 SPEC 실행 | `namba run SPEC-XXX` | 구현, 테스트, 검증을 진행합니다. |",
+			"| 여러 SPEC을 순서대로 처리 | `namba queue start SPEC-001..SPEC-003` | durable queue state로 한 번에 하나씩 진행합니다. |",
+			"| 산출물만 새로 고침 | `namba sync` | README, project docs, codemap, checklist, release notes를 갱신합니다. |",
+			"| 리뷰 인계 | `namba pr \"title\"` | 검증, commit, push, PR, `@codex review` marker를 처리합니다. |",
+			"| 승인된 PR merge | `namba land` | clean PR만 merge하고 local `main`을 갱신합니다. |",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## コマンド選択表",
+			"",
+			"| 必要なこと | コマンド | 結果 |",
+			"| --- | --- | --- |",
+			"| リポジトリ状態を読み直す | `namba project` | `.namba/project/*` と codemap を更新します。 |",
+			"| 機能またはプロダクト変更を計画する | `namba plan \"description\"` | 次の `SPEC-XXX` と review artifact を作ります。 |",
+			"| skill / agent / workflow の再利用作業を計画する | `namba harness \"description\"` | harness-oriented SPEC を作ります。 |",
+			"| バグをすぐ直す | `namba fix \"issue\"` | 現在の workspace で direct repair を始めます。 |",
+			"| 作成済み SPEC を実行する | `namba run SPEC-XXX` | 実装、テスト、検証を進めます。 |",
+			"| 複数 SPEC を順に処理する | `namba queue start SPEC-001..SPEC-003` | durable queue state で 1 件ずつ進めます。 |",
+			"| 成果物だけ更新する | `namba sync` | README、project docs、codemap、checklist、release notes を更新します。 |",
+			"| レビューへ渡す | `namba pr \"title\"` | validation、commit、push、PR、`@codex review` marker を処理します。 |",
+			"| 承認済み PR を merge する | `namba land` | clean PR だけ merge し、local `main` を更新します。 |",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 命令选择表",
+			"",
+			"| 需求 | 命令 | 结果 |",
+			"| --- | --- | --- |",
+			"| 重新读取仓库状态 | `namba project` | 刷新 `.namba/project/*` 和 codemap。 |",
+			"| 规划功能或产品变更 | `namba plan \"description\"` | 创建下一个 `SPEC-XXX` 和 review artifact。 |",
+			"| 规划 skill / agent / workflow 复用工作 | `namba harness \"description\"` | 创建 harness-oriented SPEC。 |",
+			"| 直接修 bug | `namba fix \"issue\"` | 在当前 workspace 启动 direct repair。 |",
+			"| 执行已有 SPEC | `namba run SPEC-XXX` | 进行实现、测试和验证。 |",
+			"| 按顺序处理多个 SPEC | `namba queue start SPEC-001..SPEC-003` | 通过 durable queue state 一次处理一个。 |",
+			"| 只刷新产物 | `namba sync` | 刷新 README、project docs、codemap、checklist 和 release notes。 |",
+			"| 交给评审 | `namba pr \"title\"` | 处理 validation、commit、push、PR 和 `@codex review` marker。 |",
+			"| 合并已批准 PR | `namba land` | 只合并 clean PR 并更新本地 `main`。 |",
+			"",
+		}
+	default:
+		return []string{
+			"## Command chooser",
+			"",
+			"| Need | Command | Result |",
+			"| --- | --- | --- |",
+			"| Refresh repository context | `namba project` | Updates `.namba/project/*` and codemaps. |",
+			"| Plan a feature or product change | `namba plan \"description\"` | Creates the next `SPEC-XXX` plus review artifacts. |",
+			"| Plan reusable skill/agent/workflow work | `namba harness \"description\"` | Creates a harness-oriented SPEC. |",
+			"| Fix a bug immediately | `namba fix \"issue\"` | Starts direct repair in the current workspace. |",
+			"| Execute an existing SPEC | `namba run SPEC-XXX` | Implements, tests, and validates the work. |",
+			"| Process several SPECs in order | `namba queue start SPEC-001..SPEC-003` | Advances one active SPEC at a time with durable queue state. |",
+			"| Refresh generated artifacts only | `namba sync` | Updates README, project docs, codemaps, checklists, and release notes. |",
+			"| Hand off for review | `namba pr \"title\"` | Handles validation, commit, push, PR, and the `@codex review` marker. |",
+			"| Merge an approved PR | `namba land` | Merges only a clean PR and updates local `main`. |",
+			"",
+		}
+	}
+}
+
+func renderNambaCLIWorkflowGuideAtAGlanceSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 워크플로 한눈에 보기",
+			"",
+			"| 단계 | 실행 | 확인할 것 |",
+			"| --- | --- | --- |",
+			"| 1. 상황 파악 | `namba project` | project docs와 codemap이 최신인지 확인합니다. |",
+			"| 2. 계획 | `namba plan`, `namba harness`, `namba fix --command plan` | SPEC와 reviews/readiness가 생겼는지 확인합니다. |",
+			"| 3. 실행 | `namba run SPEC-XXX` | acceptance, tests, validation 결과를 확인합니다. |",
+			"| 4. 정리 | `namba sync` | generated docs와 checklist가 drift 없이 갱신됐는지 봅니다. |",
+			"| 5. 인계 | `namba pr \"title\"` | PR 언어, checks, `@codex review` marker를 확인합니다. |",
+			"| 6. 머지 | `namba land` | clean+approved PR만 `main`으로 merge합니다. |",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## ワークフロー早見表",
+			"",
+			"| 段階 | 実行 | 確認すること |",
+			"| --- | --- | --- |",
+			"| 1. 状況把握 | `namba project` | project docs と codemap が最新か確認します。 |",
+			"| 2. 計画 | `namba plan`、`namba harness`、`namba fix --command plan` | SPEC と reviews/readiness が作られたか確認します。 |",
+			"| 3. 実行 | `namba run SPEC-XXX` | acceptance、tests、validation 結果を確認します。 |",
+			"| 4. 整理 | `namba sync` | generated docs と checklist が drift なく更新されたか確認します。 |",
+			"| 5. 引き渡し | `namba pr \"title\"` | PR language、checks、`@codex review` marker を確認します。 |",
+			"| 6. マージ | `namba land` | clean+approved PR だけを `main` に merge します。 |",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 工作流速览",
+			"",
+			"| 阶段 | 运行 | 检查点 |",
+			"| --- | --- | --- |",
+			"| 1. 了解现状 | `namba project` | 确认 project docs 和 codemap 是否最新。 |",
+			"| 2. 规划 | `namba plan`、`namba harness`、`namba fix --command plan` | 确认 SPEC 和 reviews/readiness 已生成。 |",
+			"| 3. 执行 | `namba run SPEC-XXX` | 检查 acceptance、tests 和 validation 结果。 |",
+			"| 4. 整理 | `namba sync` | 确认 generated docs 和 checklist 无 drift。 |",
+			"| 5. 交接 | `namba pr \"title\"` | 检查 PR language、checks 和 `@codex review` marker。 |",
+			"| 6. 合并 | `namba land` | 只把 clean+approved PR merge 到 `main`。 |",
+			"",
+		}
+	default:
+		return []string{
+			"## Workflow at a glance",
+			"",
+			"| Phase | Run | Check |",
+			"| --- | --- | --- |",
+			"| 1. Read context | `namba project` | Project docs and codemaps are current. |",
+			"| 2. Plan | `namba plan`, `namba harness`, or `namba fix --command plan` | SPEC and reviews/readiness artifacts exist. |",
+			"| 3. Execute | `namba run SPEC-XXX` | Acceptance, tests, and validation evidence are complete. |",
+			"| 4. Refresh | `namba sync` | Generated docs and checklists are refreshed without drift. |",
+			"| 5. Handoff | `namba pr \"title\"` | PR language, checks, and `@codex review` marker are aligned. |",
+			"| 6. Merge | `namba land` | Only a clean and approved PR lands on `main`. |",
+			"",
+		}
+	}
+}
+
+func renderNambaCLIWorkflowGuideReferenceSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 참고 문서",
+			"",
+			fmt.Sprintf("- [%s](./%s): 설치와 첫 실행 흐름", localizeGuideLabel(lang, "getting-started"), guideFilename("getting-started", lang)),
+			"- [Codex Upstream Reference](./codex-upstream-reference.md): 이 저장소가 따르는 Codex 기준",
+			"- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration 배경과 설계 맥락",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 参考文書",
+			"",
+			fmt.Sprintf("- [%s](./%s): インストールと初回フロー", localizeGuideLabel(lang, "getting-started"), guideFilename("getting-started", lang)),
+			"- [Codex Upstream Reference](./codex-upstream-reference.md): このリポジトリが従う Codex 基準",
+			"- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration の背景と設計文脈",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 参考文档",
+			"",
+			fmt.Sprintf("- [%s](./%s): 安装和首次运行流程", localizeGuideLabel(lang, "getting-started"), guideFilename("getting-started", lang)),
+			"- [Codex Upstream Reference](./codex-upstream-reference.md): 本仓库遵循的 Codex 基线",
+			"- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration 背景和设计上下文",
+			"",
+		}
+	default:
+		return []string{
+			"## Reference shelf",
+			"",
+			fmt.Sprintf("- [%s](./%s): install and first-run flow", localizeGuideLabel(lang, "getting-started"), guideFilename("getting-started", lang)),
+			"- [Codex Upstream Reference](./codex-upstream-reference.md): Codex baseline this repository follows",
+			"- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider-migration background and design context",
+			"",
+		}
+	}
+}
+
 func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
@@ -2073,6 +2492,10 @@ func renderManagedProjectGuide(lang, guide string, projectCfg projectConfig, pro
 
 func renderNambaCLIGettingStarted(lang string) string {
 	lines := renderReadmeGuidePrelude(lang, "getting-started")
+	lines = append(lines, renderNambaCLIGuideStatusSection()...)
+	lines = append(lines, renderNambaCLIGettingStartedOverviewSection(lang)...)
+	lines = append(lines, renderNambaCLIGettingStartedContentsSection(lang)...)
+	lines = append(lines, renderNambaCLIGettingStartedQuickStartSection(lang)...)
 	lines = append(lines, renderNambaCLIGettingStartedInstallSection(lang)...)
 	lines = append(lines, renderNambaCLIUpdateGuideSection(lang)...)
 	lines = append(lines, renderNambaCLIUninstallGuideSection(lang)...)
@@ -2086,6 +2509,11 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
 		lines := renderReadmeGuidePrelude(lang, "workflow-guide")
+		lines = append(lines, renderNambaCLIGuideStatusSection()...)
+		lines = append(lines, renderNambaCLIWorkflowGuideOverviewSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideContentsSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideCommandChooserSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideAtAGlanceSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideCommandDifferencesSection(lang)...)
 		lines = append(lines,
 			"## 계획 명령",
@@ -2142,9 +2570,15 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 		lines = append(lines, renderNambaCLIWorkflowGuideAssetsSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideCollaborationDefaultsSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideReferenceSection(lang)...)
 		return strings.Join(lines, "\n")
 	case "ja":
 		lines := renderReadmeGuidePrelude(lang, "workflow-guide")
+		lines = append(lines, renderNambaCLIGuideStatusSection()...)
+		lines = append(lines, renderNambaCLIWorkflowGuideOverviewSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideContentsSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideCommandChooserSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideAtAGlanceSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideCommandDifferencesSection(lang)...)
 		lines = append(lines,
 			"## 計画コマンド",
@@ -2201,9 +2635,15 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 		lines = append(lines, renderNambaCLIWorkflowGuideAssetsSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideCollaborationDefaultsSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideReferenceSection(lang)...)
 		return strings.Join(lines, "\n")
 	case "zh":
 		lines := renderReadmeGuidePrelude(lang, "workflow-guide")
+		lines = append(lines, renderNambaCLIGuideStatusSection()...)
+		lines = append(lines, renderNambaCLIWorkflowGuideOverviewSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideContentsSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideCommandChooserSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideAtAGlanceSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideCommandDifferencesSection(lang)...)
 		lines = append(lines,
 			"## 规划命令",
@@ -2260,9 +2700,15 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 		lines = append(lines, renderNambaCLIWorkflowGuideAssetsSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideCollaborationDefaultsSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideReferenceSection(lang)...)
 		return strings.Join(lines, "\n")
 	default:
 		lines := renderReadmeGuidePrelude(lang, "workflow-guide")
+		lines = append(lines, renderNambaCLIGuideStatusSection()...)
+		lines = append(lines, renderNambaCLIWorkflowGuideOverviewSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideContentsSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideCommandChooserSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideAtAGlanceSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideCommandDifferencesSection(lang)...)
 		lines = append(lines,
 			"## Planning commands",
@@ -2322,6 +2768,7 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 		lines = append(lines, renderNambaCLIWorkflowGuideAssetsSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideCollaborationDefaultsSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
+		lines = append(lines, renderNambaCLIWorkflowGuideReferenceSection(lang)...)
 		return strings.Join(lines, "\n")
 	}
 }

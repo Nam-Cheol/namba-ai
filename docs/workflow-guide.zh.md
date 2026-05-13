@@ -6,6 +6,47 @@
 
 [快速开始](./getting-started.zh.md) | [工作流指南](./workflow-guide.zh.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
+[Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](../SECURITY.md)
+
+NambaAI 工作流会先读取仓库，把工作整理成 SPEC，完成实现和验证，然后通过 sync / PR / land 交接。本文档是区分相似命令、选择每个阶段下一步动作的地图。
+
+## 目录
+
+- [命令选择表](#命令选择表)
+- [工作流速览](#工作流速览)
+- [`update`、`regen`、`sync`、`pr`、`land` 是不同的命令](#updateregensyncprland-是不同的命令)
+- [规划命令](#规划命令)
+- [`namba run` 模式](#namba-run-模式)
+- [SPEC queue conveyor](#spec-queue-conveyor)
+- [评审准备度](#评审准备度)
+- [PR 与合并流程](#pr-与合并流程)
+- [参考文档](#参考文档)
+
+## 命令选择表
+
+| 需求 | 命令 | 结果 |
+| --- | --- | --- |
+| 重新读取仓库状态 | `namba project` | 刷新 `.namba/project/*` 和 codemap。 |
+| 规划功能或产品变更 | `namba plan "description"` | 创建下一个 `SPEC-XXX` 和 review artifact。 |
+| 规划 skill / agent / workflow 复用工作 | `namba harness "description"` | 创建 harness-oriented SPEC。 |
+| 直接修 bug | `namba fix "issue"` | 在当前 workspace 启动 direct repair。 |
+| 执行已有 SPEC | `namba run SPEC-XXX` | 进行实现、测试和验证。 |
+| 按顺序处理多个 SPEC | `namba queue start SPEC-001..SPEC-003` | 通过 durable queue state 一次处理一个。 |
+| 只刷新产物 | `namba sync` | 刷新 README、project docs、codemap、checklist 和 release notes。 |
+| 交给评审 | `namba pr "title"` | 处理 validation、commit、push、PR 和 `@codex review` marker。 |
+| 合并已批准 PR | `namba land` | 只合并 clean PR 并更新本地 `main`。 |
+
+## 工作流速览
+
+| 阶段 | 运行 | 检查点 |
+| --- | --- | --- |
+| 1. 了解现状 | `namba project` | 确认 project docs 和 codemap 是否最新。 |
+| 2. 规划 | `namba plan`、`namba harness`、`namba fix --command plan` | 确认 SPEC 和 reviews/readiness 已生成。 |
+| 3. 执行 | `namba run SPEC-XXX` | 检查 acceptance、tests 和 validation 结果。 |
+| 4. 整理 | `namba sync` | 确认 generated docs 和 checklist 无 drift。 |
+| 5. 交接 | `namba pr "title"` | 检查 PR language、checks 和 `@codex review` marker。 |
+| 6. 合并 | `namba land` | 只把 clean+approved PR merge 到 `main`。 |
+
 ## `update`、`regen`、`sync`、`pr`、`land` 是不同的命令
 
 - `namba update`: 从 GitHub Release 资产对已安装的 CLI 做 self-update。
@@ -93,3 +134,9 @@
 - `namba release` 要求 `main` 上是 clean working tree。
 - `--push` 会同时 push 新 tag 和 `main`，然后触发 GitHub Release workflow。
 - GitHub Release body 使用生成的 release notes，并保留现有 asset matrix 和 `checksums.txt` publication。
+
+## 参考文档
+
+- [快速开始](./getting-started.zh.md): 安装和首次运行流程
+- [Codex Upstream Reference](./codex-upstream-reference.md): 本仓库遵循的 Codex 基线
+- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration 背景和设计上下文
