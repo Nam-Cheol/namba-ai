@@ -81,7 +81,7 @@ NambaAI work starts by reading the repository, shaping a SPEC, implementing and 
 - `namba run SPEC-XXX --solo`: a single runner in one workspace.
 - `namba run SPEC-XXX --team`: same-workspace multi-agent execution.
 - `namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.
-- Explicit `frontend-major` runs block when the Do-Not Design Contract is missing or insufficient, and implementation output must include a Do-Not Design Violation Check plus Generated Asset Evidence when `Asset mode: generated-images` is required.
+- Explicit `frontend-major` runs block when the Do-Not Design Contract is missing or insufficient, and implementation output must include a Do-Not Design Violation Check plus Generated Asset Evidence when `Imagegen requirement: required` is present.
 - Codex subagent threads are controlled by `.codex/config.toml [agents].max_threads = 5`; Namba worktree workers stay separate at `.namba/config/sections/workflow.yaml max_parallel_workers: 3`.
 - Persisted Codex `/goal` workflows are a future orchestration candidate, not a required Namba runtime dependency.
 

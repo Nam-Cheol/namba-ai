@@ -198,7 +198,7 @@ func frontendViolationCheckFailure(root, specID, output string) error {
 		if frontendViolationCheckUsesException(section) && !frontendViolationCheckCitesException(section) {
 			return errors.New("Do-Not Design Violation Check failed: exception-path usage must cite the contract evidence that allows the exception.")
 		}
-		if report.AssetMode == frontendAssetModeGeneratedImages {
+		if report.ImagegenRequirement == frontendImagegenRequirementRequired {
 			if err := frontendGeneratedAssetEvidenceFailure(output); err != nil {
 				return err
 			}
@@ -216,14 +216,61 @@ func frontendViolationCheckFailure(root, specID, output string) error {
 func frontendGeneratedAssetEvidenceFailure(output string) error {
 	section, ok := markdownSection(output, "Generated Asset Evidence", 2)
 	if !ok {
-		return errors.New("Generated Asset Evidence failed: frontend-major work with Asset mode `generated-images` must include `## Generated Asset Evidence` with manifest, generated file, prompt, and rendered-usage evidence.")
+		return errors.New("Generated Asset Evidence failed: frontend-major work with Imagegen requirement `required` must include `## Generated Asset Evidence` with manifest path and per-asset generated file, saved asset path, prompt summary, intended UI usage, and rendered usage evidence.")
 	}
-	for _, label := range []string{"Manifest path", "Generated files", "Prompt summary", "Rendered usage evidence"} {
-		if isPendingMarkdownValue(parseLooseLabel(section, label)) {
-			return fmt.Errorf("Generated Asset Evidence failed: missing non-pending %s.", strings.ToLower(label))
+	if isPendingMarkdownValue(parseLooseLabel(section, "Manifest path")) {
+		return errors.New("Generated Asset Evidence failed: missing non-pending manifest path.")
+	}
+	blocks := parseGeneratedAssetEvidenceBlocks(section)
+	if len(blocks) == 0 {
+		return errors.New("Generated Asset Evidence failed: missing repeatable Asset ID evidence blocks.")
+	}
+	for _, block := range blocks {
+		for _, label := range []string{"Asset ID", "Generated file", "Saved asset path", "Prompt summary", "Intended UI usage", "Rendered usage evidence"} {
+			if isPendingMarkdownValue(block.Fields[label]) {
+				return fmt.Errorf("Generated Asset Evidence failed: Asset ID %q missing non-pending %s.", block.ID, strings.ToLower(label))
+			}
 		}
 	}
 	return nil
+}
+
+type generatedAssetEvidenceBlock struct {
+	ID     string
+	Fields map[string]string
+}
+
+func parseGeneratedAssetEvidenceBlocks(section string) []generatedAssetEvidenceBlock {
+	var blocks []generatedAssetEvidenceBlock
+	var current *generatedAssetEvidenceBlock
+	for _, rawLine := range strings.Split(section, "\n") {
+		line := strings.TrimSpace(trimMarkdownListMarker(rawLine))
+		if line == "" {
+			continue
+		}
+		label, value, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		label = strings.TrimSpace(label)
+		value = strings.TrimSpace(value)
+		if label == "Asset ID" {
+			blocks = append(blocks, generatedAssetEvidenceBlock{
+				ID:     value,
+				Fields: map[string]string{"Asset ID": value},
+			})
+			current = &blocks[len(blocks)-1]
+			continue
+		}
+		if current == nil {
+			continue
+		}
+		switch label {
+		case "Generated file", "Saved asset path", "Prompt summary", "Intended UI usage", "Rendered usage evidence":
+			current.Fields[label] = value
+		}
+	}
+	return blocks
 }
 
 func frontendViolationCheckUsesException(section string) bool {
