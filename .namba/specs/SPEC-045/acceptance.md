@@ -1,0 +1,24 @@
+# Acceptance
+
+- [ ] First frontend implementation and first major screen work defaults to `Asset mode: generated-images` in the frontend brief contract unless the brief records valid Not-applicable proof.
+- [ ] The frontend brief exposes validator-readable decision fields for `Frontend implementation phase`, `Asset mode`, `Imagegen requirement`, and `Asset decision proof`.
+- [ ] `namba run` enforces Generated Asset Evidence from the pre-run `Imagegen requirement: required` decision, not only from a loose `Asset mode: generated-images` label.
+- [ ] `generated-images` is defined and validated as any imagegen-created UI asset, including hero images, section imagery, icons, small object images, product thumbnails, cutouts, textures, sprites, badges, illustrations, and other specific image assets.
+- [ ] The frontend brief validator requires imagegen when a design system, brand reference, product, place, person, object, marketing page, game, commerce surface, consumer screen, or other visual-asset-dependent surface determines screen quality.
+- [ ] The policy distinguishes ordinary existing UI chrome from product-specific small assets: common design-system icons do not require imagegen by themselves, while product-specific icons, thumbnails, sprites, cutouts, textures, badges, object images, or illustrated markers require imagegen when they carry visual identity, reference fidelity, or concrete screen quality.
+- [ ] Mixed existing/generated asset usage is valid: if existing assets cover some visual roles and imagegen fills the remaining roles, the brief remains `Asset mode: generated-images` and the manifest identifies existing inputs and generated outputs.
+- [ ] `Asset mode: existing-assets` is accepted for first frontend work only when user-provided or design-system assets fully cover every concrete visual role that would otherwise require imagegen, with proof recorded in the brief.
+- [ ] `Asset mode: not-applicable` is accepted only with explicit Not-applicable proof showing that imagery would harm the UX, such as pure data tables, internal operations tools, CLI-like admin screens, or text-heavy settings screens.
+- [ ] CSS gradients, abstract shapes, empty placeholders, generic SaaS card walls, manually drawn decorations, and token-only styling are rejected as generated image substitutes.
+- [ ] Reference-Driven Asset Manifest entries require asset ID, asset type or role, reference signal, generation prompt or spec, source input if any, output path, intended UI usage, and validation evidence when imagegen is used.
+- [ ] Reference-Driven Asset Manifest entries use a repeatable per-asset schema with exact labels for Asset ID, Asset type, Asset source, Required status, Role in UI, Reference signal, Generation prompt/spec, Source input path, Saved asset path, Intended UI usage, and Rendered usage evidence.
+- [ ] The brief uses a pre-run generation plan readiness field, such as `Generation plan status: ready`, instead of requiring `Generation status: complete` before assets are generated during `namba run`.
+- [ ] `namba run` fails when imagegen is required but `## Generated Asset Evidence` is missing or incomplete.
+- [ ] Generated Asset Evidence requires manifest path, generated files, prompt summary, saved project asset paths, and rendered usage evidence for each generated asset's intended UI element.
+- [ ] Generated Asset Evidence supports repeatable per-asset blocks with exact labels for Asset ID, Generated file, Saved asset path, Prompt summary, Intended UI usage, and Rendered usage evidence.
+- [ ] Generated Asset Evidence passes for small generated assets such as icons, sprites, thumbnails, cutouts, textures, or object images when those assets are saved and rendered in their intended UI elements.
+- [ ] Rendered usage evidence for small generated assets may be satisfied by screenshot callouts, component render output, DOM/file-path linkage, Storybook or preview evidence, or deterministic test-render evidence tied to the intended UI element.
+- [ ] `$namba-run`, `namba-designer`, and `namba-frontend-implementer` guidance reflects the generated-images default, not-applicable proof requirements, broad generated asset definition, and evidence requirements.
+- [ ] Deterministic tests cover the new validator behavior, run-result failure mode, multi-asset manifests, small-asset evidence path, missing per-asset evidence, rejected substitutes, existing-assets proof, mixed-mode proof, and updated prompt/template text.
+- [ ] Existing SPEC-044 Do-Not Design Contract regressions remain intact: negative-first contract validation, frontend-major blocking, post-implementation violation checks, and generated asset evidence behavior covered by SPEC-044 tests must not be weakened or broken.
+- [ ] Validation commands pass: `go test ./...`, `gofmt -l "cmd" "internal" "namba_test.go"`, and `go vet ./...`.

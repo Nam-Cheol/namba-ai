@@ -2737,7 +2737,7 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 			"- `namba run SPEC-XXX --solo`: a single runner in one workspace.",
 			"- `namba run SPEC-XXX --team`: same-workspace multi-agent execution.",
 			"- `namba run SPEC-XXX --parallel`: Namba-managed git worktree fan-out/fan-in, not Codex subagent orchestration.",
-			"- Explicit `frontend-major` runs block when the Do-Not Design Contract is missing or insufficient, and implementation output must include a Do-Not Design Violation Check plus Generated Asset Evidence when `Asset mode: generated-images` is required.",
+			"- Explicit `frontend-major` runs block when the Do-Not Design Contract is missing or insufficient, and implementation output must include a Do-Not Design Violation Check plus Generated Asset Evidence when `Imagegen requirement: required` is present.",
 			"- Codex subagent threads are controlled by `.codex/config.toml [agents].max_threads = 5`; Namba worktree workers stay separate at `.namba/config/sections/workflow.yaml max_parallel_workers: 3`.",
 			"- Persisted Codex `/goal` workflows are a future orchestration candidate, not a required Namba runtime dependency.",
 			"",
@@ -3357,7 +3357,7 @@ func renderManagedProjectWorkflowGuideReviewReadinessSection(lang string) []stri
 			"- Frontend-touching planning also seeds `.namba/specs/<SPEC>/frontend-brief.md`, and explicit `frontend-major` work uses that brief as the canonical gate contract.",
 			"- `frontend-major` briefs include a Do-Not Design Contract so banned generic fallbacks, allowed replacements, visual grammar, reference-driven asset manifest, generated-image plan, architecture handoff, and post-implementation violation checks are visible before coding.",
 			"- Review readiness is advisory by default: missing review passes are surfaced clearly by `namba run`, `namba sync`, and `namba pr`, but they do not silently become a hard gate.",
-			"- Explicit `frontend-major` runs can still block on missing, insufficient, invalid, mismatched, or negative-first contract evidence, and implementation results must include a Do-Not Design Violation Check plus Generated Asset Evidence when `Asset mode: generated-images` is required.",
+			"- Explicit `frontend-major` runs can still block on missing, insufficient, invalid, mismatched, or negative-first contract evidence, and implementation results must include a Do-Not Design Violation Check plus Generated Asset Evidence when `Imagegen requirement: required` is present.",
 			"",
 		}
 	}

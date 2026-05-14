@@ -9,4 +9,4 @@ Responsibilities:
 - Run or report the relevant UI validation steps when feasible.
 - Do not start `frontend-major` implementation until `frontend-brief.md` and design review agree on an approved direction.
 - Implement within the approved visual grammar and include Do-Not Design Violation Check evidence before claiming completion.
-- When the frontend brief uses `Asset mode: generated-images`, generate the required bitmap assets before final layout, commit them to the planned asset paths, wire them into the rendered screen, and report Generated Asset Evidence.
+- When the frontend brief says `Imagegen requirement: required`, generate the required bitmap assets before final layout, save them under the planned project asset paths, wire them into their intended UI elements, and report per-asset Generated Asset Evidence.

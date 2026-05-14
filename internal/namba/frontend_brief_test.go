@@ -182,8 +182,8 @@ func TestParseFrontendBriefAcceptsCompleteDoNotDesignContract(t *testing.T) {
 	if report.AssetMode != frontendAssetModeGeneratedImages {
 		t.Fatalf("expected generated image asset mode, got %+v", report)
 	}
-	if report.GeneratedImagePlan != frontendNegativeContractStatusComplete {
-		t.Fatalf("expected complete generated image plan, got %+v", report)
+	if report.GeneratedImagePlan != frontendGenerationPlanStatusReady {
+		t.Fatalf("expected ready generated image plan, got %+v", report)
 	}
 	if len(report.NegativeContractIssues) != 0 {
 		t.Fatalf("expected no negative-first issues, got %+v", report.NegativeContractIssues)
@@ -207,14 +207,128 @@ func TestParseFrontendBriefRejectsContextBanWithoutReplacement(t *testing.T) {
 func TestParseFrontendBriefRejectsGeneratedImageModeWithoutAssetEvidence(t *testing.T) {
 	t.Parallel()
 
-	body := strings.Replace(validFrontendMajorBriefWithDoNotDesignContract(), "Output path: frontend/assets/workflow-state-hero.png", "Output path: Pending.", 1)
+	body := strings.Replace(validFrontendMajorBriefWithDoNotDesignContract(), "Saved asset path: frontend/assets/workflow-state-hero.png", "Saved asset path: Pending.", 1)
 	report := parseFrontendBrief(body)
 
 	if report.NegativeContractStatus != frontendNegativeContractStatusInsufficient {
 		t.Fatalf("expected insufficient generated-image contract, got %+v", report)
 	}
-	if !strings.Contains(strings.Join(report.NegativeContractIssues, "\n"), "output path") {
+	if !strings.Contains(strings.Join(report.NegativeContractIssues, "\n"), "saved asset path") {
 		t.Fatalf("expected generated-image output path issue, got %+v", report.NegativeContractIssues)
+	}
+}
+
+func TestParseFrontendBriefAcceptsSmallGeneratedAssetEvidence(t *testing.T) {
+	t.Parallel()
+
+	body := strings.Replace(validFrontendMajorBriefWithDoNotDesignContract(), "Asset type: hero image", "Asset type: product-specific status icon", 1)
+	body = strings.Replace(body, "Asset ID: workflow-state-hero", "Asset ID: product-state-icon", 1)
+	body = strings.Replace(body, "Saved asset path: frontend/assets/workflow-state-hero.png", "Saved asset path: frontend/assets/product-state-icon.png", 1)
+	body = strings.Replace(body, "Intended UI usage: hero media beside the workflow lane and above detailed evidence rows.", "Intended UI usage: status selector icon in the first-run setup panel.", 1)
+	body = strings.Replace(body, "Rendered usage evidence: rendered screenshot confirms the generated asset appears in the first viewport.", "Rendered usage evidence: component render output includes frontend/assets/product-state-icon.png in the status selector.", 1)
+
+	report := parseFrontendBrief(body)
+
+	if report.NegativeContractStatus != frontendNegativeContractStatusComplete {
+		t.Fatalf("expected small generated asset to satisfy contract, got status=%s issues=%+v", report.NegativeContractStatus, report.NegativeContractIssues)
+	}
+}
+
+func TestParseFrontendBriefAcceptsMixedExistingAndGeneratedAssetBlocks(t *testing.T) {
+	t.Parallel()
+
+	body := strings.Replace(validFrontendMajorBriefWithDoNotDesignContract(), "- Not-applicable proof: n/a", strings.Join([]string{
+		"- Asset ID: brand-logo",
+		"  Asset type: existing brand mark",
+		"  Asset source: existing-input",
+		"  Required status: supporting",
+		"  Role in UI: header brand identity already supplied by the user.",
+		"  Reference signal: supplied brand package sets the logo shape and spacing.",
+		"  Generation prompt/spec: n/a",
+		"  Source input path: src/assets/logo.svg",
+		"  Saved asset path: n/a",
+		"  Intended UI usage: header lockup next to navigation.",
+		"  Rendered usage evidence: browser DOM includes src/assets/logo.svg in the header.",
+		"- Not-applicable proof: n/a",
+	}, "\n"), 1)
+
+	report := parseFrontendBrief(body)
+
+	if report.NegativeContractStatus != frontendNegativeContractStatusComplete {
+		t.Fatalf("expected mixed generated/existing assets to satisfy contract, got status=%s issues=%+v", report.NegativeContractStatus, report.NegativeContractIssues)
+	}
+}
+
+func TestParseFrontendBriefRejectsGeneratedAssetWithoutRenderedUsageEvidence(t *testing.T) {
+	t.Parallel()
+
+	body := strings.Replace(validFrontendMajorBriefWithDoNotDesignContract(), "Rendered usage evidence: rendered screenshot confirms the generated asset appears in the first viewport.", "Rendered usage evidence: Pending.", 1)
+	report := parseFrontendBrief(body)
+
+	if report.NegativeContractStatus != frontendNegativeContractStatusInsufficient {
+		t.Fatalf("expected insufficient generated-image contract, got %+v", report)
+	}
+	if !strings.Contains(strings.Join(report.NegativeContractIssues, "\n"), "rendered usage evidence") {
+		t.Fatalf("expected rendered usage issue, got %+v", report.NegativeContractIssues)
+	}
+}
+
+func TestParseFrontendBriefAcceptsExistingAssetsWithDecisionProof(t *testing.T) {
+	t.Parallel()
+
+	body := validFrontendMajorBriefWithDoNotDesignContract()
+	body = strings.ReplaceAll(body, "Asset mode: generated-images", "Asset mode: existing-assets")
+	body = strings.ReplaceAll(body, "Imagegen requirement: required", "Imagegen requirement: covered-by-existing-assets")
+	body = strings.ReplaceAll(body, "Asset decision proof: n/a; imagegen is required because first major screen visual quality depends on a concrete workflow-state product visual.", "Asset decision proof: User-provided brand package and supplied workflow screenshot fully cover every concrete visual role that would otherwise require imagegen.")
+	body = strings.ReplaceAll(body, "Asset source: generated", "Asset source: existing-covered")
+	body = strings.ReplaceAll(body, "Required status: required", "Required status: covered")
+	body = strings.ReplaceAll(body, "Generation prompt/spec: create an original high-fidelity workflow-state product visual with no logos, no watermark, and no decorative dashboard placeholder.", "Generation prompt/spec: n/a")
+	body = strings.ReplaceAll(body, "Source input path: n/a", "Source input path: frontend/assets/supplied-workflow-state.png")
+	body = strings.ReplaceAll(body, "Saved asset path: frontend/assets/workflow-state-hero.png", "Saved asset path: n/a")
+	body = strings.ReplaceAll(body, "Generation plan status: ready", "Generation plan status: not-applicable")
+	body = strings.ReplaceAll(body, "Not-applicable proof: n/a", "Not-applicable proof: Existing supplied assets cover the concrete visual roles; no generated imagery is needed.")
+
+	report := parseFrontendBrief(body)
+
+	if report.NegativeContractStatus != frontendNegativeContractStatusComplete {
+		t.Fatalf("expected existing assets proof to satisfy contract, got status=%s issues=%+v", report.NegativeContractStatus, report.NegativeContractIssues)
+	}
+}
+
+func TestParseFrontendBriefRejectsNotApplicableWithoutProof(t *testing.T) {
+	t.Parallel()
+
+	body := validFrontendMajorBriefWithDoNotDesignContract()
+	body = strings.ReplaceAll(body, "Asset mode: generated-images", "Asset mode: not-applicable")
+	body = strings.ReplaceAll(body, "Imagegen requirement: required", "Imagegen requirement: not-applicable")
+	body = strings.ReplaceAll(body, "Asset decision proof: n/a; imagegen is required because first major screen visual quality depends on a concrete workflow-state product visual.", "Asset decision proof: Pending.")
+	body = strings.ReplaceAll(body, "Generation plan status: ready", "Generation plan status: not-applicable")
+
+	report := parseFrontendBrief(body)
+
+	if report.NegativeContractStatus != frontendNegativeContractStatusInsufficient {
+		t.Fatalf("expected missing not-applicable proof to fail, got %+v", report)
+	}
+	if !strings.Contains(strings.Join(report.NegativeContractIssues, "\n"), "Not-applicable proof") {
+		t.Fatalf("expected not-applicable proof issue, got %+v", report.NegativeContractIssues)
+	}
+}
+
+func TestParseFrontendBriefRejectsSubstituteProofForExistingAssets(t *testing.T) {
+	t.Parallel()
+
+	body := validFrontendMajorBriefWithDoNotDesignContract()
+	body = strings.ReplaceAll(body, "Asset mode: generated-images", "Asset mode: existing-assets")
+	body = strings.ReplaceAll(body, "Imagegen requirement: required", "Imagegen requirement: covered-by-existing-assets")
+	body = strings.ReplaceAll(body, "Asset decision proof: n/a; imagegen is required because first major screen visual quality depends on a concrete workflow-state product visual.", "Asset decision proof: CSS gradients and token-only styling will stand in for missing product visuals.")
+
+	report := parseFrontendBrief(body)
+
+	if report.NegativeContractStatus != frontendNegativeContractStatusInsufficient {
+		t.Fatalf("expected substitute proof to fail, got %+v", report)
+	}
+	if !strings.Contains(strings.Join(report.NegativeContractIssues, "\n"), "substitutes") {
+		t.Fatalf("expected substitute rejection issue, got %+v", report.NegativeContractIssues)
 	}
 }
 
@@ -401,6 +515,10 @@ func validFrontendMajorBriefWithDoNotDesignContract() string {
 		"Decision Gate: complete",
 		"Prototype Gate: complete",
 		"Prototype Evidence: wireframe",
+		"Frontend implementation phase: first-major-screen",
+		"Asset mode: generated-images",
+		"Imagegen requirement: required",
+		"Asset decision proof: n/a; imagegen is required because first major screen visual quality depends on a concrete workflow-state product visual.",
 		"",
 		"## Do-Not Design Contract",
 		"",
@@ -453,25 +571,31 @@ func validFrontendMajorBriefWithDoNotDesignContract() string {
 		"",
 		"### Reference-Driven Asset Manifest",
 		"",
+		"- Frontend implementation phase: first-major-screen",
 		"- Asset mode: generated-images",
+		"- Imagegen requirement: required",
+		"- Asset decision proof: n/a; imagegen is required because first major screen visual quality depends on a concrete workflow-state product visual.",
 		"- Asset ID: workflow-state-hero",
-		"  Role in screen: first viewport workflow-state illustration that replaces generic KPI cards.",
+		"  Asset type: hero image",
+		"  Asset source: generated",
+		"  Required status: required",
+		"  Role in UI: first viewport workflow-state illustration that replaces generic KPI cards.",
 		"  Reference signal: reference synthesis requires visible workflow state proof instead of abstract SaaS cards.",
 		"  Generation prompt/spec: create an original high-fidelity workflow-state product visual with no logos, no watermark, and no decorative dashboard placeholder.",
-		"  Source asset path: n/a",
-		"  Output path: frontend/assets/workflow-state-hero.png",
-		"  Usage in implementation: hero media beside the workflow lane and above detailed evidence rows.",
-		"  Validation evidence: rendered screenshot confirms the generated asset appears in the first viewport.",
+		"  Source input path: n/a",
+		"  Saved asset path: frontend/assets/workflow-state-hero.png",
+		"  Intended UI usage: hero media beside the workflow lane and above detailed evidence rows.",
+		"  Rendered usage evidence: rendered screenshot confirms the generated asset appears in the first viewport.",
 		"- Not-applicable proof: n/a",
 		"",
 		"### Generated Image Execution Plan",
 		"",
-		"- Generation status: complete",
+		"- Generation plan status: ready",
 		"- Tool path: Codex built-in image generation.",
 		"- Execution order: define asset manifest, generate bitmap, copy to frontend/assets, wire into layout, capture rendered screen.",
 		"- Prompt coverage: prompt names subject, reference signal, style, composition, output constraints, and banned logo/watermark/text drift.",
-		"- Output evidence: cite asset manifest and generated PNG paths.",
-		"- Rendered usage evidence: cite browser screenshot or local render showing the generated asset in context.",
+		"- Saved asset evidence plan: cite asset manifest and generated PNG paths.",
+		"- Rendered usage evidence plan: cite browser screenshot or local render showing the generated asset in context.",
 		"- Not-applicable proof: n/a",
 		"",
 		"### Most-Generic-Section Redesign Proof",
