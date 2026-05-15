@@ -59,7 +59,7 @@ namba init .
 ```
 
 wizard는 먼저 기존 코드가 있는지 확인합니다. 기존 repo는 감지된 stack을 그대로 쓰고, 빈 repo는 앱 stack을 고르지 않은 채 Namba/Codex 환경만 준비합니다. 단계와 선택지는 🧭/📦/🌐/🔐 같은 이모지로 구분되고, 각 선택은 ✅로 표시된 뒤 다음 단계로 넘어갑니다. `b` 또는 `back`으로 이전 단계에 돌아가 수정할 수 있습니다. GitHub 사용자명은 묻지 않으며, Codex access preset은 결과 approval_policy / sandbox_mode를 미리 보여줍니다.
-- 첫 interactive Codex 세션에서 `6 hooks need review`가 보이면 `/hooks`를 열고 `.codex/hooks/namba_codex_guard.py` 명령을 확인한 뒤 승인하세요. 이 승인이 끝나야 애매한 prompt를 질문 쪽으로 유도하는 hook이 실행됩니다.
+- 첫 interactive Codex 세션에서 `6 hooks need review`가 보이면 `/hooks`를 열고 `.codex/hooks/namba_codex_guard.sh` 또는 Windows `.codex/hooks/namba_codex_guard.ps1` launcher가 `.codex/hooks/namba_codex_guard.py`를 실행하는지 확인한 뒤 승인하세요. 이 승인이 끝나야 애매한 prompt를 질문 쪽으로 유도하는 hook이 실행됩니다.
 - 초기화 뒤에는 `namba codex access`로 현재 access 기본값을 확인하거나 바꿀 수 있습니다.
 
 ## 5. 기본 Codex 흐름 실행

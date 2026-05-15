@@ -184,7 +184,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 		t.Fatalf("expected multi-agent Codex config, got %q", config)
 	}
 	hooksJSON := mustReadFile(t, filepath.Join(tmp, ".codex", "hooks.json"))
-	for _, want := range []string{"SessionStart", "PreToolUse", "PermissionRequest", "UserPromptSubmit", "PostToolUse", "Stop", ".codex/hooks/namba_codex_guard.py"} {
+	for _, want := range []string{"SessionStart", "PreToolUse", "PermissionRequest", "UserPromptSubmit", "PostToolUse", "Stop", ".codex/hooks/namba_codex_guard.sh"} {
 		if !strings.Contains(hooksJSON, want) {
 			t.Fatalf("expected generated Codex hooks.json to contain %q, got %q", want, hooksJSON)
 		}
@@ -193,6 +193,18 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	for _, want := range []string{"git reset --hard", "permissionDecision", "prompt-refinement gate", "approval_risk_note", "Namba-managed instruction or config surfaces are changed", "NAMBA-AI 작업 결과 보고"} {
 		if !strings.Contains(hookGuard, want) {
 			t.Fatalf("expected generated Namba Codex hook guard to contain %q, got %q", want, hookGuard)
+		}
+	}
+	hookWrapper := mustReadFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.ps1"))
+	for _, want := range []string{"Windows PowerShell 5", "NambaAI hook guard failed", "Python 3 was not found or could not run", "exit 1"} {
+		if !strings.Contains(hookWrapper, want) {
+			t.Fatalf("expected generated Namba Codex hook wrapper to contain %q, got %q", want, hookWrapper)
+		}
+	}
+	shellWrapper := mustReadFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.sh"))
+	for _, want := range []string{"POSIX shells", "NambaAI hook guard failed", "python3", "exit 1"} {
+		if !strings.Contains(shellWrapper, want) {
+			t.Fatalf("expected generated Namba Codex shell launcher to contain %q, got %q", want, shellWrapper)
 		}
 	}
 	workflowConfig := mustReadFile(t, filepath.Join(tmp, ".namba", "config", "sections", "workflow.yaml"))
@@ -353,6 +365,42 @@ func TestRunRegenSignalsSessionRefreshWhenInstructionSurfaceChanges(t *testing.T
 	notice := mustReadFile(t, filepath.Join(tmp, ".namba", "logs", "session-refresh-required.json"))
 	if !strings.Contains(notice, "\"required\": true") || !strings.Contains(notice, "AGENTS.md") {
 		t.Fatalf("expected session refresh notice log, got %q", notice)
+	}
+}
+
+func TestRunRegenOnWindowsReplacesLegacyHookFallbackCommand(t *testing.T) {
+	t.Parallel()
+
+	tmp := canonicalTempDir(t)
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.goos = "windows"
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	legacyHooks := strings.ReplaceAll(renderNambaCodexHooksJSONForOS("windows"), "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .codex/hooks/namba_codex_guard.ps1", `py -3 \".codex/hooks/namba_codex_guard.py\" || python \".codex/hooks/namba_codex_guard.py\"`)
+	if err := os.WriteFile(filepath.Join(tmp, ".codex", "hooks.json"), []byte(legacyHooks), 0o644); err != nil {
+		t.Fatalf("write legacy hooks: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	if err := app.Run(context.Background(), []string{"regen"}); err != nil {
+		t.Fatalf("regen failed: %v", err)
+	}
+
+	hooksJSON := mustReadFile(t, filepath.Join(tmp, ".codex", "hooks.json"))
+	if !strings.Contains(hooksJSON, "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .codex/hooks/namba_codex_guard.ps1") {
+		t.Fatalf("expected Windows regen hooks.json to use the PowerShell wrapper, got %q", hooksJSON)
+	}
+	if strings.Contains(hooksJSON, ` || `) {
+		t.Fatalf("expected Windows regen hooks.json to avoid PowerShell 7-only || fallback syntax, got %q", hooksJSON)
+	}
+
+	hookWrapper := mustReadFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.ps1"))
+	if !strings.Contains(hookWrapper, "NambaAI hook guard failed") || !strings.Contains(hookWrapper, "Python 3 was not found or could not run") || !strings.Contains(hookWrapper, "exit 1") {
+		t.Fatalf("expected Windows regen PowerShell wrapper fallback, got %q", hookWrapper)
 	}
 }
 

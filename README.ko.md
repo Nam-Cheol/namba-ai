@@ -68,8 +68,8 @@ namba land
 ## 🪝 Hook Runtime
 
 - 처음 쓰는 중이라면 이 섹션은 건너뛰어도 됩니다. Hook은 실행 중 특정 시점에 자동으로 돌릴 검사나 알림을 붙이고 싶을 때 사용합니다.
-- Codex lifecycle hook은 `namba init .`가 `.codex/hooks.json`과 `.codex/hooks/namba_codex_guard.py`로 미리 생성합니다. 이 hook은 Namba context를 주입하고, 애매한 prompt는 전송을 막지 않고 질문/정리 쪽으로 유도하며, 권한 요청의 위험성을 설명하고, final response 형식과 managed instruction surface 변경 후 `namba regen`/validation을 상기시킵니다.
-- Codex는 repo-local hook을 실행하기 전에 리뷰를 요구합니다. 첫 interactive Codex 세션에서 `6 hooks need review`가 보이면 `/hooks`를 열고 명령이 현재 저장소의 `.codex/hooks/namba_codex_guard.py`만 가리키는지 확인한 뒤 승인하세요.
+- Codex lifecycle hook은 `namba init .`가 `.codex/hooks.json`, `.codex/hooks/namba_codex_guard.py`, POSIX `.codex/hooks/namba_codex_guard.sh`, Windows `.codex/hooks/namba_codex_guard.ps1` launcher로 미리 생성합니다. 이 hook은 Namba context를 주입하고, 애매한 prompt는 전송을 막지 않고 질문/정리 쪽으로 유도하며, 권한 요청의 위험성을 설명하고, final response 형식과 managed instruction surface 변경 후 `namba regen`/validation을 상기시킵니다.
+- Codex는 repo-local hook을 실행하기 전에 리뷰를 요구합니다. 첫 interactive Codex 세션에서 `6 hooks need review`가 보이면 `/hooks`를 열고 명령이 현재 저장소의 `.codex/hooks/namba_codex_guard.sh` 또는 Windows `.codex/hooks/namba_codex_guard.ps1` launcher만 가리키는지 확인한 뒤 승인하세요.
 - `.codex/hooks.json`은 Codex interactive guardrail이고, `.namba/hooks.toml`은 `namba run`의 evidence/validation boundary입니다.
 - 📍 등록 위치: 저장소 루트에 `.namba/hooks.toml`을 만들면 `namba run SPEC-XXX`가 실행 중 자동으로 읽습니다.
 - 🧩 등록 형식: `[hooks.<hook_name>]` 테이블을 추가하고 `event`, `command`, `cwd`, `timeout`, `enabled`, `continue_on_failure`를 채웁니다.

@@ -534,7 +534,7 @@ func (a *App) runInit(_ context.Context, args []string) error {
 	fmt.Fprintln(a.stdout, "Codex hook review:")
 	fmt.Fprintln(a.stdout, "  1. Open an interactive Codex session in this directory.")
 	fmt.Fprintln(a.stdout, "  2. If Codex shows `6 hooks need review`, run `/hooks`.")
-	fmt.Fprintln(a.stdout, "  3. Approve only after confirming every command points to this repository's `.codex/hooks/namba_codex_guard.py`.")
+	fmt.Fprintln(a.stdout, "  3. Approve only after confirming every command points to this repository's `.codex/hooks/namba_codex_guard.sh` or Windows `.codex/hooks/namba_codex_guard.ps1` launcher.")
 	fmt.Fprintln(a.stdout, "  4. Re-run an ambiguous Namba prompt to confirm Codex asks clarification questions before planning.")
 	return nil
 }

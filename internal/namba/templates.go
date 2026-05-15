@@ -717,7 +717,7 @@ func renderCodexUsageWorkflowCommandSemanticsSection() []string {
 		"- Permission profiles, models, auth, apps, web search, and platform sandbox choices stay user-owned unless NambaAI explicitly widens repo-managed config.",
 		"- Avoid deprecated Codex full-auto style flags; prefer explicit `approval_policy`, `sandbox_mode`, sandbox profile, and permission profile settings.",
 		"- Generated Codex lifecycle hooks are repo-local guardrails, not a complete security boundary: they add Namba context, guide ambiguous Namba prompts toward clarification questions without blocking submission, add approval-risk notes, check final-report format, deny destructive shell commands, and remind Codex about managed-surface changes.",
-		"- Codex requires repo-local hooks to be reviewed before they run. In the first interactive session after init or regen, open `/hooks`, inspect the generated commands, and approve them only if they resolve to `.codex/hooks/namba_codex_guard.py` in the current repository.",
+		"- Codex requires repo-local hooks to be reviewed before they run. In the first interactive session after init or regen, open `/hooks`, inspect the generated commands, and approve them only if they resolve to the current repository's `.codex/hooks/namba_codex_guard.sh` or Windows `.codex/hooks/namba_codex_guard.ps1` launcher for `.codex/hooks/namba_codex_guard.py`.",
 		"- `namba regen` regenerates `AGENTS.md`, repo skills under `.agents/skills/`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
 		"- `namba update` self-updates the installed `namba` binary from GitHub Release assets. Use `--version vX.Y.Z` for a specific release.",
 		"- `codex update` updates the upstream Codex CLI itself. Keep it separate from `namba update`.",
@@ -759,7 +759,7 @@ func renderCodexUsageHowCodexUsesNambaSection() []string {
 		"",
 		"1. Open Codex in the initialized project directory.",
 		"   On Windows, the current official Codex docs recommend using a WSL workspace for the best CLI experience.",
-		"2. If Codex reports `6 hooks need review`, open `/hooks`, inspect that each generated command resolves to this repository's `.codex/hooks/namba_codex_guard.py`, and approve before expecting prompt-refinement hooks to run.",
+		"2. If Codex reports `6 hooks need review`, open `/hooks`, inspect that each generated command resolves to this repository's `.codex/hooks/namba_codex_guard.sh` or the Windows `.codex/hooks/namba_codex_guard.ps1` launcher for `.codex/hooks/namba_codex_guard.py`, and approve before expecting prompt-refinement hooks to run.",
 		"3. Codex loads `AGENTS.md` and repo skills.",
 		"4. Let the repo-local Codex lifecycle hook refine ambiguous Namba prompts before execution. When the goal, target surface, constraints, or acceptance criteria are underspecified, Codex should ask concise clarifying questions and restate the improved prompt before planning or editing.",
 		"5. Invoke `$namba` for routing, `$namba-coach` for read-only current-goal command coaching, `$namba-help` for read-only Namba usage guidance, or command-entry skills such as `$namba-create`, `$namba-run`, `$namba-queue`, `$namba-pr`, `$namba-land`, `$namba-release`, `$namba-plan`, `$namba-plan-review`, `$namba-harness`, `$namba-fix`, `$namba-review-resolve`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, and `$namba-sync` for direct command-style execution.",
@@ -1227,9 +1227,228 @@ func renderNambaCodexHooksJSONForOS(goos string) string {
 
 func codexHookCommandForOS(goos string) string {
 	if goos == "windows" {
-		return `py -3 \".codex/hooks/namba_codex_guard.py\" || python \".codex/hooks/namba_codex_guard.py\"`
+		return `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .codex/hooks/namba_codex_guard.ps1`
 	}
-	return `python3 \".codex/hooks/namba_codex_guard.py\"`
+	return `sh .codex/hooks/namba_codex_guard.sh`
+}
+
+func renderNambaCodexHookGuardShellWrapper() string {
+	return `#!/bin/sh
+# NambaAI Codex lifecycle hook launcher for POSIX shells.
+
+script_dir=${0%/*}
+if [ "$script_dir" = "$0" ]; then
+    script_dir="."
+fi
+script_path="$script_dir/namba_codex_guard.py"
+raw_input=""
+
+while IFS= read -r line || [ -n "$line" ]; do
+    raw_input="${raw_input}${line}
+"
+done
+
+failure_message="NambaAI hook guard failed: Python 3 was not found or could not run .codex/hooks/namba_codex_guard.py. Install Python 3, then run namba regen and review /hooks again. Hooks are guardrails, so continue only with explicit validation."
+failed_candidates=""
+
+emit_failure() {
+    message=$1
+    printf '%s\n' "$message" >&2
+    printf '{"hookSpecificOutput":{"hookEventName":"Unknown","additionalContext":"%s"}}\n' "$message"
+}
+
+run_candidate() {
+    executable=$1
+    shift
+    if ! command -v "$executable" >/dev/null 2>&1; then
+        return 127
+    fi
+
+    stderr_path="${TMPDIR:-/tmp}/namba_codex_hook_$$.stderr"
+    : > "$stderr_path" 2>/dev/null || stderr_path=""
+
+    if [ -n "$stderr_path" ]; then
+        output=$(printf '%s' "$raw_input" | "$executable" "$@" 2>"$stderr_path")
+        status=$?
+        stderr_text=""
+        while IFS= read -r err_line || [ -n "$err_line" ]; do
+            stderr_text="${stderr_text}${err_line} "
+        done < "$stderr_path"
+        : > "$stderr_path" 2>/dev/null || true
+    else
+        output=$(printf '%s' "$raw_input" | "$executable" "$@" 2>&1)
+        status=$?
+        stderr_text=""
+    fi
+
+    if [ "$status" -eq 0 ]; then
+        if [ -n "$stderr_text" ]; then
+            printf '%s\n' "$stderr_text" >&2
+        fi
+        if [ -n "$output" ]; then
+            printf '%s\n' "$output"
+        fi
+        exit 0
+    fi
+
+    failed_candidates="${failed_candidates}${executable} exited ${status}; "
+    if [ -n "$stderr_text" ]; then
+        printf '%s failed: %s\n' "$executable" "$stderr_text" >&2
+    fi
+    return 1
+}
+
+run_candidate python3 "$script_path"
+run_candidate python "$script_path"
+run_candidate py -3 "$script_path"
+
+if [ -n "$failed_candidates" ]; then
+    printf 'NambaAI hook launcher candidates failed: %s\n' "$failed_candidates" >&2
+fi
+emit_failure "$failure_message"
+exit 1
+`
+}
+
+func renderNambaCodexHookGuardPowerShellWrapper() string {
+	return `# NambaAI Codex lifecycle hook guard wrapper for Windows PowerShell 5.
+$ErrorActionPreference = "Stop"
+
+$scriptPath = Join-Path $PSScriptRoot "namba_codex_guard.py"
+$rawInput = [Console]::In.ReadToEnd()
+$eventName = "Unknown"
+$failureMessage = "NambaAI hook guard failed: Python 3 was not found or could not run .codex/hooks/namba_codex_guard.py. Install Python 3 or the Python launcher, then run namba regen and review /hooks again. Hooks are guardrails, so continue only with explicit validation."
+
+function Write-NambaHookFailure {
+    param(
+        [string]$Message,
+        [string]$HookEventName
+    )
+
+    [Console]::Error.WriteLine($Message)
+    $output = [ordered]@{
+        hookSpecificOutput = [ordered]@{
+            hookEventName = $HookEventName
+            additionalContext = $Message
+        }
+    }
+    $output | ConvertTo-Json -Compress -Depth 5
+}
+
+try {
+    $trimmedInput = $rawInput.Trim()
+    if ($trimmedInput.Length -gt 0) {
+        $payload = $trimmedInput | ConvertFrom-Json -ErrorAction Stop
+        if ($payload.hook_event_name) {
+            $eventName = [string]$payload.hook_event_name
+        }
+    }
+} catch {
+    $eventName = "Unknown"
+}
+
+try {
+    function Quote-NambaArgument {
+        param([string]$Value)
+        return '"' + ($Value -replace '"', '\"') + '"'
+    }
+
+    function Invoke-NambaPythonHook {
+        param(
+            [string]$Executable,
+            [string[]]$Arguments,
+            [string]$InputText
+        )
+
+        $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $startInfo.FileName = $Executable
+        $startInfo.Arguments = ($Arguments | ForEach-Object { Quote-NambaArgument $_ }) -join " "
+        $startInfo.UseShellExecute = $false
+        $startInfo.RedirectStandardInput = $true
+        $startInfo.RedirectStandardOutput = $true
+        $startInfo.RedirectStandardError = $true
+        $startInfo.CreateNoWindow = $true
+
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $startInfo
+
+        try {
+            [void]$process.Start()
+            $process.StandardInput.Write($InputText)
+            $process.StandardInput.Close()
+            $stdout = $process.StandardOutput.ReadToEnd()
+            $stderr = $process.StandardError.ReadToEnd()
+            $process.WaitForExit()
+            return @{
+                ExitCode = $process.ExitCode
+                Stdout = $stdout
+                Stderr = $stderr
+            }
+        } catch {
+            return @{
+                ExitCode = -1
+                Stdout = ""
+                Stderr = $_.Exception.Message
+            }
+        } finally {
+            if ($process -ne $null) {
+                $process.Dispose()
+            }
+        }
+    }
+
+    $candidates = @(
+        @{ Name = "py.exe"; Args = @("-3", $scriptPath) },
+        @{ Name = "py"; Args = @("-3", $scriptPath) },
+        @{ Name = "python.exe"; Args = @($scriptPath) },
+        @{ Name = "python"; Args = @($scriptPath) },
+        @{ Name = "python3.exe"; Args = @($scriptPath) },
+        @{ Name = "python3"; Args = @($scriptPath) }
+    )
+
+    $failedCandidates = @()
+    foreach ($candidate in $candidates) {
+        $resolved = Get-Command $candidate.Name -ErrorAction SilentlyContinue
+        if (-not $resolved) {
+            continue
+        }
+
+        $executable = $candidate.Name
+        if ($resolved.Path) {
+            $executable = $resolved.Path
+        } elseif ($resolved.Source) {
+            $executable = $resolved.Source
+        }
+
+        $result = Invoke-NambaPythonHook -Executable $executable -Arguments $candidate.Args -InputText $rawInput
+        if ($result.Stderr.Trim().Length -gt 0) {
+            [Console]::Error.Write($result.Stderr)
+        }
+        if ($result.ExitCode -eq 0) {
+            if ($result.Stdout.Trim().Length -gt 0) {
+                [Console]::Out.Write($result.Stdout)
+            }
+            exit 0
+        }
+
+        $summary = $candidate.Name + " exited " + $result.ExitCode
+        if ($result.Stderr.Trim().Length -gt 0) {
+            $summary = $summary + ": " + $result.Stderr.Trim()
+        }
+        $failedCandidates += $summary
+    }
+
+    if ($failedCandidates.Count -gt 0) {
+        [Console]::Error.WriteLine("NambaAI hook launcher candidates failed: " + ($failedCandidates -join "; "))
+    }
+
+    Write-NambaHookFailure -Message $failureMessage -HookEventName $eventName
+    exit 1
+} catch {
+    Write-NambaHookFailure -Message ("NambaAI hook launcher failed with an unhandled exception: " + $_.Exception.Message) -HookEventName $eventName
+    exit 1
+}
+`
 }
 
 func renderNambaCodexHookGuardScript() string {
@@ -1609,28 +1828,46 @@ def handle_stop(payload):
     })
 
 
+def emit_hook_error(event, message):
+    if not isinstance(event, str) or not event:
+        event = "Unknown"
+    print(message, file=sys.stderr)
+    emit({
+        "hookSpecificOutput": {
+            "hookEventName": event,
+            "additionalContext": message,
+        }
+    })
+
+
 def main():
     global CURRENT_PAYLOAD
-    payload = read_payload()
-    CURRENT_PAYLOAD = payload
-    trace(payload)
-    event = payload.get("hook_event_name")
-    if event == "SessionStart":
-        handle_session_start()
-    elif event == "PreToolUse":
-        handle_pre_tool_use(payload)
-    elif event == "PermissionRequest":
-        handle_permission_request(payload)
-    elif event == "UserPromptSubmit":
-        handle_user_prompt_submit(payload)
-    elif event == "PostToolUse":
-        handle_post_tool_use(payload)
-    elif event == "Stop":
-        handle_stop(payload)
+    try:
+        payload = read_payload()
+        CURRENT_PAYLOAD = payload
+        trace(payload)
+        event = payload.get("hook_event_name")
+        if event == "SessionStart":
+            handle_session_start()
+        elif event == "PreToolUse":
+            handle_pre_tool_use(payload)
+        elif event == "PermissionRequest":
+            handle_permission_request(payload)
+        elif event == "UserPromptSubmit":
+            handle_user_prompt_submit(payload)
+        elif event == "PostToolUse":
+            handle_post_tool_use(payload)
+        elif event == "Stop":
+            handle_stop(payload)
+        return 0
+    except Exception as exc:
+        event = CURRENT_PAYLOAD.get("hook_event_name") if isinstance(CURRENT_PAYLOAD, dict) else "Unknown"
+        emit_hook_error(event, "NambaAI hook guard failed with an unhandled exception: " + str(exc))
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
 `
 }
 

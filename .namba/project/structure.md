@@ -62,7 +62,9 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .codex/agents/namba-test-engineer.toml
 .codex/config.toml
 .codex/hooks.json
+.codex/hooks/namba_codex_guard.ps1
 .codex/hooks/namba_codex_guard.py
+.codex/hooks/namba_codex_guard.sh
 .gitattributes
 .github/PULL_REQUEST_TEMPLATE.md
 .github/dependabot.yml

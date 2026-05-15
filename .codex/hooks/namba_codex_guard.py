@@ -374,25 +374,43 @@ def handle_stop(payload):
     })
 
 
+def emit_hook_error(event, message):
+    if not isinstance(event, str) or not event:
+        event = "Unknown"
+    print(message, file=sys.stderr)
+    emit({
+        "hookSpecificOutput": {
+            "hookEventName": event,
+            "additionalContext": message,
+        }
+    })
+
+
 def main():
     global CURRENT_PAYLOAD
-    payload = read_payload()
-    CURRENT_PAYLOAD = payload
-    trace(payload)
-    event = payload.get("hook_event_name")
-    if event == "SessionStart":
-        handle_session_start()
-    elif event == "PreToolUse":
-        handle_pre_tool_use(payload)
-    elif event == "PermissionRequest":
-        handle_permission_request(payload)
-    elif event == "UserPromptSubmit":
-        handle_user_prompt_submit(payload)
-    elif event == "PostToolUse":
-        handle_post_tool_use(payload)
-    elif event == "Stop":
-        handle_stop(payload)
+    try:
+        payload = read_payload()
+        CURRENT_PAYLOAD = payload
+        trace(payload)
+        event = payload.get("hook_event_name")
+        if event == "SessionStart":
+            handle_session_start()
+        elif event == "PreToolUse":
+            handle_pre_tool_use(payload)
+        elif event == "PermissionRequest":
+            handle_permission_request(payload)
+        elif event == "UserPromptSubmit":
+            handle_user_prompt_submit(payload)
+        elif event == "PostToolUse":
+            handle_post_tool_use(payload)
+        elif event == "Stop":
+            handle_stop(payload)
+        return 0
+    except Exception as exc:
+        event = CURRENT_PAYLOAD.get("hook_event_name") if isinstance(CURRENT_PAYLOAD, dict) else "Unknown"
+        emit_hook_error(event, "NambaAI hook guard failed with an unhandled exception: " + str(exc))
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
