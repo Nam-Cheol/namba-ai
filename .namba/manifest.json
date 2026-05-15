@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-15T15:16:43+09:00",
+  "generated_at": "2026-05-15T15:55:22+09:00",
   "entries": [
     {
       "path": ".agents/skills/namba-coach/SKILL.md",
@@ -590,8 +590,8 @@
       "path": ".namba/project/structure.md",
       "kind": "project-doc",
       "owner": "namba-managed",
-      "checksum": "2e2d4c1deb8c0a1ea46cffa925392eae35f7f504dd6b4a0c50271eb981065ce4",
-      "updated_at": "2026-05-15T13:48:45+09:00"
+      "checksum": "9e8546acfad3476e3a9562680828655151a4b8c9c3574be27e99d6c683dc7adf",
+      "updated_at": "2026-05-15T15:54:33+09:00"
     },
     {
       "path": ".namba/project/systems/workspace.md",
@@ -2151,28 +2151,28 @@
       "kind": "asset",
       "owner": "namba-managed",
       "checksum": "a40f84f025b97d79c617dcf119a19a4eb24db530b736db1f74a11edde325f254",
-      "updated_at": "2026-05-15T15:16:36+09:00"
+      "updated_at": "2026-05-15T15:55:22+09:00"
     },
     {
       "path": "README.ko.md",
       "kind": "asset",
       "owner": "namba-managed",
       "checksum": "cbf52c67e7126c5ba144d72fa6cac69b37b014056f0f00f66ed63dec922d2a7a",
-      "updated_at": "2026-05-15T15:16:36+09:00"
+      "updated_at": "2026-05-15T15:55:22+09:00"
     },
     {
       "path": "README.md",
       "kind": "asset",
       "owner": "namba-managed",
       "checksum": "91588d59cb9d47f510e8fe1038485cfbac3ab42ea53f68d2a600ab1338325f41",
-      "updated_at": "2026-05-15T15:16:36+09:00"
+      "updated_at": "2026-05-15T15:55:22+09:00"
     },
     {
       "path": "README.zh.md",
       "kind": "asset",
       "owner": "namba-managed",
       "checksum": "dbcd3bc448ef1b5cd6ed141b83ef3e152329481ad92085782e1d345a343e6bff",
-      "updated_at": "2026-05-15T15:16:36+09:00"
+      "updated_at": "2026-05-15T15:55:22+09:00"
     },
     {
       "path": "docs/getting-started.ja.md",
@@ -2186,7 +2186,7 @@
       "kind": "asset",
       "owner": "namba-managed",
       "checksum": "f328b57cc5b241eb1e7848c04a0325ebd290e3fbbde947db69b670e821974191",
-      "updated_at": "2026-05-15T15:16:36+09:00"
+      "updated_at": "2026-05-15T15:55:22+09:00"
     },
     {
       "path": "docs/getting-started.md",
@@ -2221,7 +2221,7 @@
       "kind": "asset",
       "owner": "namba-managed",
       "checksum": "bf583fa391211eeb417533727dc48ebd60d3b02a2f464ecea38d2fa6d8a5ec24",
-      "updated_at": "2026-05-15T15:16:36+09:00"
+      "updated_at": "2026-05-15T15:55:22+09:00"
     },
     {
       "path": "docs/workflow-guide.zh.md",
