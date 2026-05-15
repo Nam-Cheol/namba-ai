@@ -1118,6 +1118,7 @@ func renderRepoCodexConfig(profile initProfile) string {
 		"",
 		"[features]",
 		"hooks = true",
+		"goals = true",
 		"",
 		"[agents]",
 		fmt.Sprintf("max_threads = %d", threads),
@@ -1137,7 +1138,7 @@ func renderRepoCodexConfig(profile initProfile) string {
 }
 
 func renderNambaCodexHooksJSON() string {
-	return `{
+	return strings.ReplaceAll(`{
   "hooks": {
     "SessionStart": [
       {
@@ -1145,7 +1146,7 @@ func renderNambaCodexHooksJSON() string {
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "command": "__NAMBA_CODEX_HOOK_COMMAND__",
             "timeout": 10,
             "statusMessage": "Loading NambaAI context"
           }
@@ -1158,7 +1159,7 @@ func renderNambaCodexHooksJSON() string {
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "command": "__NAMBA_CODEX_HOOK_COMMAND__",
             "timeout": 10,
             "statusMessage": "Checking NambaAI shell safety"
           }
@@ -1171,7 +1172,7 @@ func renderNambaCodexHooksJSON() string {
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "command": "__NAMBA_CODEX_HOOK_COMMAND__",
             "timeout": 10,
             "statusMessage": "Checking NambaAI approval policy"
           }
@@ -1183,7 +1184,7 @@ func renderNambaCodexHooksJSON() string {
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "command": "__NAMBA_CODEX_HOOK_COMMAND__",
             "timeout": 10,
             "statusMessage": "Refining NambaAI prompt"
           }
@@ -1196,7 +1197,7 @@ func renderNambaCodexHooksJSON() string {
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "command": "__NAMBA_CODEX_HOOK_COMMAND__",
             "timeout": 10,
             "statusMessage": "Reviewing NambaAI surface changes"
           }
@@ -1208,7 +1209,7 @@ func renderNambaCodexHooksJSON() string {
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "command": "__NAMBA_CODEX_HOOK_COMMAND__",
             "timeout": 10,
             "statusMessage": "Checking NambaAI report format"
           }
@@ -1217,7 +1218,7 @@ func renderNambaCodexHooksJSON() string {
     ]
   }
 }
-`
+`, "__NAMBA_CODEX_HOOK_COMMAND__", `python3 \".codex/hooks/namba_codex_guard.py\"`)
 }
 
 func renderNambaCodexHookGuardScript() string {
