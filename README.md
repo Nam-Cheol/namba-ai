@@ -68,7 +68,7 @@ namba land
 ## 🪝 Hook Runtime
 
 - You can skip this section at first. Hooks are for automatic checks or notifications that should run at specific points during `namba run`.
-- `namba init .` pre-generates Codex lifecycle hooks at `.codex/hooks.json` and `.codex/hooks/namba_codex_guard.py`. They inject Namba context, block ambiguous prompts with clarifying questions, explain approval-request risk, check final response format, block clearly dangerous shell commands, and remind Codex to run `namba regen` plus validation when managed instruction surfaces change.
+- `namba init .` pre-generates Codex lifecycle hooks at `.codex/hooks.json` and `.codex/hooks/namba_codex_guard.py`. They inject Namba context, guide ambiguous prompts toward clarifying questions without blocking submission, explain approval-request risk, check final response format, block clearly dangerous shell commands, and remind Codex to run `namba regen` plus validation when managed instruction surfaces change.
 - Codex requires repo-local hooks to be reviewed before they run. In the first interactive Codex session, open `/hooks` when you see `6 hooks need review`, confirm the commands point only at this repository's `.codex/hooks/namba_codex_guard.py`, then approve them.
 - `.codex/hooks.json` is the Codex interactive guardrail; `.namba/hooks.toml` is the `namba run` evidence and validation boundary.
 - 📍 Registration: create `.namba/hooks.toml` at the repository root and `namba run SPEC-XXX` reads it automatically during execution.

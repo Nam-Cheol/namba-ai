@@ -493,7 +493,7 @@ func (a *App) runInit(_ context.Context, args []string) error {
 		filepath.ToSlash(filepath.Join(specsDir, ".gitkeep")):           "",
 		filepath.ToSlash(filepath.Join(worktreesDir, ".gitkeep")):       "",
 	}
-	for rel, scaffold := range codexScaffoldFiles(profile) {
+	for rel, scaffold := range codexScaffoldFilesForOS(profile, a.goos) {
 		files[rel] = scaffold
 	}
 	projectCfg := projectConfig{

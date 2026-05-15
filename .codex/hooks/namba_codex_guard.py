@@ -187,7 +187,7 @@ def prompt_refinement_context(prompt):
     )
 
 
-def prompt_refinement_block_reason(prompt):
+def prompt_refinement_guidance(prompt):
     context = prompt_refinement_context(prompt)
     if not context:
         return ""
@@ -218,6 +218,18 @@ def prompt_refinement_block_reason(prompt):
         + "\n\nPlease answer in this shape when possible:\n"
         "Goal: ...\nScope: ...\nConstraints: ...\nAcceptance: ..."
     )
+
+
+def handle_user_prompt_submit(payload):
+    guidance = prompt_refinement_guidance(prompt_from(payload))
+    if not guidance:
+        return
+    emit({
+        "hookSpecificOutput": {
+            "hookEventName": "UserPromptSubmit",
+            "additionalContext": guidance,
+        }
+    })
 
 
 def handle_session_start():
@@ -262,16 +274,6 @@ def handle_permission_request(payload):
                 "message": reason,
             },
         }
-    })
-
-
-def handle_user_prompt_submit(payload):
-    reason = prompt_refinement_block_reason(prompt_from(payload))
-    if not reason:
-        return
-    emit({
-        "decision": "block",
-        "reason": reason,
     })
 
 
