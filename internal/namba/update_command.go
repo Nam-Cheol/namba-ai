@@ -27,7 +27,7 @@ func (a *App) runRegen(_ context.Context, args []string) error {
 	outputs := map[string]string{
 		"AGENTS.md": renderAgents(profile),
 	}
-	for rel, body := range codexScaffoldFiles(profile) {
+	for rel, body := range codexScaffoldFilesForOS(profile, a.goos) {
 		outputs[rel] = body
 	}
 	if err := removeLegacyCodexSkillMirror(root); err != nil {

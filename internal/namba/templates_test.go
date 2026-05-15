@@ -1,6 +1,8 @@
 package namba
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"os/exec"
 	"path/filepath"
@@ -1290,8 +1292,8 @@ func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 		"PermissionRequest",
 		"UserPromptSubmit",
 		"prompt-refinement gate",
-		"prompt_refinement_block_reason",
-		`"decision": "block"`,
+		"prompt_refinement_guidance",
+		`"additionalContext": guidance`,
 		"REPORT_SECTIONS",
 		"approval_risk_note",
 		"NAMBA_HOOK_TRACE_PATH",
@@ -1305,6 +1307,87 @@ func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 		if !strings.Contains(script, want) {
 			t.Fatalf("hook guard script missing %q: %q", want, script)
 		}
+	}
+	userPromptHandlerIndex := strings.Index(script, "def handle_user_prompt_submit")
+	if userPromptHandlerIndex < 0 {
+		t.Fatalf("expected UserPromptSubmit handler in hook script: %q", script)
+	}
+	nextHandlerIndex := strings.Index(script[userPromptHandlerIndex+1:], "\ndef handle_")
+	userPromptHandler := script[userPromptHandlerIndex:]
+	if nextHandlerIndex >= 0 {
+		userPromptHandler = script[userPromptHandlerIndex : userPromptHandlerIndex+1+nextHandlerIndex]
+	}
+	if strings.Contains(userPromptHandler, `"decision": "block"`) {
+		t.Fatalf("prompt refinement must guide Codex without blocking user prompt submission: %q", userPromptHandler)
+	}
+
+	windowsHooksJSON := renderNambaCodexHooksJSONForOS("windows")
+	for _, want := range []string{
+		`py -3 \".codex/hooks/namba_codex_guard.py\"`,
+		` || `,
+		`python \".codex/hooks/namba_codex_guard.py\"`,
+	} {
+		if !strings.Contains(windowsHooksJSON, want) {
+			t.Fatalf("windows hooks JSON missing %q: %q", want, windowsHooksJSON)
+		}
+	}
+	if strings.Contains(windowsHooksJSON, "Get-Command") {
+		t.Fatalf("windows hooks JSON must use a cmd-compatible command, got %q", windowsHooksJSON)
+	}
+}
+
+func TestInitOnWindowsWritesCodexHooksWithWindowsCommand(t *testing.T) {
+	t.Parallel()
+
+	root := canonicalTempDir(t)
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.goos = "windows"
+	if err := app.Run(context.Background(), []string{"init", root, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	hooksJSON := mustReadFile(t, filepath.Join(root, ".codex", "hooks.json"))
+	for _, want := range []string{
+		"UserPromptSubmit",
+		`py -3 \".codex/hooks/namba_codex_guard.py\"`,
+		` || `,
+		`python \".codex/hooks/namba_codex_guard.py\"`,
+	} {
+		if !strings.Contains(hooksJSON, want) {
+			t.Fatalf("expected Windows init hooks.json to contain %q, got %q", want, hooksJSON)
+		}
+	}
+	if strings.Contains(hooksJSON, "Get-Command") {
+		t.Fatalf("expected Windows init hooks.json to avoid PowerShell-only syntax, got %q", hooksJSON)
+	}
+	hookGuard := mustReadFile(t, filepath.Join(root, ".codex", "hooks", "namba_codex_guard.py"))
+	if !strings.Contains(hookGuard, "NambaAI Codex lifecycle hook guard") {
+		t.Fatalf("expected Windows init hook guard script, got %q", hookGuard)
+	}
+}
+
+func TestUserPromptSubmitHookGuidesWithoutBlockingSubmission(t *testing.T) {
+	t.Parallel()
+
+	tmp := canonicalTempDir(t)
+	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks.json"), renderNambaCodexHooksJSON())
+	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.py"), renderNambaCodexHookGuardScript())
+
+	cmd := exec.Command("sh", "-c", codexHookCommandForEvent(t, renderNambaCodexHooksJSON(), "UserPromptSubmit"))
+	cmd.Dir = tmp
+	cmd.Stdin = strings.NewReader(`{"hook_event_name":"UserPromptSubmit","prompt":"namba plan 뭔가 개선해줘"}`)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("expected UserPromptSubmit hook command to run, err=%v output=%s", err, output)
+	}
+	got := string(output)
+	for _, want := range []string{`"hookSpecificOutput"`, `"hookEventName":"UserPromptSubmit"`, `"additionalContext"`, "Goal/Scope/Constraints/Acceptance"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected prompt guidance output to contain %q, got %q", want, got)
+		}
+	}
+	if strings.Contains(got, `"decision":"block"`) || strings.Contains(got, `"decision": "block"`) {
+		t.Fatalf("prompt guidance must not block submission, got %q", got)
 	}
 }
 

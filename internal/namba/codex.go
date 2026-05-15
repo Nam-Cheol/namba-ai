@@ -3,6 +3,7 @@ package namba
 import (
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -16,6 +17,10 @@ const (
 )
 
 func codexScaffoldFiles(profile initProfile) map[string]string {
+	return codexScaffoldFilesForOS(profile, runtime.GOOS)
+}
+
+func codexScaffoldFilesForOS(profile initProfile, goos string) map[string]string {
 	files := map[string]string{
 		filepath.ToSlash(filepath.Join(codexStateDir, "README.md")):                   renderCodexUsage(profile),
 		filepath.ToSlash(filepath.Join(codexStateDir, "statusline.example.toml")):     renderCodexStatusLineExample(),
@@ -23,7 +28,7 @@ func codexScaffoldFiles(profile initProfile) map[string]string {
 		filepath.ToSlash(filepath.Join(codexStateDir, "output-contract.md")):          renderOutputContractDocLocalized(profile),
 		filepath.ToSlash(filepath.Join(codexStateDir, "validate-output-contract.py")): renderOutputContractValidatorLocalized(profile),
 		filepath.ToSlash(repoCodexConfigPath):                                         renderRepoCodexConfig(profile),
-		filepath.ToSlash(repoCodexHooksPath):                                          renderNambaCodexHooksJSON(),
+		filepath.ToSlash(repoCodexHooksPath):                                          renderNambaCodexHooksJSONForOS(goos),
 		filepath.ToSlash(filepath.Join(repoCodexHooksDir, "namba_codex_guard.py")):    renderNambaCodexHookGuardScript(),
 	}
 	for rel, content := range codexAgentTemplates() {

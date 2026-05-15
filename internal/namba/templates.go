@@ -716,7 +716,7 @@ func renderCodexUsageWorkflowCommandSemanticsSection() []string {
 		"- `namba codex access` inspects the current repo-owned Codex access defaults and mutates them only when explicit approval_policy / sandbox_mode flags are present.",
 		"- Permission profiles, models, auth, apps, web search, and platform sandbox choices stay user-owned unless NambaAI explicitly widens repo-managed config.",
 		"- Avoid deprecated Codex full-auto style flags; prefer explicit `approval_policy`, `sandbox_mode`, sandbox profile, and permission profile settings.",
-		"- Generated Codex lifecycle hooks are repo-local guardrails, not a complete security boundary: they add Namba context, block ambiguous Namba prompts with clarification questions, add approval-risk notes, check final-report format, deny destructive shell commands, and remind Codex about managed-surface changes.",
+		"- Generated Codex lifecycle hooks are repo-local guardrails, not a complete security boundary: they add Namba context, guide ambiguous Namba prompts toward clarification questions without blocking submission, add approval-risk notes, check final-report format, deny destructive shell commands, and remind Codex about managed-surface changes.",
 		"- Codex requires repo-local hooks to be reviewed before they run. In the first interactive session after init or regen, open `/hooks`, inspect the generated commands, and approve them only if they resolve to `.codex/hooks/namba_codex_guard.py` in the current repository.",
 		"- `namba regen` regenerates `AGENTS.md`, repo skills under `.agents/skills/`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
 		"- `namba update` self-updates the installed `namba` binary from GitHub Release assets. Use `--version vX.Y.Z` for a specific release.",
@@ -746,7 +746,7 @@ func renderCodexUsageInitEnablesSection() []string {
 		"- Creates repo-local skills under `.agents/skills/`, including read-only guidance plus command-entry skills such as `namba-help`, `namba-coach`, `namba-create`, `namba-run`, `namba-queue`, `namba-pr`, `namba-land`, `namba-release`, `namba-plan`, `namba-plan-review`, `namba-harness`, `namba-plan-pm-review`, `namba-plan-eng-review`, `namba-plan-design-review`, `namba-review-resolve`, and `namba-sync`.",
 		"- Creates task-oriented Codex custom agents under `.codex/agents/*.toml` and readable `.md` role-card mirrors.",
 		"- Creates repo-local Codex config under `.codex/config.toml`, keeping a narrow repo-safe baseline such as `approval_policy`, `sandbox_mode`, and agent thread limits, plus an allow-listed set of repo-managed MCP presets when configured.",
-		"- Creates repo-local Codex lifecycle hooks under `.codex/hooks.json` and `.codex/hooks/` with `features.hooks = true`, providing Namba context, prompt-refinement blocking for ambiguous prompts, approval-risk notes, final-report format checks, destructive-command guardrails, and generated-surface reminders. Codex will ask you to review these hooks in `/hooks` before they run.",
+		"- Creates repo-local Codex lifecycle hooks under `.codex/hooks.json` and `.codex/hooks/` with `features.hooks = true`, providing Namba context, non-blocking prompt-refinement guidance for ambiguous prompts, approval-risk notes, final-report format checks, destructive-command guardrails, and generated-surface reminders. Codex will ask you to review these hooks in `/hooks` before they run.",
 		"- Creates `.namba/codex/output-contract.md` plus `.namba/codex/validate-output-contract.py` for NambaAI response-shape guidance and fallback validation.",
 		"- Creates `.namba/` project state, configs, docs, and SPEC storage.",
 		"",
@@ -1138,6 +1138,10 @@ func renderRepoCodexConfig(profile initProfile) string {
 }
 
 func renderNambaCodexHooksJSON() string {
+	return renderNambaCodexHooksJSONForOS("")
+}
+
+func renderNambaCodexHooksJSONForOS(goos string) string {
 	return strings.ReplaceAll(`{
   "hooks": {
     "SessionStart": [
@@ -1218,7 +1222,14 @@ func renderNambaCodexHooksJSON() string {
     ]
   }
 }
-`, "__NAMBA_CODEX_HOOK_COMMAND__", `python3 \".codex/hooks/namba_codex_guard.py\"`)
+`, "__NAMBA_CODEX_HOOK_COMMAND__", codexHookCommandForOS(goos))
+}
+
+func codexHookCommandForOS(goos string) string {
+	if goos == "windows" {
+		return `py -3 \".codex/hooks/namba_codex_guard.py\" || python \".codex/hooks/namba_codex_guard.py\"`
+	}
+	return `python3 \".codex/hooks/namba_codex_guard.py\"`
 }
 
 func renderNambaCodexHookGuardScript() string {
@@ -1411,7 +1422,7 @@ def prompt_refinement_context(prompt):
     )
 
 
-def prompt_refinement_block_reason(prompt):
+def prompt_refinement_guidance(prompt):
     context = prompt_refinement_context(prompt)
     if not context:
         return ""
@@ -1442,6 +1453,18 @@ def prompt_refinement_block_reason(prompt):
         + "\n\nPlease answer in this shape when possible:\n"
         "Goal: ...\nScope: ...\nConstraints: ...\nAcceptance: ..."
     )
+
+
+def handle_user_prompt_submit(payload):
+    guidance = prompt_refinement_guidance(prompt_from(payload))
+    if not guidance:
+        return
+    emit({
+        "hookSpecificOutput": {
+            "hookEventName": "UserPromptSubmit",
+            "additionalContext": guidance,
+        }
+    })
 
 
 def handle_session_start():
@@ -1486,16 +1509,6 @@ def handle_permission_request(payload):
                 "message": reason,
             },
         }
-    })
-
-
-def handle_user_prompt_submit(payload):
-    reason = prompt_refinement_block_reason(prompt_from(payload))
-    if not reason:
-        return
-    emit({
-        "decision": "block",
-        "reason": reason,
     })
 
 
