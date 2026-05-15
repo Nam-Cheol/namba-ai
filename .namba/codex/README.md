@@ -18,7 +18,7 @@ NambaAI's differentiator is prompt refinement before execution: ambiguous ideas 
 
 1. Open Codex in the initialized project directory.
    On Windows, the current official Codex docs recommend using a WSL workspace for the best CLI experience.
-2. If Codex reports `6 hooks need review`, open `/hooks`, inspect that each generated command resolves to this repository's `.codex/hooks/namba_codex_guard.py`, and approve before expecting prompt-refinement hooks to run.
+2. If Codex reports `6 hooks need review`, open `/hooks`, inspect that each generated command resolves to this repository's `.codex/hooks/namba_codex_guard.sh` or the Windows `.codex/hooks/namba_codex_guard.ps1` launcher for `.codex/hooks/namba_codex_guard.py`, and approve before expecting prompt-refinement hooks to run.
 3. Codex loads `AGENTS.md` and repo skills.
 4. Let the repo-local Codex lifecycle hook refine ambiguous Namba prompts before execution. When the goal, target surface, constraints, or acceptance criteria are underspecified, Codex should ask concise clarifying questions and restate the improved prompt before planning or editing.
 5. Invoke `$namba` for routing, `$namba-coach` for read-only current-goal command coaching, `$namba-help` for read-only Namba usage guidance, or command-entry skills such as `$namba-create`, `$namba-run`, `$namba-queue`, `$namba-pr`, `$namba-land`, `$namba-release`, `$namba-plan`, `$namba-plan-review`, `$namba-harness`, `$namba-fix`, `$namba-review-resolve`, `$namba-plan-pm-review`, `$namba-plan-eng-review`, `$namba-plan-design-review`, and `$namba-sync` for direct command-style execution.
@@ -38,7 +38,7 @@ NambaAI's differentiator is prompt refinement before execution: ambiguous ideas 
 - Permission profiles, models, auth, apps, web search, and platform sandbox choices stay user-owned unless NambaAI explicitly widens repo-managed config.
 - Avoid deprecated Codex full-auto style flags; prefer explicit `approval_policy`, `sandbox_mode`, sandbox profile, and permission profile settings.
 - Generated Codex lifecycle hooks are repo-local guardrails, not a complete security boundary: they add Namba context, guide ambiguous Namba prompts toward clarification questions without blocking submission, add approval-risk notes, check final-report format, deny destructive shell commands, and remind Codex about managed-surface changes.
-- Codex requires repo-local hooks to be reviewed before they run. In the first interactive session after init or regen, open `/hooks`, inspect the generated commands, and approve them only if they resolve to `.codex/hooks/namba_codex_guard.py` in the current repository.
+- Codex requires repo-local hooks to be reviewed before they run. In the first interactive session after init or regen, open `/hooks`, inspect the generated commands, and approve them only if they resolve to the current repository's `.codex/hooks/namba_codex_guard.sh` or Windows `.codex/hooks/namba_codex_guard.ps1` launcher for `.codex/hooks/namba_codex_guard.py`.
 - `namba regen` regenerates `AGENTS.md`, repo skills under `.agents/skills/`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.
 - `namba update` self-updates the installed `namba` binary from GitHub Release assets. Use `--version vX.Y.Z` for a specific release.
 - `codex update` updates the upstream Codex CLI itself. Keep it separate from `namba update`.

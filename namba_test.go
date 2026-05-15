@@ -39,6 +39,8 @@ func TestInitCreatesScaffold(t *testing.T) {
 	mustExist(t, filepath.Join(tmp, ".codex", "config.toml"))
 	mustExist(t, filepath.Join(tmp, ".codex", "hooks.json"))
 	mustExist(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.py"))
+	mustExist(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.sh"))
+	mustExist(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.ps1"))
 	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.md"))
 	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.toml"))
 	mustExist(t, filepath.Join(tmp, ".codex", "agents", "namba-plan-reviewer.md"))
@@ -71,7 +73,7 @@ func TestInitCreatesScaffold(t *testing.T) {
 	}
 
 	initOutput := stdout.String()
-	for _, want := range []string{"Codex hook review:", "`6 hooks need review`", "`/hooks`", ".codex/hooks/namba_codex_guard.py", "ambiguous Namba prompt"} {
+	for _, want := range []string{"Codex hook review:", "`6 hooks need review`", "`/hooks`", ".codex/hooks/namba_codex_guard.sh", "ambiguous Namba prompt"} {
 		if !strings.Contains(initOutput, want) {
 			t.Fatalf("expected init output to include hook review next step %q, got: %s", want, initOutput)
 		}

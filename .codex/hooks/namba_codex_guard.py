@@ -13,6 +13,16 @@ import subprocess
 import sys
 
 
+def configure_stdio():
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure:
+            try:
+                reconfigure(encoding="utf-8", errors="backslashreplace")
+            except Exception:
+                pass
+
+
 DANGEROUS_PATTERNS = [
     (re.compile(r"\bgit\s+reset\s+--hard\b", re.IGNORECASE), "git reset --hard discards repository changes."),
     (re.compile(r"\bgit\s+clean\s+-[^\n;&|]*[fd][^\n;&|]*", re.IGNORECASE), "git clean can delete untracked files."),
@@ -71,6 +81,7 @@ VAGUE_MARKERS = (
 REPORT_HEADER = "NAMBA-AI 작업 결과 보고"
 REPORT_SECTIONS = ("작업 정의", "판단", "수행한 작업", "현재 이슈", "잠재 문제", "다음 스텝")
 CURRENT_PAYLOAD = {}
+configure_stdio()
 
 
 def read_payload():
@@ -85,7 +96,7 @@ def read_payload():
 
 def emit(value):
     trace(CURRENT_PAYLOAD, value)
-    print(json.dumps(value, ensure_ascii=False, separators=(",", ":")))
+    print(json.dumps(value, ensure_ascii=True, separators=(",", ":")))
 
 
 def trace(payload, output=None):
@@ -374,25 +385,43 @@ def handle_stop(payload):
     })
 
 
+def emit_hook_error(event, message):
+    if not isinstance(event, str) or not event:
+        event = "Unknown"
+    print(message, file=sys.stderr)
+    emit({
+        "hookSpecificOutput": {
+            "hookEventName": event,
+            "additionalContext": message,
+        }
+    })
+
+
 def main():
     global CURRENT_PAYLOAD
-    payload = read_payload()
-    CURRENT_PAYLOAD = payload
-    trace(payload)
-    event = payload.get("hook_event_name")
-    if event == "SessionStart":
-        handle_session_start()
-    elif event == "PreToolUse":
-        handle_pre_tool_use(payload)
-    elif event == "PermissionRequest":
-        handle_permission_request(payload)
-    elif event == "UserPromptSubmit":
-        handle_user_prompt_submit(payload)
-    elif event == "PostToolUse":
-        handle_post_tool_use(payload)
-    elif event == "Stop":
-        handle_stop(payload)
+    try:
+        payload = read_payload()
+        CURRENT_PAYLOAD = payload
+        trace(payload)
+        event = payload.get("hook_event_name")
+        if event == "SessionStart":
+            handle_session_start()
+        elif event == "PreToolUse":
+            handle_pre_tool_use(payload)
+        elif event == "PermissionRequest":
+            handle_permission_request(payload)
+        elif event == "UserPromptSubmit":
+            handle_user_prompt_submit(payload)
+        elif event == "PostToolUse":
+            handle_post_tool_use(payload)
+        elif event == "Stop":
+            handle_stop(payload)
+        return 0
+    except Exception as exc:
+        event = CURRENT_PAYLOAD.get("hook_event_name") if isinstance(CURRENT_PAYLOAD, dict) else "Unknown"
+        emit_hook_error(event, "NambaAI hook guard failed with an unhandled exception: " + str(exc))
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

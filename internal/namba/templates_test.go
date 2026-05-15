@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -1271,8 +1272,8 @@ func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 		`"UserPromptSubmit"`,
 		`"PostToolUse"`,
 		`"Stop"`,
-		`.codex/hooks/namba_codex_guard.py`,
-		`python3 \".codex/hooks/namba_codex_guard.py\"`,
+		`.codex/hooks/namba_codex_guard.sh`,
+		`sh .codex/hooks/namba_codex_guard.sh`,
 		`Checking NambaAI shell safety`,
 		`Refining NambaAI prompt`,
 		`Reviewing NambaAI surface changes`,
@@ -1284,6 +1285,19 @@ func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 	}
 	if strings.Contains(hooksJSON, "git rev-parse") {
 		t.Fatalf("generated Codex hook commands must not require a git repository: %q", hooksJSON)
+	}
+
+	shellWrapper := renderNambaCodexHookGuardShellWrapper()
+	for _, want := range []string{
+		"POSIX shells",
+		"python3",
+		"NambaAI hook guard failed",
+		"emit_failure",
+		"exit 1",
+	} {
+		if !strings.Contains(shellWrapper, want) {
+			t.Fatalf("shell hook wrapper missing %q: %q", want, shellWrapper)
+		}
 	}
 
 	script := renderNambaCodexHookGuardScript()
@@ -1303,6 +1317,9 @@ func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 		"force-pushing requires an explicit human decision",
 		"Namba-managed instruction or config surfaces are changed",
 		"guardrails, not a complete security boundary",
+		"emit_hook_error",
+		"except Exception as exc",
+		"sys.exit(main())",
 	} {
 		if !strings.Contains(script, want) {
 			t.Fatalf("hook guard script missing %q: %q", want, script)
@@ -1323,16 +1340,34 @@ func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 
 	windowsHooksJSON := renderNambaCodexHooksJSONForOS("windows")
 	for _, want := range []string{
-		`py -3 \".codex/hooks/namba_codex_guard.py\"`,
-		` || `,
-		`python \".codex/hooks/namba_codex_guard.py\"`,
+		`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .codex/hooks/namba_codex_guard.ps1`,
 	} {
 		if !strings.Contains(windowsHooksJSON, want) {
 			t.Fatalf("windows hooks JSON missing %q: %q", want, windowsHooksJSON)
 		}
 	}
-	if strings.Contains(windowsHooksJSON, "Get-Command") {
-		t.Fatalf("windows hooks JSON must use a cmd-compatible command, got %q", windowsHooksJSON)
+	for _, unwanted := range []string{` || `, `py -3 \".codex/hooks/namba_codex_guard.py\"`, `python \".codex/hooks/namba_codex_guard.py\"`, "Get-Command"} {
+		if strings.Contains(windowsHooksJSON, unwanted) {
+			t.Fatalf("windows hooks JSON must avoid PowerShell 7/cmd fallback syntax %q, got %q", unwanted, windowsHooksJSON)
+		}
+	}
+
+	powerShellWrapper := renderNambaCodexHookGuardPowerShellWrapper()
+	for _, want := range []string{
+		"Windows PowerShell 5",
+		"Write-NambaHookFailure",
+		"Get-Command",
+		"py.exe",
+		"python.exe",
+		"NambaAI hook guard failed",
+		"catch",
+		"ConvertTo-Json -Compress",
+		"exit 1",
+		"exit 0",
+	} {
+		if !strings.Contains(powerShellWrapper, want) {
+			t.Fatalf("PowerShell hook wrapper missing %q: %q", want, powerShellWrapper)
+		}
 	}
 }
 
@@ -1349,20 +1384,24 @@ func TestInitOnWindowsWritesCodexHooksWithWindowsCommand(t *testing.T) {
 	hooksJSON := mustReadFile(t, filepath.Join(root, ".codex", "hooks.json"))
 	for _, want := range []string{
 		"UserPromptSubmit",
-		`py -3 \".codex/hooks/namba_codex_guard.py\"`,
-		` || `,
-		`python \".codex/hooks/namba_codex_guard.py\"`,
+		`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .codex/hooks/namba_codex_guard.ps1`,
 	} {
 		if !strings.Contains(hooksJSON, want) {
 			t.Fatalf("expected Windows init hooks.json to contain %q, got %q", want, hooksJSON)
 		}
 	}
-	if strings.Contains(hooksJSON, "Get-Command") {
-		t.Fatalf("expected Windows init hooks.json to avoid PowerShell-only syntax, got %q", hooksJSON)
+	for _, unwanted := range []string{` || `, `py -3 \".codex/hooks/namba_codex_guard.py\"`, `python \".codex/hooks/namba_codex_guard.py\"`, "Get-Command"} {
+		if strings.Contains(hooksJSON, unwanted) {
+			t.Fatalf("expected Windows init hooks.json to avoid unsupported fallback syntax %q, got %q", unwanted, hooksJSON)
+		}
 	}
 	hookGuard := mustReadFile(t, filepath.Join(root, ".codex", "hooks", "namba_codex_guard.py"))
 	if !strings.Contains(hookGuard, "NambaAI Codex lifecycle hook guard") {
 		t.Fatalf("expected Windows init hook guard script, got %q", hookGuard)
+	}
+	hookWrapper := mustReadFile(t, filepath.Join(root, ".codex", "hooks", "namba_codex_guard.ps1"))
+	if !strings.Contains(hookWrapper, "NambaAI hook guard failed") || !strings.Contains(hookWrapper, "Python 3 was not found or could not run") || !strings.Contains(hookWrapper, "exit 1") {
+		t.Fatalf("expected Windows init PowerShell wrapper fallback, got %q", hookWrapper)
 	}
 }
 
@@ -1372,6 +1411,7 @@ func TestUserPromptSubmitHookGuidesWithoutBlockingSubmission(t *testing.T) {
 	tmp := canonicalTempDir(t)
 	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks.json"), renderNambaCodexHooksJSON())
 	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.py"), renderNambaCodexHookGuardScript())
+	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.sh"), renderNambaCodexHookGuardShellWrapper())
 
 	cmd := exec.Command("sh", "-c", codexHookCommandForEvent(t, renderNambaCodexHooksJSON(), "UserPromptSubmit"))
 	cmd.Dir = tmp
@@ -1397,6 +1437,7 @@ func TestRenderedCodexHookCommandsRunOutsideGitRepository(t *testing.T) {
 	tmp := canonicalTempDir(t)
 	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks.json"), renderNambaCodexHooksJSON())
 	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.py"), renderNambaCodexHookGuardScript())
+	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.sh"), renderNambaCodexHookGuardShellWrapper())
 
 	payloads := map[string]string{
 		"SessionStart":      `{"hook_event_name":"SessionStart"}`,
@@ -1416,6 +1457,74 @@ func TestRenderedCodexHookCommandsRunOutsideGitRepository(t *testing.T) {
 				t.Fatalf("expected %s hook command to run outside a git repository, err=%v output=%s", event, err, output)
 			}
 		})
+	}
+}
+
+func TestShellHookLauncherFailsLoudlyWhenPythonIsUnavailable(t *testing.T) {
+	t.Parallel()
+
+	tmp := canonicalTempDir(t)
+	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.sh"), renderNambaCodexHookGuardShellWrapper())
+
+	shellPath := "/bin/sh"
+	if _, err := os.Stat(shellPath); err != nil {
+		t.Skipf("%s is unavailable: %v", shellPath, err)
+	}
+
+	cmd := exec.Command(shellPath, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.sh"))
+	cmd.Dir = tmp
+	cmd.Env = []string{"PATH=/definitely-no-python-here", "TMPDIR=" + tmp}
+	cmd.Stdin = strings.NewReader(`{"hook_event_name":"UserPromptSubmit","prompt":"hello"}`)
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected hook launcher to return a non-zero error when Python is unavailable, output=%s", output)
+	}
+	got := string(output)
+	for _, want := range []string{"NambaAI hook guard failed", "Python 3 was not found", `"hookSpecificOutput"`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected loud hook launcher failure to contain %q, got %q", want, got)
+		}
+	}
+}
+
+func TestHookGuardEmitsASCIIJSONUnderCP949Stdout(t *testing.T) {
+	t.Parallel()
+
+	pythonPath, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skipf("python3 unavailable: %v", err)
+	}
+
+	tmp := canonicalTempDir(t)
+	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.py"), renderNambaCodexHookGuardScript())
+	writeTestFile(t, filepath.Join(tmp, "AGENTS.md"), "NambaAI\n")
+
+	payload := map[string]any{
+		"hook_event_name":        "Stop",
+		"cwd":                    filepath.ToSlash(tmp),
+		"last_assistant_message": strings.Repeat("namba missing report frame ", 30),
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	cmd := exec.Command(pythonPath, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.py"))
+	cmd.Dir = tmp
+	cmd.Env = append(os.Environ(), "PYTHONIOENCODING=cp949")
+	cmd.Stdin = strings.NewReader(string(body))
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("expected CP949 stdout hook execution to succeed, err=%v output=%s", err, output)
+	}
+	got := string(output)
+	for _, want := range []string{`"decision":"block"`, `\ud83e\udded`, `\ud83d\udee0`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected ASCII-safe hook output to contain %q, got %q", want, got)
+		}
+	}
+	if strings.Contains(got, "🧭") || strings.Contains(got, "🛠") {
+		t.Fatalf("expected hook output to escape non-ASCII under CP949, got %q", got)
 	}
 }
 
