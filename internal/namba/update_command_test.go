@@ -180,7 +180,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	}
 
 	config := mustReadFile(t, filepath.Join(tmp, ".codex", "config.toml"))
-	if !strings.Contains(config, "#:schema https://developers.openai.com/codex/config-schema.json") || !strings.Contains(config, "repo-safe Codex defaults under version control") || !strings.Contains(config, "[features]") || !strings.Contains(config, "hooks = true") || !strings.Contains(config, "max_threads = 5") || !strings.Contains(config, `approval_policy = "never"`) || !strings.Contains(config, `sandbox_mode = "read-only"`) {
+	if !strings.Contains(config, "#:schema https://developers.openai.com/codex/config-schema.json") || !strings.Contains(config, "repo-safe Codex defaults under version control") || !strings.Contains(config, "[features]") || !strings.Contains(config, "hooks = true") || !strings.Contains(config, "goals = true") || !strings.Contains(config, "max_threads = 5") || !strings.Contains(config, `approval_policy = "never"`) || !strings.Contains(config, `sandbox_mode = "read-only"`) {
 		t.Fatalf("expected multi-agent Codex config, got %q", config)
 	}
 	hooksJSON := mustReadFile(t, filepath.Join(tmp, ".codex", "hooks.json"))

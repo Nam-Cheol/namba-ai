@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "command": "python3 \".codex/hooks/namba_codex_guard.py\"",
             "timeout": 10,
             "statusMessage": "Loading NambaAI context"
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "command": "python3 \".codex/hooks/namba_codex_guard.py\"",
             "timeout": 10,
             "statusMessage": "Checking NambaAI shell safety"
           }
@@ -32,7 +32,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "command": "python3 \".codex/hooks/namba_codex_guard.py\"",
             "timeout": 10,
             "statusMessage": "Checking NambaAI approval policy"
           }
@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "command": "python3 \".codex/hooks/namba_codex_guard.py\"",
             "timeout": 10,
             "statusMessage": "Refining NambaAI prompt"
           }
@@ -57,7 +57,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "command": "python3 \".codex/hooks/namba_codex_guard.py\"",
             "timeout": 10,
             "statusMessage": "Reviewing NambaAI surface changes"
           }
@@ -69,7 +69,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/namba_codex_guard.py\"",
+            "command": "python3 \".codex/hooks/namba_codex_guard.py\"",
             "timeout": 10,
             "statusMessage": "Checking NambaAI report format"
           }

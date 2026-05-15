@@ -2,6 +2,7 @@ package namba
 
 import (
 	"encoding/json"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -1269,6 +1270,7 @@ func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 		`"PostToolUse"`,
 		`"Stop"`,
 		`.codex/hooks/namba_codex_guard.py`,
+		`python3 \".codex/hooks/namba_codex_guard.py\"`,
 		`Checking NambaAI shell safety`,
 		`Refining NambaAI prompt`,
 		`Reviewing NambaAI surface changes`,
@@ -1277,6 +1279,9 @@ func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 		if !strings.Contains(hooksJSON, want) {
 			t.Fatalf("hooks JSON missing %q: %q", want, hooksJSON)
 		}
+	}
+	if strings.Contains(hooksJSON, "git rev-parse") {
+		t.Fatalf("generated Codex hook commands must not require a git repository: %q", hooksJSON)
 	}
 
 	script := renderNambaCodexHookGuardScript()
@@ -1301,4 +1306,52 @@ func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 			t.Fatalf("hook guard script missing %q: %q", want, script)
 		}
 	}
+}
+
+func TestRenderedCodexHookCommandsRunOutsideGitRepository(t *testing.T) {
+	t.Parallel()
+
+	tmp := canonicalTempDir(t)
+	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks.json"), renderNambaCodexHooksJSON())
+	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.py"), renderNambaCodexHookGuardScript())
+
+	payloads := map[string]string{
+		"SessionStart":      `{"hook_event_name":"SessionStart"}`,
+		"PreToolUse":        `{"hook_event_name":"PreToolUse","tool_input":{"command":"echo ok"}}`,
+		"PermissionRequest": `{"hook_event_name":"PermissionRequest","tool_input":{"command":"echo ok"}}`,
+		"UserPromptSubmit":  `{"hook_event_name":"UserPromptSubmit","prompt":"hello"}`,
+		"PostToolUse":       `{"hook_event_name":"PostToolUse","cwd":"` + filepath.ToSlash(tmp) + `"}`,
+		"Stop":              `{"hook_event_name":"Stop","last_assistant_message":"short","cwd":"` + filepath.ToSlash(tmp) + `"}`,
+	}
+	for event, payload := range payloads {
+		t.Run(event, func(t *testing.T) {
+			cmd := exec.Command("sh", "-c", codexHookCommandForEvent(t, renderNambaCodexHooksJSON(), event))
+			cmd.Dir = tmp
+			cmd.Stdin = strings.NewReader(payload)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("expected %s hook command to run outside a git repository, err=%v output=%s", event, err, output)
+			}
+		})
+	}
+}
+
+func codexHookCommandForEvent(t *testing.T, hooksJSON, event string) string {
+	t.Helper()
+
+	var parsed struct {
+		Hooks map[string][]struct {
+			Hooks []struct {
+				Command string `json:"command"`
+			} `json:"hooks"`
+		} `json:"hooks"`
+	}
+	if err := json.Unmarshal([]byte(hooksJSON), &parsed); err != nil {
+		t.Fatalf("hooks JSON should parse: %v", err)
+	}
+	registrations := parsed.Hooks[event]
+	if len(registrations) != 1 || len(registrations[0].Hooks) != 1 {
+		t.Fatalf("expected exactly one command hook for %s, got %+v", event, registrations)
+	}
+	return registrations[0].Hooks[0].Command
 }

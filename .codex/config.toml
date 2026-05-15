@@ -11,6 +11,7 @@ sandbox_mode = "workspace-write"
 
 [features]
 hooks = true
+goals = true
 
 [agents]
 max_threads = 5

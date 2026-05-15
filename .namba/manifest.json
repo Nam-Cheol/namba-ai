@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-14T09:01:40+09:00",
+  "generated_at": "2026-05-15T12:00:06+09:00",
   "entries": [
     {
       "path": ".agents/skills/namba-coach/SKILL.md",
@@ -139,7 +139,7 @@
       "kind": "skill",
       "owner": "namba-managed",
       "checksum": "855a445534b1debedd4b2e924e2c64692f6c0183eade106c58faccb0a8349036",
-      "updated_at": "2026-05-14T09:00:59+09:00"
+      "updated_at": "2026-05-15T12:00:06+09:00"
     },
     {
       "path": ".agents/skills/namba-sync/SKILL.md",
@@ -230,14 +230,14 @@
       "kind": "agent",
       "owner": "namba-managed",
       "checksum": "1d784bf33191b67d21c1ecf657c03f549b52306d1fe3aaa84474e89188ba41cf",
-      "updated_at": "2026-05-14T09:00:59+09:00"
+      "updated_at": "2026-05-15T12:00:06+09:00"
     },
     {
       "path": ".codex/agents/namba-designer.toml",
       "kind": "agent",
       "owner": "namba-managed",
       "checksum": "6543b139132e6813c878385b034f79534e3769711e9475b0f54cebfa5d56ae21",
-      "updated_at": "2026-05-14T09:00:59+09:00"
+      "updated_at": "2026-05-15T12:00:06+09:00"
     },
     {
       "path": ".codex/agents/namba-devops-engineer.md",
@@ -272,14 +272,14 @@
       "kind": "agent",
       "owner": "namba-managed",
       "checksum": "bd543972ce034d515d3375d05935835cd1bab59ec8d3c8afa3938e461fb853ad",
-      "updated_at": "2026-05-14T09:00:59+09:00"
+      "updated_at": "2026-05-15T12:00:06+09:00"
     },
     {
       "path": ".codex/agents/namba-frontend-implementer.toml",
       "kind": "agent",
       "owner": "namba-managed",
       "checksum": "62e6ffdd31bb7e16f9b442eb38a46844d385d4ec859afc6e2ce0bc614992425d",
-      "updated_at": "2026-05-14T09:00:59+09:00"
+      "updated_at": "2026-05-15T12:00:06+09:00"
     },
     {
       "path": ".codex/agents/namba-implementer.md",
@@ -397,15 +397,15 @@
       "path": ".codex/config.toml",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "8bfdb93ea58efb2e164c7b83fe059971500238119181b4886c4dcd3dd19cc1dc",
-      "updated_at": "2026-05-13T16:33:26+09:00"
+      "checksum": "d4788879f5435713afce4028136818975aad92b53bdceb9b217b70a70a99b588",
+      "updated_at": "2026-05-15T12:00:06+09:00"
     },
     {
       "path": ".codex/hooks.json",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "0d5931e706fb37b866a8c2ab89af38ecb118d8e8411ec6a0107a0b9d96d609f3",
-      "updated_at": "2026-05-12T11:43:44+09:00"
+      "checksum": "1f5e136319a7832697419c6301fc701ec2d5a122fd06892e124cdea7101ed628",
+      "updated_at": "2026-05-15T12:00:06+09:00"
     },
     {
       "path": ".codex/hooks/namba_codex_guard.py",
