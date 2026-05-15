@@ -1487,6 +1487,47 @@ func TestShellHookLauncherFailsLoudlyWhenPythonIsUnavailable(t *testing.T) {
 	}
 }
 
+func TestHookGuardEmitsASCIIJSONUnderCP949Stdout(t *testing.T) {
+	t.Parallel()
+
+	pythonPath, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skipf("python3 unavailable: %v", err)
+	}
+
+	tmp := canonicalTempDir(t)
+	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.py"), renderNambaCodexHookGuardScript())
+	writeTestFile(t, filepath.Join(tmp, "AGENTS.md"), "NambaAI\n")
+
+	payload := map[string]any{
+		"hook_event_name":        "Stop",
+		"cwd":                    filepath.ToSlash(tmp),
+		"last_assistant_message": strings.Repeat("namba missing report frame ", 30),
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	cmd := exec.Command(pythonPath, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.py"))
+	cmd.Dir = tmp
+	cmd.Env = append(os.Environ(), "PYTHONIOENCODING=cp949")
+	cmd.Stdin = strings.NewReader(string(body))
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("expected CP949 stdout hook execution to succeed, err=%v output=%s", err, output)
+	}
+	got := string(output)
+	for _, want := range []string{`"decision":"block"`, `\ud83e\udded`, `\ud83d\udee0`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected ASCII-safe hook output to contain %q, got %q", want, got)
+		}
+	}
+	if strings.Contains(got, "🧭") || strings.Contains(got, "🛠") {
+		t.Fatalf("expected hook output to escape non-ASCII under CP949, got %q", got)
+	}
+}
+
 func codexHookCommandForEvent(t *testing.T, hooksJSON, event string) string {
 	t.Helper()
 

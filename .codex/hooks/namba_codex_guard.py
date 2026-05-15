@@ -13,6 +13,16 @@ import subprocess
 import sys
 
 
+def configure_stdio():
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure:
+            try:
+                reconfigure(encoding="utf-8", errors="backslashreplace")
+            except Exception:
+                pass
+
+
 DANGEROUS_PATTERNS = [
     (re.compile(r"\bgit\s+reset\s+--hard\b", re.IGNORECASE), "git reset --hard discards repository changes."),
     (re.compile(r"\bgit\s+clean\s+-[^\n;&|]*[fd][^\n;&|]*", re.IGNORECASE), "git clean can delete untracked files."),
@@ -71,6 +81,7 @@ VAGUE_MARKERS = (
 REPORT_HEADER = "NAMBA-AI 작업 결과 보고"
 REPORT_SECTIONS = ("작업 정의", "판단", "수행한 작업", "현재 이슈", "잠재 문제", "다음 스텝")
 CURRENT_PAYLOAD = {}
+configure_stdio()
 
 
 def read_payload():
@@ -85,7 +96,7 @@ def read_payload():
 
 def emit(value):
     trace(CURRENT_PAYLOAD, value)
-    print(json.dumps(value, ensure_ascii=False, separators=(",", ":")))
+    print(json.dumps(value, ensure_ascii=True, separators=(",", ":")))
 
 
 def trace(payload, output=None):
