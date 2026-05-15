@@ -1227,7 +1227,7 @@ func renderNambaCodexHooksJSONForOS(goos string) string {
 
 func codexHookCommandForOS(goos string) string {
 	if goos == "windows" {
-		return `if (Get-Command py -ErrorAction SilentlyContinue) { py -3 \".codex/hooks/namba_codex_guard.py\" } else { python \".codex/hooks/namba_codex_guard.py\" }`
+		return `py -3 \".codex/hooks/namba_codex_guard.py\" || python \".codex/hooks/namba_codex_guard.py\"`
 	}
 	return `python3 \".codex/hooks/namba_codex_guard.py\"`
 }

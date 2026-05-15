@@ -1323,13 +1323,16 @@ func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 
 	windowsHooksJSON := renderNambaCodexHooksJSONForOS("windows")
 	for _, want := range []string{
-		`Get-Command py`,
 		`py -3 \".codex/hooks/namba_codex_guard.py\"`,
+		` || `,
 		`python \".codex/hooks/namba_codex_guard.py\"`,
 	} {
 		if !strings.Contains(windowsHooksJSON, want) {
 			t.Fatalf("windows hooks JSON missing %q: %q", want, windowsHooksJSON)
 		}
+	}
+	if strings.Contains(windowsHooksJSON, "Get-Command") {
+		t.Fatalf("windows hooks JSON must use a cmd-compatible command, got %q", windowsHooksJSON)
 	}
 }
 
@@ -1346,13 +1349,16 @@ func TestInitOnWindowsWritesCodexHooksWithWindowsCommand(t *testing.T) {
 	hooksJSON := mustReadFile(t, filepath.Join(root, ".codex", "hooks.json"))
 	for _, want := range []string{
 		"UserPromptSubmit",
-		`Get-Command py`,
 		`py -3 \".codex/hooks/namba_codex_guard.py\"`,
+		` || `,
 		`python \".codex/hooks/namba_codex_guard.py\"`,
 	} {
 		if !strings.Contains(hooksJSON, want) {
 			t.Fatalf("expected Windows init hooks.json to contain %q, got %q", want, hooksJSON)
 		}
+	}
+	if strings.Contains(hooksJSON, "Get-Command") {
+		t.Fatalf("expected Windows init hooks.json to avoid PowerShell-only syntax, got %q", hooksJSON)
 	}
 	hookGuard := mustReadFile(t, filepath.Join(root, ".codex", "hooks", "namba_codex_guard.py"))
 	if !strings.Contains(hookGuard, "NambaAI Codex lifecycle hook guard") {
