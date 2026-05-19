@@ -1,0 +1,58 @@
+[
+  {
+    "name": "korean_vague_login_improvement",
+    "input": "대충 로그인 개선해줘",
+    "expected_refinement_required": true,
+    "expected_language_behavior": "ko",
+    "rationale": "Short Korean implementation requests with vague markers need Goal/Scope/Acceptance clarification."
+  },
+  {
+    "name": "korean_vague_fix_this_problem",
+    "input": "이거 문제 고쳐줘",
+    "expected_refinement_required": true,
+    "expected_language_behavior": "ko",
+    "rationale": "Pronoun-based bug requests should stop before workflow execution."
+  },
+  {
+    "name": "english_make_this_better",
+    "input": "make this better",
+    "expected_refinement_required": true,
+    "expected_language_behavior": "en",
+    "rationale": "Vague improvement wording needs the prompt refinement gate."
+  },
+  {
+    "name": "english_queue_something",
+    "input": "implement something for the queue",
+    "expected_refinement_required": true,
+    "expected_language_behavior": "en",
+    "rationale": "Implementation requests with undefined scope should ask for clarification."
+  },
+  {
+    "name": "clear_structured_goal_scope_acceptance",
+    "input": "Goal: Add deterministic hook guard regression tests. Scope: .codex hook behavior and CI only. Constraints: Use Python unittest and no network access. Acceptance: tests cover prompt guidance, command denial, risk notes, post-tool reminders, and Stop framing with clear diagnostics.",
+    "expected_refinement_required": false,
+    "expected_language_behavior": "en",
+    "rationale": "Structured Goal/Scope/Constraints/Acceptance prompts are ready for the matching workflow."
+  },
+  {
+    "name": "clear_target_module_validation_non_goals",
+    "input": "Update internal/namba/pr_land_command.go so namba pr --review posts one marker comment. Validate with go test ./... and go vet ./.... Non-goals: no GitHub API redesign, no queue behavior changes, no network-dependent tests. Acceptance criteria: default namba pr never requests review, explicit --review does, duplicate marker comments are avoided, and tests name failing PR cases.",
+    "expected_refinement_required": false,
+    "expected_language_behavior": "en",
+    "rationale": "Concrete target, validation, non-goals, and acceptance criteria should not be blocked."
+  },
+  {
+    "name": "read_only_queue_explanation",
+    "input": "Explain how namba queue works without making changes",
+    "expected_refinement_required": false,
+    "expected_language_behavior": "en",
+    "rationale": "Read-only explanation requests should not trigger implementation refinement."
+  },
+  {
+    "name": "read_only_spec_048_risks",
+    "input": "Read SPEC-048 and summarize implementation risks only",
+    "expected_refinement_required": false,
+    "expected_language_behavior": "en",
+    "rationale": "Read-only SPEC risk review should stay outside the SPEC creation gate."
+  }
+]

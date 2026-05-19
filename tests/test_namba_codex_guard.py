@@ -8,9 +8,14 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HOOK = REPO_ROOT / ".codex" / "hooks" / "namba_codex_guard.py"
+HARNESS_EVALS = REPO_ROOT / "internal" / "namba" / "testdata" / "evals" / "harness"
 
 
 class NambaCodexGuardTest(unittest.TestCase):
+    def load_eval_cases(self, name):
+        with (HARNESS_EVALS / name).open(encoding="utf-8") as handle:
+            return json.load(handle)
+
     def run_hook(self, payload, *, env=None):
         process_env = os.environ.copy()
         if env:
@@ -85,6 +90,75 @@ class NambaCodexGuardTest(unittest.TestCase):
             }
         )
         self.assertEqual([], outputs)
+
+    def test_prompt_refinement_eval_cases_use_real_hook_subprocess(self):
+        for case in self.load_eval_cases("prompt_refinement_cases.json"):
+            with self.subTest(case=case["name"]):
+                self.assertTrue(case.get("name"))
+                self.assertTrue(case.get("input"))
+                self.assertTrue(case.get("rationale"))
+
+                outputs = self.run_hook(
+                    {"hook_event_name": "UserPromptSubmit", "prompt": case["input"]}
+                )
+                contexts = self.additional_contexts(outputs, "UserPromptSubmit")
+                refinement_required = len(contexts) > 0
+                self.assertEqual(
+                    case["expected_refinement_required"],
+                    refinement_required,
+                    (
+                        f"case={case['name']} input={case['input']!r} "
+                        f"rationale={case['rationale']} outputs={outputs}"
+                    ),
+                )
+                if refinement_required:
+                    context = "\n".join(contexts)
+                    self.assertIn("Goal", context)
+                    self.assertIn("Scope", context)
+                    self.assertIn("Acceptance", context)
+                    if case.get("expected_language_behavior") == "ko":
+                        self.assertIn("대상 surface", context)
+
+    def test_guardrail_eval_cases_use_real_hook_subprocess(self):
+        for case in self.load_eval_cases("guardrail_cases.json"):
+            with self.subTest(case=case["name"]):
+                self.assertTrue(case.get("name"))
+                self.assertTrue(case.get("command"))
+                self.assertTrue(case.get("rationale"))
+
+                key = "cmd" if case["event_type"] == "PermissionRequest" else "command"
+                outputs = self.run_hook(
+                    {
+                        "hook_event_name": case["event_type"],
+                        "tool_input": {key: case["command"]},
+                    }
+                )
+                decisions = self.deny_decisions(outputs)
+                risk_notes = [
+                    output.get("systemMessage", "")
+                    for output in outputs
+                    if output.get("systemMessage")
+                ]
+                self.assertEqual(
+                    case["expected_deny"],
+                    len(decisions) > 0,
+                    (
+                        f"case={case['name']} command={case['command']!r} "
+                        f"rationale={case['rationale']} outputs={outputs}"
+                    ),
+                )
+                self.assertEqual(
+                    case["expected_risk_note"],
+                    len(risk_notes) > 0,
+                    (
+                        f"case={case['name']} command={case['command']!r} "
+                        f"rationale={case['rationale']} outputs={outputs}"
+                    ),
+                )
+                reason_substring = case.get("expected_reason_substring")
+                if reason_substring:
+                    haystack = json.dumps(outputs, ensure_ascii=False)
+                    self.assertIn(reason_substring, haystack)
 
     def test_pre_tool_use_denies_dangerous_commands(self):
         commands = [
