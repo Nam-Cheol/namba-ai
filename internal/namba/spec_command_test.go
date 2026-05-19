@@ -145,6 +145,31 @@ func TestRunFixCommandPlanClarificationGateBlocksAmbiguousPrompt(t *testing.T) {
 	}
 }
 
+func TestRunFixCommandPlanClarificationRunsBeforeProjectLookup(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	err := app.Run(context.Background(), []string{"fix", "--command", "plan", "버그", "고쳐줘"})
+	if err == nil || !strings.Contains(err.Error(), "namba fix --command plan requires clarification") {
+		t.Fatalf("expected fix plan clarification error before project lookup, got %v", err)
+	}
+	if strings.Contains(err.Error(), "no NambaAI project found") {
+		t.Fatalf("expected clarification to run before project lookup, got %v", err)
+	}
+	got := stdout.String()
+	for _, want := range []string{"NambaAI clarification gate", "`namba fix --command plan`", "Goal:", "Acceptance:"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected fix plan clarification output to contain %q, got %q", want, got)
+		}
+	}
+}
+
 func TestEvaluatePlanClarificationAllowsStructuredPrompt(t *testing.T) {
 	t.Parallel()
 

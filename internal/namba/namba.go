@@ -684,6 +684,13 @@ func (a *App) runFix(ctx context.Context, args []string) error {
 		return a.printFixUsage()
 	}
 
+	if options.command == "plan" {
+		if clarification, ok := evaluateSpecCreationClarification("fix", options.description); ok {
+			fmt.Fprint(a.stdout, clarification)
+			return errors.New("namba fix --command plan requires clarification before creating a SPEC")
+		}
+	}
+
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
