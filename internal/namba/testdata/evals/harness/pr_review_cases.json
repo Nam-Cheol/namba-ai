@@ -1,0 +1,47 @@
+[
+  {
+    "name": "default_pr_without_review",
+    "argv": ["Example title"],
+    "legacy_auto_codex_review": false,
+    "existing_comments": [],
+    "expected_review_requested": false,
+    "expected_duplicate_review_comment": false,
+    "rationale": "Normal PR handoff must not request Codex review."
+  },
+  {
+    "name": "explicit_review_flag",
+    "argv": ["--review", "Example title"],
+    "legacy_auto_codex_review": false,
+    "existing_comments": [],
+    "expected_review_requested": true,
+    "expected_duplicate_review_comment": false,
+    "rationale": "Only --review opts into creating a Codex review request."
+  },
+  {
+    "name": "legacy_auto_review_ignored_without_flag",
+    "argv": ["Example title"],
+    "legacy_auto_codex_review": true,
+    "existing_comments": [],
+    "expected_review_requested": false,
+    "expected_duplicate_review_comment": false,
+    "rationale": "Legacy AutoCodexReview config remains parseable but must not trigger review."
+  },
+  {
+    "name": "unrelated_comment_with_review_flag",
+    "argv": ["--review", "Example title"],
+    "legacy_auto_codex_review": false,
+    "existing_comments": ["please ask @codex review after tests pass"],
+    "expected_review_requested": true,
+    "expected_duplicate_review_comment": false,
+    "rationale": "An unrelated comment mentioning the command should not suppress the explicit review request."
+  },
+  {
+    "name": "marker_comment_with_review_flag",
+    "argv": ["--review", "Example title"],
+    "legacy_auto_codex_review": false,
+    "existing_comments": ["<!-- namba:codex-review-request -->\n@codex review"],
+    "expected_review_requested": true,
+    "expected_duplicate_review_comment": false,
+    "rationale": "Existing Namba marker comments prevent duplicate review comments."
+  }
+]
