@@ -406,6 +406,7 @@ func renderNambaCLIRootLifecycleSection(lang string) []string {
 			"",
 			fmt.Sprintf("- 설치 (Windows): `%s`", nambaInstallPowerShell),
 			fmt.Sprintf("- 설치 (macOS / Linux): `%s`", nambaInstallShell),
+			"- Installer는 설치 전에 release checksum을 검증하고, checksum이 없거나 맞지 않으면 fail closed로 중단합니다. 수동 검증이 필요하면 release asset과 `checksums.txt`를 받은 뒤 asset의 SHA-256 digest를 정확한 asset 이름 항목과 비교하세요.",
 			"- 최신 릴리스로 업데이트: `namba update`",
 			"- 특정 릴리스로 고정: `namba update --version vX.Y.Z`",
 			"- `namba update`는 NambaAI CLI만 업데이트합니다. upstream Codex CLI는 `codex update`로 업데이트합니다.",
@@ -419,6 +420,7 @@ func renderNambaCLIRootLifecycleSection(lang string) []string {
 			"",
 			fmt.Sprintf("- Windows でインストール: `%s`", nambaInstallPowerShell),
 			fmt.Sprintf("- macOS / Linux でインストール: `%s`", nambaInstallShell),
+			"- Installer はインストール前に release checksum を検証し、checksum がない、または一致しない場合は fail closed で中止します。手動で検証する場合は release asset と `checksums.txt` を取得し、asset の SHA-256 digest を正確な asset 名の行と比較してください。",
 			"- 最新リリースへ更新: `namba update`",
 			"- 特定バージョンを固定: `namba update --version vX.Y.Z`",
 			"- `namba update` は NambaAI CLI だけを更新します。upstream Codex CLI は `codex update` で更新します。",
@@ -432,6 +434,7 @@ func renderNambaCLIRootLifecycleSection(lang string) []string {
 			"",
 			fmt.Sprintf("- 在 Windows 上安装: `%s`", nambaInstallPowerShell),
 			fmt.Sprintf("- 在 macOS / Linux 上安装: `%s`", nambaInstallShell),
+			"- Installer 会在安装前验证 release checksum；checksum 缺失或不匹配时会 fail closed。需要手动验证时，下载 release asset 和 `checksums.txt`，并将 asset 的 SHA-256 digest 与准确 asset 名对应的条目比较。",
 			"- 更新到最新版本: `namba update`",
 			"- 固定到指定版本: `namba update --version vX.Y.Z`",
 			"- `namba update` 只更新 NambaAI CLI。upstream Codex CLI 使用 `codex update` 更新。",
@@ -445,6 +448,7 @@ func renderNambaCLIRootLifecycleSection(lang string) []string {
 			"",
 			fmt.Sprintf("- Install on Windows: `%s`", nambaInstallPowerShell),
 			fmt.Sprintf("- Install on macOS / Linux: `%s`", nambaInstallShell),
+			"- Installers verify release checksums before installing and fail closed on missing or mismatched checksum data. To verify manually, download the release asset and `checksums.txt`, then compare the asset's SHA-256 digest with the exact asset-name entry.",
 			"- Update to the latest release: `namba update`",
 			"- Pin a specific release: `namba update --version vX.Y.Z`",
 			"- `namba update` updates only the NambaAI CLI. Use upstream `codex update` for the Codex CLI.",
@@ -555,6 +559,7 @@ func renderNambaCLIGettingStartedInstallSection(lang string) []string {
 			"- Windows에서 저장소 안쪽 작업을 많이 한다면 Codex CLI 경험을 위해 WSL workspace를 권장합니다.",
 			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
 			"- 기본 경로가 아닌 곳에 설치하려면 `NAMBA_INSTALL_DIR`를 사용하세요.",
+			"- Installer는 설치 전에 release checksum을 검증하고, checksum이 없거나 맞지 않으면 fail closed로 중단합니다. 수동 검증이 필요하면 다운로드한 asset의 SHA-256 digest를 release `checksums.txt`의 정확한 asset 이름 항목과 비교하세요.",
 			"",
 		}
 	case "ja":
@@ -565,6 +570,7 @@ func renderNambaCLIGettingStartedInstallSection(lang string) []string {
 			"- Windows でリポジトリ内の作業が多いなら、Codex CLI 体験のために WSL workspace を推奨します。",
 			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
 			"- 既定以外の場所へ入れたい場合は `NAMBA_INSTALL_DIR` を使ってください。",
+			"- Installer はインストール前に release checksum を検証し、checksum がない、または一致しない場合は fail closed で中止します。手動で検証する場合は、ダウンロードした asset の SHA-256 digest を release `checksums.txt` の正確な asset 名の行と比較してください。",
 			"",
 		}
 	case "zh":
@@ -575,6 +581,7 @@ func renderNambaCLIGettingStartedInstallSection(lang string) []string {
 			"- 如果你经常在 Windows 下直接在仓库里工作，建议使用 WSL workspace 以获得更好的 Codex CLI 体验。",
 			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
 			"- 如果需要安装到非默认位置，请使用 `NAMBA_INSTALL_DIR`。",
+			"- Installer 会在安装前验证 release checksum；checksum 缺失或不匹配时会 fail closed。需要手动验证时，将下载的 asset 的 SHA-256 digest 与 release `checksums.txt` 中准确 asset 名对应的条目比较。",
 			"",
 		}
 	default:
@@ -585,6 +592,7 @@ func renderNambaCLIGettingStartedInstallSection(lang string) []string {
 			"- For the best Codex CLI experience on Windows, use a WSL workspace when you work inside a repository.",
 			fmt.Sprintf("- macOS / Linux: `%s`", nambaInstallShell),
 			"- Use `NAMBA_INSTALL_DIR` when you want a non-default install location.",
+			"- Installers verify release checksums before installing and fail closed on missing or mismatched checksum data. For manual verification, compare the downloaded asset's SHA-256 digest with its exact asset-name entry in the release `checksums.txt`.",
 			"",
 		}
 	}
@@ -905,7 +913,7 @@ func renderNambaCLIWorkflowGuideReleaseFlowSection(lang string) []string {
 			"- `$namba-release`는 clean `main`, 검증, commit 기반 릴리스 노트, `.namba/releases/<version>.md` handoff를 확인한 뒤 릴리스를 진행하는 Codex-facing workflow입니다.",
 			"- `namba release`는 `main`에서 clean working tree를 요구합니다.",
 			"- `--push`는 새 태그와 `main`을 함께 push한 뒤 GitHub Release workflow를 트리거합니다.",
-			"- GitHub Release body는 생성된 릴리스 노트를 사용하고, 기존 asset matrix와 `checksums.txt` publication은 유지됩니다.",
+			"- GitHub Release body는 생성된 릴리스 노트를 사용하고, 기존 asset matrix와 필수 `checksums.txt` publication은 유지됩니다. 모든 release archive는 installer가 압축 해제 전에 검증할 수 있도록 정확한 asset 이름으로 `checksums.txt`에 포함되어야 합니다.",
 			"",
 		}
 	case "ja":
@@ -915,7 +923,7 @@ func renderNambaCLIWorkflowGuideReleaseFlowSection(lang string) []string {
 			"- `$namba-release` は clean な `main`、validation、commit 由来の release notes、`.namba/releases/<version>.md` handoff を確認してから release を進める Codex-facing workflow です。",
 			"- `namba release` は `main` 上の clean working tree を要求します。",
 			"- `--push` は新しい tag と `main` をまとめて push し、その後 GitHub Release workflow を起動します。",
-			"- GitHub Release body は生成済み release notes を使い、既存の asset matrix と `checksums.txt` publication は維持します。",
+			"- GitHub Release body は生成済み release notes を使い、既存の asset matrix と必須の `checksums.txt` publication は維持します。すべての release archive は installer が展開前に検証できるよう、正確な asset 名で `checksums.txt` に含める必要があります。",
 			"",
 		}
 	case "zh":
@@ -925,7 +933,7 @@ func renderNambaCLIWorkflowGuideReleaseFlowSection(lang string) []string {
 			"- `$namba-release` 是 Codex-facing workflow，会先确认 clean `main`、validation、基于 commit 的 release notes，以及 `.namba/releases/<version>.md` handoff。",
 			"- `namba release` 要求 `main` 上是 clean working tree。",
 			"- `--push` 会同时 push 新 tag 和 `main`，然后触发 GitHub Release workflow。",
-			"- GitHub Release body 使用生成的 release notes，并保留现有 asset matrix 和 `checksums.txt` publication。",
+			"- GitHub Release body 使用生成的 release notes，并保留现有 asset matrix 和必需的 `checksums.txt` publication。所有 release archive 都必须以准确 asset 名列在 `checksums.txt` 中，因为 installer 会在解压前验证该条目。",
 			"",
 		}
 	default:
@@ -935,7 +943,7 @@ func renderNambaCLIWorkflowGuideReleaseFlowSection(lang string) []string {
 			"- `$namba-release` is the Codex-facing workflow that checks clean `main`, validation, commit-based release notes, and the `.namba/releases/<version>.md` handoff before release.",
 			"- `namba release` requires a clean working tree on `main`.",
 			"- `--push` pushes both the new tag and `main`, then triggers the GitHub Release workflow.",
-			"- The GitHub Release body uses generated release notes while preserving the existing asset matrix and `checksums.txt` publication.",
+			"- The GitHub Release body uses generated release notes while preserving the existing asset matrix and required `checksums.txt` publication. Every release archive must be listed in `checksums.txt` by exact asset name because installers verify that entry before extraction.",
 			"",
 		}
 	}

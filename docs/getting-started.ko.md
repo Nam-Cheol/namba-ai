@@ -35,6 +35,7 @@ NambaAI는 Codex 작업을 바로 실행하기 전에 목표, 범위, 제약, �
 - Windows에서 저장소 안쪽 작업을 많이 한다면 Codex CLI 경험을 위해 WSL workspace를 권장합니다.
 - macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
 - 기본 경로가 아닌 곳에 설치하려면 `NAMBA_INSTALL_DIR`를 사용하세요.
+- Installer는 설치 전에 release checksum을 검증하고, checksum이 없거나 맞지 않으면 fail closed로 중단합니다. 수동 검증이 필요하면 다운로드한 asset의 SHA-256 digest를 release `checksums.txt`의 정확한 asset 이름 항목과 비교하세요.
 
 ## 2. 업데이트
 

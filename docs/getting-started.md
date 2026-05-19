@@ -35,6 +35,7 @@ NambaAI is a repository workflow layer that turns Codex work into goal, scope, c
 - For the best Codex CLI experience on Windows, use a WSL workspace when you work inside a repository.
 - macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
 - Use `NAMBA_INSTALL_DIR` when you want a non-default install location.
+- Installers verify release checksums before installing and fail closed on missing or mismatched checksum data. For manual verification, compare the downloaded asset's SHA-256 digest with its exact asset-name entry in the release `checksums.txt`.
 
 ## 2. Update
 

@@ -93,6 +93,7 @@ continue_on_failure = false
 
 - Install on Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
 - Install on macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
+- Installers verify release checksums before installing and fail closed on missing or mismatched checksum data. To verify manually, download the release asset and `checksums.txt`, then compare the asset's SHA-256 digest with the exact asset-name entry.
 - Update to the latest release: `namba update`
 - Pin a specific release: `namba update --version vX.Y.Z`
 - `namba update` updates only the NambaAI CLI. Use upstream `codex update` for the Codex CLI.
@@ -104,7 +105,7 @@ continue_on_failure = false
 - `$namba-release` is the Codex-facing workflow that checks clean `main`, validation, commit-based release notes, and the `.namba/releases/<version>.md` handoff before release.
 - `namba release` requires a clean working tree on `main`.
 - `--push` pushes both the new tag and `main`, then triggers the GitHub Release workflow.
-- The GitHub Release body uses generated release notes while preserving the existing asset matrix and `checksums.txt` publication.
+- The GitHub Release body uses generated release notes while preserving the existing asset matrix and required `checksums.txt` publication. Every release archive must be listed in `checksums.txt` by exact asset name because installers verify that entry before extraction.
 
 ## 🧩 Command Skills In Codex
 

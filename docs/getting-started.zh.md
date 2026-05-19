@@ -35,6 +35,7 @@ NambaAI 是一个仓库工作流层，会在 Codex 直接实现前，把目标�
 - 如果你经常在 Windows 下直接在仓库里工作，建议使用 WSL workspace 以获得更好的 Codex CLI 体验。
 - macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
 - 如果需要安装到非默认位置，请使用 `NAMBA_INSTALL_DIR`。
+- Installer 会在安装前验证 release checksum；checksum 缺失或不匹配时会 fail closed。需要手动验证时，将下载的 asset 的 SHA-256 digest 与 release `checksums.txt` 中准确 asset 名对应的条目比较。
 
 ## 2. 更新
 
