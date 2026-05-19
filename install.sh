@@ -229,4 +229,4 @@ esac
 printf '\n%s\n' "NambaAI installed."
 printf '%s\n' "Binary: $INSTALL_DIR/namba"
 printf '%s\n' "Command: namba"
-printf '%s\n' "If the command is not available in your current shell, run 'exec $SHELL -l' or open a new terminal."
+printf '%s\n' "If the command is not available in your current shell, run 'exec ${SHELL:-sh} -l' or open a new terminal."

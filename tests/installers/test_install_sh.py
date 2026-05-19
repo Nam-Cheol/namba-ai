@@ -44,6 +44,7 @@ class InstallShTests(unittest.TestCase):
 
     def run_installer(self, archive, checksums):
         env = os.environ.copy()
+        env.pop("SHELL", None)
         env.update(
             {
                 "HOME": str(self.home),
