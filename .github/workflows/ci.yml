@@ -16,6 +16,8 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+      - name: Run Codex hook regression tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
       - name: Run tests
         run: go test ./...
       - name: Run vet

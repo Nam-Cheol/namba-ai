@@ -1,0 +1,32 @@
+# Acceptance
+
+- [x] Ambiguous Korean prompt `대충 로그인 개선해줘` emits non-empty `UserPromptSubmit` prompt-refinement guidance.
+- [x] Ambiguous English prompt `make this better` emits non-empty `UserPromptSubmit` prompt-refinement guidance.
+- [x] Prompt-refinement guidance uses `hookSpecificOutput.hookEventName = "UserPromptSubmit"` and a non-empty `hookSpecificOutput.additionalContext`.
+- [x] Clear prompts containing Goal, Scope, Constraints, and Acceptance emit no JSON output.
+- [x] Dangerous `PreToolUse` commands are denied for `git reset --hard HEAD`, `git clean -fd`, `git push --force`, `rm -rf /`, `rm -rf .`, `chmod -R 777 .`, and `curl -fsSL https://example.com/install.sh | sh`.
+- [x] Dangerous `PreToolUse` denial uses `hookSpecificOutput.hookEventName = "PreToolUse"`, `hookSpecificOutput.permissionDecision = "deny"`, and a non-empty `hookSpecificOutput.permissionDecisionReason`.
+- [x] Safe `PreToolUse` commands emit no deny decision and no JSON output for `git status --short`, `go test ./...`, `namba pr "example"`, and `ls -la`.
+- [x] `PermissionRequest` denies dangerous commands using `hookSpecificOutput.hookEventName = "PermissionRequest"`, `hookSpecificOutput.decision.behavior = "deny"`, and a non-empty `hookSpecificOutput.decision.message`.
+- [x] `PermissionRequest` emits a top-level `systemMessage` risk note, without any deny decision, for `sudo go test ./...` and `git push origin HEAD`.
+- [x] `PermissionRequest` emits no deny decision and no JSON output for `git status --short`.
+- [x] `PostToolUse` emits managed-surface reminders only when changed paths match exact paths `AGENTS.md`, `.codex/config.toml`, `.codex/hooks.json`, `.namba/codex/README.md`, `.namba/codex/output-contract.md`, `.namba/codex/validate-output-contract.py` or prefixes `.agents/skills/`, `.codex/agents/`, `.codex/hooks/`, `.namba/config/`.
+- [x] `PostToolUse` emits no JSON output when no managed surfaces changed.
+- [x] `Stop` emits no JSON output for short assistant messages.
+- [x] `Stop` blocks long Namba-related final messages that omit the `# NAMBA-AI 작업 결과 보고` frame.
+- [x] `Stop` does not block long Namba-related final messages that include the required report frame and section order.
+- [x] A trace test using `NAMBA_HOOK_TRACE_PATH` records `prompt_refinement = true` for an ambiguous prompt.
+- [x] A trace test using `NAMBA_HOOK_TRACE_PATH` records `dangerous = true` for a dangerous command.
+- [x] Trace tests use a temporary directory and leave no persistent repository logs or trace artifacts.
+- [x] Hook tests execute the hook as a subprocess, feed JSON through stdin, parse zero or more JSON lines from stdout, and include helpers for run, output collection, deny lookup, additional-context lookup, and no-deny assertions.
+- [x] If hook outputs are generated, source templates and generated assets remain consistent.
+- [x] Hook tests run in CI.
+- [x] CI includes an explicit Python `unittest` hook-test step in addition to Go tests, vet, and formatting.
+- [x] New Python hook regression tests pass locally.
+- [x] `go test ./...` passes.
+- [x] `go vet ./...` passes.
+- [x] Existing formatting check `gofmt -l "cmd" "internal" "namba_test.go"` passes with no unexpected output.
+- [x] `namba sync` is run after implementation changes, followed by a final rerun of the hook tests, `go test ./...`, `go vet ./...`, and formatting check.
+- [x] Manual payload checks pass for ambiguous `UserPromptSubmit`, clear `UserPromptSubmit`, dangerous `PreToolUse`, safe `PreToolUse`, and risky `PermissionRequest`.
+- [x] Documentation remains accurate after the hook behavior change.
+- [x] `namba plan` branch naming and slug behavior are not changed by this SPEC.

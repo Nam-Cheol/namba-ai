@@ -403,6 +403,13 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-046/reviews/product.md
 .namba/specs/SPEC-046/reviews/readiness.md
 .namba/specs/SPEC-046/spec.md
+.namba/specs/SPEC-047/acceptance.md
+.namba/specs/SPEC-047/plan.md
+.namba/specs/SPEC-047/reviews/design.md
+.namba/specs/SPEC-047/reviews/engineering.md
+.namba/specs/SPEC-047/reviews/product.md
+.namba/specs/SPEC-047/reviews/readiness.md
+.namba/specs/SPEC-047/spec.md
 AGENTS.md
 README.ja.md
 README.ko.md
@@ -504,5 +511,6 @@ internal/namba/write_outputs.go
 namba_test.go
 project_analysis_regression_test.go
 sync_stability_test.go
+tests/test_namba_codex_guard.py
 workflow_test.go
 ```
