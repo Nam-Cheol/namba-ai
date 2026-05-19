@@ -13,15 +13,6 @@ if (-not $PSBoundParameters.ContainsKey("InstallDir") -and $env:NAMBA_INSTALL_DI
     $InstallDir = $env:NAMBA_INSTALL_DIR
 }
 
-if (-not $InstallDir) {
-    if ($env:LOCALAPPDATA) {
-        $localAppData = $env:LOCALAPPDATA
-    } else {
-        $localAppData = Join-Path $env:USERPROFILE "AppData\Local"
-    }
-    $InstallDir = Join-Path $localAppData "Programs\NambaAI\bin"
-}
-
 # Test-only overrides used by installer regression tests. They are local-file
 # inputs only and do not provide a checksum bypass for normal installs.
 if ($env:NAMBA_INSTALL_TEST_VERSION) {
@@ -29,6 +20,15 @@ if ($env:NAMBA_INSTALL_TEST_VERSION) {
 }
 if ($env:NAMBA_INSTALL_TEST_DIR) {
     $InstallDir = $env:NAMBA_INSTALL_TEST_DIR
+}
+
+if (-not $InstallDir) {
+    if ($env:LOCALAPPDATA) {
+        $localAppData = $env:LOCALAPPDATA
+    } else {
+        $localAppData = Join-Path $env:USERPROFILE "AppData\Local"
+    }
+    $InstallDir = Join-Path $localAppData "Programs\NambaAI\bin"
 }
 
 function Copy-OrDownload {
