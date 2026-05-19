@@ -653,7 +653,7 @@ func (a *App) runPlan(ctx context.Context, args []string) error {
 	if options.help {
 		return a.printPlanUsage()
 	}
-	if clarification, ok := evaluatePlanClarification(options.description); ok {
+	if clarification, ok := evaluateSpecCreationClarification("plan", options.description); ok {
 		fmt.Fprint(a.stdout, clarification)
 		return errors.New("namba plan requires clarification before creating a SPEC")
 	}
@@ -668,6 +668,10 @@ func (a *App) runHarness(ctx context.Context, args []string) error {
 	if options.help {
 		return a.printHarnessUsage()
 	}
+	if clarification, ok := evaluateSpecCreationClarification("harness", options.description); ok {
+		fmt.Fprint(a.stdout, clarification)
+		return errors.New("namba harness requires clarification before creating a SPEC")
+	}
 	return a.createSpecPackage(ctx, "harness", options.description, options.currentWorkspace, false)
 }
 
@@ -678,6 +682,13 @@ func (a *App) runFix(ctx context.Context, args []string) error {
 	}
 	if options.help {
 		return a.printFixUsage()
+	}
+
+	if options.command == "plan" {
+		if clarification, ok := evaluateSpecCreationClarification("fix", options.description); ok {
+			fmt.Fprint(a.stdout, clarification)
+			return errors.New("namba fix --command plan requires clarification before creating a SPEC")
+		}
 	}
 
 	root, err := a.requireProjectRoot()
@@ -729,7 +740,262 @@ func (a *App) createSpecPackage(ctx context.Context, kind, description string, c
 			fmt.Fprintf(a.stdout, "Auto review skipped by %s.\n", noReviewPlanningFlag)
 		}
 	}
+	profile, err := a.loadInitProfileFromConfig(start.Root)
+	if err != nil {
+		profile = initProfile{}
+	}
+	fmt.Fprint(a.stdout, formatSpecCreationReport(scaffoldCtx, start, outputs, autoReview, outputContractLanguage(profile)))
 	return nil
+}
+
+func formatSpecCreationReport(scaffoldCtx specPackageScaffoldContext, start planningStartResolution, outputs map[string]string, autoReview bool, language string) string {
+	if language == "ko" {
+		return formatSpecCreationReportKorean(scaffoldCtx, start, outputs, autoReview)
+	}
+	return formatSpecCreationReportEnglish(scaffoldCtx, start, outputs, autoReview)
+}
+
+func formatSpecCreationReportKorean(scaffoldCtx specPackageScaffoldContext, start planningStartResolution, outputs map[string]string, autoReview bool) string {
+	kind := scaffoldCtx.Kind
+	specID := scaffoldCtx.SpecID
+	lines := []string{
+		"",
+		"SPEC 결정 보고서:",
+		"쉬운 요약:",
+		fmt.Sprintf("- 진행 이유: %s", specReportWhyKorean(kind, scaffoldCtx.Description)),
+		fmt.Sprintf("- 앞으로 할 일: %s", specReportWhatKorean(kind)),
+		fmt.Sprintf("- 진행 판단: %s", specReportProceedSignalKorean(kind)),
+		"",
+		"검토할 애매한 부분:",
+	}
+	lines = append(lines, specReportOpenPointsKorean(kind, scaffoldCtx.Description)...)
+	lines = append(lines,
+		"",
+		"보안 및 안전 메모:",
+	)
+	lines = append(lines, specReportSecurityNotesKorean(scaffoldCtx.Description)...)
+	lines = append(lines,
+		"",
+		"개발자 상세:",
+		fmt.Sprintf("- SPEC 패키지: %s", filepath.ToSlash(filepath.Join(specsDir, specID))),
+		fmt.Sprintf("- 명령 surface: %s", specCreationInvocation(kind)),
+		fmt.Sprintf("- 브랜치/작업공간: %s | %s", firstNonBlank(start.Branch, "n/a"), firstNonBlank(start.WorkspaceAction, "n/a")),
+	)
+	if next := specReportNextCommand(kind, specID, autoReview); next != "" {
+		lines = append(lines, fmt.Sprintf("- 다음 명령: %s", next))
+	}
+	lines = append(lines, "- 생성된 파일:")
+	for _, path := range specReportGeneratedPaths(outputs) {
+		lines = append(lines, fmt.Sprintf("  - %s", path))
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func formatSpecCreationReportEnglish(scaffoldCtx specPackageScaffoldContext, start planningStartResolution, outputs map[string]string, autoReview bool) string {
+	kind := scaffoldCtx.Kind
+	specID := scaffoldCtx.SpecID
+	lines := []string{
+		"",
+		"SPEC decision report:",
+		"Plain-language summary:",
+		fmt.Sprintf("- Why this SPEC exists: %s", specReportWhy(kind, scaffoldCtx.Description)),
+		fmt.Sprintf("- What this SPEC will do: %s", specReportWhat(kind)),
+		fmt.Sprintf("- Proceed signal: %s", specReportProceedSignal(kind)),
+		"",
+		"Open points to review:",
+	}
+	lines = append(lines, specReportOpenPoints(kind, scaffoldCtx.Description)...)
+	lines = append(lines,
+		"",
+		"Security and safety notes:",
+	)
+	lines = append(lines, specReportSecurityNotes(scaffoldCtx.Description)...)
+	lines = append(lines,
+		"",
+		"Developer detail:",
+		fmt.Sprintf("- SPEC package: %s", filepath.ToSlash(filepath.Join(specsDir, specID))),
+		fmt.Sprintf("- Command surface: %s", specCreationInvocation(kind)),
+		fmt.Sprintf("- Branch/workspace: %s | %s", firstNonBlank(start.Branch, "n/a"), firstNonBlank(start.WorkspaceAction, "n/a")),
+	)
+	if next := specReportNextCommand(kind, specID, autoReview); next != "" {
+		lines = append(lines, fmt.Sprintf("- Next command: %s", next))
+	}
+	lines = append(lines, "- Generated files:")
+	for _, path := range specReportGeneratedPaths(outputs) {
+		lines = append(lines, fmt.Sprintf("  - %s", path))
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func specReportWhy(kind, description string) string {
+	description = strings.TrimSpace(description)
+	switch kind {
+	case "fix":
+		return fmt.Sprintf("the reported issue needs a reviewable repair plan before code changes: %s", description)
+	case "harness":
+		return fmt.Sprintf("the requested reusable Namba/Codex workflow work needs a harness-oriented plan: %s", description)
+	default:
+		return fmt.Sprintf("the requested feature or product change needs an implementation-ready plan: %s", description)
+	}
+}
+
+func specReportWhyKorean(kind, description string) string {
+	description = strings.TrimSpace(description)
+	switch kind {
+	case "fix":
+		return fmt.Sprintf("코드를 바로 고치기 전에 문제를 재현하고 안전한 수정 계획을 검토해야 합니다: %s", description)
+	case "harness":
+		return fmt.Sprintf("재사용할 Namba/Codex 구성요소 작업이라서 일반 기능 계획보다 harness 전용 계획이 필요합니다: %s", description)
+	default:
+		return fmt.Sprintf("요청한 기능 또는 제품 변경을 구현 가능한 계획으로 바꿔야 합니다: %s", description)
+	}
+}
+
+func specReportWhat(kind string) string {
+	switch kind {
+	case "fix":
+		return "reproduce or inspect the issue, choose the smallest safe fix, add regression coverage, and validate before sync."
+	case "harness":
+		return "define the reusable skill, agent, workflow, or orchestration change inside the normal SPEC review flow."
+	default:
+		return "turn the requested change into scoped implementation steps, acceptance checks, and review artifacts."
+	}
+}
+
+func specReportWhatKorean(kind string) string {
+	switch kind {
+	case "fix":
+		return "문제를 재현하거나 확인한 뒤, 가장 작은 안전한 수정과 회귀 테스트, 검증 절차를 진행합니다."
+	case "harness":
+		return "skill, agent, workflow, orchestration 같은 재사용 구성요소의 경계와 평가 방법을 SPEC 리뷰 흐름 안에서 정리합니다."
+	default:
+		return "요청을 구현 단계, 완료 기준, 리뷰 산출물로 나눠 다음 실행자가 바로 판단할 수 있게 만듭니다."
+	}
+}
+
+func specReportProceedSignal(kind string) string {
+	switch kind {
+	case "fix":
+		return "ready for bugfix plan review; implementation should wait until the issue shape and regression check are clear."
+	case "harness":
+		return "ready for harness plan review; implementation should wait until reusable boundaries and evaluation evidence are clear."
+	default:
+		return "ready for plan review; implementation should wait until product, engineering, and design concerns are visible."
+	}
+}
+
+func specReportProceedSignalKorean(kind string) string {
+	switch kind {
+	case "fix":
+		return "버그 수정 계획 검토를 시작할 수 있지만, 재현 경로와 회귀 테스트가 분명해진 뒤 구현하는 편이 안전합니다."
+	case "harness":
+		return "harness 계획 검토를 시작할 수 있지만, 재사용 경계와 평가 증거가 분명해진 뒤 구현하는 편이 안전합니다."
+	default:
+		return "계획 리뷰를 시작할 수 있지만, 제품/엔지니어링/디자인 우려를 확인한 뒤 구현하는 편이 안전합니다."
+	}
+}
+
+func specReportOpenPoints(kind, description string) []string {
+	points := []string{
+		"- Product, engineering, and design review files are seeded but still pending.",
+	}
+	lower := strings.ToLower(description)
+	groups := planClarificationEvidenceGroups()
+	labels := []string{"goal", "scope", "constraints", "acceptance"}
+	var missing []string
+	for i, group := range groups {
+		if !containsAnyFolded(lower, group) && i < len(labels) {
+			missing = append(missing, labels[i])
+		}
+	}
+	if len(missing) > 0 {
+		points = append(points, fmt.Sprintf("- The original request did not explicitly name %s; confirm these during review if they matter.", strings.Join(missing, ", ")))
+	}
+	switch kind {
+	case "fix":
+		points = append(points, "- Confirm the reproduction path and the regression test before coding.")
+	case "harness":
+		points = append(points, "- Confirm whether the work changes Namba core behavior or only repo-local reusable artifacts.")
+	default:
+		points = append(points, "- Confirm any user-facing edge cases before `namba run`.")
+	}
+	return points
+}
+
+func specReportOpenPointsKorean(kind, description string) []string {
+	points := []string{
+		"- product, engineering, design 리뷰 파일은 만들어졌지만 아직 pending 상태입니다.",
+	}
+	lower := strings.ToLower(description)
+	groups := planClarificationEvidenceGroups()
+	labels := []string{"목표", "범위", "제약", "완료 기준"}
+	var missing []string
+	for i, group := range groups {
+		if !containsAnyFolded(lower, group) && i < len(labels) {
+			missing = append(missing, labels[i])
+		}
+	}
+	if len(missing) > 0 {
+		points = append(points, fmt.Sprintf("- 원 요청에 %s가 명시적으로 드러나지 않았습니다. 중요하면 리뷰에서 먼저 확정하세요.", strings.Join(missing, ", ")))
+	}
+	switch kind {
+	case "fix":
+		points = append(points, "- 코딩 전에 재현 경로와 회귀 테스트를 확인하세요.")
+	case "harness":
+		points = append(points, "- Namba core 동작 변경인지, repo-local 재사용 산출물 변경인지 확인하세요.")
+	default:
+		points = append(points, "- `namba run` 전에 사용자 흐름의 예외 상황을 확인하세요.")
+	}
+	return points
+}
+
+func specReportSecurityNotes(description string) []string {
+	notes := []string{
+		"- No application code has changed yet; this command only created planning artifacts.",
+	}
+	lower := strings.ToLower(description)
+	if containsAnyFolded(lower, []string{"auth", "login", "permission", "role", "token", "secret", "password", "admin", "payment", "billing", "pii", "personal data", "개인정보", "인증", "권한", "결제", "토큰", "비밀번호", "관리자"}) {
+		notes = append(notes, "- Security-sensitive wording was detected; review authentication, authorization, secrets, and personal-data handling before implementation.")
+	} else {
+		notes = append(notes, "- During review, still check whether the implementation might touch auth, permissions, secrets, payments, personal data, or destructive data changes.")
+	}
+	return notes
+}
+
+func specReportSecurityNotesKorean(description string) []string {
+	notes := []string{
+		"- 아직 애플리케이션 코드는 바뀌지 않았고, 이번 명령은 계획 산출물만 만들었습니다.",
+	}
+	lower := strings.ToLower(description)
+	if containsAnyFolded(lower, []string{"auth", "login", "permission", "role", "token", "secret", "password", "admin", "payment", "billing", "pii", "personal data", "개인정보", "인증", "권한", "결제", "토큰", "비밀번호", "관리자"}) {
+		notes = append(notes, "- 보안 민감 단어가 감지되었습니다. 구현 전에 인증, 권한, 비밀값, 개인정보 처리를 꼭 검토하세요.")
+	} else {
+		notes = append(notes, "- 리뷰 중 인증, 권한, 비밀값, 결제, 개인정보, 삭제성 데이터 변경이 포함되는지 확인하세요.")
+	}
+	return notes
+}
+
+func specReportNextCommand(kind, specID string, autoReview bool) string {
+	switch kind {
+	case "plan":
+		if autoReview {
+			return fmt.Sprintf("$namba-plan-review %s", specID)
+		}
+		return fmt.Sprintf("individual product/engineering/design review skills for %s when review is wanted", specID)
+	case "harness", "fix":
+		return fmt.Sprintf("$namba-plan-review %s, or individual product/engineering/design review skills", specID)
+	default:
+		return ""
+	}
+}
+
+func specReportGeneratedPaths(outputs map[string]string) []string {
+	paths := make([]string, 0, len(outputs))
+	for path := range outputs {
+		paths = append(paths, filepath.ToSlash(path))
+	}
+	sort.Strings(paths)
+	return paths
 }
 
 type planInvocation struct {
@@ -790,6 +1056,10 @@ func parseDescriptionCommandArgs(command, field string, args []string) (planInvo
 }
 
 func evaluatePlanClarification(description string) (string, bool) {
+	return evaluateSpecCreationClarification("plan", description)
+}
+
+func evaluateSpecCreationClarification(command, description string) (string, bool) {
 	normalized := strings.Join(strings.Fields(description), " ")
 	if normalized == "" {
 		return "", false
@@ -799,13 +1069,21 @@ func evaluatePlanClarification(description string) (string, bool) {
 		return "", false
 	}
 	if planDescriptionHasPartialClarifyingEvidence(lower) {
-		return formatPlanClarificationQuestions(normalized, hasKorean(normalized)), true
+		return formatSpecCreationClarificationQuestions(command, normalized, hasKorean(normalized)), true
 	}
 
 	runeCount := len([]rune(normalized))
 	vague := containsAnyFolded(lower, []string{
 		"만들어줘",
 		"만들어 줘",
+		"고쳐줘",
+		"고쳐 줘",
+		"수정해줘",
+		"수정해 줘",
+		"개선해줘",
+		"개선해 줘",
+		"처리해줘",
+		"처리해 줘",
 		"해줘",
 		"해 줘",
 		"알아서",
@@ -813,10 +1091,17 @@ func evaluatePlanClarification(description string) (string, bool) {
 		"적당히",
 		"좋게",
 		"뭔가",
+		"버그",
+		"문제",
 		"create",
 		"build",
 		"make",
 		"implement",
+		"bug",
+		"problem",
+		"issue",
+		"fix it",
+		"fix this",
 		"something",
 		"stuff",
 		"thing",
@@ -831,10 +1116,10 @@ func evaluatePlanClarification(description string) (string, bool) {
 		"api",
 	})
 	if hasKorean(normalized) && runeCount < 70 && (vague || genericKoreanSurface) {
-		return formatPlanClarificationQuestions(normalized, true), true
+		return formatSpecCreationClarificationQuestions(command, normalized, true), true
 	}
 	if runeCount < 45 && vague {
-		return formatPlanClarificationQuestions(normalized, false), true
+		return formatSpecCreationClarificationQuestions(command, normalized, false), true
 	}
 	return "", false
 }
@@ -885,15 +1170,20 @@ func hasKorean(value string) bool {
 }
 
 func formatPlanClarificationQuestions(description string, korean bool) string {
+	return formatSpecCreationClarificationQuestions("plan", description, korean)
+}
+
+func formatSpecCreationClarificationQuestions(command, description string, korean bool) string {
+	invocation := specCreationInvocation(command)
 	if korean {
 		return strings.Join([]string{
 			"NambaAI clarification gate: SPEC을 만들기 전에 요구가 아직 너무 넓거나 모호합니다.",
 			"입력: " + description,
 			"",
-			"Codex에서는 가능하면 Plan mode 선택 UI로 답변을 먼저 정리한 뒤, 정리된 Goal/Scope/Constraints/Acceptance만 `namba plan`에 넘기세요.",
+			fmt.Sprintf("Codex에서는 가능하면 Plan mode 선택 UI로 답변을 먼저 정리한 뒤, 정리된 Goal/Scope/Constraints/Acceptance만 `%s`에 넘기세요.", invocation),
 			"",
 			"먼저 아래 질문에 답해주세요:",
-			"1. 대상 사용자는 누구이고 핵심 사용 흐름은 무엇인가요?",
+			"1. 대상 사용자는 누구이고 대상 surface와 핵심 사용 흐름은 무엇인가요?",
 			"2. 이번 SPEC에 포함할 범위와 제외할 범위는 무엇인가요?",
 			"3. 완료 기준과 검증 방법은 무엇인가요?",
 			"",
@@ -909,10 +1199,10 @@ func formatPlanClarificationQuestions(description string, korean bool) string {
 		"NambaAI clarification gate: the request is still too broad or ambiguous to turn into a SPEC.",
 		"Input: " + description,
 		"",
-		"In Codex, use native Plan mode choice UI first when it is available, then pass only the refined Goal/Scope/Constraints/Acceptance output to `namba plan`.",
+		fmt.Sprintf("In Codex, use native Plan mode choice UI first when it is available, then pass only the refined Goal/Scope/Constraints/Acceptance output to `%s`.", invocation),
 		"",
 		"Please answer these questions first:",
-		"1. Who is the target user, and what is the core user flow?",
+		"1. Who is the target user, and what target surface or core user flow should change?",
 		"2. What is in scope and out of scope for this SPEC?",
 		"3. What acceptance criteria and validation define done?",
 		"",
@@ -923,6 +1213,17 @@ func formatPlanClarificationQuestions(description string, korean bool) string {
 		"Acceptance: ...",
 		"",
 	}, "\n")
+}
+
+func specCreationInvocation(command string) string {
+	switch command {
+	case "harness":
+		return "namba harness"
+	case "fix":
+		return "namba fix --command plan"
+	default:
+		return "namba plan"
+	}
 }
 
 func parseFixArgs(args []string) (fixInvocation, error) {
@@ -1001,6 +1302,10 @@ func (a *App) resolveFixSubcommand(name string) (fixSubcommandDefinition, bool) 
 }
 
 func (a *App) runFixPlanSubcommand(ctx context.Context, _ string, options fixInvocation) error {
+	if clarification, ok := evaluateSpecCreationClarification("fix", options.description); ok {
+		fmt.Fprint(a.stdout, clarification)
+		return errors.New("namba fix --command plan requires clarification before creating a SPEC")
+	}
 	return a.createSpecPackage(ctx, "fix", options.description, options.currentWorkspace, false)
 }
 

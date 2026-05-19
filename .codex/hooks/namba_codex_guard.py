@@ -192,7 +192,7 @@ def prompt_refinement_context(prompt):
         "NambaAI prompt-refinement gate: treat this as a spec-first request before implementation. "
         "If the goal, target surface, constraints, acceptance criteria, or existing context are unclear, "
         "stop the current workflow and ask 1-3 concise clarifying questions before running any Namba workflow or editing files. "
-        "If native Codex Plan mode choice UI is available, use it as the clarification surface and feed its output into namba plan only after it is restated as Goal, Scope, Constraints, Acceptance. "
+        "If native Codex Plan mode choice UI is available, use it as the clarification surface and feed its output into the matching SPEC creation command (namba plan, namba harness, or namba fix --command plan) only after it is restated as Goal, Scope, Constraints, Acceptance. "
         "Continue the question loop across turns until the improved prompt can be restated as Goal, Scope, Constraints, Acceptance. "
         "This is inspired by a Socratic/Ontology workflow: reduce ambiguity before code."
     )
@@ -212,7 +212,7 @@ def prompt_refinement_guidance(prompt):
         ]
         return (
             "NambaAI 프롬프트 교정 게이트: 지금은 SPEC을 만들지 말고 모호함을 먼저 줄여야 합니다.\n"
-            "가능하면 Codex Plan mode 선택 UI로 아래 질문을 먼저 처리한 뒤, 정리된 Goal/Scope/Constraints/Acceptance만 namba plan에 넘기세요.\n"
+            "가능하면 Codex Plan mode 선택 UI로 아래 질문을 먼저 처리한 뒤, 정리된 Goal/Scope/Constraints/Acceptance만 해당 SPEC 생성 명령(namba plan, namba harness, namba fix --command plan)에 넘기세요.\n"
             + "\n".join(questions)
             + "\n\n답변은 가능하면 다음 형식으로 주세요:\n"
             "Goal: ...\nScope: ...\nConstraints: ...\nAcceptance: ..."
@@ -224,7 +224,7 @@ def prompt_refinement_guidance(prompt):
     ]
     return (
         "NambaAI prompt-refinement gate: do not create a SPEC yet; reduce ambiguity before execution.\n"
-        "When native Codex Plan mode choice UI is available, use it first, then feed the refined Goal/Scope/Constraints/Acceptance output into namba plan.\n"
+        "When native Codex Plan mode choice UI is available, use it first, then feed the refined Goal/Scope/Constraints/Acceptance output into the matching SPEC creation command: namba plan, namba harness, or namba fix --command plan.\n"
         + "\n".join(questions)
         + "\n\nPlease answer in this shape when possible:\n"
         "Goal: ...\nScope: ...\nConstraints: ...\nAcceptance: ..."
