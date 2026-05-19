@@ -1,6 +1,7 @@
 package namba
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -188,22 +189,16 @@ func TestHarnessPRReviewEvalCases(t *testing.T) {
 				t.Fatal(formatHarnessEvalDiagnostic(tc.Name, strings.Join(tc.Argv, " "), "expected_review_requested", tc.ExpectedReviewRequested, opts.RequestReview, tc.Rationale))
 			}
 
-			existingReview := false
-			for _, comment := range tc.ExistingComments {
-				if isReviewRequestComment(comment, "@codex review") {
-					existingReview = true
-				}
-			}
-			wouldCreateReviewComment := opts.RequestReview && !existingReview
-			duplicateReviewComment := wouldCreateReviewComment && existingReview
+			createdReviewComments := exerciseEnsureReviewComment(t, tc, opts)
+			duplicateReviewComment := countReviewRequestComments(tc.ExistingComments) > 0 && createdReviewComments > 0
 			if duplicateReviewComment != tc.ExpectedDuplicateReviewComment {
 				t.Fatal(formatHarnessEvalDiagnostic(tc.Name, strings.Join(tc.Argv, " "), "expected_duplicate_review_comment", tc.ExpectedDuplicateReviewComment, duplicateReviewComment, tc.Rationale))
 			}
-			if tc.LegacyAutoCodexReview && !opts.RequestReview && wouldCreateReviewComment {
-				t.Fatal(formatHarnessEvalDiagnostic(tc.Name, strings.Join(tc.Argv, " "), "legacy_auto_codex_review", "ignored", "would create review comment", tc.Rationale))
+			if tc.LegacyAutoCodexReview && !opts.RequestReview && createdReviewComments > 0 {
+				t.Fatal(formatHarnessEvalDiagnostic(tc.Name, strings.Join(tc.Argv, " "), "legacy_auto_codex_review", "ignored", "created review comment", tc.Rationale))
 			}
-			if tc.ExpectedReviewRequested && !existingReview && !wouldCreateReviewComment {
-				t.Fatal(formatHarnessEvalDiagnostic(tc.Name, strings.Join(tc.Argv, " "), "review comment creation", "new marker comment", "none", tc.Rationale))
+			if tc.ExpectedReviewRequested && countReviewRequestComments(tc.ExistingComments) == 0 && createdReviewComments != 1 {
+				t.Fatal(formatHarnessEvalDiagnostic(tc.Name, strings.Join(tc.Argv, " "), "review comment creation", "one new marker comment", createdReviewComments, tc.Rationale))
 			}
 		})
 	}
@@ -268,16 +263,9 @@ func evaluateHarnessRouteCase(t *testing.T, tc harnessRouteEvalCase) harnessRout
 			sidecarPersisted:  true,
 		}
 	case "direct_artifact_creation":
-		req, err := normalizeHarnessRequest(harnessRequest{
-			RequestKind:      harnessRequestKindDirect,
-			DeliveryMode:     harnessDeliveryModeDirect,
-			AdaptationMode:   harnessAdaptationGenerateArtifact,
-			ArtifactTargets:  []harnessArtifactTarget{harnessArtifactTargetDocs},
-			RequiredEvidence: nil,
-			RequiredReviews:  nil,
-		})
+		req, err := previewDirectCreateHarnessRoute(t, tc.Input)
 		if err != nil {
-			t.Fatalf("normalize direct harness request for %s: %v", tc.Name, err)
+			t.Fatalf("preview direct create harness route for %s: %v", tc.Name, err)
 		}
 		route, err := harnessRouteForRequest(req)
 		if err != nil {
@@ -307,6 +295,94 @@ func evaluateHarnessRouteCase(t *testing.T, tc harnessRouteEvalCase) harnessRout
 		t.Fatalf("unknown route eval category %q", tc.ExpectedCategory)
 		return harnessRouteEvaluation{}
 	}
+}
+
+func exerciseEnsureReviewComment(t *testing.T, tc harnessPREvalCase, opts prOptions) int {
+	t.Helper()
+
+	if !opts.RequestReview {
+		return 0
+	}
+
+	app := NewApp(&strings.Builder{}, &strings.Builder{})
+	createdReviewComments := 0
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		switch {
+		case name == "gh" && len(args) >= 4 && args[0] == "pr" && args[1] == "view":
+			comments := make([]githubPRComment, 0, len(tc.ExistingComments))
+			for _, body := range tc.ExistingComments {
+				comments = append(comments, githubPRComment{Body: body})
+			}
+			return mustMarshalJSON(t, githubPullRequest{Comments: comments}), nil
+		case name == "gh" && len(args) >= 5 && args[0] == "pr" && args[1] == "comment":
+			bodyIndex := indexOfArg(args, "--body")
+			if bodyIndex == -1 || bodyIndex+1 >= len(args) {
+				t.Fatalf("expected review comment body in args: %v", args)
+			}
+			if !isReviewRequestComment(args[bodyIndex+1], "@codex review") {
+				t.Fatalf("expected Namba review marker comment, got %q", args[bodyIndex+1])
+			}
+			createdReviewComments++
+			return "", nil
+		default:
+			t.Fatalf("unexpected command while exercising ensureReviewComment: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	if err := app.ensureReviewComment(context.Background(), t.TempDir(), 17, "@codex review"); err != nil {
+		t.Fatalf("ensure review comment for %s: %v", tc.Name, err)
+	}
+	return createdReviewComments
+}
+
+func countReviewRequestComments(comments []string) int {
+	count := 0
+	for _, comment := range comments {
+		if isReviewRequestComment(comment, "@codex review") {
+			count++
+		}
+	}
+	return count
+}
+
+func previewDirectCreateHarnessRoute(t *testing.T, input string) (harnessRequest, error) {
+	t.Helper()
+
+	req, err := directCreateRequestFromFixtureInput(input)
+	if err != nil {
+		return harnessRequest{}, err
+	}
+	tmp, app := prepareCreateProject(t)
+	preview, err := app.previewCreate(tmp, req)
+	if err != nil {
+		return harnessRequest{}, err
+	}
+	if preview.HarnessRequest == nil {
+		return harnessRequest{}, fmt.Errorf("direct create preview did not retain harness request")
+	}
+	return *preview.HarnessRequest, nil
+}
+
+func directCreateRequestFromFixtureInput(input string) (createRequest, error) {
+	normalized := strings.ToLower(strings.TrimSpace(input))
+	if !strings.Contains(normalized, "create") || !strings.Contains(normalized, "checklist") || !strings.Contains(normalized, "release validation") {
+		return createRequest{}, fmt.Errorf("direct artifact fixture input is not recognized: %q", input)
+	}
+	return createRequest{
+		Target:       createTargetSkill,
+		Name:         "Release Validation Checklist",
+		Description:  input,
+		Instructions: "Create a markdown checklist for release validation.",
+		HarnessRequest: &HarnessRequest{
+			RequestKind:      harnessRequestKindDirect,
+			DeliveryMode:     harnessDeliveryModeDirect,
+			AdaptationMode:   harnessAdaptationGenerateArtifact,
+			ArtifactTargets:  []harnessArtifactTarget{harnessArtifactTargetSkill},
+			RequiredEvidence: nil,
+			RequiredReviews:  nil,
+		},
+	}, nil
 }
 
 func buildHarnessEvidenceEvalManifest(t *testing.T, tc harnessEvidenceEvalCase) executionEvidenceManifest {
