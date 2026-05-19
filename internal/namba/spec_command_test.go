@@ -79,6 +79,72 @@ func TestRunPlanClarificationGateBlocksAmbiguousKoreanPrompt(t *testing.T) {
 	}
 }
 
+func TestRunHarnessClarificationGateBlocksAmbiguousPrompt(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	err := app.Run(context.Background(), []string{"harness", currentWorkspacePlanningFlag, "뭔가", "좋게", "만들어줘"})
+	if err == nil || !strings.Contains(err.Error(), "namba harness requires clarification") {
+		t.Fatalf("expected harness clarification error, got %v", err)
+	}
+	got := stdout.String()
+	for _, want := range []string{"NambaAI clarification gate", "`namba harness`", "대상 surface", "Goal:", "Acceptance:"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected harness clarification output to contain %q, got %q", want, got)
+		}
+	}
+
+	entries, err := os.ReadDir(filepath.Join(tmp, ".namba", "specs"))
+	if err != nil {
+		t.Fatalf("read specs dir: %v", err)
+	}
+	if got, want := len(entries), 1; got != want || entries[0].Name() != ".gitkeep" {
+		t.Fatalf("expected no SPEC write for ambiguous harness prompt, got entries=%v", entries)
+	}
+}
+
+func TestRunFixCommandPlanClarificationGateBlocksAmbiguousPrompt(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	err := app.Run(context.Background(), []string{"fix", "--command", "plan", currentWorkspacePlanningFlag, "버그", "고쳐줘"})
+	if err == nil || !strings.Contains(err.Error(), "namba fix --command plan requires clarification") {
+		t.Fatalf("expected fix plan clarification error, got %v", err)
+	}
+	got := stdout.String()
+	for _, want := range []string{"NambaAI clarification gate", "`namba fix --command plan`", "완료 기준", "Goal:", "Acceptance:"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected fix plan clarification output to contain %q, got %q", want, got)
+		}
+	}
+
+	entries, err := os.ReadDir(filepath.Join(tmp, ".namba", "specs"))
+	if err != nil {
+		t.Fatalf("read specs dir: %v", err)
+	}
+	if got, want := len(entries), 1; got != want || entries[0].Name() != ".gitkeep" {
+		t.Fatalf("expected no SPEC write for ambiguous fix plan prompt, got entries=%v", entries)
+	}
+}
+
 func TestEvaluatePlanClarificationAllowsStructuredPrompt(t *testing.T) {
 	t.Parallel()
 
@@ -110,6 +176,72 @@ func TestEvaluatePlanClarificationBlocksPartialEvidence(t *testing.T) {
 			t.Parallel()
 			if output, ok := evaluatePlanClarification(description); !ok {
 				t.Fatalf("expected partial evidence prompt to require clarification, got ok=false output=%q", output)
+			}
+		})
+	}
+}
+
+func TestRunSpecCreationCommandsPrintDecisionReport(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		args []string
+		next string
+	}{
+		{
+			name: "plan",
+			args: []string{"plan", currentWorkspacePlanningFlag, "Goal:", "Improve dashboard filters.", "Scope:", "filter controls only.", "Constraints:", "keep existing layout.", "Acceptance:", "Go tests pass."},
+			next: "$namba-plan-review SPEC-001",
+		},
+		{
+			name: "harness",
+			args: []string{"harness", currentWorkspacePlanningFlag, "Goal:", "Improve reusable agent workflow.", "Scope:", "harness guidance only.", "Constraints:", "keep SPEC model.", "Acceptance:", "Go tests pass."},
+			next: "$namba-plan-review SPEC-001",
+		},
+		{
+			name: "fix plan",
+			args: []string{"fix", "--command", "plan", currentWorkspacePlanningFlag, "Goal:", "Fix startup panic.", "Scope:", "startup path only.", "Constraints:", "smallest safe fix.", "Acceptance:", "regression test passes."},
+			next: "$namba-plan-review SPEC-001",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tmp := t.TempDir()
+			stdout := &bytes.Buffer{}
+			app := NewApp(stdout, &bytes.Buffer{})
+			if err := app.Run(context.Background(), []string{"init", tmp, "--yes", "--human-language", "en"}); err != nil {
+				t.Fatalf("init failed: %v", err)
+			}
+
+			restore := chdirExecution(t, tmp)
+			defer restore()
+
+			if err := app.Run(context.Background(), tc.args); err != nil {
+				t.Fatalf("%s failed: %v", tc.name, err)
+			}
+
+			got := stdout.String()
+			for _, want := range []string{
+				"SPEC decision report:",
+				"Plain-language summary:",
+				"Why this SPEC exists:",
+				"What this SPEC will do:",
+				"Open points to review:",
+				"Security and safety notes:",
+				"Developer detail:",
+				tc.next,
+				".namba/specs/SPEC-001/spec.md",
+				".namba/specs/SPEC-001/acceptance.md",
+				".namba/specs/SPEC-001/reviews/readiness.md",
+			} {
+				if !strings.Contains(got, want) {
+					t.Fatalf("expected %s output to contain %q, got %q", tc.name, want, got)
+				}
 			}
 		})
 	}

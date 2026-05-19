@@ -95,6 +95,7 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/releases/v0.5.14.md
 .namba/releases/v0.5.15.md
 .namba/releases/v0.5.16.md
+.namba/releases/v0.5.17.md
 .namba/releases/v0.5.4.md
 .namba/releases/v0.5.5.md
 .namba/releases/v0.5.6.md

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -1085,6 +1086,8 @@ func TestSkillSurfaceEvolutionHarnessContracts(t *testing.T) {
 
 	harnessSkill := renderHarnessCommandSkill()
 	for _, want := range []string{
+		"same Namba clarification gate used by `namba plan`",
+		"Goal/Scope/Constraints/Acceptance description to `namba harness",
 		"deterministic helper-script candidates",
 		"`--help`",
 		"fixture or local-server tests",
@@ -1097,6 +1100,17 @@ func TestSkillSurfaceEvolutionHarnessContracts(t *testing.T) {
 	} {
 		if !strings.Contains(harnessSkill, want) {
 			t.Fatalf("harness skill missing SPEC-040 contract %q: %q", want, harnessSkill)
+		}
+	}
+
+	fixSkill := renderFixCommandSkill()
+	for _, want := range []string{
+		"For `namba fix --command plan`, run the same clarification gate",
+		"Goal/Scope/Constraints/Acceptance description to `namba fix --command plan",
+		"direct-repair path",
+	} {
+		if !strings.Contains(fixSkill, want) {
+			t.Fatalf("fix skill missing clarification contract %q: %q", want, fixSkill)
 		}
 	}
 
@@ -1140,6 +1154,7 @@ func TestSkillSurfaceEvolutionHarnessContracts(t *testing.T) {
 		{name: "review-resolve", content: reviewResolve},
 		{name: "pr", content: prSkill},
 		{name: "harness", content: harnessSkill},
+		{name: "fix", content: fixSkill},
 		{name: "run", content: runSkill},
 		{name: "execution", content: executionSkill},
 		{name: "create", content: createSkill},
@@ -1307,6 +1322,8 @@ func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 		"UserPromptSubmit",
 		"prompt-refinement gate",
 		"prompt_refinement_guidance",
+		"matching SPEC creation command",
+		"namba fix --command plan",
 		`"additionalContext": guidance`,
 		"REPORT_SECTIONS",
 		"approval_risk_note",
@@ -1413,21 +1430,30 @@ func TestUserPromptSubmitHookGuidesWithoutBlockingSubmission(t *testing.T) {
 	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.py"), renderNambaCodexHookGuardScript())
 	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.sh"), renderNambaCodexHookGuardShellWrapper())
 
-	cmd := exec.Command("sh", "-c", codexHookCommandForEvent(t, renderNambaCodexHooksJSON(), "UserPromptSubmit"))
-	cmd.Dir = tmp
-	cmd.Stdin = strings.NewReader(`{"hook_event_name":"UserPromptSubmit","prompt":"namba plan 뭔가 개선해줘"}`)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("expected UserPromptSubmit hook command to run, err=%v output=%s", err, output)
-	}
-	got := string(output)
-	for _, want := range []string{`"hookSpecificOutput"`, `"hookEventName":"UserPromptSubmit"`, `"additionalContext"`, "Goal/Scope/Constraints/Acceptance"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected prompt guidance output to contain %q, got %q", want, got)
-		}
-	}
-	if strings.Contains(got, `"decision":"block"`) || strings.Contains(got, `"decision": "block"`) {
-		t.Fatalf("prompt guidance must not block submission, got %q", got)
+	for _, prompt := range []string{
+		"namba plan 뭔가 개선해줘",
+		"namba harness 뭔가 만들어줘",
+		"namba fix --command plan 버그 고쳐줘",
+	} {
+		prompt := prompt
+		t.Run(prompt, func(t *testing.T) {
+			cmd := exec.Command("sh", "-c", codexHookCommandForEvent(t, renderNambaCodexHooksJSON(), "UserPromptSubmit"))
+			cmd.Dir = tmp
+			cmd.Stdin = strings.NewReader(`{"hook_event_name":"UserPromptSubmit","prompt":` + strconv.Quote(prompt) + `}`)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("expected UserPromptSubmit hook command to run, err=%v output=%s", err, output)
+			}
+			got := string(output)
+			for _, want := range []string{`"hookSpecificOutput"`, `"hookEventName":"UserPromptSubmit"`, `"additionalContext"`, "Goal/Scope/Constraints/Acceptance", "namba harness", "namba fix --command plan"} {
+				if !strings.Contains(got, want) {
+					t.Fatalf("expected prompt guidance output to contain %q, got %q", want, got)
+				}
+			}
+			if strings.Contains(got, `"decision":"block"`) || strings.Contains(got, `"decision": "block"`) {
+				t.Fatalf("prompt guidance must not block submission, got %q", got)
+			}
+		})
 	}
 }
 

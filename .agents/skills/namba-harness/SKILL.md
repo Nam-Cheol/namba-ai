@@ -6,6 +6,9 @@ description: Command-style entry point for creating the next harness-oriented SP
 Use this skill when the user explicitly says `$namba-harness`, `namba harness`, or asks to create a harness-oriented SPEC package.
 
 Behavior:
+- Before reading project docs, checking Git state, or running the CLI, run the same Namba clarification gate used by `namba plan` on the user's raw request.
+- If the request is short, broad, or missing target surface, user flow, scope boundaries, constraints, acceptance criteria, or validation, do not run `namba harness` yet. Ask 1-3 concise questions first.
+- Treat Codex Plan mode as the preferred clarification surface, then pass only the refined Goal/Scope/Constraints/Acceptance description to `namba harness "<refined description>"`.
 - Prefer the installed `namba harness` CLI when available.
 - Use this path for reusable agent, skill, workflow, orchestration, or evaluation scaffolding when the user wants a reviewable SPEC first instead of generating the repo-local skill or agent artifact directly through `$namba-create`.
 - Start with the same dedicated-branch planning contract as `namba plan`, and use `--current-workspace` only when the user intentionally wants to scaffold on the current branch without creating a dedicated SPEC branch.

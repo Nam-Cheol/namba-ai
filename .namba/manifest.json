@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-15T17:19:46+09:00",
+  "generated_at": "2026-05-19T11:32:17+09:00",
   "entries": [
     {
       "path": ".agents/skills/namba-coach/SKILL.md",
@@ -19,8 +19,8 @@
       "path": ".agents/skills/namba-fix/SKILL.md",
       "kind": "skill",
       "owner": "namba-managed",
-      "checksum": "13a6b4255fafc9821b47303db8c71ee3a24095192ad0d61a2f870a3f6ae52b79",
-      "updated_at": "2026-04-23T11:58:23+09:00"
+      "checksum": "914625a356277405b1e8a4bffb770785dc3ea7d9883b4bd3f078a13348540460",
+      "updated_at": "2026-05-19T11:30:39+09:00"
     },
     {
       "path": ".agents/skills/namba-foundation-core/SKILL.md",
@@ -33,8 +33,8 @@
       "path": ".agents/skills/namba-harness/SKILL.md",
       "kind": "skill",
       "owner": "namba-managed",
-      "checksum": "ddc74f127ff082054222facfaeb5d3f7417ba243d59b68d5c5b55c5bb381ba7d",
-      "updated_at": "2026-04-27T17:46:01+09:00"
+      "checksum": "2784a85e06507e9df83c35f062f780ca9525afd017d1531ee748684a69fd5475",
+      "updated_at": "2026-05-19T11:30:39+09:00"
     },
     {
       "path": ".agents/skills/namba-help/SKILL.md",
@@ -418,8 +418,8 @@
       "path": ".codex/hooks/namba_codex_guard.py",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "caef60bd0fb4be6dae50259232d75029f88564cdd790db0e5e9f0d928c059f62",
-      "updated_at": "2026-05-15T17:19:46+09:00"
+      "checksum": "aa3d50f6e14570d75776fd4811330db261038364d83d84afa85118264de7fd6c",
+      "updated_at": "2026-05-19T11:30:39+09:00"
     },
     {
       "path": ".codex/hooks/namba_codex_guard.sh",
@@ -604,8 +604,8 @@
       "path": ".namba/project/structure.md",
       "kind": "project-doc",
       "owner": "namba-managed",
-      "checksum": "e9b5d49f4f3d36a0421abdd8eb2580fb1b377e07dd320d39bed52b8081d31823",
-      "updated_at": "2026-05-15T16:43:07+09:00"
+      "checksum": "56a4cee60d2ade4ff2604674819b8a91a6b405b5243b2bc6fd0f3430aeff2ce4",
+      "updated_at": "2026-05-19T11:32:17+09:00"
     },
     {
       "path": ".namba/project/systems/workspace.md",
