@@ -133,7 +133,7 @@ NambaAI workflow は、まずリポジトリを読み、作業を SPEC に整理
 - `$namba-release` は clean な `main`、validation、commit 由来の release notes、`.namba/releases/<version>.md` handoff を確認してから release を進める Codex-facing workflow です。
 - `namba release` は `main` 上の clean working tree を要求します。
 - `--push` は新しい tag と `main` をまとめて push し、その後 GitHub Release workflow を起動します。
-- GitHub Release body は生成済み release notes を使い、既存の asset matrix と `checksums.txt` publication は維持します。
+- GitHub Release body は生成済み release notes を使い、既存の asset matrix と必須の `checksums.txt` publication は維持します。すべての release archive は installer が展開前に検証できるよう、正確な asset 名で `checksums.txt` に含める必要があります。
 
 ## 参考文書
 

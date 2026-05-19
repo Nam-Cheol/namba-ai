@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-19T16:47:56+09:00",
+  "generated_at": "2026-05-19T17:31:12+09:00",
   "entries": [
     {
       "path": ".agents/skills/namba-coach/SKILL.md",
@@ -528,7 +528,7 @@
       "kind": "project-doc",
       "owner": "namba-managed",
       "checksum": "9384ea880c5591b3e9c82bb0bbe2d2a1130d43cfcede12fc4e25a6debb92658c",
-      "updated_at": "2026-05-19T16:09:44+09:00"
+      "updated_at": "2026-05-19T17:31:12+09:00"
     },
     {
       "path": ".namba/project/codemaps/data-flow.md",
@@ -570,7 +570,7 @@
       "kind": "project-doc",
       "owner": "namba-managed",
       "checksum": "9ca179fb3077d6b5e6921cdb2761d6351ce3592c01f2d45c724ce921d66c6246",
-      "updated_at": "2026-05-19T16:09:44+09:00"
+      "updated_at": "2026-05-19T17:31:12+09:00"
     },
     {
       "path": ".namba/project/product.md",
@@ -598,14 +598,14 @@
       "kind": "project-doc",
       "owner": "namba-managed",
       "checksum": "db7e686d9d2cb6fc33a2f35aeeba62cffc79987d185ba5c1729b0ae98bf9c0f4",
-      "updated_at": "2026-05-19T16:09:44+09:00"
+      "updated_at": "2026-05-19T17:31:12+09:00"
     },
     {
       "path": ".namba/project/structure.md",
       "kind": "project-doc",
       "owner": "namba-managed",
-      "checksum": "0f4871403913b9a250ef4f3be6144208d463ce0b5f320d0f050e8bdf65b3b4a4",
-      "updated_at": "2026-05-19T16:47:56+09:00"
+      "checksum": "73427ae3a66e611a1cd95a2fdaae9bd0ff6392588e00d8c7a375a4bc253e7265",
+      "updated_at": "2026-05-19T16:57:58+09:00"
     },
     {
       "path": ".namba/project/systems/workspace.md",
@@ -2416,85 +2416,85 @@
       "path": "README.ja.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "dc1a10f8e0de90cdbbc68ffd073662cb97a8113002521365d5b470863ab8ce8a",
-      "updated_at": "2026-05-15T16:43:07+09:00"
+      "checksum": "4ff0fac6864361ae0ffcec9d74ca7e211a958b475ec363f16153fc225d93115d",
+      "updated_at": "2026-05-19T17:31:12+09:00"
     },
     {
       "path": "README.ko.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "8eda8df06b4ec8fa25966fdd3ff2e5188f5cbe305c00d57f9dbbc72cc5fe4d50",
-      "updated_at": "2026-05-15T16:43:07+09:00"
+      "checksum": "8902e0cafa65d1823f4de321f9f9d43741b4f917e63eb66fc855e208ab34c307",
+      "updated_at": "2026-05-19T17:31:12+09:00"
     },
     {
       "path": "README.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "5a28ece8f2d3e9dce02411fc595c51f0792c8122cd088d87e2cb83147f0759c3",
-      "updated_at": "2026-05-15T16:43:07+09:00"
+      "checksum": "595a7836d1440c15cdcb4a4d1974c03a4fccd5945fe55c6874c941996fd0bbd2",
+      "updated_at": "2026-05-19T17:31:12+09:00"
     },
     {
       "path": "README.zh.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "70e6f368180d59b13fe30916fab6e60e839caa5f0961fb575fadd262ac2ec484",
-      "updated_at": "2026-05-15T16:43:07+09:00"
+      "checksum": "f6512829fb5dff70ba6660268c7651a76aa2bfbd4ee34ae544d7c5628554923a",
+      "updated_at": "2026-05-19T17:31:12+09:00"
     },
     {
       "path": "docs/getting-started.ja.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "ec86f258d3168895fe87bd56ad252c913fbfe6f500b10038d58c34f557b23145",
-      "updated_at": "2026-05-15T16:43:07+09:00"
+      "checksum": "d54f8e2055952a271d1309178c4e297dd767b5eee26040e9beb145569770d642",
+      "updated_at": "2026-05-19T17:31:12+09:00"
     },
     {
       "path": "docs/getting-started.ko.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "b2a9c3c52517ab8ad255729ec029b917a77ee97e258302fee57555865c4082ac",
-      "updated_at": "2026-05-15T16:43:07+09:00"
+      "checksum": "053bc9c5f9eb841155b79a8ea490049e36cc09c1a941eac683f9be15b3e2f042",
+      "updated_at": "2026-05-19T17:31:12+09:00"
     },
     {
       "path": "docs/getting-started.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "f5624b605aefbcc12e49f1dbb72887bda38c474f8807251d794e5047578c154e",
-      "updated_at": "2026-05-15T16:43:07+09:00"
+      "checksum": "6556470c4dd1cc234a110b6c67d3bbb4c9fc3352e157c5ac73d69b3a897e0911",
+      "updated_at": "2026-05-19T17:31:12+09:00"
     },
     {
       "path": "docs/getting-started.zh.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "b0529ece4fbc78ac0607e5ba0844422c8335aef6dc004a495c197759a4291632",
-      "updated_at": "2026-05-15T16:43:07+09:00"
+      "checksum": "7528350ca38c37de34f4937dc0135730e0a72db1f5567e81f4ebb3d916b06445",
+      "updated_at": "2026-05-19T17:31:12+09:00"
     },
     {
       "path": "docs/workflow-guide.ja.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "4b266495cdb19cf4776f1d95335211c54b1ec259dd3aa96723c4890aa24603b0",
-      "updated_at": "2026-05-19T16:09:44+09:00"
+      "checksum": "051090c15edbb9ea54ff235d80bdce014e131e3fca24a1ba089ea864df5b4776",
+      "updated_at": "2026-05-19T17:31:12+09:00"
     },
     {
       "path": "docs/workflow-guide.ko.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "6e85ea05b32375adac5ccae7bfe3e73418819e6666a862d7af3dc7240b98b16b",
-      "updated_at": "2026-05-19T16:09:44+09:00"
+      "checksum": "dbbafb2d8dcd46ca252f6bce9096c3a124d80e6d63eecfa5739d03e6b759ef04",
+      "updated_at": "2026-05-19T17:31:12+09:00"
     },
     {
       "path": "docs/workflow-guide.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "51357d5c36d82ae3a334eed048187abb6d9d057d2fcd622be8024d4d96967067",
-      "updated_at": "2026-05-19T16:09:44+09:00"
+      "checksum": "9e7911320e6bbd332bf886d9026819f7227e6295f7e7a6f5f03f3eb3c8575c00",
+      "updated_at": "2026-05-19T17:31:12+09:00"
     },
     {
       "path": "docs/workflow-guide.zh.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "1461979bb8398f411e3ab5467843994046f29173bc819be32cabd1d61d4cc9ee",
-      "updated_at": "2026-05-19T16:09:44+09:00"
+      "checksum": "169b3403a4e48c5be5e672a3f181dfed7e82d935d540ccef26bddf35b4de9712",
+      "updated_at": "2026-05-19T17:31:12+09:00"
     }
   ]
 }

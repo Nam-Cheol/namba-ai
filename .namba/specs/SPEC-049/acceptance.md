@@ -1,45 +1,45 @@
 # Acceptance
 
-- [ ] `install.sh` downloads or reads the matching `checksums.txt` before
+- [x] `install.sh` downloads or reads the matching `checksums.txt` before
       extraction.
-- [ ] `install.sh` verifies the archive SHA-256 checksum before extraction.
-- [ ] `install.ps1` downloads or reads the matching `checksums.txt` before
+- [x] `install.sh` verifies the archive SHA-256 checksum before extraction.
+- [x] `install.ps1` downloads or reads the matching `checksums.txt` before
       extraction.
-- [ ] `install.ps1` verifies the archive SHA-256 checksum before extraction.
-- [ ] Missing checksum lines fail closed.
-- [ ] Checksum mismatches fail closed.
-- [ ] No extraction occurs before checksum verification succeeds.
-- [ ] No installation occurs before extraction succeeds.
-- [ ] Unix installation copies only the expected `namba` binary.
-- [ ] Windows installation copies only the expected `namba.exe` binary.
-- [ ] Checksum matching is exact by asset basename, with no partial asset-name
+- [x] `install.ps1` verifies the archive SHA-256 checksum before extraction.
+- [x] Missing checksum lines fail closed.
+- [x] Checksum mismatches fail closed.
+- [x] No extraction occurs before checksum verification succeeds.
+- [x] No installation occurs before extraction succeeds.
+- [x] Unix installation copies only the expected `namba` binary.
+- [x] Windows installation copies only the expected `namba.exe` binary.
+- [x] Checksum matching is exact by asset basename, with no partial asset-name
       matches.
-- [ ] Supported checksum formats include `<sha256>  <asset-name>`,
+- [x] Supported checksum formats include `<sha256>  <asset-name>`,
       `<sha256> *<asset-name>`, and `<sha256>  ./<asset-name>`.
-- [ ] The Unix installer fails clearly when no SHA-256 tool is available.
-- [ ] The Unix installer fails when the archive is missing `namba`.
-- [ ] The Windows installer fails when the archive is missing `namba.exe`.
-- [ ] Installer tests cover success, mismatch, missing checksum,
+- [x] The Unix installer fails clearly when no SHA-256 tool is available.
+- [x] The Unix installer fails when the archive is missing `namba`.
+- [x] The Windows installer fails when the archive is missing `namba.exe`.
+- [x] Installer tests cover success, mismatch, missing checksum,
       no-extract-on-failure, missing expected binary, and exact asset matching.
-- [ ] Installer tests do not use live GitHub network calls.
-- [ ] Installer tests do not touch the real user install directory, `PATH`,
+- [x] Installer tests do not use live GitHub network calls.
+- [x] Installer tests do not touch the real user install directory, `PATH`,
       shell profile, PowerShell profile, or home directory.
-- [ ] Test-only installer environment variables, if added, are documented as
+- [x] Test-only installer environment variables, if added, are documented as
       test-only and do not weaken normal behavior.
-- [ ] CI runs installer tests through `python3 -m unittest discover -s tests`.
-- [ ] README install documentation states that installers verify release
+- [x] CI runs installer tests through `python3 -m unittest discover -s tests`.
+- [x] README install documentation states that installers verify release
       checksums before installing and fail closed on verification errors.
-- [ ] Users can manually verify checksums if desired, without turning the
+- [x] Users can manually verify checksums if desired, without turning the
       quick-start install section into a long security lecture.
-- [ ] Release documentation states that `checksums.txt` is required, if release
+- [x] Release documentation states that `checksums.txt` is required, if release
       documentation exists.
-- [ ] Release archives are documented or confirmed as listed in
+- [x] Release archives are documented or confirmed as listed in
       `checksums.txt` by exact asset name.
-- [ ] No insecure checksum bypass is introduced.
-- [ ] `python3 -m unittest discover -s tests` passes.
-- [ ] `go test ./...` passes.
-- [ ] `go vet ./...` passes.
-- [ ] Existing formatting check passes:
+- [x] No insecure checksum bypass is introduced.
+- [x] `python3 -m unittest discover -s tests` passes.
+- [x] `go test ./...` passes.
+- [x] `go vet ./...` passes.
+- [x] Existing formatting check passes:
       `gofmt -l "cmd" "internal" "namba_test.go"`.
-- [ ] No runtime logs, temporary archives, extracted files, or generated test
+- [x] No runtime logs, temporary archives, extracted files, or generated test
       artifacts are committed.

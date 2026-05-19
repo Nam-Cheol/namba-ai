@@ -139,7 +139,7 @@ NambaAI work starts by reading the repository, shaping a SPEC, implementing and 
 - `$namba-release` is the Codex-facing workflow that checks clean `main`, validation, commit-based release notes, and the `.namba/releases/<version>.md` handoff before release.
 - `namba release` requires a clean working tree on `main`.
 - `--push` pushes both the new tag and `main`, then triggers the GitHub Release workflow.
-- The GitHub Release body uses generated release notes while preserving the existing asset matrix and `checksums.txt` publication.
+- The GitHub Release body uses generated release notes while preserving the existing asset matrix and required `checksums.txt` publication. Every release archive must be listed in `checksums.txt` by exact asset name because installers verify that entry before extraction.
 
 ## Reference shelf
 

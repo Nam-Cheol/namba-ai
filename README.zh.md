@@ -93,6 +93,7 @@ continue_on_failure = false
 
 - 在 Windows 上安装: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
 - 在 macOS / Linux 上安装: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
+- Installer 会在安装前验证 release checksum；checksum 缺失或不匹配时会 fail closed。需要手动验证时，下载 release asset 和 `checksums.txt`，并将 asset 的 SHA-256 digest 与准确 asset 名对应的条目比较。
 - 更新到最新版本: `namba update`
 - 固定到指定版本: `namba update --version vX.Y.Z`
 - `namba update` 只更新 NambaAI CLI。upstream Codex CLI 使用 `codex update` 更新。
@@ -104,7 +105,7 @@ continue_on_failure = false
 - `$namba-release` 是 Codex-facing workflow，会先确认 clean `main`、validation、基于 commit 的 release notes，以及 `.namba/releases/<version>.md` handoff。
 - `namba release` 要求 `main` 上是 clean working tree。
 - `--push` 会同时 push 新 tag 和 `main`，然后触发 GitHub Release workflow。
-- GitHub Release body 使用生成的 release notes，并保留现有 asset matrix 和 `checksums.txt` publication。
+- GitHub Release body 使用生成的 release notes，并保留现有 asset matrix 和必需的 `checksums.txt` publication。所有 release archive 都必须以准确 asset 名列在 `checksums.txt` 中，因为 installer 会在解压前验证该条目。
 
 ## 🧩 Codex 中的 Command Skill
 

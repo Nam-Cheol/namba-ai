@@ -537,6 +537,9 @@ internal/namba/write_outputs.go
 namba_test.go
 project_analysis_regression_test.go
 sync_stability_test.go
+tests/installers/__init__.py
+tests/installers/test_install_ps1.py
+tests/installers/test_install_sh.py
 tests/test_namba_codex_guard.py
 workflow_test.go
 ```
