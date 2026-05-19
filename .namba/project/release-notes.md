@@ -2,19 +2,19 @@
 
 Project: namba-ai
 Project type: existing
-Reference SPEC: SPEC-045
+Reference SPEC: SPEC-046
 
 ## Workflow Changes
 
 - `namba update` self-updates the installed `namba` binary from GitHub Release assets.
 - `namba regen` regenerates `AGENTS.md`, repo-local skills and command-entry skills under `.agents/skills`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, and repo-local Codex config from `.namba/config/sections/*.yaml`.
 - `namba sync` refreshes README bundles, product docs, codemaps, change summary, PR checklist, and release docs.
-- `namba pr` prepares the current branch for GitHub review by syncing, validating, committing, pushing, opening or reusing the PR, and ensuring the Codex review marker exists.
+- `namba pr` prepares the current branch for GitHub review by syncing, validating, committing, pushing, and opening or reusing the PR. Add `--review` to request Codex review explicitly.
 - `namba land` optionally waits for checks, merges only when the PR is clean, and updates local `main` safely.
 - `$namba-review-resolve` handles the meaningful GitHub review loop thread-by-thread: classify unresolved review threads, make scoped fixes, reply with validation evidence, resolve only addressed threads, and request review again without duplicating the configured marker.
 - `$namba-release` is the Codex-facing NambaAI release workflow: generate commit-based release notes, write `.namba/releases/<version>.md`, validate, then hand off to the guarded `namba release --version <version> --push` path.
 - `namba run SPEC-XXX` keeps the standard standalone Codex flow; `--solo` and `--team` request single-subagent or multi-subagent workflows inside one workspace; `--parallel` still fans out into up to three git worktrees and merges only after every worker passes execution and validation.
-- Active collaboration defaults: one branch per SPEC/task from `main`, PRs into `main`, korean PR content, and Codex review requests via `@codex review`.
+- Active collaboration defaults: one branch per SPEC/task from `main`, PRs into `main`, korean PR content, and explicit Codex review requests via `namba pr --review` or queue `--review` using `@codex review`.
 
 ## Release Guardrails
 

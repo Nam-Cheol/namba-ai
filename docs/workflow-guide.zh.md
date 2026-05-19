@@ -33,7 +33,7 @@ NambaAI 工作流会先读取仓库，把工作整理成 SPEC，完成实现和�
 | 执行已有 SPEC | `namba run SPEC-XXX` | 进行实现、测试和验证。 |
 | 按顺序处理多个 SPEC | `namba queue start SPEC-001..SPEC-003` | 通过 durable queue state 一次处理一个。 |
 | 只刷新产物 | `namba sync` | 刷新 README、project docs、codemap、checklist 和 release notes。 |
-| 交给评审 | `namba pr "title"` | 处理 validation、commit、push、PR 和 `@codex review` marker。 |
+| 交给评审 | `namba pr "title"` | 处理 validation、commit、push 和 PR。Codex review 通过 `--review` 显式请求。 |
 | 合并已批准 PR | `namba land` | 只合并 clean PR 并更新本地 `main`。 |
 
 ## 工作流速览
@@ -44,7 +44,7 @@ NambaAI 工作流会先读取仓库，把工作整理成 SPEC，完成实现和�
 | 2. 规划 | `namba plan`、`namba harness`、`namba fix --command plan` | 确认 SPEC 和 reviews/readiness 已生成。 |
 | 3. 执行 | `namba run SPEC-XXX` | 检查 acceptance、tests 和 validation 结果。 |
 | 4. 整理 | `namba sync` | 确认 generated docs 和 checklist 无 drift。 |
-| 5. 交接 | `namba pr "title"` | 检查 PR language、checks 和 `@codex review` marker。 |
+| 5. 交接 | `namba pr "title"` | 检查 PR language 和 checks。只有使用 `--review` 时才检查 Codex review。 |
 | 6. 合并 | `namba land` | 只把 clean+approved PR merge 到 `main`。 |
 
 ## `update`、`regen`、`sync`、`pr`、`land` 是不同的命令
@@ -54,7 +54,7 @@ NambaAI 工作流会先读取仓库，把工作整理成 SPEC，完成实现和�
 - `namba regen`: 重新生成 AGENTS、skills、custom agents、repo Codex config 等 template-generated asset。
 - `namba sync`: 刷新 README、project docs、codemap、advisory review readiness、PR checklist 和 release notes。
 - `namba queue`: 按顺序处理已有 SPEC package，不会创建新的 SPEC，并用 durable state 与 Git/GitHub gate 安全 resume / block。
-- `namba pr`: 默认先跑 sync 和 validation，把当前分支 commit / push 后创建或复用 PR，并确保 Codex review marker 存在。
+- `namba pr`: 默认先跑 sync 和 validation，把当前分支 commit / push 后创建或复用 PR。只有需要 Codex review 时才使用 `namba pr --review`。
 - `namba land`: 需要时等待 checks，只在 PR clean 时 merge，然后安全更新本地 `main`。
 
 ## 规划命令
@@ -84,7 +84,7 @@ NambaAI 工作流会先读取仓库，把工作整理成 SPEC，完成实现和�
 ## SPEC queue conveyor
 
 - `namba queue start SPEC-001..SPEC-003`: 按指定顺序处理已有 SPEC package，不会创建新的 SPEC。
-- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: 只处理指定 SPEC 列表，并可选择跳过 `@codex review` marker 创建。
+- `namba queue start SPEC-001 SPEC-004 --review`: 只处理指定 SPEC 列表，并在 PR handoff 时请求 Codex review。`--skip-codex-review` 是 deprecated no-op 兼容标志。
 - `namba queue status`: 显示 active SPEC、durable state、blocker / wait reason、report path 和下一条安全命令。
 - `namba queue resume`、`pause`、`stop`: 基于 `.namba/logs/queue/` 中保存的 durable state 继续或停止。
 - Queue 一次只允许一个 active SPEC。validation 失败、failed checks、non-mergeable PR 或 Git/GitHub 状态不明确时，不会 skip，而是 blocked 停止。

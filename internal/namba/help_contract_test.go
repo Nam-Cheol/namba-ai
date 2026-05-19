@@ -502,8 +502,8 @@ func TestSingleUsageLineCommandUsageTextPreservesSimpleCommandShapes(t *testing.
 		{
 			name:         "pr",
 			got:          prUsageText(),
-			usageLine:    "  namba pr \"<title>\" [--remote origin] [--no-sync] [--no-validate]",
-			behaviorLine: "  Sync, validate, push the current work branch, and create or reuse a GitHub pull request into the base branch.",
+			usageLine:    "  namba pr \"<title>\" [--review] [--remote origin] [--no-sync] [--no-validate]",
+			behaviorLine: "  Sync, validate, push the current work branch, and create or reuse a GitHub pull request. Add --review to request Codex review.",
 		},
 		{
 			name:         "land",

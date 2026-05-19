@@ -33,7 +33,7 @@ NambaAI 워크플로는 먼저 저장소를 읽고, 작업을 SPEC로 정리하�
 | 이미 만든 SPEC 실행 | `namba run SPEC-XXX` | 구현, 테스트, 검증을 진행합니다. |
 | 여러 SPEC을 순서대로 처리 | `namba queue start SPEC-001..SPEC-003` | durable queue state로 한 번에 하나씩 진행합니다. |
 | 산출물만 새로 고침 | `namba sync` | README, project docs, codemap, checklist, release notes를 갱신합니다. |
-| 리뷰 인계 | `namba pr "title"` | 검증, commit, push, PR, `@codex review` marker를 처리합니다. |
+| 리뷰 인계 | `namba pr "title"` | 검증, commit, push, PR을 처리합니다. Codex review는 `--review`로 명시합니다. |
 | 승인된 PR merge | `namba land` | clean PR만 merge하고 local `main`을 갱신합니다. |
 
 ## 워크플로 한눈에 보기
@@ -44,7 +44,7 @@ NambaAI 워크플로는 먼저 저장소를 읽고, 작업을 SPEC로 정리하�
 | 2. 계획 | `namba plan`, `namba harness`, `namba fix --command plan` | SPEC와 reviews/readiness가 생겼는지 확인합니다. |
 | 3. 실행 | `namba run SPEC-XXX` | acceptance, tests, validation 결과를 확인합니다. |
 | 4. 정리 | `namba sync` | generated docs와 checklist가 drift 없이 갱신됐는지 봅니다. |
-| 5. 인계 | `namba pr "title"` | PR 언어, checks, `@codex review` marker를 확인합니다. |
+| 5. 인계 | `namba pr "title"` | PR 언어와 checks를 확인합니다. Codex review는 `--review`를 쓴 경우에만 확인합니다. |
 | 6. 머지 | `namba land` | clean+approved PR만 `main`으로 merge합니다. |
 
 ## `update`, `regen`, `sync`, `pr`, `land`는 서로 다른 명령입니다
@@ -54,7 +54,7 @@ NambaAI 워크플로는 먼저 저장소를 읽고, 작업을 SPEC로 정리하�
 - `namba regen`: AGENTS, skills, custom agents, repo Codex config 같은 template-generated asset을 다시 생성합니다.
 - `namba sync`: README, 프로젝트 문서, codemap, advisory review readiness, PR checklist, release notes를 갱신합니다.
 - `namba queue`: 이미 존재하는 SPEC 패키지를 새로 만들지 않고 순서대로 처리하며, durable state와 Git/GitHub gate를 기준으로 안전하게 resume/block 합니다.
-- `namba pr`: 기본적으로 sync와 validation을 돌리고, 현재 브랜치를 commit/push 한 뒤 PR을 만들거나 재사용하고 Codex review marker를 보장합니다.
+- `namba pr`: 기본적으로 sync와 validation을 돌리고, 현재 브랜치를 commit/push 한 뒤 PR을 만들거나 재사용합니다. Codex review가 필요할 때만 `namba pr --review`를 사용합니다.
 - `namba land`: 필요하면 체크를 기다리고, PR이 깨끗할 때만 머지한 뒤 로컬 `main`을 안전하게 갱신합니다.
 
 ## 계획 명령
@@ -84,7 +84,7 @@ NambaAI 워크플로는 먼저 저장소를 읽고, 작업을 SPEC로 정리하�
 ## SPEC queue conveyor
 
 - `namba queue start SPEC-001..SPEC-003`: 이미 존재하는 SPEC 패키지를 새로 생성하지 않고 지정된 순서대로 처리합니다.
-- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: 명시한 SPEC 목록만 대상으로 삼고, 선택적으로 `@codex review` marker 생성을 건너뜁니다.
+- `namba queue start SPEC-001 SPEC-004 --review`: 명시한 SPEC 목록만 대상으로 삼고, PR handoff 때 Codex review를 요청합니다. `--skip-codex-review`는 deprecated no-op 호환 플래그입니다.
 - `namba queue status`: active SPEC, durable state, blocker/wait reason, report path, 다음 안전한 명령을 보여줍니다.
 - `namba queue resume`, `pause`, `stop`: `.namba/logs/queue/`에 저장된 durable state를 기준으로 이어가거나 멈춥니다.
 - Queue는 한 번에 하나의 active SPEC만 실행합니다. validation 실패, failed checks, non-mergeable PR, 애매한 Git/GitHub 상태에서는 skip하지 않고 blocked로 멈춥니다.

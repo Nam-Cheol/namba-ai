@@ -35,7 +35,7 @@ When the user references `namba`, `namba help`, `namba project`, `namba regen`, 
 - Use `spec/<SPEC-ID>-<slug>` for SPEC work and `task/<slug>` for other work when practical.
 - Commit on the work branch and open PRs into `main`.
 - Write GitHub PR titles and bodies in Korean.
-- After the PR is open on GitHub, confirm the `@codex review` review request comment exists instead of duplicating it.
+- Codex review requests are explicit opt-in only: use `namba pr --review` or queue `--review`, then confirm the `@codex review` request exists without duplicating it.
 
 ## Rules
 

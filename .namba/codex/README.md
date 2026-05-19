@@ -48,7 +48,7 @@ NambaAI's differentiator is prompt refinement before execution: ambiguous ideas 
 - `namba fix "<issue description>"` and `namba fix --command run "<issue description>"` are the direct-repair paths in the current workspace. They should stay read-only for help/probe flows, avoid implicit SPEC creation, and finish with validation plus `namba sync`.
 - `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, codemaps, and advisory review readiness summaries.
 - `namba queue start <SPEC-RANGE|SPEC-LIST>` processes existing SPEC packages in order through review, run, PR, checks, and optional land, while durable state under `.namba/logs/queue/` makes waits, blockers, and resume decisions explicit.
-- `namba pr` prepares the current branch for GitHub review by syncing, validating, inspecting PR checks, summarizing bounded GitHub Actions failure snippets when checks fail, committing, pushing, opening or reusing the PR, and ensuring the Codex review marker is present exactly once.
+- `namba pr` prepares the current branch for GitHub review by syncing, validating, inspecting PR checks, summarizing bounded GitHub Actions failure snippets when checks fail, committing, pushing, and opening or reusing the PR. Use `namba pr --review` only when Codex review should be requested.
 - `namba land` waits for checks when requested, merges a clean PR, and updates local `main` safely.
 - `namba release` requires a clean `main` branch and passing validators before it creates a tag. `--push` pushes both `main` and the new tag.
 - `namba run SPEC-XXX` keeps the standard standalone Codex flow when you use the CLI runner without extra mode flags, but explicit `frontend-major` work now reads `frontend-brief.md` as a canonical gate before coding.
@@ -99,7 +99,7 @@ NambaAI's differentiator is prompt refinement before execution: ambiguous ideas 
 - Recommended branch names: `spec/<SPEC-ID>-<slug>` for SPEC work and `task/<slug>` for non-SPEC work.
 - PRs target `main`.
 - PR titles and bodies should be written in Korean.
-- After the GitHub PR is open, confirm the `@codex review` review request is present.
+- Codex review requests are opt-in: use `namba pr --review` or queue `--review`, then confirm the `@codex review` request is present.
 
 ## Claude to Codex Mapping
 

@@ -69,7 +69,6 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .github/PULL_REQUEST_TEMPLATE.md
 .github/dependabot.yml
 .github/workflows/ci.yml
-.github/workflows/codex-review-request.yml
 .github/workflows/release.yml
 .github/workflows/secret-scan.yml
 .gitignore
@@ -391,6 +390,19 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-045/reviews/product.md
 .namba/specs/SPEC-045/reviews/readiness.md
 .namba/specs/SPEC-045/spec.md
+.namba/specs/SPEC-046/acceptance.md
+.namba/specs/SPEC-046/baseline.md
+.namba/specs/SPEC-046/contract.md
+.namba/specs/SPEC-046/eval-plan.md
+.namba/specs/SPEC-046/frontend-brief.md
+.namba/specs/SPEC-046/harness-map.md
+.namba/specs/SPEC-046/harness-request.json
+.namba/specs/SPEC-046/plan.md
+.namba/specs/SPEC-046/reviews/design.md
+.namba/specs/SPEC-046/reviews/engineering.md
+.namba/specs/SPEC-046/reviews/product.md
+.namba/specs/SPEC-046/reviews/readiness.md
+.namba/specs/SPEC-046/spec.md
 AGENTS.md
 README.ja.md
 README.ko.md
@@ -403,7 +415,6 @@ cmd/namba/encoding_test.go
 cmd/namba/encoding_windows.go
 cmd/namba/main.go
 cmd/namba/main_test.go
-codex_review_request_workflow_test.go
 docs/codex-upstream-reference.md
 docs/getting-started.ja.md
 docs/getting-started.ko.md
@@ -439,6 +450,7 @@ internal/namba/frontend_brief_test.go
 internal/namba/harness_contract.go
 internal/namba/harness_contract_test.go
 internal/namba/help_contract_test.go
+internal/namba/hook_guard_test.go
 internal/namba/hook_runtime.go
 internal/namba/hook_runtime_test.go
 internal/namba/init_scan.go

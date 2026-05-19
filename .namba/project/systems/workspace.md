@@ -25,8 +25,8 @@
 
 ## Auth And Integrations
 
-- Codex, GitHub workflow, or security-policy integrations are explicitly represented in the repository surface. Confidence: high. Evidence: `.codex/config.toml`, `.github/workflows/codex-review-request.yml`, `.github/workflows/ci.yml`, `SECURITY.md`.
+- Codex, GitHub workflow, or security-policy integrations are explicitly represented in the repository surface. Confidence: high. Evidence: `.codex/config.toml`, `.github/workflows/ci.yml`, `SECURITY.md`.
 
 ## Deploy Runtime And Test Risks
 
-- System-local regression coverage exists, but end-to-end drift across generated planning docs still needs command-level validation. Confidence: medium. Evidence: `cmd/namba/encoding_test.go`, `cmd/namba/main_test.go`, `codex_review_request_workflow_test.go`.
+- System-local regression coverage exists, but end-to-end drift across generated planning docs still needs command-level validation. Confidence: medium. Evidence: `cmd/namba/encoding_test.go`, `cmd/namba/main_test.go`, `internal/namba/codex_access_command_test.go`.

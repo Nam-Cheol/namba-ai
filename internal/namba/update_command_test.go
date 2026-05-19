@@ -163,7 +163,7 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(prSkill, "$namba-pr") || !strings.Contains(prSkill, "namba pr") {
 		t.Fatalf("expected command-entry pr skill, got %q", prSkill)
 	}
-	for _, want := range []string{"Inspect current PR check status before review handoff", "bounded GitHub Actions failure snippets", "configured Codex review marker exists exactly once"} {
+	for _, want := range []string{"Inspect current PR check status before review handoff", "bounded GitHub Actions failure snippets", "When `--review` is present, ensure the configured Codex review marker exists exactly once"} {
 		if !strings.Contains(prSkill, want) {
 			t.Fatalf("expected pr skill to contain %q, got %q", want, prSkill)
 		}

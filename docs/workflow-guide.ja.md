@@ -33,7 +33,7 @@ NambaAI workflow は、まずリポジトリを読み、作業を SPEC に整理
 | 作成済み SPEC を実行する | `namba run SPEC-XXX` | 実装、テスト、検証を進めます。 |
 | 複数 SPEC を順に処理する | `namba queue start SPEC-001..SPEC-003` | durable queue state で 1 件ずつ進めます。 |
 | 成果物だけ更新する | `namba sync` | README、project docs、codemap、checklist、release notes を更新します。 |
-| レビューへ渡す | `namba pr "title"` | validation、commit、push、PR、`@codex review` marker を処理します。 |
+| レビューへ渡す | `namba pr "title"` | validation、commit、push、PR を処理します。Codex review は `--review` で明示します。 |
 | 承認済み PR を merge する | `namba land` | clean PR だけ merge し、local `main` を更新します。 |
 
 ## ワークフロー早見表
@@ -44,7 +44,7 @@ NambaAI workflow は、まずリポジトリを読み、作業を SPEC に整理
 | 2. 計画 | `namba plan`、`namba harness`、`namba fix --command plan` | SPEC と reviews/readiness が作られたか確認します。 |
 | 3. 実行 | `namba run SPEC-XXX` | acceptance、tests、validation 結果を確認します。 |
 | 4. 整理 | `namba sync` | generated docs と checklist が drift なく更新されたか確認します。 |
-| 5. 引き渡し | `namba pr "title"` | PR language、checks、`@codex review` marker を確認します。 |
+| 5. 引き渡し | `namba pr "title"` | PR language と checks を確認します。Codex review は `--review` 使用時だけ確認します。 |
 | 6. マージ | `namba land` | clean+approved PR だけを `main` に merge します。 |
 
 ## `update`, `regen`, `sync`, `pr`, `land` はそれぞれ別のコマンドです
@@ -54,7 +54,7 @@ NambaAI workflow は、まずリポジトリを読み、作業を SPEC に整理
 - `namba regen`: AGENTS、skills、custom agents、repo Codex config などの template-generated asset を再生成します。
 - `namba sync`: README、project docs、codemap、advisory review readiness、PR checklist、release notes を更新します。
 - `namba queue`: 既存の SPEC package を新しく作らず順番に処理し、durable state と Git/GitHub gate を基準に安全に resume / block します。
-- `namba pr`: 既定で sync と validation を実行し、現在のブランチを commit / push した上で PR を作成または再利用し、Codex review marker を保証します。
+- `namba pr`: 既定で sync と validation を実行し、現在のブランチを commit / push した上で PR を作成または再利用します。Codex review が必要なときだけ `namba pr --review` を使います。
 - `namba land`: 必要なら checks を待ち、PR が clean なときだけ merge してから local `main` を安全に更新します。
 
 ## 計画コマンド
@@ -84,7 +84,7 @@ NambaAI workflow は、まずリポジトリを読み、作業を SPEC に整理
 ## SPEC queue conveyor
 
 - `namba queue start SPEC-001..SPEC-003`: 既存の SPEC package を新しく作らず、指定順に処理します。
-- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: 指定した SPEC list だけを対象にし、必要なら `@codex review` marker 作成を省略します。
+- `namba queue start SPEC-001 SPEC-004 --review`: 指定した SPEC list だけを対象にし、PR handoff で Codex review を要求します。`--skip-codex-review` は deprecated no-op 互換フラグです。
 - `namba queue status`: active SPEC、durable state、blocker / wait reason、report path、次の安全な command を表示します。
 - `namba queue resume`、`pause`、`stop`: `.namba/logs/queue/` に保存された durable state から継続または停止します。
 - Queue は同時に 1 つの active SPEC だけを実行します。validation failure、failed checks、non-mergeable PR、曖昧な Git/GitHub state では skip せず blocked で止まります。

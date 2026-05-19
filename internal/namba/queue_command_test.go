@@ -13,15 +13,24 @@ import (
 func TestParseQueueInvocationStartRangeAndOptions(t *testing.T) {
 	t.Parallel()
 
-	inv, err := parseQueueInvocation([]string{"start", "SPEC-001..SPEC-003", "SPEC-005", "--runner=desktop", "--auto-land", "--skip-codex-review", "--remote", "upstream"})
+	inv, err := parseQueueInvocation([]string{"start", "SPEC-001..SPEC-003", "SPEC-005", "--runner=desktop", "--auto-land", "--review", "--remote", "upstream"})
 	if err != nil {
 		t.Fatalf("parseQueueInvocation returned error: %v", err)
 	}
-	if inv.Subcommand != "start" || !inv.Options.AutoLand || !inv.Options.SkipCodexReview || inv.Options.Remote != "upstream" || inv.Options.Runner != queueRunnerDesktop {
+	if inv.Subcommand != "start" || !inv.Options.AutoLand || !inv.Options.RequestReview || inv.Options.SkipCodexReview || inv.Options.Remote != "upstream" || inv.Options.Runner != queueRunnerDesktop {
 		t.Fatalf("unexpected invocation: %+v", inv)
 	}
 	if got := strings.Join(inv.Targets, ","); got != "SPEC-001..SPEC-003,SPEC-005" {
 		t.Fatalf("targets = %s", got)
+	}
+}
+
+func TestParseQueueInvocationReviewConflictsWithDeprecatedSkip(t *testing.T) {
+	t.Parallel()
+
+	_, err := parseQueueInvocation([]string{"start", "SPEC-001", "--review", "--skip-codex-review"})
+	if err == nil || !strings.Contains(err.Error(), "cannot combine --review") {
+		t.Fatalf("expected review/skip conflict, got %v", err)
 	}
 }
 
@@ -605,6 +614,50 @@ func TestQueueStartPreparesActiveSpecPRAndSkipsReviewComment(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "waiting_for_land") {
 		t.Fatalf("expected waiting output, got %q", stdout.String())
+	}
+}
+
+func TestPrepareQueuePullRequestReviewFlagAddsReviewComment(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+
+	branch := "spec/SPEC-001-queue-fixture"
+	var commands []string
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		commands = append(commands, name+" "+strings.Join(args, " "))
+		switch {
+		case name == "gh" && strings.Join(args, " ") == "auth status":
+			return "", nil
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return branch, nil
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return "", nil
+		case name == "git" && len(args) == 4 && args[0] == "push" && args[1] == "--set-upstream":
+			return "", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list":
+			return "[]", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "create":
+			return "https://github.com/example/repo/pull/17", nil
+		case name == "gh" && len(args) >= 3 && args[0] == "pr" && args[1] == "view" && args[2] == branch:
+			return mustMarshalJSON(t, githubPullRequest{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "SPEC-001", HeadRefName: branch, BaseRefName: "main"}), nil
+		case name == "gh" && len(args) >= 3 && args[0] == "pr" && args[1] == "view" && args[2] == "17":
+			return mustMarshalJSON(t, githubPullRequest{Comments: []githubPRComment{}}), nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "comment":
+			mustContainArgs(t, args, []string{"--body", buildReviewRequestCommentBody("@codex review")})
+			return "", nil
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	_, err := app.prepareQueuePullRequest(context.Background(), tmp, queueState{Options: queueOptions{Remote: defaultGitRemote, RequestReview: true}}, specPackage{ID: "SPEC-001", Description: "Queue fixture for SPEC-001.", Path: filepath.Join(tmp, ".namba", "specs", "SPEC-001")}, branch)
+	if err != nil {
+		t.Fatalf("prepareQueuePullRequest failed: %v", err)
+	}
+	if !hasCommandContaining(commands, "gh pr comment 17 --body") {
+		t.Fatalf("expected explicit queue review comment, got %v", commands)
 	}
 }
 
