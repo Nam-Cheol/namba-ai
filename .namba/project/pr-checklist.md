@@ -3,7 +3,7 @@
 - [ ] Dedicated work branch created from `main` for this SPEC/task
 - [ ] PR targets `main`
 - [ ] PR title and body are written in Korean
-- [ ] `@codex review` review request is present on GitHub
+- [ ] If Codex review was explicitly requested with `--review`, `@codex review` request is present on GitHub
 - [ ] README / user-facing docs refreshed
 - [ ] `namba regen` rerun if template-generated Codex assets changed
 - [ ] `namba sync` artifacts refreshed
@@ -11,4 +11,4 @@
 - [ ] SPEC artifacts reviewed
 - [ ] Validation commands passed
 - [ ] Diff reviewed
-- [ ] Latest SPEC review readiness checked: `.namba/specs/SPEC-045/reviews/readiness.md`
+- [ ] Latest SPEC review readiness checked: `.namba/specs/SPEC-046/reviews/readiness.md`

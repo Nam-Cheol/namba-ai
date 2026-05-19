@@ -14,11 +14,11 @@ import (
 func TestParsePRArgs(t *testing.T) {
 	t.Parallel()
 
-	opts, err := parsePRArgs([]string{"review", "title", "--remote", "upstream", "--no-sync", "--no-validate"})
+	opts, err := parsePRArgs([]string{"--review", "review", "title", "--remote", "upstream", "--no-sync", "--no-validate"})
 	if err != nil {
 		t.Fatalf("parsePRArgs returned error: %v", err)
 	}
-	if opts.Title != "review title" || opts.Remote != "upstream" || !opts.SkipSync || !opts.SkipValidation {
+	if opts.Title != "review title" || opts.Remote != "upstream" || !opts.SkipSync || !opts.SkipValidation || !opts.RequestReview {
 		t.Fatalf("unexpected pr options: %+v", opts)
 	}
 }
@@ -35,7 +35,24 @@ func TestParseLandArgs(t *testing.T) {
 	}
 }
 
-func TestRunPRCreatesPullRequestAndAddsReviewComment(t *testing.T) {
+func TestReviewRequestCommentDetectionIsStrict(t *testing.T) {
+	t.Parallel()
+
+	if got := buildReviewRequestCommentBody("@codex review"); !strings.Contains(got, "<!-- namba:codex-review-request -->") || !strings.Contains(got, "@codex review") {
+		t.Fatalf("review request body should include non-empty marker and command, got %q", got)
+	}
+	if !isReviewRequestComment("@codex review", "@codex review") {
+		t.Fatal("expected exact normalized command to count as review request")
+	}
+	if !isReviewRequestComment("please review\n<!-- namba:codex-review-request -->", "@codex review") {
+		t.Fatal("expected Namba-owned marker to count as review request")
+	}
+	if isReviewRequestComment("please ask @codex review after tests pass", "@codex review") {
+		t.Fatal("unrelated comment mentioning command must not count as review request")
+	}
+}
+
+func TestRunPRCreatesPullRequestWithoutReviewCommentByDefault(t *testing.T) {
 	tmp, stdout, app, restore := preparePRLandProject(t)
 	defer restore()
 
@@ -74,10 +91,8 @@ func TestRunPRCreatesPullRequestAndAddsReviewComment(t *testing.T) {
 			return "https://github.com/example/repo/pull/17", nil
 		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "view" && args[2] == "feature/login-audit":
 			return mustMarshalJSON(t, githubPullRequest{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "Add login audit logs", HeadRefName: "feature/login-audit", BaseRefName: "main"}), nil
-		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "view" && args[2] == "17":
-			return mustMarshalJSON(t, githubPullRequest{Comments: []githubPRComment{}}), nil
 		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "comment":
-			mustContainArgs(t, args, []string{"--body", buildReviewRequestCommentBody("@codex review")})
+			t.Fatalf("default pr must not request Codex review: %v", args)
 			return "", nil
 		default:
 			t.Fatalf("unexpected command: %s %v", name, args)
@@ -89,11 +104,63 @@ func TestRunPRCreatesPullRequestAndAddsReviewComment(t *testing.T) {
 		t.Fatalf("pr failed: %v", err)
 	}
 
-	if !strings.Contains(stdout.String(), "Prepared PR #17") {
+	if !strings.Contains(stdout.String(), "Prepared PR #17") || !strings.Contains(stdout.String(), "without Codex review request") {
 		t.Fatalf("expected PR output, got %q", stdout.String())
 	}
 	if !hasCommandContaining(commands, "gh pr create") {
 		t.Fatalf("expected PR creation command, got %v", commands)
+	}
+	if hasCommandContaining(commands, "gh pr comment 17 --body") {
+		t.Fatalf("expected no review comment command, got %v", commands)
+	}
+}
+
+func TestRunPRReviewFlagCreatesReviewComment(t *testing.T) {
+	tmp, stdout, app, restore := preparePRLandProject(t)
+	defer restore()
+
+	var commands []string
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		commands = append(commands, name+" "+strings.Join(args, " "))
+		if dir != tmp {
+			t.Fatalf("expected workdir %s, got %s", tmp, dir)
+		}
+
+		switch {
+		case name == "gh" && len(args) == 2 && args[0] == "auth" && args[1] == "status":
+			return "", nil
+		case name == "git" && len(args) >= 2 && args[0] == "branch" && args[1] == "--show-current":
+			return "feature/login-audit", nil
+		case isShellCommand(name):
+			return "ok", nil
+		case name == "git" && len(args) >= 2 && args[0] == "status" && args[1] == "--porcelain":
+			return "", nil
+		case name == "git" && len(args) == 4 && args[0] == "push" && args[1] == "--set-upstream":
+			mustContainArgs(t, args, []string{"upstream", "feature/login-audit"})
+			return "", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "list":
+			return "[]", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "create":
+			return "https://github.com/example/repo/pull/17", nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "view" && args[2] == "feature/login-audit":
+			return mustMarshalJSON(t, githubPullRequest{Number: 17, URL: "https://github.com/example/repo/pull/17", Title: "Add login audit logs", HeadRefName: "feature/login-audit", BaseRefName: "main"}), nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "view" && args[2] == "17":
+			return mustMarshalJSON(t, githubPullRequest{Comments: []githubPRComment{{Body: "nice work, please review"}}}), nil
+		case name == "gh" && len(args) >= 2 && args[0] == "pr" && args[1] == "comment":
+			mustContainArgs(t, args, []string{"--body", buildReviewRequestCommentBody("@codex review")})
+			return "", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"pr", "--review", "--no-sync", "--no-validate", "--remote", "upstream", "Add", "login", "audit", "logs"}); err != nil {
+		t.Fatalf("pr failed: %v", err)
+	}
+
+	if !strings.Contains(stdout.String(), "requested Codex review") {
+		t.Fatalf("expected review output, got %q", stdout.String())
 	}
 	if !hasCommandContaining(commands, "gh pr comment 17 --body") {
 		t.Fatalf("expected review comment command, got %v", commands)
@@ -251,7 +318,7 @@ func TestRunPRReusesExistingPullRequestWithoutDuplicateReviewComment(t *testing.
 		}
 	}
 
-	if err := app.Run(context.Background(), []string{"pr", "Reuse", "existing", "pr"}); err != nil {
+	if err := app.Run(context.Background(), []string{"pr", "--review", "Reuse", "existing", "pr"}); err != nil {
 		t.Fatalf("pr failed: %v", err)
 	}
 
@@ -302,7 +369,7 @@ func TestRunPRSkipsReviewCommentWhenMarkerCommentAlreadyExists(t *testing.T) {
 		}
 	}
 
-	if err := app.Run(context.Background(), []string{"pr", "Reuse", "existing", "pr"}); err != nil {
+	if err := app.Run(context.Background(), []string{"pr", "--review", "Reuse", "existing", "pr"}); err != nil {
 		t.Fatalf("pr failed: %v", err)
 	}
 

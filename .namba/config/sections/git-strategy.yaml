@@ -10,4 +10,4 @@ task_branch_prefix: task/
 pr_base_branch: main
 pr_language: ko
 codex_review_comment: "@codex review"
-auto_codex_review: true
+auto_codex_review: false

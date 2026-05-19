@@ -95,7 +95,8 @@ func renderNambaSkillCommandMappingSection() []string {
 		"- `namba run SPEC-XXX --solo|--team|--parallel`: use the standalone CLI runner when you need explicit single-subagent, multi-subagent, or worktree-parallel execution semantics.",
 		"- `namba queue start <SPEC-RANGE|SPEC-LIST>`: process already-existing SPEC packages one at a time through review, run, PR, checks, optional land, and local main refresh. Use `status`, `resume`, `pause`, and `stop` to operate the durable queue.",
 		"- `namba sync`: refresh change summary, PR checklist, codemaps, advisory review readiness, and PR-ready docs after implementation.",
-		"- `namba pr \"<title>\"`: run sync plus validation by default, inspect PR checks, summarize bounded GitHub Actions failure snippets when checks fail, commit and push the current branch, create or reuse a PR, and ensure the Codex review marker exists exactly once.",
+		"- `namba pr \"<title>\"`: run sync plus validation by default, inspect PR checks, summarize bounded GitHub Actions failure snippets when checks fail, commit and push the current branch, and create or reuse a PR without requesting Codex review.",
+		"- `namba pr --review \"<title>\"`: perform the same PR handoff and explicitly request Codex review with the configured marker exactly once.",
 		"- `namba land`: resolve the current branch PR, optionally wait for checks, merge when the PR is clean, and update local `main` safely.",
 		"- `namba doctor`: verify that AGENTS, repo skills, `.namba` config, Codex CLI, and the global `namba` command are available.",
 		"",
@@ -113,7 +114,7 @@ func renderNambaSkillExecutionRulesSection(profile initProfile) []string {
 		"6. For `namba run` in an interactive Codex session, prefer Codex-native in-session execution over recursively calling `namba run`, unless the user explicitly asks for standalone `--solo`, `--team`, `--parallel`, or `--dry-run` behavior.",
 		"7. Run validation commands from `.namba/config/sections/quality.yaml` before finishing.",
 		"8. Start each new SPEC or task on a dedicated work branch when `.namba/config/sections/git-strategy.yaml` enables branch-per-work collaboration.",
-		fmt.Sprintf("9. Prepare PRs against `%s`, write the title/body in %s, and request GitHub Codex review with `%s` when the review flow is enabled.", prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
+		fmt.Sprintf("9. Prepare PRs against `%s`, write the title/body in %s, and request Codex review only when `namba pr --review` or queue `--review` is explicit; use `%s` as the request command.", prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
 	}
 }
 
@@ -531,14 +532,14 @@ func renderQueueCommandSkill() string {
 			"Behavior:",
 			"- Prefer the installed `namba queue` CLI when available because queue state and Git/GitHub evidence are durable CLI-owned outputs.",
 			"- Only consume already-existing SPEC packages. Do not create new SPEC packages from this command surface.",
-			"- `namba queue start <SPEC-RANGE|SPEC-LIST>` accepts ranges such as `SPEC-001..SPEC-003` and explicit lists such as `SPEC-001 SPEC-004`, plus `--auto-land`, `--skip-codex-review`, and `--remote origin`.",
+			"- `namba queue start <SPEC-RANGE|SPEC-LIST>` accepts ranges such as `SPEC-001..SPEC-003` and explicit lists such as `SPEC-001 SPEC-004`, plus `--auto-land`, `--review`, deprecated `--skip-codex-review`, and `--remote origin`.",
 			"- Use `namba queue status [--verbose]` to report active SPEC, durable state, blocker or wait reason, evidence path, PR link, and next safe command before deciding how to resume.",
 			"- Use `namba queue resume` only after checking or resolving the current wait/blocker state; use `pause` and `stop` as cooperative controls that preserve branches, PRs, and evidence.",
 			"- Treat `.namba/logs/queue/` as the durable queue state and report surface.",
 			"- Continue one active SPEC at a time through review, implementation, validation, active-SPEC-aware sync/PR, checks, optional land, and local main refresh.",
 			"- Block instead of skipping on failed validation, failed checks, non-mergeable PRs, dirty queue branches, GitHub auth failures, missing `gh`, diverged branches, ambiguous PR/check state, or unclear review readiness.",
 			"- Without `--auto-land`, stop in `waiting_for_land` after green and mergeable PR evidence so the operator can land intentionally.",
-			"- Keep the queue-scoped `--skip-codex-review` meaning narrow: skip creating a new `@codex review` marker comment, not review evidence or validation.",
+			"- Queue PR handoff does not request Codex review unless `--review` is present; keep `--skip-codex-review` as deprecated compatibility syntax only, and never combine it with `--review`.",
 		},
 	)
 }
@@ -551,12 +552,13 @@ func renderPRCommandSkill(profile initProfile) string {
 			"Use this skill when the user explicitly says `$namba-pr`, `namba pr`, or asks to hand off the current branch for review.",
 			"",
 			"Behavior:",
-			"- Use the configured PR base branch, PR language, and Codex review marker from `.namba/config/sections/git-strategy.yaml`.",
+			"- Use the configured PR base branch, PR language, and Codex review command from `.namba/config/sections/git-strategy.yaml`.",
 			"- Run `namba sync` and validation by default before creating review artifacts.",
 			"- Include the latest SPEC review-readiness artifact in the PR summary/checklist when `.namba/specs/<SPEC>/reviews/readiness.md` exists.",
 			"- Inspect current PR check status before review handoff; for failing GitHub Actions checks, capture run URLs and bounded GitHub Actions failure snippets, and report external checks by status and details URL only.",
-			"- Commit and push the current work branch, create or reuse the GitHub PR, and ensure the configured Codex review marker exists exactly once.",
-			fmt.Sprintf("- Collaboration defaults: PRs target `%s`, PR content is written in %s, and `%s` is the review marker.", prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
+			"- Commit and push the current work branch, create or reuse the GitHub PR, and do not request Codex review unless the user explicitly asked for `--review`.",
+			"- When `--review` is present, ensure the configured Codex review marker exists exactly once.",
+			fmt.Sprintf("- Collaboration defaults: PRs target `%s`, PR content is written in %s, and `%s` is the explicit review request command.", prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
 		},
 	)
 }
@@ -732,7 +734,7 @@ func renderCodexUsageWorkflowCommandSemanticsSection() []string {
 		"- `namba fix \"<issue description>\"` and `namba fix --command run \"<issue description>\"` are the direct-repair paths in the current workspace. They should stay read-only for help/probe flows, avoid implicit SPEC creation, and finish with validation plus `namba sync`.",
 		"- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, codemaps, and advisory review readiness summaries.",
 		"- `namba queue start <SPEC-RANGE|SPEC-LIST>` processes existing SPEC packages in order through review, run, PR, checks, and optional land, while durable state under `.namba/logs/queue/` makes waits, blockers, and resume decisions explicit.",
-		"- `namba pr` prepares the current branch for GitHub review by syncing, validating, inspecting PR checks, summarizing bounded GitHub Actions failure snippets when checks fail, committing, pushing, opening or reusing the PR, and ensuring the Codex review marker is present exactly once.",
+		"- `namba pr` prepares the current branch for GitHub review by syncing, validating, inspecting PR checks, summarizing bounded GitHub Actions failure snippets when checks fail, committing, pushing, and opening or reusing the PR. Use `namba pr --review` only when Codex review should be requested.",
 		"- `namba land` waits for checks when requested, merges a clean PR, and updates local `main` safely.",
 		"- `namba release` requires a clean `main` branch and passing validators before it creates a tag. `--push` pushes both `main` and the new tag.",
 		"- `namba run SPEC-XXX` keeps the standard standalone Codex flow when you use the CLI runner without extra mode flags, but explicit `frontend-major` work now reads `frontend-brief.md` as a canonical gate before coding.",
@@ -839,7 +841,7 @@ func renderCodexUsageGitCollaborationSection(profile initProfile) []string {
 		fmt.Sprintf("- Recommended branch names: `%s<SPEC-ID>-<slug>` for SPEC work and `%s<slug>` for non-SPEC work.", specBranchPrefix(profile), taskBranchPrefix(profile)),
 		fmt.Sprintf("- PRs target `%s`.", prBaseBranch(profile)),
 		fmt.Sprintf("- PR titles and bodies should be written in %s.", humanLanguageName(profile.PRLanguage)),
-		fmt.Sprintf("- After the GitHub PR is open, confirm the `%s` review request is present.", codexReviewComment(profile)),
+		fmt.Sprintf("- Codex review requests are opt-in: use `namba pr --review` or queue `--review`, then confirm the `%s` request is present.", codexReviewComment(profile)),
 	}
 }
 
@@ -2528,11 +2530,7 @@ func renderCollaborationPolicy(profile initProfile) string {
 		fmt.Sprintf("- Commit on the work branch and open PRs into `%s`.", prBaseBranch(profile)),
 		fmt.Sprintf("- Write GitHub PR titles and bodies in %s.", humanLanguageName(profile.PRLanguage)),
 	}
-	if profile.AutoCodexReview {
-		lines = append(lines, fmt.Sprintf("- After the PR is open on GitHub, confirm the `%s` review request comment exists instead of duplicating it.", codexReviewComment(profile)))
-	} else {
-		lines = append(lines, fmt.Sprintf("- After the PR is open on GitHub, request Codex review with `%s`.", codexReviewComment(profile)))
-	}
+	lines = append(lines, fmt.Sprintf("- Codex review requests are explicit opt-in only: use `namba pr --review` or queue `--review`, then confirm the `%s` request exists without duplicating it.", codexReviewComment(profile)))
 	return strings.Join(lines, "\n") + "\n"
 }
 

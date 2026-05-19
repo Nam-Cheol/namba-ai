@@ -750,7 +750,7 @@ func TestSyncRefreshesWorkflowDocs(t *testing.T) {
 	}
 
 	prChecklist := mustRead(t, filepath.Join(tmp, ".namba", "project", "pr-checklist.md"))
-	if !strings.Contains(prChecklist, "PR targets `main`") || !strings.Contains(prChecklist, "`@codex review` review request is present on GitHub") || !strings.Contains(prChecklist, "Latest SPEC review readiness checked") {
+	if !strings.Contains(prChecklist, "PR targets `main`") || !strings.Contains(prChecklist, "If Codex review was explicitly requested with `--review`") || !strings.Contains(prChecklist, "Latest SPEC review readiness checked") {
 		t.Fatalf("expected synced PR checklist to describe branch and review policy, got: %s", prChecklist)
 	}
 

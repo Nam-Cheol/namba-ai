@@ -25,7 +25,8 @@ Command mapping:
 - `namba run SPEC-XXX --solo|--team|--parallel`: use the standalone CLI runner when you need explicit single-subagent, multi-subagent, or worktree-parallel execution semantics.
 - `namba queue start <SPEC-RANGE|SPEC-LIST>`: process already-existing SPEC packages one at a time through review, run, PR, checks, optional land, and local main refresh. Use `status`, `resume`, `pause`, and `stop` to operate the durable queue.
 - `namba sync`: refresh change summary, PR checklist, codemaps, advisory review readiness, and PR-ready docs after implementation.
-- `namba pr "<title>"`: run sync plus validation by default, inspect PR checks, summarize bounded GitHub Actions failure snippets when checks fail, commit and push the current branch, create or reuse a PR, and ensure the Codex review marker exists exactly once.
+- `namba pr "<title>"`: run sync plus validation by default, inspect PR checks, summarize bounded GitHub Actions failure snippets when checks fail, commit and push the current branch, and create or reuse a PR without requesting Codex review.
+- `namba pr --review "<title>"`: perform the same PR handoff and explicitly request Codex review with the configured marker exactly once.
 - `namba land`: resolve the current branch PR, optionally wait for checks, merge when the PR is clean, and update local `main` safely.
 - `namba doctor`: verify that AGENTS, repo skills, `.namba` config, Codex CLI, and the global `namba` command are available.
 
@@ -38,4 +39,4 @@ Execution rules:
 6. For `namba run` in an interactive Codex session, prefer Codex-native in-session execution over recursively calling `namba run`, unless the user explicitly asks for standalone `--solo`, `--team`, `--parallel`, or `--dry-run` behavior.
 7. Run validation commands from `.namba/config/sections/quality.yaml` before finishing.
 8. Start each new SPEC or task on a dedicated work branch when `.namba/config/sections/git-strategy.yaml` enables branch-per-work collaboration.
-9. Prepare PRs against `main`, write the title/body in Korean, and request GitHub Codex review with `@codex review` when the review flow is enabled.
+9. Prepare PRs against `main`, write the title/body in Korean, and request Codex review only when `namba pr --review` or queue `--review` is explicit; use `@codex review` as the request command.

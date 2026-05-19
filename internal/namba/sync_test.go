@@ -158,8 +158,8 @@ func TestBuildSyncProjectSupportOutputsIncludesManagedDocSet(t *testing.T) {
 	if !strings.Contains(outputs[filepath.ToSlash(filepath.Join(projectDir, "change-summary.md"))], "SPEC-001") {
 		t.Fatalf("expected change-summary output to mention latest spec, got %q", outputs[filepath.ToSlash(filepath.Join(projectDir, "change-summary.md"))])
 	}
-	if !strings.Contains(outputs[filepath.ToSlash(filepath.Join(projectDir, "pr-checklist.md"))], "`@codex review` review request is present on GitHub") {
-		t.Fatalf("expected pr-checklist output to include Codex review marker, got %q", outputs[filepath.ToSlash(filepath.Join(projectDir, "pr-checklist.md"))])
+	if !strings.Contains(outputs[filepath.ToSlash(filepath.Join(projectDir, "pr-checklist.md"))], "If Codex review was explicitly requested with `--review`") {
+		t.Fatalf("expected pr-checklist output to include explicit Codex review opt-in, got %q", outputs[filepath.ToSlash(filepath.Join(projectDir, "pr-checklist.md"))])
 	}
 	if !strings.Contains(outputs[filepath.ToSlash(filepath.Join(projectDir, "release-notes.md"))], "## Release Commands") || !strings.Contains(outputs[filepath.ToSlash(filepath.Join(projectDir, "release-notes.md"))], "`checksums.txt`") || !strings.Contains(outputs[filepath.ToSlash(filepath.Join(projectDir, "release-notes.md"))], "`$namba-release`") {
 		t.Fatalf("expected release-notes output to include command and asset sections, got %q", outputs[filepath.ToSlash(filepath.Join(projectDir, "release-notes.md"))])
@@ -477,7 +477,7 @@ func TestPRChecklistCoreItemsReflectProfile(t *testing.T) {
 		"- [ ] Dedicated work branch created from `main` for this SPEC/task",
 		"- [ ] PR targets `main`",
 		"- [ ] PR title and body are written in Korean",
-		"- [ ] `@codex review` review request is present on GitHub",
+		"- [ ] If Codex review was explicitly requested with `--review`, `@codex review` request is present on GitHub",
 		"- [ ] `namba sync` artifacts refreshed",
 	} {
 		if !strings.Contains(got, want) {

@@ -994,7 +994,7 @@ func TestRenderNambaSkillSectionsPreserveAnchors(t *testing.T) {
 		"Prefer repo-local skills in `.agents/skills/`.",
 		"`project`, `regen`, `update`, `codex access`, `plan`, `harness`, `fix`, `queue`, `pr`, `land`, `release`, and `sync`",
 		"`--solo`, `--team`, `--parallel`, or `--dry-run`",
-		"Prepare PRs against `release`, write the title/body in Korean, and request GitHub Codex review with `@codex review`",
+		"Prepare PRs against `release`, write the title/body in Korean, and request Codex review only when `namba pr --review` or queue `--review` is explicit",
 	} {
 		if !strings.Contains(executionRules, want) {
 			t.Fatalf("namba-skill execution-rules section missing %q: %q", want, executionRules)
@@ -1077,7 +1077,7 @@ func TestSkillSurfaceEvolutionHarnessContracts(t *testing.T) {
 		"Inspect current PR check status before review handoff",
 		"bounded GitHub Actions failure snippets",
 		"external checks by status and details URL only",
-		"configured Codex review marker exists exactly once",
+		"When `--review` is present, ensure the configured Codex review marker exists exactly once",
 	} {
 		if !strings.Contains(prSkill, want) {
 			t.Fatalf("pr skill missing SPEC-040 contract %q: %q", want, prSkill)
@@ -1181,7 +1181,7 @@ func TestRenderNambaSkillSectionsStayOrderedInIntegratedDoc(t *testing.T) {
 		"Use this skill whenever the user mentions `namba`",
 		"Command mapping:",
 		"Execution rules:",
-		"Prepare PRs against `release`, write the title/body in Korean, and request GitHub Codex review with `@codex review`",
+		"Prepare PRs against `release`, write the title/body in Korean, and request Codex review only when `namba pr --review` or queue `--review` is explicit",
 	} {
 		index := strings.Index(content, want)
 		if index == -1 {

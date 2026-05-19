@@ -311,7 +311,7 @@ func publicTopLevelCommandDefinitions() []topLevelCommandDefinition {
 		{Name: "run", UsageSummary: "  namba run SPEC-XXX [--solo|--team|--parallel] [--dry-run]", UsageText: runUsageText, Run: (*App).runExecute},
 		{Name: "queue", UsageSummary: "  namba queue <start|status|resume|pause|stop>", UsageText: queueUsageText, Run: (*App).runQueue},
 		{Name: "sync", UsageSummary: "  namba sync", UsageText: syncUsageText, Run: (*App).runSync},
-		{Name: "pr", UsageSummary: "  namba pr \"<title>\" [--remote origin] [--no-sync] [--no-validate]", UsageText: prUsageText, Run: (*App).runPR},
+		{Name: "pr", UsageSummary: "  namba pr \"<title>\" [--review] [--remote origin] [--no-sync] [--no-validate]", UsageText: prUsageText, Run: (*App).runPR},
 		{Name: "land", UsageSummary: "  namba land [PR_NUMBER] [--wait] [--remote origin]", UsageText: landUsageText, Run: (*App).runLand},
 		{Name: "release", UsageSummary: "  namba release [--bump patch|minor|major] [--version vX.Y.Z] [--push] [--remote origin]", UsageText: releaseUsageText, Run: (*App).runRelease},
 		{Name: "worktree", UsageSummary: "  namba worktree <new|list|remove|clean>", UsageText: worktreeUsageText, Run: (*App).runWorktree},
@@ -1432,8 +1432,8 @@ func syncUsageText() string {
 func prUsageText() string {
 	return singleUsageLineCommandUsageText(
 		"pr",
-		"  namba pr \"<title>\" [--remote origin] [--no-sync] [--no-validate]",
-		"  Sync, validate, push the current work branch, and create or reuse a GitHub pull request into the base branch.",
+		"  namba pr \"<title>\" [--review] [--remote origin] [--no-sync] [--no-validate]",
+		"  Sync, validate, push the current work branch, and create or reuse a GitHub pull request. Add --review to request Codex review.",
 	)
 }
 
@@ -3572,7 +3572,7 @@ func changeSummaryWorkflowDocsSection(profile initProfile) []string {
 		"- Run docs separate the default standalone flow, `namba run SPEC-XXX --solo`, `namba run SPEC-XXX --team`, and the worktree fan-out policy for `namba run SPEC-XXX --parallel`.",
 		"- AGENTS and Codex docs define the Namba output contract plus the fallback validator script at `.namba/codex/validate-output-contract.py`.",
 		"- SPEC packages can keep advisory plan-review artifacts under `.namba/specs/<SPEC>/reviews/` so product, engineering, and design review state stays visible before execution and PR handoff.",
-		fmt.Sprintf("- Collaboration docs require one branch per SPEC/task from `%s`, PRs into `%s`, %s PR content, and Codex review requests via `%s`.", branchBase(profile), prBaseBranch(profile), strings.ToLower(humanLanguageName(profile.PRLanguage)), codexReviewComment(profile)),
+		fmt.Sprintf("- Collaboration docs require one branch per SPEC/task from `%s`, PRs into `%s`, %s PR content, and explicit Codex review requests via `namba pr --review` or queue `--review` using `%s`.", branchBase(profile), prBaseBranch(profile), strings.ToLower(humanLanguageName(profile.PRLanguage)), codexReviewComment(profile)),
 	}
 }
 
@@ -3583,7 +3583,7 @@ func changeSummaryRefreshCommandsSection() []string {
 		"- `namba update` self-updates the installed `namba` binary from GitHub Release assets.",
 		"- `namba regen` regenerates `AGENTS.md`, repo-local skills and command-entry skills under `.agents/skills`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
 		"- `namba sync` refreshes `.namba/project/*` docs, release notes/checklists, codemaps, and any README bundles enabled in `.namba/config/sections/docs.yaml`.",
-		"- `namba pr` prepares the current branch for GitHub review by running sync and validation by default, then committing, pushing, opening or reusing the PR, and ensuring the Codex review marker exists.",
+		"- `namba pr` prepares the current branch for GitHub review by running sync and validation by default, then committing, pushing, and opening or reusing the PR. Add `--review` to request Codex review explicitly.",
 		"- `namba land` optionally waits for checks, merges only when the PR is clean, and updates local `main` safely.",
 	}
 }
@@ -3620,7 +3620,7 @@ func prChecklistCoreItems(profile initProfile) []string {
 		fmt.Sprintf("- [ ] Dedicated work branch created from `%s` for this SPEC/task", branchBase(profile)),
 		fmt.Sprintf("- [ ] PR targets `%s`", prBaseBranch(profile)),
 		fmt.Sprintf("- [ ] PR title and body are written in %s", humanLanguageName(profile.PRLanguage)),
-		fmt.Sprintf("- [ ] `%s` review request is present on GitHub", codexReviewComment(profile)),
+		fmt.Sprintf("- [ ] If Codex review was explicitly requested with `--review`, `%s` request is present on GitHub", codexReviewComment(profile)),
 		"- [ ] README / user-facing docs refreshed",
 		"- [ ] `namba regen` rerun if template-generated Codex assets changed",
 		"- [ ] `namba sync` artifacts refreshed",
@@ -3668,12 +3668,12 @@ func releaseNotesWorkflowChangesSection(profile initProfile) []string {
 		"- `namba update` self-updates the installed `namba` binary from GitHub Release assets.",
 		"- `namba regen` regenerates `AGENTS.md`, repo-local skills and command-entry skills under `.agents/skills`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
 		"- `namba sync` refreshes README bundles, product docs, codemaps, change summary, PR checklist, and release docs.",
-		"- `namba pr` prepares the current branch for GitHub review by syncing, validating, committing, pushing, opening or reusing the PR, and ensuring the Codex review marker exists.",
+		"- `namba pr` prepares the current branch for GitHub review by syncing, validating, committing, pushing, and opening or reusing the PR. Add `--review` to request Codex review explicitly.",
 		"- `namba land` optionally waits for checks, merges only when the PR is clean, and updates local `main` safely.",
 		"- `$namba-review-resolve` handles the meaningful GitHub review loop thread-by-thread: classify unresolved review threads, make scoped fixes, reply with validation evidence, resolve only addressed threads, and request review again without duplicating the configured marker.",
 		"- `$namba-release` is the Codex-facing NambaAI release workflow: generate commit-based release notes, write `.namba/releases/<version>.md`, validate, then hand off to the guarded `namba release --version <version> --push` path.",
 		"- `namba run SPEC-XXX` keeps the standard standalone Codex flow; `--solo` and `--team` request single-subagent or multi-subagent workflows inside one workspace; `--parallel` still fans out into up to three git worktrees and merges only after every worker passes execution and validation.",
-		fmt.Sprintf("- Active collaboration defaults: one branch per SPEC/task from `%s`, PRs into `%s`, %s PR content, and Codex review requests via `%s`.", branchBase(profile), prBaseBranch(profile), strings.ToLower(humanLanguageName(profile.PRLanguage)), codexReviewComment(profile)),
+		fmt.Sprintf("- Active collaboration defaults: one branch per SPEC/task from `%s`, PRs into `%s`, %s PR content, and explicit Codex review requests via `namba pr --review` or queue `--review` using `%s`.", branchBase(profile), prBaseBranch(profile), strings.ToLower(humanLanguageName(profile.PRLanguage)), codexReviewComment(profile)),
 	}
 }
 
@@ -4055,7 +4055,7 @@ func (a *App) detectInitProfileWithScan(root string, scan initRepositoryScan) in
 		PRBaseBranch:          "main",
 		PRLanguage:            locale,
 		CodexReviewComment:    "@codex review",
-		AutoCodexReview:       true,
+		AutoCodexReview:       false,
 		AgentMode:             "single",
 		StatusLinePreset:      "namba",
 		UserName:              detectUserName(a.getenv),

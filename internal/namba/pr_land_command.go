@@ -12,7 +12,7 @@ import (
 
 const (
 	defaultGitRemote         = "origin"
-	codexReviewRequestMarker = "<!-- namba-codex-review-request -->"
+	codexReviewRequestMarker = "<!-- namba:codex-review-request -->"
 )
 
 type prOptions struct {
@@ -20,6 +20,7 @@ type prOptions struct {
 	Remote         string
 	SkipSync       bool
 	SkipValidation bool
+	RequestReview  bool
 }
 
 type landOptions struct {
@@ -140,17 +141,25 @@ func (a *App) runPR(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	if profile.AutoCodexReview {
+	if opts.RequestReview {
 		if err := a.ensureReviewComment(ctx, root, pr.Number, codexReviewComment(profile)); err != nil {
 			return err
 		}
 	}
 
 	if created {
-		fmt.Fprintf(a.stdout, "Prepared PR #%d %s\n", pr.Number, pr.URL)
+		if opts.RequestReview {
+			fmt.Fprintf(a.stdout, "Prepared PR #%d %s and requested Codex review\n", pr.Number, pr.URL)
+			return nil
+		}
+		fmt.Fprintf(a.stdout, "Prepared PR #%d %s without Codex review request\n", pr.Number, pr.URL)
 		return nil
 	}
-	fmt.Fprintf(a.stdout, "Reused PR #%d %s\n", pr.Number, pr.URL)
+	if opts.RequestReview {
+		fmt.Fprintf(a.stdout, "Reused PR #%d %s and requested Codex review\n", pr.Number, pr.URL)
+		return nil
+	}
+	fmt.Fprintf(a.stdout, "Reused PR #%d %s without Codex review request\n", pr.Number, pr.URL)
 	return nil
 }
 
@@ -240,6 +249,8 @@ func parsePRArgs(args []string) (prOptions, error) {
 			opts.SkipSync = true
 		case "--no-validate":
 			opts.SkipValidation = true
+		case "--review":
+			opts.RequestReview = true
 		default:
 			if strings.HasPrefix(args[i], "--") {
 				return prOptions{}, fmt.Errorf("unknown flag %q", args[i])

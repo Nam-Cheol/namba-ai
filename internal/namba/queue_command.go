@@ -52,6 +52,7 @@ var specRangePattern = regexp.MustCompile(`^(SPEC-\d{3})\.\.(SPEC-\d{3})$`)
 type queueOptions struct {
 	AutoLand        bool   `json:"auto_land"`
 	SkipCodexReview bool   `json:"skip_codex_review"`
+	RequestReview   bool   `json:"request_review"`
 	Remote          string `json:"remote"`
 	Runner          string `json:"runner,omitempty"`
 }
@@ -142,7 +143,7 @@ func queueUsageText() string {
 		"namba queue",
 		"",
 		"Usage:",
-		"  namba queue start <SPEC-RANGE|SPEC-LIST> [--runner=auto|cli|desktop] [--auto-land] [--skip-codex-review] [--remote origin]",
+		"  namba queue start <SPEC-RANGE|SPEC-LIST> [--runner=auto|cli|desktop] [--auto-land] [--review] [--skip-codex-review] [--remote origin]",
 		"  namba queue status [--verbose]",
 		"  namba queue resume",
 		"  namba queue doctor",
@@ -206,6 +207,8 @@ func parseQueueInvocation(args []string) (queueInvocation, error) {
 			switch args[i] {
 			case "--auto-land":
 				inv.Options.AutoLand = true
+			case "--review":
+				inv.Options.RequestReview = true
 			case "--skip-codex-review":
 				inv.Options.SkipCodexReview = true
 			case "--remote":
@@ -236,6 +239,9 @@ func parseQueueInvocation(args []string) (queueInvocation, error) {
 		}
 		if inv.Options.Remote == "" {
 			return queueInvocation{}, errors.New("queue remote is required")
+		}
+		if inv.Options.RequestReview && inv.Options.SkipCodexReview {
+			return queueInvocation{}, errors.New("queue start cannot combine --review with deprecated --skip-codex-review")
 		}
 		if !isAllowedQueueRunner(inv.Options.Runner) {
 			return queueInvocation{}, fmt.Errorf("unsupported queue runner %q", inv.Options.Runner)
@@ -1350,7 +1356,7 @@ func (a *App) prepareQueuePullRequest(ctx context.Context, root string, state qu
 	if err != nil {
 		return githubPullRequest{}, err
 	}
-	if profile.AutoCodexReview && !state.Options.SkipCodexReview {
+	if state.Options.RequestReview {
 		if err := a.ensureReviewComment(ctx, root, pr.Number, codexReviewComment(profile)); err != nil {
 			return githubPullRequest{}, err
 		}

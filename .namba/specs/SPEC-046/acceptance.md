@@ -1,0 +1,33 @@
+# Acceptance
+
+- [ ] `namba pr "title"` creates or reuses a PR and does not post `@codex review`.
+- [ ] `namba pr --review "title"` creates or reuses a PR and posts exactly one Codex review request comment.
+- [ ] `namba pr --review "title"` is idempotent and does not create duplicate review request comments when the marker or exact command already exists.
+- [ ] `namba pr --review --no-sync "title"` works.
+- [ ] `namba pr --review --no-validate "title"` works.
+- [ ] `namba pr --review --remote upstream "title"` works.
+- [ ] Unknown `namba pr` flags still fail with the existing command usage error behavior.
+- [ ] Legacy `AutoCodexReview` or equivalent config cannot cause `namba pr "title"` to request review.
+- [ ] `namba queue start SPEC-001` does not post `@codex review`.
+- [ ] `namba queue start SPEC-001 --review` requests Codex review during PR handoff.
+- [ ] `namba queue start SPEC-001 --skip-codex-review` remains accepted as a deprecated compatibility flag and is no-op under the default no-review policy.
+- [ ] `namba queue start SPEC-001 --review --skip-codex-review` fails with an explicit conflict error.
+- [ ] Legacy `AutoCodexReview` or equivalent config cannot cause queue PR handoff to request review.
+- [ ] `.github/workflows/codex-review-request.yml` is removed.
+- [ ] No PR opened, reopened, or ready-for-review GitHub Actions workflow automatically posts `@codex review`.
+- [ ] The Namba review marker is non-empty and uses `<!-- namba:codex-review-request -->`, or the marker mechanism is intentionally removed with equivalent tests.
+- [ ] `buildReviewRequestCommentBody` emits the non-empty marker plus the normalized review command.
+- [ ] `isReviewRequestComment` returns true only for the normalized exact review command or comments containing the non-empty Namba marker.
+- [ ] An unrelated PR comment does not block a requested Codex review comment.
+- [ ] Tests cover PR arg parsing without `--review`, PR arg parsing with `--review`, normal PR no-review behavior, explicit PR review behavior, duplicate prevention, unrelated-comment regression, and legacy config no-op behavior.
+- [ ] Tests cover queue `--review` parsing, queue default no-review behavior, queue `--skip-codex-review` no-op compatibility, and queue `--review` conflict with `--skip-codex-review`.
+- [ ] Tests cover the absence of default GitHub Actions auto-review behavior.
+- [ ] Hook guard tests cover ambiguous prompt guidance, clear prompt no unnecessary guidance, dangerous bash command denial, and safe bash command allowance.
+- [ ] CLI help and generated docs explain `namba pr "title"` for normal PR handoff and `namba pr --review "title"` when Codex review is explicitly desired.
+- [ ] Queue docs explain `namba queue start SPEC-001` for normal no-review handoff, `namba queue start SPEC-001 --review` for Codex review, and `--skip-codex-review` as deprecated compatibility behavior.
+- [ ] Generated skills and Codex docs do not instruct Codex to request review unless the user asked for `--review` or queue `--review`.
+- [ ] `go test ./...` passes.
+- [ ] `go vet ./...` passes if still part of configured validation.
+- [ ] `gofmt` produces no diff.
+- [ ] Python hook tests run in CI or are documented as a required validation command.
+- [ ] Repository search for `@codex review`, `AutoCodexReview`, `skip-codex-review`, `codexReviewRequestMarker`, and `Codex review marker` shows every remaining occurrence matches the new opt-in behavior.

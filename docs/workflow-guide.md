@@ -33,7 +33,7 @@ NambaAI work starts by reading the repository, shaping a SPEC, implementing and 
 | Execute an existing SPEC | `namba run SPEC-XXX` | Implements, tests, and validates the work. |
 | Process several SPECs in order | `namba queue start SPEC-001..SPEC-003` | Advances one active SPEC at a time with durable queue state. |
 | Refresh generated artifacts only | `namba sync` | Updates README, project docs, codemaps, checklists, and release notes. |
-| Hand off for review | `namba pr "title"` | Handles validation, commit, push, PR, and the `@codex review` marker. |
+| Hand off for review | `namba pr "title"` | Handles validation, commit, push, and PR. Request Codex review explicitly with `--review`. |
 | Merge an approved PR | `namba land` | Merges only a clean PR and updates local `main`. |
 
 ## Workflow at a glance
@@ -44,7 +44,7 @@ NambaAI work starts by reading the repository, shaping a SPEC, implementing and 
 | 2. Plan | `namba plan`, `namba harness`, or `namba fix --command plan` | SPEC and reviews/readiness artifacts exist. |
 | 3. Execute | `namba run SPEC-XXX` | Acceptance, tests, and validation evidence are complete. |
 | 4. Refresh | `namba sync` | Generated docs and checklists are refreshed without drift. |
-| 5. Handoff | `namba pr "title"` | PR language, checks, and `@codex review` marker are aligned. |
+| 5. Handoff | `namba pr "title"` | PR language and checks are aligned. Codex review is checked only when `--review` is used. |
 | 6. Merge | `namba land` | Only a clean and approved PR lands on `main`. |
 
 ## `update`, `regen`, `sync`, `pr`, and `land` are different commands
@@ -54,7 +54,7 @@ NambaAI work starts by reading the repository, shaping a SPEC, implementing and 
 - `namba regen`: regenerate AGENTS, skills, custom agents, and repo Codex config
 - `namba sync`: refresh README, project docs, codemaps, advisory review readiness, PR checklists, and release notes
 - `namba queue`: process existing SPEC packages in order without creating new SPECs, using durable state plus Git/GitHub gates to resume or block safely
-- `namba pr`: run sync plus validation by default, commit and push the current branch, open or reuse the PR, and ensure the Codex review marker exists
+- `namba pr`: run sync plus validation by default, commit and push the current branch, and open or reuse the PR. Use `namba pr --review` only when Codex review is desired
 - `namba land`: optionally wait for checks, merge only when the PR is clean, and update local `main` safely
 
 ## Planning commands
@@ -88,7 +88,7 @@ NambaAI work starts by reading the repository, shaping a SPEC, implementing and 
 ## SPEC queue conveyor
 
 - `namba queue start SPEC-001..SPEC-003`: process existing SPEC packages in order without creating new SPECs.
-- `namba queue start SPEC-001 SPEC-004 --skip-codex-review`: target an explicit SPEC list and optionally skip the `@codex review` marker.
+- `namba queue start SPEC-001 SPEC-004 --review`: target an explicit SPEC list and request Codex review during PR handoff. `--skip-codex-review` is a deprecated no-op compatibility flag.
 - `namba queue status`: show the active SPEC, durable state, blocker or wait reason, report path, and next safe command.
 - `namba queue resume`, `pause`, and `stop`: continue or halt from durable state under `.namba/logs/queue/`.
 - Queue automation allows one active SPEC at a time. Failed validation, failed checks, non-mergeable PRs, and ambiguous Git/GitHub state stop as blocked instead of being skipped.
