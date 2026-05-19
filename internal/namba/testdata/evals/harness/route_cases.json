@@ -1,0 +1,54 @@
+[
+  {
+    "name": "core_pr_review_opt_in_workflow",
+    "input": "Change the namba pr workflow so Codex review is opt-in",
+    "expected_category": "core_harness_change",
+    "expected_delivery_mode": "spec",
+    "expected_required_evidence": ["contract", "baseline", "eval-plan"],
+    "expected_review_flags": ["product", "engineering", "design"],
+    "expected_command": "namba plan",
+    "expected_harness_request_kind_or_none": "core_harness_change",
+    "expected_sidecar_persisted": true,
+    "rationale": "Core Namba workflow changes must remain on the plan path with a harness sidecar."
+  },
+  {
+    "name": "domain_spring_boot_backend_skill",
+    "input": "Add a Spring Boot backend skill for transactional service testing",
+    "expected_category": "domain_harness_change",
+    "expected_delivery_mode": "spec",
+    "expected_required_evidence": ["contract", "baseline", "eval-plan"],
+    "expected_review_flags": ["product", "engineering", "design"],
+    "expected_command": "namba harness",
+    "expected_harness_request_kind_or_none": "domain_harness_change",
+    "expected_sidecar_persisted": true,
+    "rationale": "Domain harness extensions should use the existing namba harness request path."
+  },
+  {
+    "name": "direct_release_checklist_artifact",
+    "input": "Create a markdown checklist for release validation",
+    "expected_category": "direct_artifact_creation",
+    "expected_delivery_mode": "direct",
+    "expected_command": "$namba-create",
+    "expected_harness_request_kind_or_none": "direct_artifact_creation",
+    "expected_sidecar_persisted": false,
+    "rationale": "Standalone artifact creation must stay transient and must not persist a SPEC sidecar."
+  },
+  {
+    "name": "ordinary_login_audit_logs",
+    "input": "Add login audit logs to the app",
+    "expected_category": "ordinary_feature_or_product_plan",
+    "expected_command": "namba plan",
+    "expected_harness_request_kind_or_none": "none",
+    "expected_sidecar_persisted": false,
+    "rationale": "Ordinary product work should not be reclassified as a harness request."
+  },
+  {
+    "name": "planned_generated_hook_template_fix",
+    "input": "Fix a broken generated hook template, but create a SPEC first",
+    "expected_category": "planned_fix",
+    "expected_command": "namba fix --command plan",
+    "expected_harness_request_kind_or_none": "none",
+    "expected_sidecar_persisted": false,
+    "rationale": "Bugfix SPEC planning uses the existing fix planning command without inventing a harness kind."
+  }
+]
