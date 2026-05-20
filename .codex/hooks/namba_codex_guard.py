@@ -292,8 +292,7 @@ def prompt_refinement_guidance(prompt, configured_language=""):
     language = (configured_language or "").strip().lower()
     if not language:
         language = "ko" if re.search(r"[가-힣]", normalized) else "en"
-    korean = language == "ko"
-    if korean:
+    if language == "ko":
         questions = [
             "1. 이 작업의 대상 surface는 무엇인가요? 예: CLI, 웹 앱, API, 특정 모듈.",
             "2. 원하는 사용자 흐름과 제외할 범위는 무엇인가요?",
@@ -304,6 +303,32 @@ def prompt_refinement_guidance(prompt, configured_language=""):
             "가능하면 Codex Plan mode 선택 UI로 아래 질문을 먼저 처리한 뒤, 정리된 Goal/Scope/Constraints/Acceptance만 해당 SPEC 생성 명령(namba plan, namba harness, namba fix --command plan)에 넘기세요.\n"
             + "\n".join(questions)
             + "\n\n답변은 가능하면 다음 형식으로 주세요:\n"
+            "Goal: ...\nScope: ...\nConstraints: ...\nAcceptance: ..."
+        )
+    if language == "ja":
+        questions = [
+            "1. この作業の対象 surface は何ですか？例: CLI、Web app、API、特定モジュール。",
+            "2. 望むユーザーフローと、今回の範囲外にするものは何ですか？",
+            "3. 完了基準と検証方法は何ですか？",
+        ]
+        return (
+            "NambaAI clarification gate: SPEC を作る前に、依頼がまだ広すぎるか曖昧です。\n"
+            "可能なら Codex Plan mode の選択 UI で以下の質問を先に整理し、整理された Goal/Scope/Constraints/Acceptance だけを該当する SPEC 作成コマンド(namba plan, namba harness, namba fix --command plan)に渡してください。\n"
+            + "\n".join(questions)
+            + "\n\n可能なら次の形式で答えてください:\n"
+            "Goal: ...\nScope: ...\nConstraints: ...\nAcceptance: ..."
+        )
+    if language == "zh":
+        questions = [
+            "1. 这项变更影响哪个目标 surface？例如 CLI、Web app、API 或特定模块。",
+            "2. 期望的用户流程是什么？哪些内容应排除在范围外？",
+            "3. 完成标准和验证方法是什么？",
+        ]
+        return (
+            "NambaAI clarification gate: 在创建 SPEC 前，请先降低需求的模糊度。\n"
+            "如果可以，请先用 Codex Plan mode 选择 UI 整理以下问题，然后只把整理后的 Goal/Scope/Constraints/Acceptance 传给对应的 SPEC 创建命令(namba plan, namba harness, namba fix --command plan)。\n"
+            + "\n".join(questions)
+            + "\n\n可以的话，请使用以下格式回答:\n"
             "Goal: ...\nScope: ...\nConstraints: ...\nAcceptance: ..."
         )
     questions = [

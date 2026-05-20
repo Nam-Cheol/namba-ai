@@ -148,30 +148,57 @@ func TestRunFixCommandPlanClarificationGateBlocksAmbiguousPrompt(t *testing.T) {
 func TestSpecCreationClarificationUsesConfiguredLanguageForEnglishPrompt(t *testing.T) {
 	t.Parallel()
 
-	tmp := t.TempDir()
-	stdout := &bytes.Buffer{}
-	app := NewApp(stdout, &bytes.Buffer{})
-	if err := app.Run(context.Background(), []string{"init", tmp, "--yes", "--human-language", "ko"}); err != nil {
-		t.Fatalf("init failed: %v", err)
+	cases := []struct {
+		language string
+		want     []string
+		unwanted []string
+	}{
+		{
+			language: "ko",
+			want:     []string{"NambaAI clarification gate", "SPEC을 만들기 전에", "대상 surface", "완료 기준"},
+			unwanted: []string{"Please answer these questions first:", "What target surface should this change affect"},
+		},
+		{
+			language: "ja",
+			want:     []string{"NambaAI clarification gate", "SPEC を作る前に", "対象 surface", "完了基準"},
+			unwanted: []string{"Please answer these questions first:", "What target surface should this change affect", "SPEC을 만들기 전에"},
+		},
+		{
+			language: "zh",
+			want:     []string{"NambaAI clarification gate", "创建 SPEC 前", "目标 surface", "完成标准"},
+			unwanted: []string{"Please answer these questions first:", "What target surface should this change affect", "SPEC을 만들기 전에"},
+		},
 	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.language, func(t *testing.T) {
+			t.Parallel()
+			tmp := t.TempDir()
+			stdout := &bytes.Buffer{}
+			app := NewApp(stdout, &bytes.Buffer{})
+			if err := app.Run(context.Background(), []string{"init", tmp, "--yes", "--human-language", tc.language}); err != nil {
+				t.Fatalf("init failed: %v", err)
+			}
 
-	restore := chdirExecution(t, tmp)
-	defer restore()
+			restore := chdirExecution(t, tmp)
+			defer restore()
 
-	err := app.Run(context.Background(), []string{"plan", currentWorkspacePlanningFlag, "build", "something"})
-	if err == nil || !strings.Contains(err.Error(), "namba plan requires clarification") {
-		t.Fatalf("expected configured-language clarification error, got %v", err)
-	}
-	got := stdout.String()
-	for _, want := range []string{"NambaAI clarification gate", "SPEC을 만들기 전에", "대상 surface", "완료 기준"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected Korean clarification output to contain %q, got %q", want, got)
-		}
-	}
-	for _, unwanted := range []string{"Please answer these questions first:", "What target surface should this change affect"} {
-		if strings.Contains(got, unwanted) {
-			t.Fatalf("expected configured Korean language to override English prompt, got %q", got)
-		}
+			err := app.Run(context.Background(), []string{"plan", currentWorkspacePlanningFlag, "build", "something"})
+			if err == nil || !strings.Contains(err.Error(), "namba plan requires clarification") {
+				t.Fatalf("expected configured-language clarification error, got %v", err)
+			}
+			got := stdout.String()
+			for _, want := range tc.want {
+				if !strings.Contains(got, want) {
+					t.Fatalf("expected %s clarification output to contain %q, got %q", tc.language, want, got)
+				}
+			}
+			for _, unwanted := range tc.unwanted {
+				if strings.Contains(got, unwanted) {
+					t.Fatalf("expected configured %s language to override English prompt, got %q", tc.language, got)
+				}
+			}
+		})
 	}
 }
 
@@ -216,38 +243,65 @@ func TestRunFixCommandPlanClarificationRunsBeforeProjectLookup(t *testing.T) {
 func TestSpecCreationReportUsesConfiguredLanguageForEnglishPrompt(t *testing.T) {
 	t.Parallel()
 
-	tmp := t.TempDir()
-	stdout := &bytes.Buffer{}
-	app := NewApp(stdout, &bytes.Buffer{})
-	if err := app.Run(context.Background(), []string{"init", tmp, "--yes", "--human-language", "ko"}); err != nil {
-		t.Fatalf("init failed: %v", err)
+	cases := []struct {
+		language string
+		want     []string
+		unwanted []string
+	}{
+		{
+			language: "ko",
+			want:     []string{"SPEC 결정 보고서:", "쉬운 요약:", "다음에 해야 할 작업:", "검토할 애매한 부분:"},
+			unwanted: []string{"SPEC decision report:", "Plain-language summary:", "Next work to do:"},
+		},
+		{
+			language: "ja",
+			want:     []string{"SPEC 判断レポート:", "要約:", "次にやる作業:", "確認が必要な点:"},
+			unwanted: []string{"SPEC decision report:", "Plain-language summary:", "Next work to do:", "SPEC 결정 보고서:"},
+		},
+		{
+			language: "zh",
+			want:     []string{"SPEC 决策报告:", "简要摘要:", "下一步工作:", "需要确认的点:"},
+			unwanted: []string{"SPEC decision report:", "Plain-language summary:", "Next work to do:", "SPEC 결정 보고서:"},
+		},
 	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.language, func(t *testing.T) {
+			t.Parallel()
+			tmp := t.TempDir()
+			stdout := &bytes.Buffer{}
+			app := NewApp(stdout, &bytes.Buffer{})
+			if err := app.Run(context.Background(), []string{"init", tmp, "--yes", "--human-language", tc.language}); err != nil {
+				t.Fatalf("init failed: %v", err)
+			}
 
-	restore := chdirExecution(t, tmp)
-	defer restore()
+			restore := chdirExecution(t, tmp)
+			defer restore()
 
-	err := app.Run(context.Background(), []string{
-		"plan",
-		currentWorkspacePlanningFlag,
-		"Goal:", "Improve dashboard filters.",
-		"Scope:", "filter controls only.",
-		"Constraints:", "keep existing layout.",
-		"Acceptance:", "Go tests pass.",
-	})
-	if err != nil {
-		t.Fatalf("plan failed: %v", err)
-	}
+			err := app.Run(context.Background(), []string{
+				"plan",
+				currentWorkspacePlanningFlag,
+				"Goal:", "Improve dashboard filters.",
+				"Scope:", "filter controls only.",
+				"Constraints:", "keep existing layout.",
+				"Acceptance:", "Go tests pass.",
+			})
+			if err != nil {
+				t.Fatalf("plan failed: %v", err)
+			}
 
-	got := stdout.String()
-	for _, want := range []string{"SPEC 결정 보고서:", "쉬운 요약:", "다음에 해야 할 작업:", "검토할 애매한 부분:"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("expected configured Korean report to contain %q, got %q", want, got)
-		}
-	}
-	for _, unwanted := range []string{"SPEC decision report:", "Plain-language summary:", "Next work to do:"} {
-		if strings.Contains(got, unwanted) {
-			t.Fatalf("expected configured Korean report to override English prompt, got %q", got)
-		}
+			got := stdout.String()
+			for _, want := range tc.want {
+				if !strings.Contains(got, want) {
+					t.Fatalf("expected configured %s report to contain %q, got %q", tc.language, want, got)
+				}
+			}
+			for _, unwanted := range tc.unwanted {
+				if strings.Contains(got, unwanted) {
+					t.Fatalf("expected configured %s report to override English prompt, got %q", tc.language, got)
+				}
+			}
+		})
 	}
 }
 

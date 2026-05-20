@@ -9,3 +9,4 @@
 - [x] Existing branch reuse, uniqueness, and dirty-workspace safeguards around planning start are preserved
 - [x] Namba report next-work wording consistently names the concrete command, review, validation, or handoff to do next.
 - [x] Namba clarification and report text follow the configured init language even when the user input uses another language.
+- [x] Configured-language output covers Japanese and Chinese instead of falling back to English.
