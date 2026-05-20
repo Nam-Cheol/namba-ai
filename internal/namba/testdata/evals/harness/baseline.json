@@ -28,7 +28,7 @@
     "route_domain_spring_boot_backend_skill": "7adf5972f3d395fe2e730835de444d3ae369431e3b3bd7a623feeb14c7a1d264",
     "route_ordinary_login_audit_logs": "d2fd169a8d737c58438b99f241ffd5b8ef03637362090f6df1699617f59de25e",
     "route_planned_generated_hook_template_fix": "9da4abb7af791386187414191de106d090c9f78fec34c153ec9071522530ef0e",
-    "security_sensitive_pr_token_handling": "0aa712cc51b3705e0c5352841afd17c75e3c296b43fe590015012d10b326b8d3"
+    "security_sensitive_pr_credential_redaction": "37efd8c51620a157620a04348b914ed8d73781fd4dc99ea3948d576cac5982cc"
   },
   "metric_pass_counts": {
     "artifact_targets": 1,

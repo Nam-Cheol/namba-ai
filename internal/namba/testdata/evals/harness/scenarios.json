@@ -388,10 +388,10 @@
       "rationale": "Read-only release guidance should stay outside the SPEC creation gate."
     },
     {
-      "id": "security_sensitive_pr_token_handling",
+      "id": "security_sensitive_pr_credential_redaction",
       "type": "prompt_refinement",
       "tags": ["coverage:security-sensitive-change", "family:prompt-refinement"],
-      "input": "Goal: Harden GitHub token handling in namba pr. Scope: PR command environment parsing only. Constraints: no network-dependent tests and no token logging. Acceptance: tests prove token values are redacted and missing tokens fail with actionable diagnostics.",
+      "input": "Goal: Harden GitHub credential redaction in namba pr. Scope: PR command environment parsing only. Constraints: no network-dependent tests and no secret logging. Acceptance: tests prove sensitive values are redacted and missing credentials fail with actionable diagnostics.",
       "expected": {
         "clarification_required": false,
         "language_behavior": "en",
