@@ -455,9 +455,14 @@ func normalizeReleaseSubject(subject string) string {
 }
 
 func renderReleaseNotes(version, previousTag string, commits []releaseCommit) string {
-	lines := []string{fmt.Sprintf("# %s 릴리즈 노트", version), ""}
+	return renderReleaseNotesForLanguage(version, previousTag, commits, "ko")
+}
+
+func renderReleaseNotesForLanguage(version, previousTag string, commits []releaseCommit, language string) string {
+	labels := releaseNotesLabelsForLanguage(language)
+	lines := []string{fmt.Sprintf(labels.TitleFormat, version), ""}
 	if previousTag != "" {
-		lines = append(lines, fmt.Sprintf("%s 이후 변경 사항입니다.", previousTag), "")
+		lines = append(lines, fmt.Sprintf(labels.SinceFormat, previousTag), "")
 	}
 
 	grouped := map[releaseNoteCategory][]releaseCommit{
@@ -474,10 +479,10 @@ func renderReleaseNotes(version, previousTag string, commits []releaseCommit) st
 		title    string
 		category releaseNoteCategory
 	}{
-		{title: "사용자에게 보이는 변경", category: releaseNoteCategoryUserVisible},
-		{title: "수정", category: releaseNoteCategoryFixes},
-		{title: "문서 및 워크플로", category: releaseNoteCategoryDocs},
-		{title: "내부 정비", category: releaseNoteCategoryInternal},
+		{title: labels.UserVisibleTitle, category: releaseNoteCategoryUserVisible},
+		{title: labels.FixesTitle, category: releaseNoteCategoryFixes},
+		{title: labels.DocsTitle, category: releaseNoteCategoryDocs},
+		{title: labels.InternalTitle, category: releaseNoteCategoryInternal},
 	}
 
 	for _, section := range sections {
@@ -497,10 +502,120 @@ func renderReleaseNotes(version, previousTag string, commits []releaseCommit) st
 	}
 
 	if len(commits) == 0 {
-		lines = append(lines, "- 이전 릴리스 이후 커밋이 없어 자동 요약을 만들지 못했습니다.", "")
+		lines = append(lines, labels.EmptyMessage, "")
+	} else {
+		lines = append(lines, fmt.Sprintf("## %s", labels.EvidenceTitle), "")
+		for _, evidence := range releaseNotesEvidenceLines(commits, labels) {
+			lines = append(lines, "- "+evidence)
+		}
+		lines = append(lines, "", fmt.Sprintf("## %s", labels.ValidationTitle), "", "- "+labels.ValidationPassed, "")
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+type releaseNotesLabels struct {
+	TitleFormat      string
+	SinceFormat      string
+	UserVisibleTitle string
+	FixesTitle       string
+	DocsTitle        string
+	InternalTitle    string
+	EvidenceTitle    string
+	ValidationTitle  string
+	ValidationPassed string
+	EmptyMessage     string
+	CommitCount      string
+	ReferenceList    string
+	CommitHashList   string
+}
+
+func releaseNotesLabelsForLanguage(language string) releaseNotesLabels {
+	switch normalizeReadmeLanguage(language) {
+	case "ja":
+		return releaseNotesLabels{
+			TitleFormat:      "# %s リリースノート",
+			SinceFormat:      "%s 以降の変更です。",
+			UserVisibleTitle: "ユーザー向けの変更",
+			FixesTitle:       "修正",
+			DocsTitle:        "ドキュメントとワークフロー",
+			InternalTitle:    "内部メンテナンス",
+			EvidenceTitle:    "証跡ソース",
+			ValidationTitle:  "検証結果",
+			ValidationPassed: "`namba release` はタグ作成前に設定済み validation を通過しました。",
+			EmptyMessage:     "- 前回リリース以降のコミットがなく、自動要約を作成できませんでした。",
+			CommitCount:      "対象コミット数: %d",
+			ReferenceList:    "参照: %s",
+			CommitHashList:   "短縮コミット: %s",
+		}
+	case "zh":
+		return releaseNotesLabels{
+			TitleFormat:      "# %s 发布说明",
+			SinceFormat:      "自 %s 以来的变更。",
+			UserVisibleTitle: "用户可见变更",
+			FixesTitle:       "修复",
+			DocsTitle:        "文档与工作流",
+			InternalTitle:    "内部维护",
+			EvidenceTitle:    "证据来源",
+			ValidationTitle:  "验证结果",
+			ValidationPassed: "`namba release` 在创建标签前已通过配置的 validation。",
+			EmptyMessage:     "- 上一个版本以来没有提交，无法生成自动摘要。",
+			CommitCount:      "目标提交数: %d",
+			ReferenceList:    "引用: %s",
+			CommitHashList:   "短提交: %s",
+		}
+	case "en":
+		return releaseNotesLabels{
+			TitleFormat:      "# %s Release Notes",
+			SinceFormat:      "Changes since %s.",
+			UserVisibleTitle: "User-Visible Changes",
+			FixesTitle:       "Fixes",
+			DocsTitle:        "Docs and Workflow",
+			InternalTitle:    "Internal Maintenance",
+			EvidenceTitle:    "Evidence Sources",
+			ValidationTitle:  "Validation Result",
+			ValidationPassed: "`namba release` passed the configured validation before tagging.",
+			EmptyMessage:     "- No commits were found since the previous release, so an automatic summary could not be created.",
+			CommitCount:      "Commit count: %d",
+			ReferenceList:    "References: %s",
+			CommitHashList:   "Short commits: %s",
+		}
+	default:
+		return releaseNotesLabels{
+			TitleFormat:      "# %s 릴리즈 노트",
+			SinceFormat:      "%s 이후 변경 사항입니다.",
+			UserVisibleTitle: "사용자에게 보이는 변경",
+			FixesTitle:       "수정",
+			DocsTitle:        "문서 및 워크플로",
+			InternalTitle:    "내부 정비",
+			EvidenceTitle:    "증거 출처",
+			ValidationTitle:  "검증 결과",
+			ValidationPassed: "`namba release`가 태그 생성 전에 구성된 validation을 통과했습니다.",
+			EmptyMessage:     "- 이전 릴리스 이후 커밋이 없어 자동 요약을 만들지 못했습니다.",
+			CommitCount:      "대상 커밋 수: %d",
+			ReferenceList:    "참조: %s",
+			CommitHashList:   "짧은 커밋: %s",
+		}
+	}
+}
+
+func releaseNotesEvidenceLines(commits []releaseCommit, labels releaseNotesLabels) []string {
+	refs := make([]string, 0)
+	hashes := make([]string, 0, len(commits))
+	for _, commit := range commits {
+		if commit.ShortHash != "" {
+			hashes = append(hashes, commit.ShortHash)
+		}
+		refs = append(refs, commit.Refs...)
+	}
+	lines := []string{fmt.Sprintf(labels.CommitCount, len(commits))}
+	if refs = uniqueStrings(refs); len(refs) > 0 {
+		lines = append(lines, fmt.Sprintf(labels.ReferenceList, strings.Join(refs, ", ")))
+	}
+	if hashes = uniqueStrings(hashes); len(hashes) > 0 {
+		lines = append(lines, fmt.Sprintf(labels.CommitHashList, strings.Join(hashes, ", ")))
+	}
+	return lines
 }
 
 func renderReleaseCommitSuffix(commit releaseCommit) string {

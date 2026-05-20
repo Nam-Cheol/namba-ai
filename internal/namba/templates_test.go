@@ -1077,6 +1077,11 @@ func TestSkillSurfaceEvolutionHarnessContracts(t *testing.T) {
 
 	prSkill := renderPRCommandSkill(initProfile{PRBaseBranch: "main", PRLanguage: "ko", CodexReviewComment: "@codex review"})
 	for _, want := range []string{
+		"concrete completed work",
+		"changed areas or files",
+		"evidence sources",
+		"validation results",
+		"avoid empty placeholder prose",
 		"Inspect current PR check status before review handoff",
 		"bounded GitHub Actions failure snippets",
 		"external checks by status and details URL only",
@@ -1084,6 +1089,19 @@ func TestSkillSurfaceEvolutionHarnessContracts(t *testing.T) {
 	} {
 		if !strings.Contains(prSkill, want) {
 			t.Fatalf("pr skill missing SPEC-040 contract %q: %q", want, prSkill)
+		}
+	}
+
+	releaseSkill := renderReleaseCommandSkill()
+	for _, want := range []string{
+		"actual changes",
+		"evidence sources such as SPEC IDs, PR numbers, short commit hashes, source artifacts, and validation results",
+		"explicit user-requested language",
+		"init or project-configured language",
+		"rather than an empty or generic body",
+	} {
+		if !strings.Contains(releaseSkill, want) {
+			t.Fatalf("release skill missing SPEC-054 contract %q: %q", want, releaseSkill)
 		}
 	}
 
