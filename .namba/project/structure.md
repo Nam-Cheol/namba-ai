@@ -443,6 +443,13 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-051/reviews/product.md
 .namba/specs/SPEC-051/reviews/readiness.md
 .namba/specs/SPEC-051/spec.md
+.namba/specs/SPEC-052/acceptance.md
+.namba/specs/SPEC-052/plan.md
+.namba/specs/SPEC-052/reviews/design.md
+.namba/specs/SPEC-052/reviews/engineering.md
+.namba/specs/SPEC-052/reviews/product.md
+.namba/specs/SPEC-052/reviews/readiness.md
+.namba/specs/SPEC-052/spec.md
 AGENTS.md
 LICENSE
 README.ja.md
@@ -475,6 +482,7 @@ internal/namba/codex.go
 internal/namba/codex_access.go
 internal/namba/codex_access_command_test.go
 internal/namba/codex_capability.go
+internal/namba/codex_diagnostics.go
 internal/namba/codex_mcp.go
 internal/namba/console_other.go
 internal/namba/console_windows.go

@@ -117,16 +117,17 @@ type queueRunnerValidationEvidence struct {
 }
 
 type queueRunnerEvidence struct {
-	SchemaVersion string                        `json:"schema_version"`
-	SpecID        string                        `json:"spec_id"`
-	Status        string                        `json:"status"`
-	Runner        string                        `json:"runner"`
-	HeadSHA       string                        `json:"head_sha,omitempty"`
-	StartedAt     string                        `json:"started_at,omitempty"`
-	FinishedAt    string                        `json:"finished_at,omitempty"`
-	Validation    queueRunnerValidationEvidence `json:"validation"`
-	Error         string                        `json:"error,omitempty"`
-	Message       string                        `json:"message,omitempty"`
+	SchemaVersion    string                        `json:"schema_version"`
+	SpecID           string                        `json:"spec_id"`
+	Status           string                        `json:"status"`
+	Runner           string                        `json:"runner"`
+	HeadSHA          string                        `json:"head_sha,omitempty"`
+	StartedAt        string                        `json:"started_at,omitempty"`
+	FinishedAt       string                        `json:"finished_at,omitempty"`
+	Validation       queueRunnerValidationEvidence `json:"validation"`
+	CodexDiagnostics *codexDiagnosticsEvidence     `json:"codex_diagnostics,omitempty"`
+	Error            string                        `json:"error,omitempty"`
+	Message          string                        `json:"message,omitempty"`
 }
 
 type queueRunnerHeartbeat struct {
@@ -638,7 +639,7 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 		if err := a.dispatchRunExecution(ctx, runExecuteOptions{specID: specID, mode: executionModeTeam}, runCtx); err != nil {
 			finishedAt := a.now().Format(time.RFC3339)
 			_ = writeQueueRunnerHeartbeat(root, specID, queueRunnerCLI, "failed", startedAt, finishedAt)
-			_ = writeQueueRunnerEvidence(root, queueRunnerEvidence{
+			_ = a.writeQueueRunnerEvidence(ctx, root, queueRunnerEvidence{
 				SchemaVersion: "queue-runner-evidence/v1",
 				SpecID:        specID,
 				Status:        "runner_failed",
@@ -660,7 +661,7 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 		if !executionReady {
 			finishedAt := a.now().Format(time.RFC3339)
 			_ = writeQueueRunnerHeartbeat(root, specID, queueRunnerCLI, "ambiguous", startedAt, finishedAt)
-			_ = writeQueueRunnerEvidence(root, queueRunnerEvidence{
+			_ = a.writeQueueRunnerEvidence(ctx, root, queueRunnerEvidence{
 				SchemaVersion: "queue-runner-evidence/v1",
 				SpecID:        specID,
 				Status:        "validation_ambiguous",
@@ -677,7 +678,7 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 		if err := writeQueueRunnerHeartbeat(root, specID, queueRunnerCLI, "completed", startedAt, finishedAt); err != nil {
 			return blockQueueSpec(a, root, state, specID, "runner_heartbeat_failed", queueRunnerHeartbeatPath(specID), "inspect run heartbeat and run `namba queue resume`", err.Error())
 		}
-		if err := writeQueueRunnerEvidence(root, queueRunnerEvidence{
+		if err := a.writeQueueRunnerEvidence(ctx, root, queueRunnerEvidence{
 			SchemaVersion: "queue-runner-evidence/v1",
 			SpecID:        specID,
 			Status:        "completed",
@@ -1249,6 +1250,19 @@ func queueRunnerHeartbeatPath(specID string) string {
 func writeQueueRunnerEvidence(root string, evidence queueRunnerEvidence) error {
 	evidence.SchemaVersion = firstNonBlank(evidence.SchemaVersion, "queue-runner-evidence/v1")
 	return writeJSONFile(filepath.Join(root, logsDir, "runs", strings.ToLower(evidence.SpecID)+"-queue-evidence.json"), evidence)
+}
+
+func (a *App) writeQueueRunnerEvidence(ctx context.Context, root string, evidence queueRunnerEvidence) error {
+	if evidence.CodexDiagnostics == nil {
+		diagnostics := a.buildCodexDiagnosticsEvidence(ctx, root, codexDiagnosticsOptions{
+			LogDir:                filepath.ToSlash(filepath.Join(logsDir, "runs")),
+			LogPrefix:             strings.ToLower(evidence.SpecID) + "-queue",
+			RunCommands:           false,
+			IncludeDoctorLogFiles: false,
+		})
+		evidence.CodexDiagnostics = &diagnostics
+	}
+	return writeQueueRunnerEvidence(root, evidence)
 }
 
 func writeQueueRunnerHeartbeat(root, specID, runner, status, startedAt, updatedAt string) error {

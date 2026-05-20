@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 const updateRepo = "Nam-Cheol/namba-ai"
@@ -52,6 +53,7 @@ func (a *App) runUpdate(ctx context.Context, args []string) error {
 	}
 
 	fmt.Fprintf(a.stdout, "Downloading %s using %s for %s...\n", target.TargetVersion, target.AssetName, target.Platform)
+	a.printCodexBaselineAdvice(ctx)
 
 	url := releaseDownloadURL(opts.Version, assetName)
 	archiveData, err := a.downloadURL(ctx, url)
@@ -87,6 +89,22 @@ func (a *App) runUpdate(ctx context.Context, args []string) error {
 
 	fmt.Fprintf(a.stdout, "Updated NambaAI from %s to %s using %s for %s at %s. Open a new terminal and run 'namba --version' to confirm.\n", target.CurrentVersion, target.TargetVersion, target.AssetName, target.Platform, execPath)
 	return nil
+}
+
+func (a *App) printCodexBaselineAdvice(ctx context.Context) {
+	if _, err := a.lookPath("codex"); err != nil {
+		fmt.Fprintf(a.stdout, "Codex baseline advice: Codex version is unavailable; advisory baseline is %s. `namba update` updates only NambaAI.\n", codexDiagnosticsBaselineVersion)
+		return
+	}
+	versionCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	out, err := a.runBinary(versionCtx, "codex", []string{"--version"}, "")
+	version := buildCodexVersionEvidence(out, err)
+	advice := formatCodexBaselineAdvice(codexDiagnosticsEvidence{Version: version})
+	if strings.TrimSpace(advice) == "" {
+		return
+	}
+	fmt.Fprintf(a.stdout, "%s `namba update` updates only NambaAI.\n", advice)
 }
 
 func parseUpdateArgs(args []string) (updateOptions, error) {

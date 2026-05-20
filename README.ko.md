@@ -98,6 +98,8 @@ continue_on_failure = false
 - 최신 릴리스로 업데이트: `namba update`
 - 특정 릴리스로 고정: `namba update --version vX.Y.Z`
 - `namba update`는 NambaAI CLI만 업데이트합니다. upstream Codex CLI는 `codex update`로 업데이트합니다.
+- `namba update`는 Codex 0.131 baseline advice를 출력할 수 있지만 Codex 설치나 업데이트는 관리하지 않습니다.
+- Codex diagnostics evidence는 `.namba/logs/project/codex-diagnostics-evidence.json`, `.namba/logs/runs/<log-id>-evidence.json`, `.namba/logs/runs/<spec-id-lower>-queue-evidence.json`에서 확인합니다.
 - 제거 (Windows): `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe`를 삭제하고 더 이상 필요 없으면 `%LOCALAPPDATA%\Programs\NambaAI\bin`를 사용자 `PATH`에서 제거합니다.
 - 제거 (macOS / Linux): `~/.local/bin/namba`를 삭제하고 더 이상 필요 없으면 설치기가 추가한 `PATH` 줄을 `~/.profile` 또는 `~/.zshrc`에서 제거합니다.
 

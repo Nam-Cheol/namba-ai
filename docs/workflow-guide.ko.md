@@ -51,6 +51,8 @@ NambaAI 워크플로는 먼저 저장소를 읽고, 작업을 SPEC로 정리하�
 
 - `namba update`: 설치된 CLI를 GitHub Release 자산 기준으로 self-update 합니다.
 - `codex update`: upstream Codex CLI를 업데이트합니다. `namba update`와 별개의 명령입니다.
+- `namba update`는 Codex 0.131 baseline advice를 출력할 수 있지만 Codex 설치나 업데이트는 관리하지 않습니다.
+- Codex diagnostics evidence는 `.namba/logs/project/codex-diagnostics-evidence.json`, `.namba/logs/runs/<log-id>-evidence.json`, `.namba/logs/runs/<spec-id-lower>-queue-evidence.json`에서 확인합니다. `codex doctor` 로그는 evidence를 만든 artifact 옆에 redacted text로 저장됩니다.
 - `namba regen`: AGENTS, skills, custom agents, repo Codex config 같은 template-generated asset을 다시 생성합니다.
 - `namba sync`: README, 프로젝트 문서, codemap, advisory review readiness, PR checklist, release notes를 갱신합니다.
 - `namba queue`: 이미 존재하는 SPEC 패키지를 새로 만들지 않고 순서대로 처리하며, durable state와 Git/GitHub gate를 기준으로 안전하게 resume/block 합니다.

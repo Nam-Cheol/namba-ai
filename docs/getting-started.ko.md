@@ -42,6 +42,7 @@ NambaAI는 Codex 작업을 바로 실행하기 전에 목표, 범위, 제약, �
 - 최신 릴리스: `namba update`
 - 특정 릴리스: `namba update --version vX.Y.Z`
 - Codex CLI 자체는 `codex update`로 업데이트합니다.
+- `namba update`는 Codex 0.131 baseline advice를 출력할 수 있지만 Codex 설치나 업데이트는 관리하지 않습니다.
 - 업데이트한 바이너리가 바로 잡히지 않으면 터미널을 다시 여세요.
 
 ## 3. 제거

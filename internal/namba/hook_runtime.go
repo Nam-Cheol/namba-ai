@@ -298,6 +298,13 @@ func (l *hookLifecycle) writeRunEvidence(ctx context.Context, status string, val
 			Path: relPath,
 		}
 	}
+	diagnostics := l.app.buildCodexDiagnosticsEvidence(ctx, l.artifactRoot, codexDiagnosticsOptions{
+		LogDir:                filepath.ToSlash(filepath.Join(logsDir, "runs")),
+		LogPrefix:             l.logID,
+		RunCommands:           false,
+		Request:               &l.req,
+		IncludeDoctorLogFiles: false,
+	})
 
 	return l.app.writeExecutionEvidenceManifest(l.artifactRoot, executionEvidenceOptions{
 		ProjectRoot:        l.artifactRoot,
@@ -310,6 +317,7 @@ func (l *hookLifecycle) writeRunEvidence(ctx context.Context, status string, val
 		GeneratedAt:        l.app.now(),
 		FinalizedBy:        "executeRun",
 		Progress:           progress,
+		CodexDiagnostics:   &diagnostics,
 		Hooks:              l.results,
 	})
 }

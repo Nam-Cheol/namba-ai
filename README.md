@@ -98,6 +98,8 @@ continue_on_failure = false
 - Update to the latest release: `namba update`
 - Pin a specific release: `namba update --version vX.Y.Z`
 - `namba update` updates only the NambaAI CLI. Use upstream `codex update` for the Codex CLI.
+- `namba update` may print Codex 0.131 baseline advice, but it never installs or updates Codex.
+- Inspect Codex diagnostics evidence at `.namba/logs/project/codex-diagnostics-evidence.json`, `.namba/logs/runs/<log-id>-evidence.json`, and `.namba/logs/runs/<spec-id-lower>-queue-evidence.json`.
 - Uninstall on Windows: remove `%LOCALAPPDATA%\Programs\NambaAI\bin\namba.exe`, then remove `%LOCALAPPDATA%\Programs\NambaAI\bin` from your user `PATH` if you no longer need it.
 - Uninstall on macOS / Linux: remove `~/.local/bin/namba`, then delete the `PATH` line that the installer added to `~/.profile` or `~/.zshrc` if you no longer need it.
 
