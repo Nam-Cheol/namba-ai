@@ -20,6 +20,8 @@ jobs:
         run: python3 -m unittest discover -s tests
       - name: Run tests
         run: go test ./...
+      - name: Run harness eval regression check
+        run: go run ./cmd/namba eval --suite harness --format json --baseline internal/namba/testdata/evals/harness/baseline.json --fail-on-regression
       - name: Run vet
         run: go vet ./...
       - name: Check formatting

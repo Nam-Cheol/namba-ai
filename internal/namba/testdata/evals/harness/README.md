@@ -2,7 +2,14 @@
 
 This directory is a small golden eval pack for NambaAI harness quality boundaries. It is intentionally fixture-driven and deterministic: cases must not call LLMs, GitHub, Codex CLI, network services, wall-clock dependent services, or user-specific local configuration.
 
-Run the eval pack with the normal project checks:
+Run the public eval pack directly:
+
+```sh
+namba eval --suite harness
+namba eval --suite harness --format json --baseline internal/namba/testdata/evals/harness/baseline.json --fail-on-regression
+```
+
+Run the fixture-level regression tests with the normal project checks:
 
 ```sh
 go test ./...
@@ -17,6 +24,8 @@ python3 -m unittest discover -s tests
 - `guardrail_cases.json` measures dangerous shell denials, safe commands, and approval-risk notes through the real hook subprocess.
 - `evidence_manifest_cases.json` measures execution evidence manifest boundaries. Raw-schema cases validate fixture shape without builder defaults. Builder-normalization cases call the existing manifest builder and assert normalized state.
 - `pr_review_cases.json` measures explicit Codex review opt-in behavior using existing PR parsing and review-comment helpers.
+- `scenarios.json` is the public `namba eval` corpus. It references the same fixture families through one stable scenario/result contract.
+- `baseline.json` is the checked-in regression baseline used by `--fail-on-regression`.
 
 ## Fixture Schemas
 
@@ -76,6 +85,24 @@ PR review cases use:
 - `existing_comments`
 - `expected_review_requested`
 - `expected_duplicate_review_comment`
+
+The unified public scenario schema uses:
+
+- `schema_version`: currently `namba-eval-scenarios/v1`
+- `suite`: currently `harness`
+- `corpus_version`: stable corpus identifier for baseline compatibility
+- `scenarios`: scenario objects with `id`, `type`, `tags`, optional `input`, `expected`, optional type-specific `fixture`, and `rationale`
+
+The public result schema emitted by `namba eval --format json` uses:
+
+- `schema_version`: currently `namba-eval-results/v1`
+- `suite`
+- `generated_at`
+- `summary`
+- `metrics`
+- `scenarios`
+- `baseline`
+- `regressions`
 
 ## Adding Cases
 
