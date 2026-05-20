@@ -3,6 +3,8 @@ name: namba-workflow-project
 description: Project analysis, codemap refresh, and documentation generation for NambaAI.
 ---
 
+State effect: mutating project documentation workflow. Read-only only when explaining current project-analysis behavior.
+
 Use this skill to:
 - refresh project docs
 - summarize structure and entry points

@@ -12,6 +12,7 @@ python3 -m unittest discover -s tests
 ## Files
 
 - `route_cases.json` measures command-selection and harness sidecar outcomes for core harness planning, domain harness planning, direct artifact creation, ordinary planning, and bugfix SPEC planning.
+- `mention_plugin_cases.json` measures Codex unified `@` mention and plugin/list-backed metadata ambiguity without making mention search the Namba command router or requiring plugin installation.
 - `prompt_refinement_cases.json` measures the Codex lifecycle hook prompt-refinement gate through the real `.codex/hooks/namba_codex_guard.py` subprocess.
 - `guardrail_cases.json` measures dangerous shell denials, safe commands, and approval-risk notes through the real hook subprocess.
 - `evidence_manifest_cases.json` measures execution evidence manifest boundaries. Raw-schema cases validate fixture shape without builder defaults. Builder-normalization cases call the existing manifest builder and assert normalized state.
@@ -36,6 +37,14 @@ Route cases use:
 - optional `expected_delivery_mode`
 - optional `expected_required_evidence`
 - optional `expected_review_flags`
+
+Mention/plugin cases use:
+
+- `input`
+- `mention_kinds`
+- `expected_namba_routing`
+- `expected_platform_readiness`
+- `expected_requires_plugin_install`
 
 Prompt refinement cases use:
 

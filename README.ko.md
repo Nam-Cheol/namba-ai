@@ -90,6 +90,15 @@ continue_on_failure = false
 - ⚙️ 자주 쓰는 이벤트: `before_preflight`, `after_preflight`, `before_execution`, `after_execution`, `before_validation`, `after_validation`, `on_failure`.
 - 🔭 Tool-boundary 이벤트인 `after_patch`, `after_bash`, `after_mcp_tool`은 runner가 typed observation을 제공할 때만 실행되며, 자유 형식 로그에서 추론하지 않습니다.
 
+## 🔌 Optional Codex Platform Readiness
+
+- 로컬 NambaAI 흐름에는 plugin 설치, marketplace publish, remote-control, remote environment, Python SDK가 필요하지 않습니다.
+- Codex unified `@` mention은 파일, 디렉터리, plugin, skill을 찾는 Codex 플랫폼 기능입니다. Namba workflow 라우팅은 `$namba-*` skill과 `namba ...` 명령 의미를 기준으로 판단합니다.
+- Plugin packaging, marketplace CLI, version-aware sharing, share checkout, shared-workspace plugin bucket, default-enabled plugin hook은 선택적 readiness path입니다. Namba docs가 이를 언급해도 publish/install 요구가 아닙니다.
+- Remote-control과 remote environment는 `.namba/logs/project/codex-diagnostics-evidence.json`, run evidence, queue evidence의 `codex_diagnostics`에 `unavailable`, `disabled`, `enabled`, `configured`, `local_fallback` 같은 상태로만 기록됩니다.
+- Remote readiness 상태가 workflow 실패를 뜻하지 않습니다. 일반 `namba plan`, `namba run`, `namba queue`, `namba sync`, `namba pr`, `namba land`, `namba release`는 기본적으로 local-first입니다.
+- Codex Python SDK를 언급해야 할 때 distribution은 `openai-codex`, import package는 `openai_codex`로 씁니다. NambaAI는 이 언급만으로 Python runtime dependency를 추가하지 않습니다.
+
 ## 📦 설치, 업데이트, 제거
 
 - 설치 (Windows): `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`

@@ -3,6 +3,8 @@ name: namba-help
 description: Read-only entry point for explaining how to use NambaAI in the current repository.
 ---
 
+State effect: read-only guidance. Do not mutate repository state.
+
 Use this skill when the user explicitly says `$namba-help`, asks how to use NambaAI, wants to know which command or skill to use next, or needs a read-only walkthrough of the current repository workflow.
 
 Behavior:

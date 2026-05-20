@@ -3,6 +3,8 @@ name: namba-plan-review
 description: Command-style entry point for bundling SPEC creation, parallel plan reviews, and advisory readiness validation.
 ---
 
+State effect: mutating workflow entry point. Use help/probe paths read-only, and otherwise expect repository state or GitHub state to change.
+
 Use this skill when the user explicitly says `$namba-plan-review`, asks to create a SPEC and run the full pre-implementation review loop, or wants `namba plan` plus the review flow bundled into one skill.
 
 Behavior:

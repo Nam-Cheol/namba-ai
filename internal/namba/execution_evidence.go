@@ -159,6 +159,12 @@ func (a *App) writeRunExecutionEvidence(projectRoot, logID string, req execution
 
 func (a *App) writeParallelExecutionEvidence(root, specID, runID, status string, dryRun, progressLogFailed bool) error {
 	logID := strings.ToLower(strings.TrimSpace(specID)) + "-parallel"
+	diagnostics := a.buildCodexDiagnosticsEvidence(context.Background(), root, codexDiagnosticsOptions{
+		LogDir:                filepath.ToSlash(filepath.Join(logsDir, "runs")),
+		LogPrefix:             logID,
+		RunCommands:           false,
+		IncludeDoctorLogFiles: false,
+	})
 	return a.writeExecutionEvidenceManifest(root, executionEvidenceOptions{
 		ProjectRoot:       root,
 		LogID:             logID,
@@ -190,6 +196,7 @@ func (a *App) writeParallelExecutionEvidence(root, specID, runID, status string,
 			Kind: "parallel_progress",
 			Path: relativeParallelProgressLogPath(specID),
 		},
+		CodexDiagnostics: &diagnostics,
 	})
 }
 

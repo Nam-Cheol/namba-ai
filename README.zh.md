@@ -90,6 +90,15 @@ continue_on_failure = false
 - ⚙️ 常用事件: `before_preflight`、`after_preflight`、`before_execution`、`after_execution`、`before_validation`、`after_validation`、`on_failure`。
 - 🔭 Tool-boundary 事件 `after_patch`、`after_bash`、`after_mcp_tool` 只会在 runner 提供 typed observation 时运行，不会从自由格式日志中推断。
 
+## 🔌 Optional Codex Platform Readiness
+
+- 本地 NambaAI workflow 不需要安装 plugin、发布 marketplace、启用 remote-control、配置 remote environment 或使用 Python SDK。
+- Codex unified `@` mention 是 Codex 平台搜索文件、目录、plugin 和 skill 的功能。Namba workflow routing 仍以 `$namba-*` skill 和 `namba ...` 命令意图为准。
+- Plugin packaging、marketplace CLI、version-aware sharing、share checkout、shared-workspace plugin bucket 和 default-enabled plugin hook 都是可选 readiness path，不是发布或安装要求。
+- Remote-control 和 remote-environment 状态只会作为 `codex_diagnostics` evidence 出现，例如 `unavailable`、`disabled`、`enabled`、`configured` 或 `local_fallback`。
+- Remote readiness 状态不等于 workflow failure；普通 Namba 命令保持 local-first。
+- 提到 Codex Python SDK 时，distribution 使用 `openai-codex`，import package 使用 `openai_codex`。
+
 ## 📦 安装、更新与卸载
 
 - 在 Windows 上安装: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`

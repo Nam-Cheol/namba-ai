@@ -3,6 +3,8 @@ name: namba-review-resolve
 description: Command-style entry point for resolving GitHub PR review feedback with thread-aware state.
 ---
 
+State effect: mutating workflow entry point. Use help/probe paths read-only, and otherwise expect repository state or GitHub state to change.
+
 Use this skill when the user explicitly says `$namba-review-resolve`, asks to resolve review comments, or uses Korean wording equivalent to `리뷰 확인하고 의미있는 리뷰면 수정 후에 해당 리뷰에 답변을 달고, resolve한 다음 다시 리뷰 요청해`.
 
 Behavior:

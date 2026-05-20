@@ -3,6 +3,8 @@ name: namba-sync
 description: Command-style entry point for refreshing Namba project artifacts after implementation.
 ---
 
+State effect: mutating workflow entry point. Use help/probe paths read-only, and otherwise expect repository state or GitHub state to change.
+
 Use this skill when the user explicitly says `$namba-sync`, `namba sync`, or asks to refresh PR-ready Namba artifacts after changes.
 
 Behavior:

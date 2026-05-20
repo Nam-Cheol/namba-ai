@@ -3,6 +3,8 @@ name: namba-harness
 description: Command-style entry point for creating the next harness-oriented SPEC package.
 ---
 
+State effect: mutating workflow entry point. Use help/probe paths read-only, and otherwise expect repository state or GitHub state to change.
+
 Use this skill when the user explicitly says `$namba-harness`, `namba harness`, or asks to create a harness-oriented SPEC package.
 
 Behavior:

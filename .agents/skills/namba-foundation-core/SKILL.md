@@ -5,6 +5,8 @@ description: Core NambaAI workflow, SPEC discipline, TRUST quality gates, and Co
 
 Use this skill when the task involves NambaAI workflow orchestration, SPEC handling, quality gates, or phased delivery.
 
+State effect: guidance plus execution support. Read-only when used for orientation; mutating only when the active Namba workflow is already executing.
+
 Key ideas:
 - SPEC-first execution
 - Codex-native implementation for `namba run` requests inside an interactive session

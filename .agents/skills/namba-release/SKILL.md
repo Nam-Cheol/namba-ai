@@ -3,6 +3,8 @@ name: namba-release
 description: Command-style entry point for NambaAI release orchestration and release-note handoff.
 ---
 
+State effect: mutating workflow entry point. Use help/probe paths read-only, and otherwise expect repository state or GitHub state to change.
+
 Use this skill when the user explicitly says `$namba-release`, `namba release` in a Codex workflow context, or Korean wording such as `릴리즈 진행해`.
 
 Behavior:

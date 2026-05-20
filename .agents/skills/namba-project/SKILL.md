@@ -3,6 +3,8 @@ name: namba-project
 description: Command-style entry point for refreshing project docs and codemaps.
 ---
 
+State effect: mutating workflow entry point. Use help/probe paths read-only, and otherwise expect repository state or GitHub state to change.
+
 Use this skill when the user explicitly says `$namba-project`, `namba project`, or asks to analyze the current repository before implementation.
 
 Behavior:

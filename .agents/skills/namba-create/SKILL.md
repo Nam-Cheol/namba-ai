@@ -3,6 +3,8 @@ name: namba-create
 description: Skill-first entry point for creating a repo-local skill, a project-scoped custom agent, or both.
 ---
 
+State effect: preview-first mutation. Do not write repo-local skills or agents until the preview is confirmed.
+
 Use this skill when the user explicitly says `$namba-create` or asks to create a repo-local skill, a project-scoped custom agent, or both through Namba.
 
 Behavior:
