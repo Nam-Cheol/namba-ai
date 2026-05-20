@@ -609,7 +609,7 @@ func (a *App) runStatus(_ context.Context, args []string) error {
 	return nil
 }
 
-func (a *App) runProject(_ context.Context, args []string) error {
+func (a *App) runProject(ctx context.Context, args []string) error {
 	if handled, err := a.handleNoArgTopLevelCommand("project", args); handled {
 		return err
 	}
@@ -630,6 +630,28 @@ func (a *App) runProject(_ context.Context, args []string) error {
 	outputs := analysis.renderOutputs()
 	if _, err := a.replaceManagedOutputs(root, outputs, isProjectAnalysisManagedPath, nil); err != nil {
 		return err
+	}
+	systemCfg, _ := a.loadSystemConfig(root)
+	codexCfg, _ := a.loadCodexConfig(root)
+	diagnostics := a.buildCodexDiagnosticsEvidence(ctx, root, codexDiagnosticsOptions{
+		LogDir:                filepath.ToSlash(filepath.Join(logsDir, "project")),
+		LogPrefix:             "codex",
+		RunCommands:           true,
+		SystemConfig:          systemCfg,
+		ConfiguredRoots:       append([]string{root}, codexCfg.AddDirs...),
+		IncludeDoctorLogFiles: true,
+	})
+	projectEvidence := projectCodexDiagnosticsEvidence{
+		SchemaVersion: projectCodexDiagnosticsSchema,
+		GeneratedAt:   a.now().Format(time.RFC3339),
+		ProjectRoot:   root,
+		Diagnostics:   diagnostics,
+	}
+	if err := writeJSONFile(filepath.Join(root, logsDir, "project", "codex-diagnostics-evidence.json"), projectEvidence); err != nil {
+		return err
+	}
+	if diagnostics.WorkspaceRootComparison.Status == "advisory_mismatch" {
+		fmt.Fprintf(a.stdout, "Codex workspace advisory: %s Compared roots: %s\n", diagnostics.WorkspaceRootComparison.Message, strings.Join(diagnostics.WorkspaceRootComparison.Compared, ", "))
 	}
 
 	for _, warning := range analysis.Quality.Warnings {

@@ -51,6 +51,8 @@ NambaAI work starts by reading the repository, shaping a SPEC, implementing and 
 
 - `namba update`: self-update the installed CLI from GitHub Release assets
 - `codex update`: update the upstream Codex CLI; this is separate from `namba update`
+- `namba update` may print Codex 0.131 baseline advice, but it never installs or updates Codex
+- Inspect Codex diagnostics evidence at `.namba/logs/project/codex-diagnostics-evidence.json`, `.namba/logs/runs/<log-id>-evidence.json`, and `.namba/logs/runs/<spec-id-lower>-queue-evidence.json`. `codex doctor` logs are saved as redacted text beside the artifact that triggered them
 - `namba regen`: regenerate AGENTS, skills, custom agents, and repo Codex config
 - `namba sync`: refresh README, project docs, codemaps, advisory review readiness, PR checklists, and release notes
 - `namba queue`: process existing SPEC packages in order without creating new SPECs, using durable state plus Git/GitHub gates to resume or block safely

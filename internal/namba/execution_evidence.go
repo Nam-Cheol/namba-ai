@@ -1,6 +1,7 @@
 package namba
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -51,22 +52,23 @@ type executionEvidenceFinalization struct {
 }
 
 type executionEvidenceManifest struct {
-	SchemaVersion string                        `json:"schema_version"`
-	LogID         string                        `json:"log_id"`
-	RunID         string                        `json:"run_id"`
-	SpecID        string                        `json:"spec_id,omitempty"`
-	GeneratedAt   string                        `json:"generated_at"`
-	ExecutionMode string                        `json:"execution_mode,omitempty"`
-	Advisory      bool                          `json:"advisory"`
-	Status        string                        `json:"status"`
-	Finalization  executionEvidenceFinalization `json:"finalization"`
-	Request       executionEvidenceRef          `json:"request"`
-	Preflight     executionEvidenceRef          `json:"preflight"`
-	Execution     executionEvidenceRef          `json:"execution"`
-	Validation    executionEvidenceRef          `json:"validation"`
-	Progress      executionEvidenceRef          `json:"progress"`
-	Extensions    executionEvidenceExtensions   `json:"extensions"`
-	Hooks         []hookResult                  `json:"hooks"`
+	SchemaVersion    string                        `json:"schema_version"`
+	LogID            string                        `json:"log_id"`
+	RunID            string                        `json:"run_id"`
+	SpecID           string                        `json:"spec_id,omitempty"`
+	GeneratedAt      string                        `json:"generated_at"`
+	ExecutionMode    string                        `json:"execution_mode,omitempty"`
+	Advisory         bool                          `json:"advisory"`
+	Status           string                        `json:"status"`
+	Finalization     executionEvidenceFinalization `json:"finalization"`
+	Request          executionEvidenceRef          `json:"request"`
+	Preflight        executionEvidenceRef          `json:"preflight"`
+	Execution        executionEvidenceRef          `json:"execution"`
+	Validation       executionEvidenceRef          `json:"validation"`
+	Progress         executionEvidenceRef          `json:"progress"`
+	Extensions       executionEvidenceExtensions   `json:"extensions"`
+	CodexDiagnostics *codexDiagnosticsEvidence     `json:"codex_diagnostics,omitempty"`
+	Hooks            []hookResult                  `json:"hooks"`
 }
 
 type executionEvidenceRefInput struct {
@@ -94,6 +96,7 @@ type executionEvidenceOptions struct {
 	BrowserArtifacts     []executionEvidenceRef
 	RuntimeArtifacts     []executionEvidenceRef
 	RuntimeSignalBundles []executionEvidenceSignalBundle
+	CodexDiagnostics     *codexDiagnosticsEvidence
 	Hooks                []hookResult
 }
 
@@ -131,6 +134,14 @@ func (a *App) writeRunExecutionEvidence(projectRoot, logID string, req execution
 		}
 	}
 
+	diagnostics := a.buildCodexDiagnosticsEvidence(context.Background(), projectRoot, codexDiagnosticsOptions{
+		LogDir:                filepath.ToSlash(filepath.Join(logsDir, "runs")),
+		LogPrefix:             logID,
+		RunCommands:           false,
+		Request:               &req,
+		IncludeDoctorLogFiles: false,
+	})
+
 	return a.writeExecutionEvidenceManifest(projectRoot, executionEvidenceOptions{
 		ProjectRoot:        projectRoot,
 		LogID:              logID,
@@ -142,6 +153,7 @@ func (a *App) writeRunExecutionEvidence(projectRoot, logID string, req execution
 		GeneratedAt:        a.now(),
 		FinalizedBy:        "executeRun",
 		Progress:           progress,
+		CodexDiagnostics:   &diagnostics,
 	})
 }
 
@@ -262,7 +274,8 @@ func buildExecutionEvidenceManifest(projectRoot string, options executionEvidenc
 			Browser: browser,
 			Runtime: runtime,
 		},
-		Hooks: hooks,
+		CodexDiagnostics: options.CodexDiagnostics,
+		Hooks:            hooks,
 	}, nil
 }
 

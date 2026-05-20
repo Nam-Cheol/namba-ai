@@ -65,11 +65,174 @@ func TestRunWritesExecutionEvidenceManifestOnSuccess(t *testing.T) {
 	if manifest.Extensions.Runtime.State != executionEvidenceStatePresent {
 		t.Fatalf("expected runtime extension to be present, got %+v", manifest.Extensions.Runtime)
 	}
+	if manifest.CodexDiagnostics == nil || manifest.CodexDiagnostics.CodexAvailable != "unavailable" {
+		t.Fatalf("expected non-blocking codex diagnostics in execution evidence, got %+v", manifest.CodexDiagnostics)
+	}
+	if manifest.CodexDiagnostics.Doctor.Status != "unavailable" {
+		t.Fatalf("run evidence should avoid blocking doctor execution, got %+v", manifest.CodexDiagnostics.Doctor)
+	}
 	if len(manifest.Extensions.Runtime.SignalBundles) != 1 || manifest.Extensions.Runtime.SignalBundles[0].Kind != "validation_attempts" {
 		t.Fatalf("expected validation-attempt runtime bundle, got %+v", manifest.Extensions.Runtime.SignalBundles)
 	}
 	if !strings.Contains(strings.Join(manifest.Extensions.Runtime.SignalBundles[0].Paths, "\n"), "spec-001-validation-attempt-1.json") {
 		t.Fatalf("expected validation-attempt path in runtime bundle, got %+v", manifest.Extensions.Runtime.SignalBundles[0])
+	}
+}
+
+func TestCodexDiagnosticsEvidenceCoversVersionDoctorRedactionAndMismatch(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return "codex", nil
+		}
+		return "", errors.New("missing")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if isCodexVersionCommand(name, args) {
+			return "codex 0.130.0", nil
+		}
+		t.Fatalf("unexpected command: %s %v", name, args)
+		return "", nil
+	}
+	app.runCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
+		if name == "codex" && len(args) == 1 && args[0] == "doctor" {
+			return "ok token=abc123", "Authorization: Bearer secret-token", nil
+		}
+		t.Fatalf("unexpected command with input: %s %v", name, args)
+		return "", "", nil
+	}
+
+	diagnostics := app.buildCodexDiagnosticsEvidence(context.Background(), tmp, codexDiagnosticsOptions{
+		LogDir:                filepath.ToSlash(filepath.Join(logsDir, "project")),
+		LogPrefix:             "codex",
+		RunCommands:           true,
+		ConfiguredRoots:       []string{tmp, filepath.Join(tmp, "outside")},
+		EffectiveRoots:        []string{tmp},
+		IncludeDoctorLogFiles: true,
+	})
+	if diagnostics.Version.ParseStatus != "parsed" || diagnostics.Version.BaselineComparison != "older" {
+		t.Fatalf("unexpected version evidence: %+v", diagnostics.Version)
+	}
+	if diagnostics.Doctor.Status != "detected" || diagnostics.Doctor.StdoutPath == "" || diagnostics.Doctor.StderrPath == "" {
+		t.Fatalf("unexpected doctor evidence: %+v", diagnostics.Doctor)
+	}
+	if diagnostics.Redaction.Status != "redacted" || !diagnostics.Redaction.Applied {
+		t.Fatalf("expected redaction evidence, got %+v", diagnostics.Redaction)
+	}
+	stdout := mustReadFile(t, filepath.Join(tmp, filepath.FromSlash(diagnostics.Doctor.StdoutPath)))
+	stderr := mustReadFile(t, filepath.Join(tmp, filepath.FromSlash(diagnostics.Doctor.StderrPath)))
+	if strings.Contains(stdout, "abc123") || strings.Contains(stderr, "secret-token") {
+		t.Fatalf("doctor logs were not redacted: stdout=%q stderr=%q", stdout, stderr)
+	}
+	if diagnostics.WorkspaceRootComparison.Status != "advisory_mismatch" {
+		t.Fatalf("expected advisory mismatch, got %+v", diagnostics.WorkspaceRootComparison)
+	}
+}
+
+func TestCodexDiagnosticsEvidenceHandlesMissingAndUnparsableVersion(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) { return "", errors.New("not found") }
+	missing := app.buildCodexDiagnosticsEvidence(context.Background(), tmp, codexDiagnosticsOptions{RunCommands: true})
+	if missing.CodexAvailable != "not_detected" || missing.Doctor.Status != "local_fallback" {
+		t.Fatalf("expected local fallback when codex is missing, got %+v", missing)
+	}
+
+	app.lookPath = func(name string) (string, error) { return "codex", nil }
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if isCodexVersionCommand(name, args) {
+			return "codex nightly", nil
+		}
+		return "", nil
+	}
+	app.runCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
+		return "", "", errors.New("doctor failed")
+	}
+	unparsable := app.buildCodexDiagnosticsEvidence(context.Background(), tmp, codexDiagnosticsOptions{RunCommands: true})
+	if unparsable.Version.ParseStatus != "unparsable" || unparsable.Doctor.Status != "failed" {
+		t.Fatalf("expected unparsable version and failed doctor, got %+v", unparsable)
+	}
+}
+
+func TestCodexVersionBaselineComparisons(t *testing.T) {
+	for _, tc := range []struct {
+		raw  string
+		want string
+	}{
+		{raw: "codex 0.130.9", want: "older"},
+		{raw: "codex 0.131.0", want: "equal"},
+		{raw: "codex 0.132.0", want: "newer"},
+	} {
+		got := buildCodexVersionEvidence(tc.raw, nil)
+		if got.ParseStatus != "parsed" || got.BaselineComparison != tc.want {
+			t.Fatalf("buildCodexVersionEvidence(%q) = %+v, want comparison %q", tc.raw, got, tc.want)
+		}
+	}
+}
+
+func TestCodexDiagnosticsDoctorTimeout(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) { return "codex", nil }
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if isCodexVersionCommand(name, args) {
+			return "codex 0.131.0", nil
+		}
+		return "", nil
+	}
+	app.runCmdWithInput = func(ctx context.Context, name string, args []string, dir, input string) (string, string, error) {
+		<-ctx.Done()
+		return "", "", ctx.Err()
+	}
+
+	diagnostics := app.buildCodexDiagnosticsEvidence(context.Background(), tmp, codexDiagnosticsOptions{RunCommands: true, DoctorTimeout: time.Millisecond})
+	if diagnostics.Doctor.Status != "timed_out" || !diagnostics.Doctor.TimedOut {
+		t.Fatalf("expected timed_out doctor evidence, got %+v", diagnostics.Doctor)
+	}
+}
+
+func TestRunProjectWritesCodexDiagnosticsEvidence(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return "codex", nil
+		}
+		return "", errors.New("missing")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if isCodexVersionCommand(name, args) {
+			return "codex 0.131.0", nil
+		}
+		t.Fatalf("unexpected command: %s %v", name, args)
+		return "", nil
+	}
+	app.runCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
+		if name == "codex" && len(args) == 1 && args[0] == "doctor" {
+			return "doctor ok", "", nil
+		}
+		t.Fatalf("unexpected command with input: %s %v", name, args)
+		return "", "", nil
+	}
+
+	if err := app.Run(context.Background(), []string{"project"}); err != nil {
+		t.Fatalf("project failed: %v", err)
+	}
+	var evidence projectCodexDiagnosticsEvidence
+	data, err := os.ReadFile(filepath.Join(tmp, ".namba", "logs", "project", "codex-diagnostics-evidence.json"))
+	if err != nil {
+		t.Fatalf("read project diagnostics: %v", err)
+	}
+	if err := json.Unmarshal(data, &evidence); err != nil {
+		t.Fatalf("unmarshal project diagnostics: %v", err)
+	}
+	if evidence.SchemaVersion != projectCodexDiagnosticsSchema || evidence.Diagnostics.Version.BaselineComparison != "equal" {
+		t.Fatalf("unexpected project diagnostics evidence: %+v", evidence)
 	}
 }
 

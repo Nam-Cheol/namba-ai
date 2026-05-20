@@ -42,6 +42,7 @@ NambaAI is a repository workflow layer that turns Codex work into goal, scope, c
 - Latest release: `namba update`
 - Specific release: `namba update --version vX.Y.Z`
 - Use `codex update` for the upstream Codex CLI itself.
+- `namba update` may print Codex 0.131 baseline advice, but it never installs or updates Codex.
 - Re-open the terminal if the updated binary is not picked up immediately.
 
 ## 3. Uninstall

@@ -482,6 +482,7 @@ internal/namba/codex.go
 internal/namba/codex_access.go
 internal/namba/codex_access_command_test.go
 internal/namba/codex_capability.go
+internal/namba/codex_diagnostics.go
 internal/namba/codex_mcp.go
 internal/namba/console_other.go
 internal/namba/console_windows.go
