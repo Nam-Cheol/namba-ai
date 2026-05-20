@@ -539,7 +539,7 @@ func renderRunCommandSkill(profile initProfile) string {
 			"- For `frontend-major` implementation results, require a `Do-Not Design Violation Check` that cites changed files, names any banned pattern found, and cites the exception path when one is used; when `Imagegen requirement: required` is present, require `Generated Asset Evidence` with manifest path and repeatable Asset ID blocks containing generated file, saved asset path, prompt summary, intended UI usage, and rendered usage evidence.",
 			"- For browser-rendered frontend work, use managed server lifecycle, wait for rendered DOM state, capture screenshots, inspect console errors, and prefer Playwright checks when the surface runs in a browser.",
 			"- Run validation commands from `.namba/config/sections/quality.yaml` and finish with `namba sync`. Use `namba pr` and `namba land` for the GitHub handoff and merge cycle instead of overloading `sync`.",
-			fmt.Sprintf("- Collaboration defaults: branch from `%s`, open the PR into `%s`, write the PR in %s, and request `%s` on GitHub after the PR is open.", branchBase(profile), prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
+			fmt.Sprintf("- Collaboration defaults: branch from `%s`, open the PR into `%s`, write the PR in %s, and request Codex review only when `namba pr --review` or queue `--review` is explicit; use `%s` as the request command.", branchBase(profile), prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
 		},
 	)
 }
@@ -710,7 +710,7 @@ func renderExecutionSkill(profile initProfile) string {
 		"9. Run configured validation commands",
 		"10. Summarize results in `.namba/logs` and sync artifacts",
 		"",
-		fmt.Sprintf("Collaboration defaults: use a dedicated branch from `%s` for the SPEC, open the PR into `%s`, write the PR in %s, and request `%s` on GitHub after the PR is open.", branchBase(profile), prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
+		fmt.Sprintf("Collaboration defaults: use a dedicated branch from `%s` for the SPEC, open the PR into `%s`, write the PR in %s, and request Codex review only when `namba pr --review` or queue `--review` is explicit; use `%s` as the request command.", branchBase(profile), prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
 		"",
 		"Do not call `namba run` from inside Codex unless the user explicitly requests the non-interactive CLI runner.",
 	}

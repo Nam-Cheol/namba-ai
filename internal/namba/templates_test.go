@@ -1127,6 +1127,17 @@ func TestSkillSurfaceEvolutionHarnessContracts(t *testing.T) {
 		{name: "execution", content: executionSkill},
 	} {
 		for _, want := range []string{
+			"request Codex review only when `namba pr --review` or queue `--review` is explicit",
+			"use `@codex review` as the request command",
+		} {
+			if !strings.Contains(surface.content, want) {
+				t.Fatalf("%s skill missing opt-in review contract %q: %q", surface.name, want, surface.content)
+			}
+		}
+		if strings.Contains(surface.content, "request `@codex review` on GitHub after the PR is open") {
+			t.Fatalf("%s skill must not request Codex review by default: %q", surface.name, surface.content)
+		}
+		for _, want := range []string{
 			"managed server lifecycle",
 			"rendered DOM",
 			"screenshots",

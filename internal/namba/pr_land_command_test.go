@@ -14,13 +14,37 @@ import (
 func TestParsePRArgs(t *testing.T) {
 	t.Parallel()
 
-	opts, err := parsePRArgs([]string{"--review", "review", "title", "--remote", "upstream", "--no-sync", "--no-validate"})
-	if err != nil {
-		t.Fatalf("parsePRArgs returned error: %v", err)
-	}
-	if opts.Title != "review title" || opts.Remote != "upstream" || !opts.SkipSync || !opts.SkipValidation || !opts.RequestReview {
-		t.Fatalf("unexpected pr options: %+v", opts)
-	}
+	t.Run("default no review", func(t *testing.T) {
+		t.Parallel()
+
+		opts, err := parsePRArgs([]string{"review", "title"})
+		if err != nil {
+			t.Fatalf("parsePRArgs returned error: %v", err)
+		}
+		if opts.Title != "review title" || opts.Remote != defaultGitRemote || opts.SkipSync || opts.SkipValidation || opts.RequestReview {
+			t.Fatalf("unexpected pr options: %+v", opts)
+		}
+	})
+
+	t.Run("review flag composes", func(t *testing.T) {
+		t.Parallel()
+
+		opts, err := parsePRArgs([]string{"--review", "review", "title", "--remote", "upstream", "--no-sync", "--no-validate"})
+		if err != nil {
+			t.Fatalf("parsePRArgs returned error: %v", err)
+		}
+		if opts.Title != "review title" || opts.Remote != "upstream" || !opts.SkipSync || !opts.SkipValidation || !opts.RequestReview {
+			t.Fatalf("unexpected pr options: %+v", opts)
+		}
+	})
+
+	t.Run("unknown flag", func(t *testing.T) {
+		t.Parallel()
+
+		if _, err := parsePRArgs([]string{"--surprise", "review", "title"}); err == nil || !strings.Contains(err.Error(), "unknown flag") {
+			t.Fatalf("expected unknown flag error, got %v", err)
+		}
+	})
 }
 
 func TestParseLandArgs(t *testing.T) {
