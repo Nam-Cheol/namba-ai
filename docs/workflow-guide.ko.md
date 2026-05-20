@@ -63,7 +63,7 @@ NambaAI 워크플로는 먼저 저장소를 읽고, 작업을 SPEC로 정리하�
 - `$namba-coach`: 현재 목표를 짧게 정리하고, 필요한 질문만 한 뒤 올바른 Namba workflow handoff를 read-only로 추천합니다.
 - `$namba-create`: repo-local skill이나 project-scoped custom agent가 직접 필요할 때 preview-first 생성 경로를 제공합니다. SPEC 패키지가 목적이면 `namba plan` 또는 `namba harness`를 고르세요.
 - `namba project`: 현재 저장소 문서와 codemap을 새로 고치며 SPEC 패키지를 만들지 않습니다.
-- `namba codex access`: 현재 repo-owned Codex access 기본값을 inspect-only로 확인하고, 명시적 flag를 줄 때만 approval_policy / sandbox_mode를 변경합니다.
+- `namba codex access`: Namba runner의 `codex exec` access 기본값을 inspect-only로 확인하고, 명시적 flag를 줄 때만 `.namba/config/sections/system.yaml`의 approval_policy / sandbox_mode를 변경합니다. Interactive Codex approval mode, permissions, service tier, workspace roots, sandbox 선택은 user/session-owned입니다.
 - `namba plan "description"`: 다음 기능 SPEC 패키지와 review artifact를 만들고, `--no-review`가 없으면 `$namba-plan-review`로 바로 이어갑니다.
 - clarification gate: `게시판 만들어줘`처럼 모호한 plan 요청은 project 문서 확인이나 CLI 실행 전에 질문부터 반복합니다. Codex Plan mode 선택 UI를 쓸 수 있으면 그 출력을 refined prompt로 삼아 `namba plan`에 넘깁니다.
 - `namba harness "description"`: agent, skill, workflow, orchestration 재사용을 위한 harness-oriented SPEC 패키지와 review artifact를 만듭니다.
@@ -117,7 +117,7 @@ NambaAI 워크플로는 먼저 저장소를 읽고, 작업을 SPEC로 정리하�
 - `.namba/`: config, SPEC packages, project docs, logs
 - `.namba/specs/<SPEC>/reviews/`: 각 SPEC의 advisory product, engineering, design, readiness artifact
 - `.agents/skills/`: Codex가 직접 사용하는 repo-local skills
-- `.codex/config.toml`: repo-local Codex defaults 와 Namba-managed MCP preset
+- `.codex/config.toml`: repo-local hook/agent/MCP defaults; interactive approval mode, permissions, service tier, workspace roots, and sandbox choices stay user/session-owned
 - `.codex/agents/*.toml`: project-scoped custom agents
 - `.namba/project/*`: change summary, release notes, checklist, codemap
 

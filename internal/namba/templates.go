@@ -45,6 +45,7 @@ func renderAgents(profile initProfile) string {
 		"%s"+
 		"- Keep the Namba report frame concise and high-signal. The response should feel like an engineering field report, not a rigid template dump.\n"+
 		"- Keep `.namba/codex/validate-output-contract.py` as the fallback validator for this contract unless Namba explicitly adopts a documented upstream hook surface.\n"+
+		"- Codex 0.131 boundary: Codex may display approval mode, permissions, service tier, and effective workspace roots; repo `.codex/config.toml` stores deterministic hook, agent, and MCP defaults only; `.codex/hooks.json` is the interactive guardrail; `.namba/hooks.toml` remains the `namba run` evidence and validation policy. Git helper commands may ignore repo hooks, so do not rely on Git hooks for validation.\n"+
 		"- Do not bypass validation. Run the configured quality commands after changes.\n"+
 		"- Use worktrees for parallel execution; do not modify multiple branches in one workspace.\n\n"+
 		"Project: %s\n"+
@@ -80,7 +81,7 @@ func renderNambaSkillCommandMappingSection() []string {
 		"- `$namba-coach`: restate the user's current goal, ask only essential routing questions when needed, correct clearly wrong command choices, and hand off to exactly one primary Namba workflow invocation without mutating repository state.",
 		"- `$namba-create`: run the skill-first creation workflow for repo-local skills, project-scoped custom agents, or both. Keep the user-facing surface inside Codex and do not add a public `namba create` CLI command in this slice.",
 		"- `namba project`: refresh repository docs and codemaps.",
-		"- `namba codex access`: inspect the current repo-owned Codex access defaults, or update `approval_policy` / `sandbox_mode` with explicit flags after initialization.",
+		"- `namba codex access`: inspect or update Namba runner `codex exec` access defaults with explicit `approval_policy` / `sandbox_mode` flags; repo `.codex/config.toml` does not persist interactive approval or sandbox choices.",
 		"- `namba regen`: regenerate AGENTS, repo-local skills, command-entry skills, Codex custom agents, readable role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.",
 		"- `namba update [--version vX.Y.Z]`: self-update the installed `namba` binary from GitHub Release assets.",
 		"- `namba plan \"<description>\"`: create the next feature SPEC package under `.namba/specs/`, and when branch-per-work is enabled create or switch to the dedicated `spec/...` branch in the current workspace; unless `--no-review` is present, continue immediately with `$namba-plan-review SPEC-XXX` after creation.",
@@ -699,6 +700,7 @@ func renderCodexUsage(profile initProfile) string {
 	lines = append(lines, renderCodexUsageInitEnablesSection()...)
 	lines = append(lines, renderCodexUsageHowCodexUsesNambaSection()...)
 	lines = append(lines, renderCodexUsageWorkflowCommandSemanticsSection()...)
+	lines = append(lines, renderCodexUsageCompatibilityBoundarySection()...)
 	lines = append(lines, renderCodexUsageAgentRosterSection()...)
 	lines = append(lines, renderCodexUsageDelegationHeuristicsSection()...)
 	lines = append(lines, renderCodexUsagePlanReviewReadinessSection()...)
@@ -707,6 +709,28 @@ func renderCodexUsage(profile initProfile) string {
 	lines = append(lines, renderCodexUsageClaudeMappingSection()...)
 	lines = append(lines, renderCodexUsageImportantDistinctionSection()...)
 	return strings.Join(lines, "\n") + "\n"
+}
+
+func renderCodexUsageCompatibilityBoundarySection() []string {
+	return []string{
+		"",
+		"## Codex 0.131 Boundary",
+		"",
+		"Read this boundary in order: Codex displays runtime state, Namba generates repo assets, Namba validates run evidence, and some runtime behavior remains outside Namba control.",
+		"",
+		"| Term | Boundary |",
+		"| --- | --- |",
+		"| `approval mode` | Codex may display the active session approval mode; repo `.codex/config.toml` does not set or persist it. |",
+		"| `permissions` | Codex may display current permission state; Namba docs describe the state but do not own it. |",
+		"| `effective workspace roots` | Codex may show the roots considered for the session; this is visibility, not a Namba promise that every root is writable. |",
+		"| `scoped write roots` | Codex sandbox policy may narrow writable paths; Namba documents the distinction and keeps generated config out of that choice. |",
+		"| `.codex/hooks.json` | Interactive Codex guardrails: context, prompt refinement, command denial, duplicate guard suppression, and generated-surface reminders. |",
+		"| `.namba/hooks.toml` | `namba run` evidence and validation hooks; it is not used to dedupe interactive Codex hooks. |",
+		"",
+		"- Codex 0.131 also reports service tier and richer status-line state. Namba-generated docs can explain those fields, but repo config must not persist a user's service tier or approval/session choices.",
+		"- Git helper commands may ignore configured repository hooks, so Namba cannot rely on Git hooks for safety or validation evidence.",
+		"- On Windows, prefer WSL for Codex workspaces when possible; otherwise expect stricter deny-read behavior, scoped write roots, ineffective firewall policy handling, and PowerShell launcher constraints.",
+	}
 }
 
 func renderCodexUsageWorkflowCommandSemanticsSection() []string {
@@ -720,9 +744,9 @@ func renderCodexUsageWorkflowCommandSemanticsSection() []string {
 		"- `$namba-review-resolve` resolves GitHub review threads one by one: discover unresolved thread state with a thread-aware GitHub path, classify meaningful feedback versus non-actionable remarks, reply on original threads with validation plus relevant CI/check evidence, and request review again only after the meaningful items are handled.",
 		"- `$namba-release` handles NambaAI release orchestration: collect commits since the previous semver tag, draft release notes into a durable per-version artifact, and hand the release off through the guarded `namba release --version <version> --push` path.",
 		"- `namba project` refreshes current repository docs and codemaps without creating a SPEC package.",
-		"- `namba codex access` inspects the current repo-owned Codex access defaults and mutates them only when explicit approval_policy / sandbox_mode flags are present.",
-		"- Permission profiles, models, auth, apps, web search, and platform sandbox choices stay user-owned unless NambaAI explicitly widens repo-managed config.",
-		"- Avoid deprecated Codex full-auto style flags; prefer explicit `approval_policy`, `sandbox_mode`, sandbox profile, and permission profile settings.",
+		"- `namba codex access` inspects Namba runner `codex exec` access defaults and mutates `.namba/config/sections/system.yaml` only when explicit approval_policy / sandbox_mode flags are present.",
+		"- Interactive Codex approval mode, permissions, service tier, effective workspace roots, models, auth, apps, web search, and platform sandbox choices stay user/session-owned; repo `.codex/config.toml` does not persist them.",
+		"- Codex 0.131 may display approval mode, permissions, service tier, and effective workspace roots in the TUI. Treat those as observed runtime state, not Namba-owned policy.",
 		"- Generated Codex lifecycle hooks are repo-local guardrails, not a complete security boundary: they add Namba context, guide ambiguous Namba prompts toward clarification questions without blocking submission, add approval-risk notes, check final-report format, deny destructive shell commands, and remind Codex about managed-surface changes.",
 		"- Codex requires repo-local hooks to be reviewed before they run. In the first interactive session after init or regen, open `/hooks`, inspect the generated commands, and approve them only if they resolve to the current repository's `.codex/hooks/namba_codex_guard.sh` or Windows `.codex/hooks/namba_codex_guard.ps1` launcher for `.codex/hooks/namba_codex_guard.py`.",
 		"- `namba regen` regenerates `AGENTS.md`, repo skills under `.agents/skills/`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.",
@@ -752,8 +776,8 @@ func renderCodexUsageInitEnablesSection() []string {
 		"- Creates `AGENTS.md` with Namba orchestration rules.",
 		"- Creates repo-local skills under `.agents/skills/`, including read-only guidance plus command-entry skills such as `namba-help`, `namba-coach`, `namba-create`, `namba-run`, `namba-queue`, `namba-pr`, `namba-land`, `namba-release`, `namba-plan`, `namba-plan-review`, `namba-harness`, `namba-plan-pm-review`, `namba-plan-eng-review`, `namba-plan-design-review`, `namba-review-resolve`, and `namba-sync`.",
 		"- Creates task-oriented Codex custom agents under `.codex/agents/*.toml` and readable `.md` role-card mirrors.",
-		"- Creates repo-local Codex config under `.codex/config.toml`, keeping a narrow repo-safe baseline such as `approval_policy`, `sandbox_mode`, and agent thread limits, plus an allow-listed set of repo-managed MCP presets when configured.",
-		"- Creates repo-local Codex lifecycle hooks under `.codex/hooks.json` and `.codex/hooks/` with `features.hooks = true`, providing Namba context, non-blocking prompt-refinement guidance for ambiguous prompts, approval-risk notes, final-report format checks, destructive-command guardrails, and generated-surface reminders. Codex will ask you to review these hooks in `/hooks` before they run.",
+		"- Creates repo-local Codex config under `.codex/config.toml`, keeping only deterministic repo-safe defaults such as lifecycle hook enablement, agent thread limits, status-line preference, and allow-listed repo-managed MCP presets when configured. It deliberately omits interactive approval mode, permissions, service tier, workspace roots, model, auth, apps, web search, and platform sandbox choices.",
+		"- Creates repo-local Codex lifecycle hooks under `.codex/hooks.json` and `.codex/hooks/` with `features.hooks = true`, providing Namba context, non-blocking prompt-refinement guidance for ambiguous prompts, approval-risk notes, final-report format checks, destructive-command guardrails, duplicate Namba guard suppression, and generated-surface reminders. Codex will ask you to review these hooks in `/hooks` before they run.",
 		"- Creates `.namba/codex/output-contract.md` plus `.namba/codex/validate-output-contract.py` for NambaAI response-shape guidance and fallback validation.",
 		"- Creates `.namba/` project state, configs, docs, and SPEC storage.",
 		"",
@@ -867,6 +891,8 @@ func renderCodexUsageImportantDistinctionSection() []string {
 		"- In interactive Codex sessions, `namba run SPEC-XXX` means Codex should execute the SPEC directly in-session.",
 		"- The standalone `namba run` CLI supports the default runner flow plus explicit `--solo`, `--team`, and worktree-based `--parallel` modes.",
 		"- `.codex/hooks.json` configures Codex lifecycle hooks for interactive guardrails; `.namba/hooks.toml` configures Namba runner lifecycle hooks for `namba run` evidence and validation boundaries.",
+		"- Codex 0.131 plugin hooks can also be enabled by the runtime. Namba-generated hooks dedupe identical Namba guard payloads at the interactive boundary, while `.namba/hooks.toml` remains separate runner evidence and is not used to dedupe interactive hooks.",
+		"- Git helper commands may ignore configured repository hooks, so Namba validation must come from configured quality commands and run evidence rather than Git hooks alone.",
 		"- Tokens and PATs are intentionally excluded from generated config. Use `gh auth login` or `glab auth login` instead.",
 	}
 }
@@ -1114,14 +1140,13 @@ func renderRepoCodexConfig(profile initProfile) string {
 	lines := []string{
 		"#:schema https://developers.openai.com/codex/config-schema.json",
 		"# Generated by NambaAI from `.namba/config/sections/*.yaml`.",
-		"# This file intentionally keeps only repo-safe Codex defaults under version control.",
-		"# Keep user-specific settings such as models, auth, apps, web search, permission profiles,",
-		"# and platform-specific sandbox choices in your user-level Codex config.",
+		"# This file intentionally avoids session-owned Codex choices.",
+		"# Keep models, auth, apps, web search, service tier, approval mode, permission profiles,",
+		"# and platform-specific sandbox choices in your user-level Codex config or active session.",
+		"# `.namba/config/sections/system.yaml` stores Namba runner defaults for `codex exec`,",
+		"# not interactive Codex approval or permission policy.",
 		"# Repo-managed MCP presets are the narrow exception when `.namba/config/sections/codex.yaml` opts in.",
 		"# Reference: https://developers.openai.com/codex/config-reference/",
-		"",
-		fmt.Sprintf("approval_policy = %q", approvalPolicy(profile)),
-		fmt.Sprintf("sandbox_mode = %q", sandboxMode(profile)),
 		"",
 		"[features]",
 		"hooks = true",
@@ -1258,10 +1283,39 @@ done
 failure_message="NambaAI hook guard failed: Python 3 was not found or could not run .codex/hooks/namba_codex_guard.py. Install Python 3, then run namba regen and review /hooks again. Hooks are guardrails, so continue only with explicit validation."
 failed_candidates=""
 
+extract_hook_event_name() {
+    case "$raw_input" in
+        *\"hook_event_name\"*)
+            event_part=${raw_input#*\"hook_event_name\"}
+            event_part=${event_part#*:}
+            event_part=${event_part#*\"}
+            event=${event_part%%\"*}
+            ;;
+        *)
+            event=""
+            ;;
+    esac
+    if [ -n "$event" ]; then
+        printf '%s' "$event"
+    else
+        printf 'Unknown'
+    fi
+}
+
+json_escape() {
+    printf '%s' "$1"
+}
+
 emit_failure() {
     message=$1
+    event_name=$2
+    if [ -z "$event_name" ]; then
+        event_name="Unknown"
+    fi
+    escaped_message=$(json_escape "$message")
+    escaped_event=$(json_escape "$event_name")
     printf '%s\n' "$message" >&2
-    printf '{"hookSpecificOutput":{"hookEventName":"Unknown","additionalContext":"%s"}}\n' "$message"
+    printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}\n' "$escaped_event" "$escaped_message"
 }
 
 run_candidate() {
@@ -1312,7 +1366,7 @@ run_candidate py -3 "$script_path"
 if [ -n "$failed_candidates" ]; then
     printf 'NambaAI hook launcher candidates failed: %s\n' "$failed_candidates" >&2
 fi
-emit_failure "$failure_message"
+emit_failure "$failure_message" "$(extract_hook_event_name)"
 exit 1
 `
 }
@@ -1468,10 +1522,13 @@ generated Namba surfaces when those files are touched.
 """
 
 import json
+import hashlib
 import os
 import re
 import subprocess
 import sys
+import tempfile
+import time
 
 
 def configure_stdio():
@@ -1545,19 +1602,38 @@ CURRENT_PAYLOAD = {}
 configure_stdio()
 
 
+def event_name_from_raw(raw):
+    match = re.search(r'"hook_event_name"\s*:\s*"([^"]+)"', raw)
+    if match:
+        return match.group(1)
+    return "Unknown"
+
+
 def read_payload():
     raw = sys.stdin.read()
     if not raw.strip():
-        return {}
+        return {}, ""
     try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        return {}
+        return json.loads(raw), ""
+    except json.JSONDecodeError as exc:
+        return {
+            "hook_event_name": event_name_from_raw(raw),
+            "_namba_malformed_json": True,
+        }, "NambaAI hook guard received malformed JSON payload; continuing without policy-specific action: " + str(exc)
 
 
 def emit(value):
     trace(CURRENT_PAYLOAD, value)
     print(json.dumps(value, ensure_ascii=True, separators=(",", ":")))
+
+
+def emit_continue(message="", suppress_output=False):
+    value = {"continue": True}
+    if message:
+        value["systemMessage"] = message
+    if suppress_output:
+        value["suppressOutput"] = True
+    emit(value)
 
 
 def trace(payload, output=None):
@@ -1567,6 +1643,9 @@ def trace(payload, output=None):
     try:
         event = payload.get("hook_event_name")
         record = {"event": event}
+        session_id = session_id_from(payload)
+        if session_id:
+            record["session_id"] = session_id
         if event == "UserPromptSubmit":
             record["prompt_refinement"] = bool(prompt_refinement_context(prompt_from(payload)))
         if event in ("PreToolUse", "PermissionRequest"):
@@ -1601,6 +1680,59 @@ def command_from(payload):
             if isinstance(value, str):
                 return value
     return ""
+
+
+def session_id_from(payload):
+    for key in ("session_id", "session-id", "thread_id", "thread-id"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def safe_updated_input(payload):
+    tool_input = payload.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return None
+    if "cmd" not in tool_input or "command" in tool_input:
+        return None
+    cmd = tool_input.get("cmd")
+    if not isinstance(cmd, str) or not cmd.strip():
+        return None
+    updated = dict(tool_input)
+    updated["command"] = updated.pop("cmd")
+    return updated
+
+
+def dedupe_key(payload):
+    try:
+        raw = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    except Exception:
+        raw = str(payload)
+    return hashlib.sha256(raw.encode("utf-8", errors="replace")).hexdigest()
+
+
+def should_suppress_duplicate(payload):
+    flag = os.environ.get("NAMBA_HOOK_DEDUPE", "1").strip().lower()
+    if flag in ("0", "false", "no", "off"):
+        return False
+    event = payload.get("hook_event_name")
+    if not isinstance(event, str) or not event:
+        return False
+    root = os.environ.get("NAMBA_HOOK_DEDUPE_DIR")
+    if not root:
+        root = os.path.join(tempfile.gettempdir(), "namba_codex_hook_guard")
+    try:
+        os.makedirs(root, exist_ok=True)
+        path = os.path.join(root, dedupe_key(payload) + ".seen")
+        now = time.time()
+        if os.path.exists(path) and now - os.path.getmtime(path) <= 5:
+            return True
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(str(now))
+    except Exception:
+        return False
+    return False
 
 
 def dangerous_reason(command):
@@ -1695,6 +1827,7 @@ def prompt_refinement_guidance(prompt):
 def handle_user_prompt_submit(payload):
     guidance = prompt_refinement_guidance(prompt_from(payload))
     if not guidance:
+        emit_continue()
         return
     emit({
         "hookSpecificOutput": {
@@ -1704,7 +1837,11 @@ def handle_user_prompt_submit(payload):
     })
 
 
-def handle_session_start():
+def handle_session_start(payload):
+    session_id = session_id_from(payload)
+    session_note = " Session metadata is optional and tolerated."
+    if session_id:
+        session_note = " Session id accepted: " + session_id + "."
     emit({
         "hookSpecificOutput": {
             "hookEventName": "SessionStart",
@@ -1712,7 +1849,7 @@ def handle_session_start():
                 "NambaAI lifecycle hook is active. Treat .namba/ as the source "
                 "of truth, use AGENTS.md and .agents/skills/ for workflow routing, "
                 "and run configured validation after changes. Codex hooks are "
-                "guardrails, not a complete security boundary."
+                "guardrails, not a complete security boundary." + session_note
             ),
         }
     })
@@ -1720,15 +1857,26 @@ def handle_session_start():
 
 def handle_pre_tool_use(payload):
     reason = dangerous_reason(command_from(payload))
-    if not reason:
+    if reason:
+        emit({
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": reason,
+            }
+        })
         return
-    emit({
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "deny",
-            "permissionDecisionReason": reason,
-        }
-    })
+    updated = safe_updated_input(payload)
+    if updated is not None:
+        emit({
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "allow",
+                "updatedInput": updated,
+            }
+        })
+        return
+    emit_continue()
 
 
 def handle_permission_request(payload):
@@ -1736,7 +1884,9 @@ def handle_permission_request(payload):
     if not reason:
         note = approval_risk_note(command_from(payload))
         if note:
-            emit({"systemMessage": note})
+            emit({"continue": True, "systemMessage": note})
+        else:
+            emit_continue()
         return
     emit({
         "hookSpecificOutput": {
@@ -1749,7 +1899,19 @@ def handle_permission_request(payload):
     })
 
 
+def cwd_from_payload(payload):
+    value = payload.get("cwd")
+    if isinstance(value, str) and value.strip():
+        return value
+    try:
+        return os.getcwd()
+    except Exception:
+        return ""
+
+
 def changed_paths(cwd):
+    if not cwd:
+        return []
     try:
         result = subprocess.run(
             ["git", "status", "--short"],
@@ -1783,9 +1945,10 @@ def is_namba_surface(path):
 
 
 def handle_post_tool_use(payload):
-    cwd = payload.get("cwd") if isinstance(payload.get("cwd"), str) else os.getcwd()
+    cwd = cwd_from_payload(payload)
     touched = [path for path in changed_paths(cwd) if is_namba_surface(path)]
     if not touched:
+        emit_continue()
         return
     shown = ", ".join(touched[:6])
     if len(touched) > 6:
@@ -1804,6 +1967,8 @@ def handle_post_tool_use(payload):
 
 
 def namba_repo(cwd):
+    if not cwd:
+        return False
     return os.path.exists(os.path.join(cwd, ".namba")) or os.path.exists(os.path.join(cwd, "AGENTS.md"))
 
 
@@ -1823,18 +1988,23 @@ def report_missing_sections(message):
 
 def handle_stop(payload):
     if payload.get("stop_hook_active") is True:
+        emit_continue()
         return
     message = payload.get("last_assistant_message")
     if not isinstance(message, str) or len(message.strip()) < 500:
+        emit_continue()
         return
-    cwd = payload.get("cwd") if isinstance(payload.get("cwd"), str) else os.getcwd()
+    cwd = cwd_from_payload(payload)
     if not namba_repo(cwd):
+        emit_continue()
         return
     nambaish = any(token in message.lower() for token in ("namba", ".namba", "codex", "spec-", "검증", "브랜치"))
     if not nambaish:
+        emit_continue()
         return
     missing = report_missing_sections(message)
     if not missing:
+        emit_continue()
         return
     emit({
         "decision": "block",
@@ -1847,26 +2017,25 @@ def handle_stop(payload):
 
 
 def emit_hook_error(event, message):
-    if not isinstance(event, str) or not event:
-        event = "Unknown"
     print(message, file=sys.stderr)
-    emit({
-        "hookSpecificOutput": {
-            "hookEventName": event,
-            "additionalContext": message,
-        }
-    })
+    emit_continue(message)
 
 
 def main():
     global CURRENT_PAYLOAD
     try:
-        payload = read_payload()
+        payload, parse_error = read_payload()
         CURRENT_PAYLOAD = payload
         trace(payload)
+        if parse_error:
+            emit_continue(parse_error)
+            return 0
+        if should_suppress_duplicate(payload):
+            emit_continue(suppress_output=True)
+            return 0
         event = payload.get("hook_event_name")
         if event == "SessionStart":
-            handle_session_start()
+            handle_session_start(payload)
         elif event == "PreToolUse":
             handle_pre_tool_use(payload)
         elif event == "PermissionRequest":
@@ -1877,11 +2046,13 @@ def main():
             handle_post_tool_use(payload)
         elif event == "Stop":
             handle_stop(payload)
+        else:
+            emit_continue()
         return 0
     except Exception as exc:
         event = CURRENT_PAYLOAD.get("hook_event_name") if isinstance(CURRENT_PAYLOAD, dict) else "Unknown"
         emit_hook_error(event, "NambaAI hook guard failed with an unhandled exception: " + str(exc))
-        return 1
+        return 0
 
 
 if __name__ == "__main__":

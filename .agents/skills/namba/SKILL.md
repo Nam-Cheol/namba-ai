@@ -10,7 +10,7 @@ Command mapping:
 - `$namba-coach`: restate the user's current goal, ask only essential routing questions when needed, correct clearly wrong command choices, and hand off to exactly one primary Namba workflow invocation without mutating repository state.
 - `$namba-create`: run the skill-first creation workflow for repo-local skills, project-scoped custom agents, or both. Keep the user-facing surface inside Codex and do not add a public `namba create` CLI command in this slice.
 - `namba project`: refresh repository docs and codemaps.
-- `namba codex access`: inspect the current repo-owned Codex access defaults, or update `approval_policy` / `sandbox_mode` with explicit flags after initialization.
+- `namba codex access`: inspect or update Namba runner `codex exec` access defaults with explicit `approval_policy` / `sandbox_mode` flags; repo `.codex/config.toml` does not persist interactive approval or sandbox choices.
 - `namba regen`: regenerate AGENTS, repo-local skills, command-entry skills, Codex custom agents, readable role cards, and repo-local Codex config from `.namba/config/sections/*.yaml`.
 - `namba update [--version vX.Y.Z]`: self-update the installed `namba` binary from GitHub Release assets.
 - `namba plan "<description>"`: create the next feature SPEC package under `.namba/specs/`, and when branch-per-work is enabled create or switch to the dedicated `spec/...` branch in the current workspace; unless `--no-review` is present, continue immediately with `$namba-plan-review SPEC-XXX` after creation.

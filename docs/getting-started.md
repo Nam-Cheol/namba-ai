@@ -61,7 +61,7 @@ namba init .
 
 The wizard starts by checking whether code already exists. Existing repositories keep detected stack defaults; empty repositories leave the app stack unset and only prepare the Namba/Codex environment. Steps and choices use approachable emoji cues such as 🧭/📦/🌐/🔐, each answer is echoed with ✅ before moving on, and `b` or `back` returns to the previous step for edits. It does not ask for a GitHub username, and the Codex access preset previews the resulting approval_policy / sandbox_mode pair.
 - In the first interactive Codex session, open `/hooks` when you see `6 hooks need review`, confirm the `.codex/hooks/namba_codex_guard.sh` or Windows `.codex/hooks/namba_codex_guard.ps1` launcher runs `.codex/hooks/namba_codex_guard.py`, then approve it. Prompt-refinement hooks will not run until this review is complete.
-- After bootstrap, use `namba codex access` to inspect or change the current access defaults.
+- After bootstrap, use `namba codex access` to inspect or change Namba runner `codex exec` access defaults. Interactive Codex approval mode and sandbox mode are not stored in repo `.codex/config.toml`.
 
 ## 5. Run the basic Codex flow
 

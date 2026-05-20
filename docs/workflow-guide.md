@@ -63,9 +63,9 @@ NambaAI work starts by reading the repository, shaping a SPEC, implementing and 
 - `$namba-coach`: briefly restate the current goal, ask only essential questions, and recommend the right Namba workflow handoff without mutating repo state.
 - `$namba-create`: use the preview-first creation flow when you need a repo-local skill or a project-scoped custom agent directly. Choose `namba plan` or `namba harness` instead when the outcome should be a SPEC package.
 - `namba project`: refresh current repository docs and codemaps without creating a SPEC package.
-- `namba codex access`: inspect the current repo-owned Codex access defaults, and change approval_policy / sandbox_mode only when explicit flags are provided.
-- Codex permission profiles, models, auth, apps, web search, and platform sandbox choices remain user-owned unless NambaAI deliberately widens repo-managed config.
-- Avoid deprecated Codex full-auto style flags; prefer explicit `approval_policy`, `sandbox_mode`, sandbox profile, and permission profile settings.
+- `namba codex access`: inspect Namba runner `codex exec` access defaults and change `.namba/config/sections/system.yaml` approval_policy / sandbox_mode only when explicit flags are provided.
+- Interactive Codex approval mode, permissions, service tier, effective workspace roots, models, auth, apps, web search, and platform sandbox choices remain user/session-owned and are not persisted through repo `.codex/config.toml`.
+- Codex 0.131 may display those runtime values in the TUI; Namba documents the display but does not own the policy.
 - `namba plan "description"`: create the next feature SPEC package and review artifacts, then continue with `$namba-plan-review` unless `--no-review` is present.
 - Clarification gate: vague plan requests such as `make a forum` ask questions before project-doc inspection or CLI execution. When Codex Plan mode choice UI is available, its output becomes the refined prompt passed into `namba plan`.
 - `namba harness "description"`: create the next harness-oriented SPEC package and review artifacts for reusable agent, skill, workflow, or orchestration work.
@@ -123,7 +123,7 @@ NambaAI work starts by reading the repository, shaping a SPEC, implementing and 
 - `.namba/`: config, SPEC packages, project docs, logs
 - `.namba/specs/<SPEC>/reviews/`: advisory product, engineering, design, and readiness artifacts for each SPEC
 - `.agents/skills/`: repo-local skills used directly by Codex
-- `.codex/config.toml`: repo-local Codex defaults plus any configured Namba-managed MCP presets
+- `.codex/config.toml`: repo-local hook, agent, and MCP defaults; interactive approval mode, permissions, service tier, workspace roots, and sandbox choices stay user/session-owned
 - `.codex/agents/*.toml`: project-scoped custom agents
 - `.namba/project/*`: change summary, release notes, checklist, codemap
 

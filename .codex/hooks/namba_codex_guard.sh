@@ -16,10 +16,39 @@ done
 failure_message="NambaAI hook guard failed: Python 3 was not found or could not run .codex/hooks/namba_codex_guard.py. Install Python 3, then run namba regen and review /hooks again. Hooks are guardrails, so continue only with explicit validation."
 failed_candidates=""
 
+extract_hook_event_name() {
+    case "$raw_input" in
+        *\"hook_event_name\"*)
+            event_part=${raw_input#*\"hook_event_name\"}
+            event_part=${event_part#*:}
+            event_part=${event_part#*\"}
+            event=${event_part%%\"*}
+            ;;
+        *)
+            event=""
+            ;;
+    esac
+    if [ -n "$event" ]; then
+        printf '%s' "$event"
+    else
+        printf 'Unknown'
+    fi
+}
+
+json_escape() {
+    printf '%s' "$1"
+}
+
 emit_failure() {
     message=$1
+    event_name=$2
+    if [ -z "$event_name" ]; then
+        event_name="Unknown"
+    fi
+    escaped_message=$(json_escape "$message")
+    escaped_event=$(json_escape "$event_name")
     printf '%s\n' "$message" >&2
-    printf '{"hookSpecificOutput":{"hookEventName":"Unknown","additionalContext":"%s"}}\n' "$message"
+    printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}\n' "$escaped_event" "$escaped_message"
 }
 
 run_candidate() {
@@ -70,5 +99,5 @@ run_candidate py -3 "$script_path"
 if [ -n "$failed_candidates" ]; then
     printf 'NambaAI hook launcher candidates failed: %s\n' "$failed_candidates" >&2
 fi
-emit_failure "$failure_message"
+emit_failure "$failure_message" "$(extract_hook_event_name)"
 exit 1

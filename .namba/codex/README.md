@@ -9,8 +9,8 @@ NambaAI's differentiator is prompt refinement before execution: ambiguous ideas 
 - Creates `AGENTS.md` with Namba orchestration rules.
 - Creates repo-local skills under `.agents/skills/`, including read-only guidance plus command-entry skills such as `namba-help`, `namba-coach`, `namba-create`, `namba-run`, `namba-queue`, `namba-pr`, `namba-land`, `namba-release`, `namba-plan`, `namba-plan-review`, `namba-harness`, `namba-plan-pm-review`, `namba-plan-eng-review`, `namba-plan-design-review`, `namba-review-resolve`, and `namba-sync`.
 - Creates task-oriented Codex custom agents under `.codex/agents/*.toml` and readable `.md` role-card mirrors.
-- Creates repo-local Codex config under `.codex/config.toml`, keeping a narrow repo-safe baseline such as `approval_policy`, `sandbox_mode`, and agent thread limits, plus an allow-listed set of repo-managed MCP presets when configured.
-- Creates repo-local Codex lifecycle hooks under `.codex/hooks.json` and `.codex/hooks/` with `features.hooks = true`, providing Namba context, non-blocking prompt-refinement guidance for ambiguous prompts, approval-risk notes, final-report format checks, destructive-command guardrails, and generated-surface reminders. Codex will ask you to review these hooks in `/hooks` before they run.
+- Creates repo-local Codex config under `.codex/config.toml`, keeping only deterministic repo-safe defaults such as lifecycle hook enablement, agent thread limits, status-line preference, and allow-listed repo-managed MCP presets when configured. It deliberately omits interactive approval mode, permissions, service tier, workspace roots, model, auth, apps, web search, and platform sandbox choices.
+- Creates repo-local Codex lifecycle hooks under `.codex/hooks.json` and `.codex/hooks/` with `features.hooks = true`, providing Namba context, non-blocking prompt-refinement guidance for ambiguous prompts, approval-risk notes, final-report format checks, destructive-command guardrails, duplicate Namba guard suppression, and generated-surface reminders. Codex will ask you to review these hooks in `/hooks` before they run.
 - Creates `.namba/codex/output-contract.md` plus `.namba/codex/validate-output-contract.py` for NambaAI response-shape guidance and fallback validation.
 - Creates `.namba/` project state, configs, docs, and SPEC storage.
 
@@ -34,9 +34,9 @@ NambaAI's differentiator is prompt refinement before execution: ambiguous ideas 
 - `$namba-review-resolve` resolves GitHub review threads one by one: discover unresolved thread state with a thread-aware GitHub path, classify meaningful feedback versus non-actionable remarks, reply on original threads with validation plus relevant CI/check evidence, and request review again only after the meaningful items are handled.
 - `$namba-release` handles NambaAI release orchestration: collect commits since the previous semver tag, draft release notes into a durable per-version artifact, and hand the release off through the guarded `namba release --version <version> --push` path.
 - `namba project` refreshes current repository docs and codemaps without creating a SPEC package.
-- `namba codex access` inspects the current repo-owned Codex access defaults and mutates them only when explicit approval_policy / sandbox_mode flags are present.
-- Permission profiles, models, auth, apps, web search, and platform sandbox choices stay user-owned unless NambaAI explicitly widens repo-managed config.
-- Avoid deprecated Codex full-auto style flags; prefer explicit `approval_policy`, `sandbox_mode`, sandbox profile, and permission profile settings.
+- `namba codex access` inspects Namba runner `codex exec` access defaults and mutates `.namba/config/sections/system.yaml` only when explicit approval_policy / sandbox_mode flags are present.
+- Interactive Codex approval mode, permissions, service tier, effective workspace roots, models, auth, apps, web search, and platform sandbox choices stay user/session-owned; repo `.codex/config.toml` does not persist them.
+- Codex 0.131 may display approval mode, permissions, service tier, and effective workspace roots in the TUI. Treat those as observed runtime state, not Namba-owned policy.
 - Generated Codex lifecycle hooks are repo-local guardrails, not a complete security boundary: they add Namba context, guide ambiguous Namba prompts toward clarification questions without blocking submission, add approval-risk notes, check final-report format, deny destructive shell commands, and remind Codex about managed-surface changes.
 - Codex requires repo-local hooks to be reviewed before they run. In the first interactive session after init or regen, open `/hooks`, inspect the generated commands, and approve them only if they resolve to the current repository's `.codex/hooks/namba_codex_guard.sh` or Windows `.codex/hooks/namba_codex_guard.ps1` launcher for `.codex/hooks/namba_codex_guard.py`.
 - `namba regen` regenerates `AGENTS.md`, repo skills under `.agents/skills/`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.
@@ -56,6 +56,23 @@ NambaAI's differentiator is prompt refinement before execution: ambiguous ideas 
 - `namba run SPEC-XXX --team` requests a standalone Codex run that explicitly coordinates multiple subagents inside one workspace.
 - `namba run SPEC-XXX --parallel` still refers to the standalone worktree runner path. It uses git worktrees, merges only after every worker passes execution and validation, and preserves failed worktrees and branches for inspection.
 - Codex `/goal` workflows are tracked as a future orchestration candidate, not a required Namba runtime dependency.
+
+## Codex 0.131 Boundary
+
+Read this boundary in order: Codex displays runtime state, Namba generates repo assets, Namba validates run evidence, and some runtime behavior remains outside Namba control.
+
+| Term | Boundary |
+| --- | --- |
+| `approval mode` | Codex may display the active session approval mode; repo `.codex/config.toml` does not set or persist it. |
+| `permissions` | Codex may display current permission state; Namba docs describe the state but do not own it. |
+| `effective workspace roots` | Codex may show the roots considered for the session; this is visibility, not a Namba promise that every root is writable. |
+| `scoped write roots` | Codex sandbox policy may narrow writable paths; Namba documents the distinction and keeps generated config out of that choice. |
+| `.codex/hooks.json` | Interactive Codex guardrails: context, prompt refinement, command denial, duplicate guard suppression, and generated-surface reminders. |
+| `.namba/hooks.toml` | `namba run` evidence and validation hooks; it is not used to dedupe interactive Codex hooks. |
+
+- Codex 0.131 also reports service tier and richer status-line state. Namba-generated docs can explain those fields, but repo config must not persist a user's service tier or approval/session choices.
+- Git helper commands may ignore configured repository hooks, so Namba cannot rely on Git hooks for safety or validation evidence.
+- On Windows, prefer WSL for Codex workspaces when possible; otherwise expect stricter deny-read behavior, scoped write roots, ineffective firewall policy handling, and PowerShell launcher constraints.
 
 ## Namba Custom Agent Roster
 
@@ -115,4 +132,6 @@ NambaAI's differentiator is prompt refinement before execution: ambiguous ideas 
 - In interactive Codex sessions, `namba run SPEC-XXX` means Codex should execute the SPEC directly in-session.
 - The standalone `namba run` CLI supports the default runner flow plus explicit `--solo`, `--team`, and worktree-based `--parallel` modes.
 - `.codex/hooks.json` configures Codex lifecycle hooks for interactive guardrails; `.namba/hooks.toml` configures Namba runner lifecycle hooks for `namba run` evidence and validation boundaries.
+- Codex 0.131 plugin hooks can also be enabled by the runtime. Namba-generated hooks dedupe identical Namba guard payloads at the interactive boundary, while `.namba/hooks.toml` remains separate runner evidence and is not used to dedupe interactive hooks.
+- Git helper commands may ignore configured repository hooks, so Namba validation must come from configured quality commands and run evidence rather than Git hooks alone.
 - Tokens and PATs are intentionally excluded from generated config. Use `gh auth login` or `glab auth login` instead.
