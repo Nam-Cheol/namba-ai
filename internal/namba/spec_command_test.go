@@ -311,12 +311,53 @@ func TestEvaluatePlanClarificationAllowsStructuredPrompt(t *testing.T) {
 	for _, description := range []string{
 		"Goal: 로그인 사용자가 글 CRUD와 댓글을 사용할 수 있는 게시판. Scope: 목록/상세/작성/수정/삭제와 기본 검색 포함, 관리자 기능 제외. Constraints: 기존 웹 앱 구조 유지. Acceptance: Go 테스트와 브라우저 흐름 검증.",
 		"목표: 로그인 사용자가 글 CRUD와 댓글을 사용할 수 있는 게시판. 범위: 목록/상세/작성/수정/삭제. 제약: 기존 웹 앱 구조 유지. 검증: Go 테스트와 브라우저 흐름 확인.",
+		"目標: ログインユーザーが投稿 CRUD とコメントを使える掲示板。範囲: 一覧/詳細/作成/編集/削除。制約: 既存の Web アプリ構造を維持。完了基準: Go テストとブラウザフロー検証。",
+		"目标: 登录用户可以使用帖子 CRUD 和评论的论坛。范围: 列表/详情/创建/编辑/删除。约束: 保持现有 Web 应用结构。完成标准: Go 测试和浏览器流程验证。",
 	} {
 		description := description
 		t.Run(description, func(t *testing.T) {
 			t.Parallel()
 			if output, ok := evaluatePlanClarification(description); ok {
 				t.Fatalf("expected structured prompt to pass clarification gate, got %q", output)
+			}
+		})
+	}
+}
+
+func TestSpecCreationOpenPointsRecognizeJapaneseAndChineseEvidenceLabels(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name        string
+		description string
+		points      []string
+		unwanted    string
+	}{
+		{
+			name:        "japanese",
+			description: "目標: フィルターを改善。範囲: ダッシュボードのみ。制約: 既存レイアウト維持。完了基準: Go テスト通過。",
+			points:      specReportOpenPointsJapanese("plan", "目標: フィルターを改善。範囲: ダッシュボードのみ。制約: 既存レイアウト維持。完了基準: Go テスト通過。"),
+			unwanted:    "明示されていません",
+		},
+		{
+			name:        "chinese",
+			description: "目标: 改进筛选器。范围: 仅仪表板。约束: 保持现有布局。完成标准: Go 测试通过。",
+			points:      specReportOpenPointsChinese("plan", "目标: 改进筛选器。范围: 仅仪表板。约束: 保持现有布局。完成标准: Go 测试通过。"),
+			unwanted:    "没有明确说明",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if output, ok := evaluatePlanClarification(tc.description); ok {
+				t.Fatalf("expected %s structured prompt to pass clarification gate, got %q", tc.name, output)
+			}
+			for _, point := range tc.points {
+				if strings.Contains(point, tc.unwanted) {
+					t.Fatalf("expected %s evidence labels to avoid false missing open point, got %q", tc.name, point)
+				}
 			}
 		})
 	}
@@ -1443,7 +1484,7 @@ func TestRunPlanCreatesReviewArtifacts(t *testing.T) {
 	if err := app.Run(context.Background(), []string{"plan", "improve", "review", "workflow"}); err != nil {
 		t.Fatalf("plan failed: %v", err)
 	}
-	if got := stdout.String(); !strings.Contains(got, "Auto review: `$namba-plan-review SPEC-001`") || !strings.Contains(got, "Pass --no-review to scaffold only.") {
+	if got := stdout.String(); !strings.Contains(got, "Auto review: `$namba-plan-review SPEC-001`") || !strings.Contains(got, "Pass --no-review to scaffold only.") || !strings.Contains(got, ".namba/specs/SPEC-001/reviews/readiness.md") || !strings.Contains(got, "does not say `Cleared reviews: 3/3`") {
 		t.Fatalf("expected plan output to include auto-review handoff, got %q", got)
 	}
 
@@ -1453,7 +1494,7 @@ func TestRunPlanCreatesReviewArtifacts(t *testing.T) {
 	}
 
 	readiness := mustReadFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-001", "reviews", "readiness.md"))
-	for _, want := range []string{"# Review Readiness", "$namba-plan-pm-review", "$namba-plan-eng-review", "$namba-plan-design-review", "follow up on product=pending, engineering=pending, design=pending"} {
+	for _, want := range []string{"# Review Readiness", "$namba-plan-pm-review", "$namba-plan-eng-review", "$namba-plan-design-review", "Cleared reviews: 0/3", "follow up on product=pending, engineering=pending, design=pending"} {
 		if !strings.Contains(readiness, want) {
 			t.Fatalf("expected readiness scaffold to contain %q, got %q", want, readiness)
 		}

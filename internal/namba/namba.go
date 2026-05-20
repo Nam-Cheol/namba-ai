@@ -1002,66 +1002,70 @@ func specReportWhatChinese(kind string) string {
 }
 
 func specReportNextWork(kind, specID string, autoReview bool) string {
+	readinessPath := specReviewReadinessPath(specID)
 	switch kind {
 	case "fix":
-		return fmt.Sprintf("confirm the reproduction path and regression test in `$namba-plan-review %s`, then implement with `namba run %s` once readiness is clear.", specID, specID)
+		return fmt.Sprintf("confirm the reproduction path and regression test in `$namba-plan-review %s`; if `%s` does not say `Cleared reviews: 3/3`, rerun `$namba-plan-review %s` or the missing review skills before `namba run %s`.", specID, readinessPath, specID, specID)
 	case "harness":
-		return fmt.Sprintf("confirm reusable boundaries and evaluation evidence in `$namba-plan-review %s`, then implement with `namba run %s` once readiness is clear.", specID, specID)
+		return fmt.Sprintf("confirm reusable boundaries and evaluation evidence in `$namba-plan-review %s`; if `%s` does not say `Cleared reviews: 3/3`, rerun `$namba-plan-review %s` or the missing review skills before `namba run %s`.", specID, readinessPath, specID, specID)
 	case "plan":
 		if autoReview {
-			return fmt.Sprintf("run `$namba-plan-review %s` first, then implement with `namba run %s` once readiness is clear.", specID, specID)
+			return fmt.Sprintf("run `$namba-plan-review %s` first; if `%s` does not say `Cleared reviews: 3/3`, rerun `$namba-plan-review %s` or the missing review skills before `namba run %s`.", specID, readinessPath, specID, specID)
 		}
-		return fmt.Sprintf("review product, engineering, and design concerns if needed, then implement with `namba run %s` once readiness is clear.", specID)
+		return fmt.Sprintf("review product, engineering, and design concerns if needed; if `%s` does not say `Cleared reviews: 3/3`, run the missing individual review skills before `namba run %s`.", readinessPath, specID)
 	default:
-		return fmt.Sprintf("review the SPEC package, then implement with `namba run %s` once readiness is clear.", specID)
+		return fmt.Sprintf("review the SPEC package; if `%s` does not say `Cleared reviews: 3/3`, rerun `$namba-plan-review %s` or the missing review skills before `namba run %s`.", readinessPath, specID, specID)
 	}
 }
 
 func specReportNextWorkKorean(kind, specID string, autoReview bool) string {
+	readinessPath := specReviewReadinessPath(specID)
 	switch kind {
 	case "fix":
-		return fmt.Sprintf("먼저 `$namba-plan-review %s`로 재현 경로와 회귀 테스트를 확인하고, readiness가 충분하면 `namba run %s`로 수정 구현을 시작하세요.", specID, specID)
+		return fmt.Sprintf("먼저 `$namba-plan-review %s`로 재현 경로와 회귀 테스트를 확인하세요. `%s`가 `Cleared reviews: 3/3`이 아니면 `namba run %s` 전에 `$namba-plan-review %s` 또는 누락된 review skill을 다시 진행하세요.", specID, readinessPath, specID, specID)
 	case "harness":
-		return fmt.Sprintf("먼저 `$namba-plan-review %s`로 재사용 경계와 평가 증거를 확인하고, readiness가 충분하면 `namba run %s`로 구현을 시작하세요.", specID, specID)
+		return fmt.Sprintf("먼저 `$namba-plan-review %s`로 재사용 경계와 평가 증거를 확인하세요. `%s`가 `Cleared reviews: 3/3`이 아니면 `namba run %s` 전에 `$namba-plan-review %s` 또는 누락된 review skill을 다시 진행하세요.", specID, readinessPath, specID, specID)
 	case "plan":
 		if autoReview {
-			return fmt.Sprintf("먼저 `$namba-plan-review %s`로 product/engineering/design 쟁점을 확인하고, readiness가 충분하면 `namba run %s`로 구현을 시작하세요.", specID, specID)
+			return fmt.Sprintf("먼저 `$namba-plan-review %s`로 product/engineering/design 쟁점을 확인하세요. `%s`가 `Cleared reviews: 3/3`이 아니면 `namba run %s` 전에 `$namba-plan-review %s` 또는 누락된 review skill을 다시 진행하세요.", specID, readinessPath, specID, specID)
 		}
-		return fmt.Sprintf("리뷰를 생략한 상태입니다. 필요하면 product/engineering/design 쟁점을 확인한 뒤 `namba run %s`로 구현을 시작하세요.", specID)
+		return fmt.Sprintf("리뷰를 생략한 상태입니다. 필요하면 product/engineering/design 쟁점을 확인하고, `%s`가 `Cleared reviews: 3/3`이 아니면 `namba run %s` 전에 누락된 개별 review skill을 진행하세요.", readinessPath, specID)
 	default:
-		return fmt.Sprintf("SPEC 패키지를 확인한 뒤 readiness가 충분하면 `namba run %s`로 구현을 시작하세요.", specID)
+		return fmt.Sprintf("SPEC 패키지를 확인하세요. `%s`가 `Cleared reviews: 3/3`이 아니면 `namba run %s` 전에 `$namba-plan-review %s` 또는 누락된 review skill을 진행하세요.", readinessPath, specID, specID)
 	}
 }
 
 func specReportNextWorkJapanese(kind, specID string, autoReview bool) string {
+	readinessPath := specReviewReadinessPath(specID)
 	switch kind {
 	case "fix":
-		return fmt.Sprintf("まず `$namba-plan-review %s` で再現方法と回帰テストを確認し、readiness が十分なら `namba run %s` で修正実装を始めてください。", specID, specID)
+		return fmt.Sprintf("まず `$namba-plan-review %s` で再現方法と回帰テストを確認してください。`%s` が `Cleared reviews: 3/3` でなければ、`namba run %s` の前に `$namba-plan-review %s` または不足している review skill を再実行してください。", specID, readinessPath, specID, specID)
 	case "harness":
-		return fmt.Sprintf("まず `$namba-plan-review %s` で再利用境界と評価証拠を確認し、readiness が十分なら `namba run %s` で実装を始めてください。", specID, specID)
+		return fmt.Sprintf("まず `$namba-plan-review %s` で再利用境界と評価証拠を確認してください。`%s` が `Cleared reviews: 3/3` でなければ、`namba run %s` の前に `$namba-plan-review %s` または不足している review skill を再実行してください。", specID, readinessPath, specID, specID)
 	case "plan":
 		if autoReview {
-			return fmt.Sprintf("まず `$namba-plan-review %s` で product/engineering/design の論点を確認し、readiness が十分なら `namba run %s` で実装を始めてください。", specID, specID)
+			return fmt.Sprintf("まず `$namba-plan-review %s` で product/engineering/design の論点を確認してください。`%s` が `Cleared reviews: 3/3` でなければ、`namba run %s` の前に `$namba-plan-review %s` または不足している review skill を再実行してください。", specID, readinessPath, specID, specID)
 		}
-		return fmt.Sprintf("レビューを省略した状態です。必要なら product/engineering/design の論点を確認してから `namba run %s` で実装を始めてください。", specID)
+		return fmt.Sprintf("レビューを省略した状態です。必要なら product/engineering/design の論点を確認し、`%s` が `Cleared reviews: 3/3` でなければ `namba run %s` の前に不足している個別 review skill を実行してください。", readinessPath, specID)
 	default:
-		return fmt.Sprintf("SPEC パッケージを確認し、readiness が十分なら `namba run %s` で実装を始めてください。", specID)
+		return fmt.Sprintf("SPEC パッケージを確認してください。`%s` が `Cleared reviews: 3/3` でなければ `namba run %s` の前に `$namba-plan-review %s` または不足している review skill を実行してください。", readinessPath, specID, specID)
 	}
 }
 
 func specReportNextWorkChinese(kind, specID string, autoReview bool) string {
+	readinessPath := specReviewReadinessPath(specID)
 	switch kind {
 	case "fix":
-		return fmt.Sprintf("先用 `$namba-plan-review %s` 确认复现路径和回归测试；readiness 足够后，用 `namba run %s` 开始修复实现。", specID, specID)
+		return fmt.Sprintf("先用 `$namba-plan-review %s` 确认复现路径和回归测试；如果 `%s` 不是 `Cleared reviews: 3/3`，请在 `namba run %s` 前重新运行 `$namba-plan-review %s` 或缺失的 review skill。", specID, readinessPath, specID, specID)
 	case "harness":
-		return fmt.Sprintf("先用 `$namba-plan-review %s` 确认可复用边界和评估证据；readiness 足够后，用 `namba run %s` 开始实现。", specID, specID)
+		return fmt.Sprintf("先用 `$namba-plan-review %s` 确认可复用边界和评估证据；如果 `%s` 不是 `Cleared reviews: 3/3`，请在 `namba run %s` 前重新运行 `$namba-plan-review %s` 或缺失的 review skill。", specID, readinessPath, specID, specID)
 	case "plan":
 		if autoReview {
-			return fmt.Sprintf("先用 `$namba-plan-review %s` 确认 product/engineering/design 议题；readiness 足够后，用 `namba run %s` 开始实现。", specID, specID)
+			return fmt.Sprintf("先用 `$namba-plan-review %s` 确认 product/engineering/design 议题；如果 `%s` 不是 `Cleared reviews: 3/3`，请在 `namba run %s` 前重新运行 `$namba-plan-review %s` 或缺失的 review skill。", specID, readinessPath, specID, specID)
 		}
-		return fmt.Sprintf("当前跳过了自动审查。需要时先确认 product/engineering/design 议题，然后用 `namba run %s` 开始实现。", specID)
+		return fmt.Sprintf("当前跳过了自动审查。需要时先确认 product/engineering/design 议题；如果 `%s` 不是 `Cleared reviews: 3/3`，请在 `namba run %s` 前运行缺失的单项 review skill。", readinessPath, specID)
 	default:
-		return fmt.Sprintf("确认 SPEC 包后，如果 readiness 足够，用 `namba run %s` 开始实现。", specID)
+		return fmt.Sprintf("请先确认 SPEC 包；如果 `%s` 不是 `Cleared reviews: 3/3`，请在 `namba run %s` 前运行 `$namba-plan-review %s` 或缺失的 review skill。", readinessPath, specID, specID)
 	}
 }
 
@@ -1467,10 +1471,10 @@ func planDescriptionHasPartialClarifyingEvidence(lower string) bool {
 
 func planClarificationEvidenceGroups() [][]string {
 	return [][]string{
-		{"goal:", "goal -", "목표"},
-		{"scope:", "scope -", "범위"},
-		{"constraints:", "constraint:", "constraints -", "constraint -", "제약"},
-		{"acceptance:", "validation:", "acceptance -", "validation -", "완료 기준", "성공 기준", "검증"},
+		{"goal:", "goal -", "목표", "目標", "目标"},
+		{"scope:", "scope -", "범위", "範囲", "范围"},
+		{"constraints:", "constraint:", "constraints -", "constraint -", "제약", "制約", "制约", "约束"},
+		{"acceptance:", "validation:", "acceptance -", "validation -", "완료 기준", "성공 기준", "검증", "完了基準", "成功基準", "検証", "完成标准", "成功标准", "验证", "验收标准"},
 	}
 }
 

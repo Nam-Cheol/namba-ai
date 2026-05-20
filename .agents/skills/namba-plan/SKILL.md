@@ -23,5 +23,6 @@ Behavior:
 - Create the next sequential `SPEC-XXX` package under `.namba/specs/` after that branch decision is explicit.
 - Seed `.namba/specs/<SPEC>/reviews/` with product, engineering, design, and aggregate readiness artifacts.
 - Unless the invocation includes `--no-review`, treat the created SPEC as an automatic handoff and immediately continue with `$namba-plan-review SPEC-XXX` after the CLI prints the new SPEC ID.
+- After the automatic handoff, read `.namba/specs/<SPEC>/reviews/readiness.md`; if it does not say `Cleared reviews: 3/3`, do not treat planning as complete. Continue with `$namba-plan-review SPEC-XXX` again, or run the missing `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` tracks before implementation.
 - When `--no-review` is present, stop after scaffold creation and point any later review work to `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review`, or `$namba-plan-review SPEC-XXX`.
 - Keep the scope concrete and implementation-ready.

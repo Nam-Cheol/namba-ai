@@ -16,5 +16,6 @@ Behavior:
 - After the three review tracks finish, run an aggregate validation pass over `spec.md`, `plan.md`, `acceptance.md`, and `.namba/specs/<SPEC>/reviews/*.md` to check coverage gaps, contradictions, and whether the advisory readiness state is credible.
 - If the aggregate validator finds issues, revise the SPEC or review artifacts directly, rerun only the affected review tracks, and repeat the validation loop instead of restarting every pass blindly.
 - Refresh `.namba/specs/<SPEC>/reviews/readiness.md` after each review and validation cycle so the advisory summary stays current.
+- Before ending, inspect `.namba/specs/<SPEC>/reviews/readiness.md`; if it does not say `Cleared reviews: 3/3`, do not report the review loop as complete. Continue the review loop when useful, or make the final next-work item explicitly name `$namba-plan-review SPEC-XXX` or the missing individual review skills to run next.
 - Keep the loop bounded and explicit: stop when the readiness state is clear enough to proceed or when the remaining blockers are concrete enough that another loop would be redundant.
 - Keep the whole flow advisory by default; missing depth or blockers should be visible, not silently converted into a hard gate.

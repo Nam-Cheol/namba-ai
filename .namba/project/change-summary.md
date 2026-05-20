@@ -24,4 +24,4 @@ Latest SPEC: SPEC-051
 ## Latest Review Readiness
 
 - Latest readiness artifact: `.namba/specs/SPEC-051/reviews/readiness.md`
-- Advisory summary: product=pending, engineering=pending, design=pending
+- Advisory summary: all review tracks clear
