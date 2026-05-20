@@ -16,17 +16,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: windows-latest
+          - runner: windows-2022
             goos: windows
             goarch: 386
             asset_name: namba_Windows_x86.zip
             binary_name: namba.exe
-          - runner: windows-latest
+          - runner: windows-2022
             goos: windows
             goarch: amd64
             asset_name: namba_Windows_x86_64.zip
             binary_name: namba.exe
-          - runner: windows-latest
+          - runner: windows-2022
             goos: windows
             goarch: arm64
             asset_name: namba_Windows_arm64.zip
@@ -114,7 +114,7 @@ jobs:
           sha256sum * > checksums.txt
 
       - name: Publish release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           body_path: .namba/releases/${{ github.ref_name }}.md
           files: |
