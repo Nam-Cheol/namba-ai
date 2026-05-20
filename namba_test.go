@@ -68,6 +68,9 @@ func TestInitCreatesScaffold(t *testing.T) {
 	if !strings.Contains(agents, "NAMBA-AI 작업 결과 보고") || !strings.Contains(agents, "🧭 작업 정의") || !strings.Contains(agents, "validate-output-contract.py") {
 		t.Fatalf("expected AGENTS to describe the Namba output contract, got: %s", agents)
 	}
+	if !strings.Contains(agents, "Codex 0.131 boundary") || !strings.Contains(agents, ".codex/hooks.json") || !strings.Contains(agents, ".namba/hooks.toml") || !strings.Contains(agents, "Git helper commands may ignore repo hooks") {
+		t.Fatalf("expected AGENTS to describe the Codex 0.131 boundary, got: %s", agents)
+	}
 	if strings.Contains(agents, "Until Codex exposes a documented stop-hook surface") {
 		t.Fatalf("expected AGENTS to avoid stale stop-hook wording, got: %s", agents)
 	}
@@ -202,8 +205,13 @@ func TestInitSupportsCodexProfileFlags(t *testing.T) {
 	}
 
 	codexConfig := mustRead(t, filepath.Join(tmp, ".codex", "config.toml"))
-	if !strings.Contains(codexConfig, "#:schema https://developers.openai.com/codex/config-schema.json") || !strings.Contains(codexConfig, "repo-safe Codex defaults under version control") || !strings.Contains(codexConfig, "max_threads = 5") || !strings.Contains(codexConfig, `approval_policy = "never"`) || !strings.Contains(codexConfig, `sandbox_mode = "read-only"`) {
+	if !strings.Contains(codexConfig, "#:schema https://developers.openai.com/codex/config-schema.json") || !strings.Contains(codexConfig, "intentionally avoids session-owned Codex choices") || !strings.Contains(codexConfig, "max_threads = 5") {
 		t.Fatalf("unexpected codex repo config: %s", codexConfig)
+	}
+	for _, unwanted := range []string{`approval_policy =`, `sandbox_mode =`} {
+		if strings.Contains(codexConfig, unwanted) {
+			t.Fatalf("expected repo Codex config to avoid session-owned key %q: %s", unwanted, codexConfig)
+		}
 	}
 	if strings.Contains(codexConfig, "status_line") {
 		t.Fatalf("expected status line to be omitted when preset is off: %s", codexConfig)

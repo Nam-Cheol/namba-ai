@@ -63,7 +63,7 @@ NambaAI 工作流会先读取仓库，把工作整理成 SPEC，完成实现和�
 - `$namba-coach`: 简要重述当前目标，只提出必要问题，然后以 read-only 方式推荐正确的 Namba workflow handoff。
 - `$namba-create`: 当你直接需要 repo-local skill 或 project-scoped custom agent 时，使用这个 preview-first 创建路径。如果目标是 SPEC 包，请选择 `namba plan` 或 `namba harness`。
 - `namba project`: 刷新当前仓库文档和 codemap，不会创建 SPEC 包。
-- `namba codex access`: 以 inspect-only 方式查看当前 repo-owned Codex access 默认值，只有传入明确 flag 时才会修改 approval_policy / sandbox_mode。
+- `namba codex access`: 以 inspect-only 方式查看 Namba runner 的 `codex exec` access 默认值，只有传入明确 flag 时才会修改 `.namba/config/sections/system.yaml` 中的 approval_policy / sandbox_mode。Interactive Codex approval mode、permissions、service tier、workspace roots、sandbox choices 由 user/session 拥有。
 - `namba plan "description"`: 创建下一个功能 SPEC 包和 review artifact；如果没有 `--no-review`，会继续交给 `$namba-plan-review`。
 - clarification gate：像“做个论坛”这样的模糊 plan request，会先继续提问，再检查项目文档或运行 CLI。若可使用 Codex Plan mode 选择 UI，则把其输出作为 refined prompt 传给 `namba plan`。
 - `namba harness "description"`: 创建面向 agent / skill / workflow / orchestration 复用的 harness-oriented SPEC 包和 review artifact。
@@ -117,7 +117,7 @@ NambaAI 工作流会先读取仓库，把工作整理成 SPEC，完成实现和�
 - `.namba/`: config、SPEC packages、project docs、logs
 - `.namba/specs/<SPEC>/reviews/`: 每个 SPEC 的 advisory product / engineering / design / readiness artifact
 - `.agents/skills/`: Codex 直接使用的 repo-local skills
-- `.codex/config.toml`: repo-local Codex defaults 和 Namba-managed MCP preset
+- `.codex/config.toml`: repo-local hook / agent / MCP defaults；interactive approval mode、permissions、service tier、workspace roots、sandbox choices 仍由 user/session 拥有
 - `.codex/agents/*.toml`: project-scoped custom agents
 - `.namba/project/*`: change summary、release notes、checklist、codemap
 

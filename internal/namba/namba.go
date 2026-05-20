@@ -401,7 +401,7 @@ func initUsageText() string {
 		"  Selections are echoed before moving on, `b`/`back` returns to the previous step, and the wizard does not ask for a GitHub username.",
 		"  Codex access presets preview the resulting approval_policy / sandbox_mode pair.",
 		"  The scaffold includes Codex lifecycle hooks; first interactive Codex use must review them with `/hooks` before prompt-refinement guardrails run.",
-		"  After bootstrap, use `namba codex access` from the project root to inspect or change repo-owned Codex access defaults.",
+		"  After bootstrap, use `namba codex access` from the project root to inspect or change Namba runner Codex access defaults.",
 	}
 	return strings.Join(lines, "\n") + "\n"
 }

@@ -68,9 +68,10 @@ namba land
 ## 🪝 Hook Runtime
 
 - 如果你刚开始使用，可以先跳过这一节。Hook 用来在执行过程中的特定时机自动运行检查或通知。
-- Codex lifecycle hook 会由 `namba init .` 预生成到 `.codex/hooks.json`、`.codex/hooks/namba_codex_guard.py`、POSIX `.codex/hooks/namba_codex_guard.sh` 和 Windows `.codex/hooks/namba_codex_guard.ps1` launcher。这个 hook 会注入 Namba context，对模糊 prompt 不再阻止发送，而是引导提问和整理，说明权限请求风险，并在 final response 格式或 managed instruction surface 改动后提醒 `namba regen` 和 validation。
+- Codex lifecycle hook 会由 `namba init .` 预生成到 `.codex/hooks.json`、`.codex/hooks/namba_codex_guard.py`、POSIX `.codex/hooks/namba_codex_guard.sh` 和 Windows `.codex/hooks/namba_codex_guard.ps1` launcher。这个 hook 会注入 Namba context，对模糊 prompt 不再阻止发送，而是引导提问和整理，说明权限请求风险，在 final response 格式或 managed instruction surface 改动后提醒 `namba regen` 和 validation，并在 plugin hook 与 repo hook 收到相同 payload 时抑制重复的 Namba guard 输出。
 - Codex 在执行 repo-local hook 之前会要求 review。第一次 interactive Codex session 看到 `6 hooks need review` 时，请打开 `/hooks`，确认命令只指向当前仓库的 `.codex/hooks/namba_codex_guard.sh` 或 Windows `.codex/hooks/namba_codex_guard.ps1` launcher 后再批准。
 - `.codex/hooks.json` 是 Codex interactive guardrail；`.namba/hooks.toml` 是 `namba run` 的 evidence/validation boundary。
+- Codex 0.131 可以在 TUI 中显示 approval mode、permissions、service tier 和 effective workspace roots。Namba 会解释这些 runtime state，但不会在 repo config 中拥有或保存它们。Git helper command 可能忽略 repo hook，所以 Namba validation 依赖 quality command 和 run evidence，而不是 Git hook。
 - 📍 注册位置: 在仓库根目录放置 `.namba/hooks.toml` 后，`namba run SPEC-XXX` 会在执行过程中自动读取。
 - 🧩 注册格式: 添加 `[hooks.<hook_name>]` 表，并填写 `event`、`command`、`cwd`、`timeout`、`enabled`、`continue_on_failure`。
 - 🧾 执行证据: 每个 hook 的 stdout/stderr 会保存到 `.namba/logs/runs/<log-id>-hooks/`，结果会写入 `<log-id>-evidence.json` 的 `hooks` 数组。

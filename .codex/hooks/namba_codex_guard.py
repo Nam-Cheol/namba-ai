@@ -7,10 +7,13 @@ generated Namba surfaces when those files are touched.
 """
 
 import json
+import hashlib
 import os
 import re
 import subprocess
 import sys
+import tempfile
+import time
 
 
 def configure_stdio():
@@ -84,19 +87,38 @@ CURRENT_PAYLOAD = {}
 configure_stdio()
 
 
+def event_name_from_raw(raw):
+    match = re.search(r'"hook_event_name"\s*:\s*"([^"]+)"', raw)
+    if match:
+        return match.group(1)
+    return "Unknown"
+
+
 def read_payload():
     raw = sys.stdin.read()
     if not raw.strip():
-        return {}
+        return {}, ""
     try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        return {}
+        return json.loads(raw), ""
+    except json.JSONDecodeError as exc:
+        return {
+            "hook_event_name": event_name_from_raw(raw),
+            "_namba_malformed_json": True,
+        }, "NambaAI hook guard received malformed JSON payload; continuing without policy-specific action: " + str(exc)
 
 
 def emit(value):
     trace(CURRENT_PAYLOAD, value)
     print(json.dumps(value, ensure_ascii=True, separators=(",", ":")))
+
+
+def emit_continue(message="", suppress_output=False):
+    value = {"continue": True}
+    if message:
+        value["systemMessage"] = message
+    if suppress_output:
+        value["suppressOutput"] = True
+    emit(value)
 
 
 def trace(payload, output=None):
@@ -106,6 +128,9 @@ def trace(payload, output=None):
     try:
         event = payload.get("hook_event_name")
         record = {"event": event}
+        session_id = session_id_from(payload)
+        if session_id:
+            record["session_id"] = session_id
         if event == "UserPromptSubmit":
             record["prompt_refinement"] = bool(prompt_refinement_context(prompt_from(payload)))
         if event in ("PreToolUse", "PermissionRequest"):
@@ -140,6 +165,59 @@ def command_from(payload):
             if isinstance(value, str):
                 return value
     return ""
+
+
+def session_id_from(payload):
+    for key in ("session_id", "session-id", "thread_id", "thread-id"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def safe_updated_input(payload):
+    tool_input = payload.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return None
+    if "cmd" not in tool_input or "command" in tool_input:
+        return None
+    cmd = tool_input.get("cmd")
+    if not isinstance(cmd, str) or not cmd.strip():
+        return None
+    updated = dict(tool_input)
+    updated["command"] = updated.pop("cmd")
+    return updated
+
+
+def dedupe_key(payload):
+    try:
+        raw = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    except Exception:
+        raw = str(payload)
+    return hashlib.sha256(raw.encode("utf-8", errors="replace")).hexdigest()
+
+
+def should_suppress_duplicate(payload):
+    flag = os.environ.get("NAMBA_HOOK_DEDUPE", "1").strip().lower()
+    if flag in ("0", "false", "no", "off"):
+        return False
+    event = payload.get("hook_event_name")
+    if not isinstance(event, str) or not event:
+        return False
+    root = os.environ.get("NAMBA_HOOK_DEDUPE_DIR")
+    if not root:
+        root = os.path.join(tempfile.gettempdir(), "namba_codex_hook_guard")
+    try:
+        os.makedirs(root, exist_ok=True)
+        path = os.path.join(root, dedupe_key(payload) + ".seen")
+        now = time.time()
+        if os.path.exists(path) and now - os.path.getmtime(path) <= 5:
+            return True
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(str(now))
+    except Exception:
+        return False
+    return False
 
 
 def dangerous_reason(command):
@@ -234,6 +312,7 @@ def prompt_refinement_guidance(prompt):
 def handle_user_prompt_submit(payload):
     guidance = prompt_refinement_guidance(prompt_from(payload))
     if not guidance:
+        emit_continue()
         return
     emit({
         "hookSpecificOutput": {
@@ -243,7 +322,11 @@ def handle_user_prompt_submit(payload):
     })
 
 
-def handle_session_start():
+def handle_session_start(payload):
+    session_id = session_id_from(payload)
+    session_note = " Session metadata is optional and tolerated."
+    if session_id:
+        session_note = " Session id accepted: " + session_id + "."
     emit({
         "hookSpecificOutput": {
             "hookEventName": "SessionStart",
@@ -251,7 +334,7 @@ def handle_session_start():
                 "NambaAI lifecycle hook is active. Treat .namba/ as the source "
                 "of truth, use AGENTS.md and .agents/skills/ for workflow routing, "
                 "and run configured validation after changes. Codex hooks are "
-                "guardrails, not a complete security boundary."
+                "guardrails, not a complete security boundary." + session_note
             ),
         }
     })
@@ -259,15 +342,26 @@ def handle_session_start():
 
 def handle_pre_tool_use(payload):
     reason = dangerous_reason(command_from(payload))
-    if not reason:
+    if reason:
+        emit({
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": reason,
+            }
+        })
         return
-    emit({
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "deny",
-            "permissionDecisionReason": reason,
-        }
-    })
+    updated = safe_updated_input(payload)
+    if updated is not None:
+        emit({
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "allow",
+                "updatedInput": updated,
+            }
+        })
+        return
+    emit_continue()
 
 
 def handle_permission_request(payload):
@@ -275,7 +369,9 @@ def handle_permission_request(payload):
     if not reason:
         note = approval_risk_note(command_from(payload))
         if note:
-            emit({"systemMessage": note})
+            emit({"continue": True, "systemMessage": note})
+        else:
+            emit_continue()
         return
     emit({
         "hookSpecificOutput": {
@@ -288,7 +384,19 @@ def handle_permission_request(payload):
     })
 
 
+def cwd_from_payload(payload):
+    value = payload.get("cwd")
+    if isinstance(value, str) and value.strip():
+        return value
+    try:
+        return os.getcwd()
+    except Exception:
+        return ""
+
+
 def changed_paths(cwd):
+    if not cwd:
+        return []
     try:
         result = subprocess.run(
             ["git", "status", "--short"],
@@ -322,9 +430,10 @@ def is_namba_surface(path):
 
 
 def handle_post_tool_use(payload):
-    cwd = payload.get("cwd") if isinstance(payload.get("cwd"), str) else os.getcwd()
+    cwd = cwd_from_payload(payload)
     touched = [path for path in changed_paths(cwd) if is_namba_surface(path)]
     if not touched:
+        emit_continue()
         return
     shown = ", ".join(touched[:6])
     if len(touched) > 6:
@@ -343,6 +452,8 @@ def handle_post_tool_use(payload):
 
 
 def namba_repo(cwd):
+    if not cwd:
+        return False
     return os.path.exists(os.path.join(cwd, ".namba")) or os.path.exists(os.path.join(cwd, "AGENTS.md"))
 
 
@@ -362,18 +473,23 @@ def report_missing_sections(message):
 
 def handle_stop(payload):
     if payload.get("stop_hook_active") is True:
+        emit_continue()
         return
     message = payload.get("last_assistant_message")
     if not isinstance(message, str) or len(message.strip()) < 500:
+        emit_continue()
         return
-    cwd = payload.get("cwd") if isinstance(payload.get("cwd"), str) else os.getcwd()
+    cwd = cwd_from_payload(payload)
     if not namba_repo(cwd):
+        emit_continue()
         return
     nambaish = any(token in message.lower() for token in ("namba", ".namba", "codex", "spec-", "검증", "브랜치"))
     if not nambaish:
+        emit_continue()
         return
     missing = report_missing_sections(message)
     if not missing:
+        emit_continue()
         return
     emit({
         "decision": "block",
@@ -386,26 +502,25 @@ def handle_stop(payload):
 
 
 def emit_hook_error(event, message):
-    if not isinstance(event, str) or not event:
-        event = "Unknown"
     print(message, file=sys.stderr)
-    emit({
-        "hookSpecificOutput": {
-            "hookEventName": event,
-            "additionalContext": message,
-        }
-    })
+    emit_continue(message)
 
 
 def main():
     global CURRENT_PAYLOAD
     try:
-        payload = read_payload()
+        payload, parse_error = read_payload()
         CURRENT_PAYLOAD = payload
         trace(payload)
+        if parse_error:
+            emit_continue(parse_error)
+            return 0
+        if should_suppress_duplicate(payload):
+            emit_continue(suppress_output=True)
+            return 0
         event = payload.get("hook_event_name")
         if event == "SessionStart":
-            handle_session_start()
+            handle_session_start(payload)
         elif event == "PreToolUse":
             handle_pre_tool_use(payload)
         elif event == "PermissionRequest":
@@ -416,11 +531,13 @@ def main():
             handle_post_tool_use(payload)
         elif event == "Stop":
             handle_stop(payload)
+        else:
+            emit_continue()
         return 0
     except Exception as exc:
         event = CURRENT_PAYLOAD.get("hook_event_name") if isinstance(CURRENT_PAYLOAD, dict) else "Unknown"
         emit_hook_error(event, "NambaAI hook guard failed with an unhandled exception: " + str(exc))
-        return 1
+        return 0
 
 
 if __name__ == "__main__":
