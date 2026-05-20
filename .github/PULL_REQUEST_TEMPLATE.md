@@ -23,4 +23,4 @@
 - [ ] base branch는 `main`입니다.
 - [ ] PR 제목과 본문을 한글로 작성했습니다.
 - [ ] 필요한 문서와 Namba 산출물을 갱신했습니다.
-- [ ] `@codex review` 요청이 GitHub PR에 등록된 것을 확인했습니다.
+- [ ] Codex review를 명시적으로 요청한 경우에만 `@codex review` 요청이 GitHub PR에 등록된 것을 확인했습니다.

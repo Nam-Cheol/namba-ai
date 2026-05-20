@@ -643,7 +643,7 @@ func buildDataStateFindings(systemRoot string, files []analysisFile) []analysisF
 }
 
 func buildAuthIntegrationFindings(systemRoot string, files []analysisFile) []analysisFinding {
-	if evidence := preferredEvidence(files, "config.toml", "codex-review-request.yml", "ci.yml", "SECURITY.md"); len(evidence) > 0 {
+	if evidence := preferredEvidence(files, "config.toml", "ci.yml", "SECURITY.md"); len(evidence) > 0 {
 		return []analysisFinding{newFinding("Codex, GitHub workflow, or security-policy integrations are explicitly represented in the repository surface.", confidenceForEvidence(evidence), evidence)}
 	}
 	for _, file := range files {
