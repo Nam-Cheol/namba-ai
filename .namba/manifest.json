@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-20T17:23:26+09:00",
+  "generated_at": "2026-05-20T17:39:23+09:00",
   "entries": [
     {
       "path": ".agents/skills/namba-coach/SKILL.md",
@@ -2692,6 +2692,62 @@
       "owner": "namba-managed",
       "checksum": "ad92aeab5969120ff9ea19a80fe4ccd6f245eecc4392872fa569db6a5c422560",
       "updated_at": "2026-05-20T17:12:32+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-056/acceptance.md",
+      "kind": "spec",
+      "owner": "namba-managed",
+      "checksum": "98bed8f5f87037fb2f12520a8395f563ac15cda377387948d0f1c9cabbef8cfa",
+      "updated_at": "2026-05-20T17:39:23+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-056/harness-request.json",
+      "kind": "spec",
+      "owner": "namba-managed",
+      "checksum": "26eaf4065d175ea4e2535cfa1b602a874f0e84983030ee1cb44280610bff8587",
+      "updated_at": "2026-05-20T17:39:23+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-056/plan.md",
+      "kind": "spec",
+      "owner": "namba-managed",
+      "checksum": "5cef9c2e48eca5d4936060e117322463b45af690ae40dd83ecca048f25ebe285",
+      "updated_at": "2026-05-20T17:39:23+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-056/reviews/design.md",
+      "kind": "spec",
+      "owner": "namba-managed",
+      "checksum": "0f9233afe578f8a20d133cb7f73ac2486f4b9b496dc262d4b779a4ae2f8bad27",
+      "updated_at": "2026-05-20T17:39:23+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-056/reviews/engineering.md",
+      "kind": "spec",
+      "owner": "namba-managed",
+      "checksum": "0576a22e3d37991625485d80d2770bda2c032a9ac4d2fc17c61b896942e59de6",
+      "updated_at": "2026-05-20T17:39:23+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-056/reviews/product.md",
+      "kind": "spec",
+      "owner": "namba-managed",
+      "checksum": "917bb2906c1c4c82eded44aa8f6d8a99ac5f056d28d471b2c830f2801804f4da",
+      "updated_at": "2026-05-20T17:39:23+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-056/reviews/readiness.md",
+      "kind": "spec",
+      "owner": "namba-managed",
+      "checksum": "6944c29973f40cf8f8c4818a9c88d0e23969fdc0674e5324df091e8b465a67e2",
+      "updated_at": "2026-05-20T17:39:23+09:00"
+    },
+    {
+      "path": ".namba/specs/SPEC-056/spec.md",
+      "kind": "spec",
+      "owner": "namba-managed",
+      "checksum": "e07907cc73e86abfb85691e6ede794a1330732a49e4704eff3b34a629b4fd3ac",
+      "updated_at": "2026-05-20T17:39:23+09:00"
     },
     {
       "path": ".namba/worktrees/.gitkeep",
