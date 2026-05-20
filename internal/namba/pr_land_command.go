@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -18,6 +19,7 @@ const (
 type prOptions struct {
 	Title          string
 	Remote         string
+	Language       string
 	SkipSync       bool
 	SkipValidation bool
 	RequestReview  bool
@@ -91,6 +93,9 @@ func (a *App) runPR(ctx context.Context, args []string) error {
 	}
 	if !strings.EqualFold(strings.TrimSpace(profile.GitProvider), "github") {
 		return fmt.Errorf("pr currently supports only the GitHub provider, got %q", profile.GitProvider)
+	}
+	if opts.Language != "" {
+		profile.PRLanguage = opts.Language
 	}
 	if err := a.requireGitHubCLI(ctx, root); err != nil {
 		return err
@@ -245,6 +250,12 @@ func parsePRArgs(args []string) (prOptions, error) {
 				return prOptions{}, err
 			}
 			opts.Remote = strings.TrimSpace(value)
+		case "--language":
+			value, err := consumeFlagValue(args, &i, args[i])
+			if err != nil {
+				return prOptions{}, err
+			}
+			opts.Language = normalizeReadmeLanguage(value)
 		case "--no-sync":
 			opts.SkipSync = true
 		case "--no-validate":
@@ -265,6 +276,9 @@ func parsePRArgs(args []string) (prOptions, error) {
 	}
 	if opts.Remote == "" {
 		return prOptions{}, errors.New("pr remote is required")
+	}
+	if opts.Language != "" && !containsValue([]string{"en", "ko", "ja", "zh"}, opts.Language) {
+		return prOptions{}, fmt.Errorf("PR language %q is not supported", opts.Language)
 	}
 	return opts, nil
 }
@@ -633,59 +647,171 @@ func buildPullRequestBody(root string, profile initProfile) string {
 	if specReviewReadinessExists(root, latestSpec) {
 		readinessPath = specReviewReadinessPath(latestSpec)
 	}
+	evidence := collectPullRequestBodyEvidence(root, summaryPath, checklistPath, readinessPath)
 
 	switch normalizeReadmeLanguage(profile.PRLanguage) {
 	case "ko":
 		lines := []string{
 			"## \uC791\uC5C5 \uC694\uC57D",
-			fmt.Sprintf("- \uBCC0\uACBD \uC694\uC57D: `%s`", summaryPath),
-			fmt.Sprintf("- \uAC80\uD1A0 \uCCB4\uD06C\uB9AC\uC2A4\uD2B8: `%s`", checklistPath),
+		}
+		lines = append(lines, renderPRBodyBullets(evidence.CompletedWork, "완료된 작업을 `.namba/project/change-summary.md`에 기록했습니다.")...)
+		lines = append(lines,
 			"",
-			"## \uAC80\uD1A0 \uBA54\uBAA8",
-			"- `namba pr`\uAC00 sync, validation, commit, push\uB97C \uB9C8\uCE5C \uC0C1\uD0DC\uC785\uB2C8\uB2E4.",
-		}
-		if readinessPath != "" {
-			lines = append(lines, fmt.Sprintf("- \uCD5C\uC2E0 SPEC review readiness: `%s` (\uC790\uBB38\uC801 advisory)", readinessPath))
-		}
+			"## \uBCC0\uACBD \uBC94\uC704",
+		)
+		lines = append(lines, renderPRBodyBullets(evidence.ChangedAreas, "변경 범위는 change summary와 PR checklist를 기준으로 검토했습니다.")...)
+		lines = append(lines,
+			"",
+			"## \uC99D\uAC70 \uCD9C\uCC98",
+		)
+		lines = append(lines, renderPRBodyBullets(evidence.SourceRefs, "")...)
+		lines = append(lines,
+			"",
+			"## \uAC80\uC99D \uACB0\uACFC",
+			fmt.Sprintf("- %s", evidence.ValidationResult),
+		)
 		return strings.Join(lines, "\n")
 	case "ja":
 		lines := []string{
 			"## \u4F5C\u696D\u6982\u8981",
-			fmt.Sprintf("- \u5909\u66F4\u30B5\u30DE\u30EA\u30FC: `%s`", summaryPath),
-			fmt.Sprintf("- \u30EC\u30D3\u30E5\u30FC\u30C1\u30A7\u30C3\u30AF\u30EA\u30B9\u30C8: `%s`", checklistPath),
+		}
+		lines = append(lines, renderPRBodyBullets(evidence.CompletedWork, "完了した作業を `.namba/project/change-summary.md` に記録しました。")...)
+		lines = append(lines,
 			"",
-			"## \u30EC\u30D3\u30E5\u30FC\u7528\u30E1\u30E2",
-			"- `namba pr` \u306F sync\u3001validation\u3001commit\u3001push \u307E\u3067\u5B8C\u4E86\u3057\u3066\u3044\u307E\u3059\u3002",
-		}
-		if readinessPath != "" {
-			lines = append(lines, fmt.Sprintf("- \u6700\u65B0 SPEC \u306E review readiness: `%s` (\u52A9\u8A00\u7528)", readinessPath))
-		}
+			"## \u5909\u66F4\u7BC4\u56F2",
+		)
+		lines = append(lines, renderPRBodyBullets(evidence.ChangedAreas, "変更範囲は change summary と PR checklist で確認しました。")...)
+		lines = append(lines,
+			"",
+			"## \u8A3C\u8DE1\u30BD\u30FC\u30B9",
+		)
+		lines = append(lines, renderPRBodyBullets(evidence.SourceRefs, "")...)
+		lines = append(lines,
+			"",
+			"## \u691C\u8A3C\u7D50\u679C",
+			fmt.Sprintf("- %s", evidence.ValidationResult),
+		)
 		return strings.Join(lines, "\n")
 	case "zh":
 		lines := []string{
 			"## \u53D8\u66F4\u6458\u8981",
-			fmt.Sprintf("- \u53D8\u66F4\u8BF4\u660E\uFF1A`%s`", summaryPath),
-			fmt.Sprintf("- \u8BC4\u5BA1\u6E05\u5355\uFF1A`%s`", checklistPath),
+		}
+		lines = append(lines, renderPRBodyBullets(evidence.CompletedWork, "已在 `.namba/project/change-summary.md` 记录已完成工作。")...)
+		lines = append(lines,
 			"",
-			"## \u8BC4\u5BA1\u5907\u6CE8",
-			"- `namba pr` \u5DF2\u5B8C\u6210 sync\u3001validation\u3001commit \u548C push\u3002",
-		}
-		if readinessPath != "" {
-			lines = append(lines, fmt.Sprintf("- \u6700\u65B0 SPEC review readiness: `%s` (\u5EFA\u8BAE\u6027 advisory)", readinessPath))
-		}
+			"## \u53D8\u66F4\u8303\u56F4",
+		)
+		lines = append(lines, renderPRBodyBullets(evidence.ChangedAreas, "变更范围已按 change summary 和 PR checklist 检查。")...)
+		lines = append(lines,
+			"",
+			"## \u8BC1\u636E\u6765\u6E90",
+		)
+		lines = append(lines, renderPRBodyBullets(evidence.SourceRefs, "")...)
+		lines = append(lines,
+			"",
+			"## \u9A8C\u8BC1\u7ED3\u679C",
+			fmt.Sprintf("- %s", evidence.ValidationResult),
+		)
 		return strings.Join(lines, "\n")
 	default:
 		lines := []string{
 			"## Summary",
-			fmt.Sprintf("- Change summary: `%s`", summaryPath),
-			fmt.Sprintf("- Review checklist: `%s`", checklistPath),
+		}
+		lines = append(lines, renderPRBodyBullets(evidence.CompletedWork, "Completed work is recorded in `.namba/project/change-summary.md`.")...)
+		lines = append(lines,
 			"",
-			"## Review Notes",
-			"- `namba pr` has already completed sync, validation, commit, and push.",
-		}
-		if readinessPath != "" {
-			lines = append(lines, fmt.Sprintf("- Latest SPEC review readiness: `%s` (advisory)", readinessPath))
-		}
+			"## Changed Areas",
+		)
+		lines = append(lines, renderPRBodyBullets(evidence.ChangedAreas, "Changed areas were checked against the change summary and PR checklist.")...)
+		lines = append(lines,
+			"",
+			"## Evidence Sources",
+		)
+		lines = append(lines, renderPRBodyBullets(evidence.SourceRefs, "")...)
+		lines = append(lines,
+			"",
+			"## Validation Result",
+			fmt.Sprintf("- %s", evidence.ValidationResult),
+		)
 		return strings.Join(lines, "\n")
 	}
+}
+
+type pullRequestBodyEvidence struct {
+	CompletedWork    []string
+	ChangedAreas     []string
+	SourceRefs       []string
+	ValidationResult string
+}
+
+func collectPullRequestBodyEvidence(root, summaryPath, checklistPath, readinessPath string) pullRequestBodyEvidence {
+	summary := readOptionalProjectArtifact(root, summaryPath)
+	checklist := readOptionalProjectArtifact(root, checklistPath)
+	completed := firstMarkdownBullets(summary, 4)
+	areas := firstMarkdownBullets(checklist, 3)
+	refs := []string{
+		fmt.Sprintf("`%s`", summaryPath),
+		fmt.Sprintf("`%s`", checklistPath),
+	}
+	if readinessPath != "" {
+		refs = append(refs, fmt.Sprintf("`%s`", readinessPath))
+	}
+	return pullRequestBodyEvidence{
+		CompletedWork:    completed,
+		ChangedAreas:     areas,
+		SourceRefs:       refs,
+		ValidationResult: pullRequestValidationResult(checklist),
+	}
+}
+
+func readOptionalProjectArtifact(root, relPath string) string {
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relPath)))
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+func firstMarkdownBullets(content string, limit int) []string {
+	var bullets []string
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "- ") {
+			continue
+		}
+		text := strings.TrimSpace(strings.TrimPrefix(trimmed, "- "))
+		if text == "" || strings.HasPrefix(text, "[ ]") {
+			continue
+		}
+		bullets = append(bullets, text)
+		if len(bullets) >= limit {
+			break
+		}
+	}
+	return bullets
+}
+
+func pullRequestValidationResult(checklist string) string {
+	for _, line := range strings.Split(checklist, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.Contains(strings.ToLower(trimmed), "validation") {
+			return strings.TrimPrefix(trimmed, "- ")
+		}
+	}
+	return "`namba pr` completed sync, validation, commit, and push before opening the PR."
+}
+
+func renderPRBodyBullets(values []string, fallback string) []string {
+	if len(values) == 0 && fallback != "" {
+		values = []string{fallback}
+	}
+	lines := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		lines = append(lines, "- "+value)
+	}
+	return lines
 }

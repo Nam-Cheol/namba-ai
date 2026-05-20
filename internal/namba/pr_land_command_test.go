@@ -29,11 +29,11 @@ func TestParsePRArgs(t *testing.T) {
 	t.Run("review flag composes", func(t *testing.T) {
 		t.Parallel()
 
-		opts, err := parsePRArgs([]string{"--review", "review", "title", "--remote", "upstream", "--no-sync", "--no-validate"})
+		opts, err := parsePRArgs([]string{"--review", "review", "title", "--remote", "upstream", "--language", "en", "--no-sync", "--no-validate"})
 		if err != nil {
 			t.Fatalf("parsePRArgs returned error: %v", err)
 		}
-		if opts.Title != "review title" || opts.Remote != "upstream" || !opts.SkipSync || !opts.SkipValidation || !opts.RequestReview {
+		if opts.Title != "review title" || opts.Remote != "upstream" || opts.Language != "en" || !opts.SkipSync || !opts.SkipValidation || !opts.RequestReview {
 			t.Fatalf("unexpected pr options: %+v", opts)
 		}
 	})
@@ -307,6 +307,45 @@ func TestRunPRIncludesLatestReviewReadinessInBody(t *testing.T) {
 
 	if err := app.Run(context.Background(), []string{"pr", "Review", "readiness"}); err != nil {
 		t.Fatalf("pr failed: %v", err)
+	}
+}
+
+func TestBuildPullRequestBodyUsesConcreteEvidence(t *testing.T) {
+	t.Parallel()
+
+	tmp := canonicalTempDir(t)
+	writeTestFile(t, filepath.Join(tmp, ".namba", "project", "change-summary.md"), strings.Join([]string{
+		"# Change Summary",
+		"",
+		"- Completed SPEC-054 PR body evidence rendering.",
+		"- Updated internal/namba/pr_land_command.go.",
+	}, "\n"))
+	writeTestFile(t, filepath.Join(tmp, ".namba", "project", "pr-checklist.md"), strings.Join([]string{
+		"# PR Checklist",
+		"",
+		"- [x] Validation commands passed: go test ./...",
+		"- [x] Changed files reviewed.",
+	}, "\n"))
+	writeTestFile(t, filepath.Join(tmp, ".namba", "specs", "SPEC-054", "reviews", "readiness.md"), "approved\n")
+
+	body := buildPullRequestBody(tmp, initProfile{PRLanguage: "en"})
+	for _, want := range []string{
+		"## Summary",
+		"Completed SPEC-054 PR body evidence rendering.",
+		"Updated internal/namba/pr_land_command.go.",
+		"## Evidence Sources",
+		".namba/project/change-summary.md",
+		".namba/project/pr-checklist.md",
+		".namba/specs/SPEC-054/reviews/readiness.md",
+		"## Validation Result",
+		"Validation commands passed: go test ./...",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("expected PR body to contain %q, got %q", want, body)
+		}
+	}
+	if strings.Contains(body, "@codex review") {
+		t.Fatalf("PR body must not request Codex review by default, got %q", body)
 	}
 }
 

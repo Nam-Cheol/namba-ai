@@ -10,10 +10,11 @@ import (
 )
 
 type releaseOptions struct {
-	Version string
-	Bump    string
-	Push    bool
-	Remote  string
+	Version  string
+	Bump     string
+	Push     bool
+	Remote   string
+	Language string
 }
 
 type semver struct {
@@ -37,6 +38,10 @@ func (a *App) runRelease(ctx context.Context, args []string) error {
 	}
 	if !isGitRepository(root) {
 		return errors.New("release requires a git repository")
+	}
+	profile, err := a.loadInitProfileFromConfig(root)
+	if err != nil {
+		return err
 	}
 
 	branch, err := a.currentBranch(ctx, root)
@@ -100,7 +105,7 @@ func (a *App) runRelease(ctx context.Context, args []string) error {
 		return fmt.Errorf("release notes for %s are empty; add at least one meaningful commit since %s", version, fallbackReleaseTag(previousTag))
 	}
 
-	notes := renderReleaseNotes(version, previousTag, commits)
+	notes := renderReleaseNotesForLanguage(version, previousTag, commits, firstNonBlank(opts.Language, profile.PRLanguage, profile.DocumentationLanguage, profile.ConversationLanguage))
 	notesPath, err := writeReleaseNotes(root, version, notes)
 	if err != nil {
 		return err
@@ -180,6 +185,12 @@ func parseReleaseArgs(args []string) (releaseOptions, error) {
 				return releaseOptions{}, err
 			}
 			opts.Remote = strings.TrimSpace(value)
+		case "--language":
+			value, err := consumeValue(args, &i, args[i])
+			if err != nil {
+				return releaseOptions{}, err
+			}
+			opts.Language = normalizeReadmeLanguage(value)
 		default:
 			return releaseOptions{}, fmt.Errorf("unknown flag %q", args[i])
 		}
@@ -193,6 +204,9 @@ func parseReleaseArgs(args []string) (releaseOptions, error) {
 	}
 	if opts.Remote == "" {
 		return releaseOptions{}, errors.New("release remote is required")
+	}
+	if opts.Language != "" && !containsValue([]string{"en", "ko", "ja", "zh"}, opts.Language) {
+		return releaseOptions{}, fmt.Errorf("release language %q is not supported", opts.Language)
 	}
 	return opts, nil
 }

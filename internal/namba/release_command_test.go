@@ -119,6 +119,18 @@ func TestParseReleaseArgsRejectsVersionAndBump(t *testing.T) {
 	}
 }
 
+func TestParseReleaseArgsAcceptsExplicitLanguage(t *testing.T) {
+	t.Parallel()
+
+	opts, err := parseReleaseArgs([]string{"--version", "v1.2.3", "--language", "en"})
+	if err != nil {
+		t.Fatalf("parseReleaseArgs returned error: %v", err)
+	}
+	if opts.Version != "v1.2.3" || opts.Language != "en" {
+		t.Fatalf("unexpected release options: %+v", opts)
+	}
+}
+
 func TestParseReleaseCommitsSkipsPrepCommitAndRenderNotes(t *testing.T) {
 	t.Parallel()
 
@@ -139,13 +151,47 @@ func TestParseReleaseCommitsSkipsPrepCommitAndRenderNotes(t *testing.T) {
 	}
 
 	notes := renderReleaseNotes("v0.1.2", "v0.1.1", commits)
-	for _, want := range []string{"# v0.1.2 릴리즈 노트", "v0.1.1 이후 변경 사항입니다.", "## 사용자에게 보이는 변경", "## 수정", "## 문서 및 워크플로", "## 내부 정비", "SPEC-039", "#12", "PR #45", "1111111", "4444444"} {
+	for _, want := range []string{"# v0.1.2 릴리즈 노트", "v0.1.1 이후 변경 사항입니다.", "## 사용자에게 보이는 변경", "## 수정", "## 문서 및 워크플로", "## 내부 정비", "## 증거 출처", "## 검증 결과", "SPEC-039", "#12", "PR #45", "1111111", "4444444"} {
 		if !strings.Contains(notes, want) {
 			t.Fatalf("renderReleaseNotes missing %q: %q", want, notes)
 		}
 	}
 	if strings.Contains(notes, "namba-release-notes") {
 		t.Fatalf("renderReleaseNotes should exclude release prep commit: %q", notes)
+	}
+}
+
+func TestRenderReleaseNotesFollowsConfiguredLanguageAndEvidenceContract(t *testing.T) {
+	t.Parallel()
+
+	commits := []releaseCommit{
+		{
+			ShortHash: "abc1234",
+			Subject:   "feat: add concrete release notes",
+			Category:  releaseNoteCategoryUserVisible,
+			Refs:      []string{"SPEC-054", "PR #77"},
+			Details:   []string{"Release notes include evidence sources and validation results."},
+		},
+	}
+
+	notes := renderReleaseNotesForLanguage("v0.2.0", "v0.1.0", commits, "en")
+	for _, want := range []string{
+		"# v0.2.0 Release Notes",
+		"Changes since v0.1.0.",
+		"## User-Visible Changes",
+		"Release notes include evidence sources and validation results.",
+		"## Evidence Sources",
+		"References: SPEC-054, PR #77",
+		"Short commits: abc1234",
+		"## Validation Result",
+		"`namba release` passed the configured validation before tagging.",
+	} {
+		if !strings.Contains(notes, want) {
+			t.Fatalf("expected English release notes to contain %q, got %q", want, notes)
+		}
+	}
+	if strings.Contains(notes, "릴리즈 노트") {
+		t.Fatalf("expected configured English language to override Korean default, got %q", notes)
 	}
 }
 
@@ -193,7 +239,7 @@ func TestRunReleaseCreatesNotesCommitAndPrintsPushInstructions(t *testing.T) {
 		}
 	}
 
-	if err := app.Run(context.Background(), []string{"release"}); err != nil {
+	if err := app.Run(context.Background(), []string{"release", "--language", "ko"}); err != nil {
 		t.Fatalf("release failed: %v", err)
 	}
 

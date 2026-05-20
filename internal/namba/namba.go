@@ -311,9 +311,9 @@ func publicTopLevelCommandDefinitions() []topLevelCommandDefinition {
 		{Name: "run", UsageSummary: "  namba run SPEC-XXX [--solo|--team|--parallel] [--dry-run]", UsageText: runUsageText, Run: (*App).runExecute},
 		{Name: "queue", UsageSummary: "  namba queue <start|status|resume|pause|stop>", UsageText: queueUsageText, Run: (*App).runQueue},
 		{Name: "sync", UsageSummary: "  namba sync", UsageText: syncUsageText, Run: (*App).runSync},
-		{Name: "pr", UsageSummary: "  namba pr \"<title>\" [--review] [--remote origin] [--no-sync] [--no-validate]", UsageText: prUsageText, Run: (*App).runPR},
+		{Name: "pr", UsageSummary: "  namba pr \"<title>\" [--review] [--language en|ko|ja|zh] [--remote origin] [--no-sync] [--no-validate]", UsageText: prUsageText, Run: (*App).runPR},
 		{Name: "land", UsageSummary: "  namba land [PR_NUMBER] [--wait] [--remote origin]", UsageText: landUsageText, Run: (*App).runLand},
-		{Name: "release", UsageSummary: "  namba release [--bump patch|minor|major] [--version vX.Y.Z] [--push] [--remote origin]", UsageText: releaseUsageText, Run: (*App).runRelease},
+		{Name: "release", UsageSummary: "  namba release [--bump patch|minor|major] [--version vX.Y.Z] [--language en|ko|ja|zh] [--push] [--remote origin]", UsageText: releaseUsageText, Run: (*App).runRelease},
 		{Name: "worktree", UsageSummary: "  namba worktree <new|list|remove|clean>", UsageText: worktreeUsageText, Run: (*App).runWorktree},
 	}
 }
@@ -1828,7 +1828,7 @@ func syncUsageText() string {
 func prUsageText() string {
 	return singleUsageLineCommandUsageText(
 		"pr",
-		"  namba pr \"<title>\" [--review] [--remote origin] [--no-sync] [--no-validate]",
+		"  namba pr \"<title>\" [--review] [--language en|ko|ja|zh] [--remote origin] [--no-sync] [--no-validate]",
 		"  Sync, validate, push the current work branch, and create or reuse a GitHub pull request. Add --review to request Codex review.",
 	)
 }
@@ -1844,7 +1844,7 @@ func landUsageText() string {
 func releaseUsageText() string {
 	return singleUsageLineCommandUsageText(
 		"release",
-		"  namba release [--bump patch|minor|major] [--version vX.Y.Z] [--push] [--remote origin]",
+		"  namba release [--bump patch|minor|major] [--version vX.Y.Z] [--language en|ko|ja|zh] [--push] [--remote origin]",
 		"  Create a release tag from a clean main branch and optionally push main plus the tag.",
 	)
 }

@@ -1400,18 +1400,25 @@ func buildPullRequestBodyForSpec(root string, profile initProfile, specID string
 	if specReviewReadinessExists(root, specID) {
 		readinessPath = specReviewReadinessPath(specID)
 	}
+	evidence := collectPullRequestBodyEvidence(root, summaryPath, checklistPath, readinessPath)
 	switch normalizeReadmeLanguage(profile.PRLanguage) {
 	case "ko":
-		lines := []string{"## 작업 요약", fmt.Sprintf("- 변경 요약: `%s`", summaryPath), fmt.Sprintf("- 검토 체크리스트: `%s`", checklistPath), "", "## 검토 메모", "- `namba queue`가 active SPEC 기준 sync, validation, commit, push를 마친 상태입니다."}
-		if readinessPath != "" {
-			lines = append(lines, fmt.Sprintf("- Active SPEC review readiness: `%s` (자문적 advisory)", readinessPath))
-		}
+		lines := []string{"## 작업 요약"}
+		lines = append(lines, renderPRBodyBullets(evidence.CompletedWork, "완료된 작업을 `.namba/project/change-summary.md`에 기록했습니다.")...)
+		lines = append(lines, "", "## 변경 범위")
+		lines = append(lines, renderPRBodyBullets(evidence.ChangedAreas, "변경 범위는 active SPEC 기준 산출물로 검토했습니다.")...)
+		lines = append(lines, "", "## 증거 출처")
+		lines = append(lines, renderPRBodyBullets(evidence.SourceRefs, "")...)
+		lines = append(lines, "", "## 검증 결과", fmt.Sprintf("- %s", evidence.ValidationResult))
 		return strings.Join(lines, "\n")
 	default:
-		lines := []string{"## Summary", fmt.Sprintf("- Change summary: `%s`", summaryPath), fmt.Sprintf("- Review checklist: `%s`", checklistPath), "", "## Review Notes", "- `namba queue` has completed active-SPEC sync, validation, commit, and push."}
-		if readinessPath != "" {
-			lines = append(lines, fmt.Sprintf("- Active SPEC review readiness: `%s` (advisory)", readinessPath))
-		}
+		lines := []string{"## Summary"}
+		lines = append(lines, renderPRBodyBullets(evidence.CompletedWork, "Completed work is recorded in `.namba/project/change-summary.md`.")...)
+		lines = append(lines, "", "## Changed Areas")
+		lines = append(lines, renderPRBodyBullets(evidence.ChangedAreas, "Changed areas were checked against active-SPEC artifacts.")...)
+		lines = append(lines, "", "## Evidence Sources")
+		lines = append(lines, renderPRBodyBullets(evidence.SourceRefs, "")...)
+		lines = append(lines, "", "## Validation Result", fmt.Sprintf("- %s", evidence.ValidationResult))
 		return strings.Join(lines, "\n")
 	}
 }

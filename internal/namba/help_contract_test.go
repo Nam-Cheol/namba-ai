@@ -502,7 +502,7 @@ func TestSingleUsageLineCommandUsageTextPreservesSimpleCommandShapes(t *testing.
 		{
 			name:         "pr",
 			got:          prUsageText(),
-			usageLine:    "  namba pr \"<title>\" [--review] [--remote origin] [--no-sync] [--no-validate]",
+			usageLine:    "  namba pr \"<title>\" [--review] [--language en|ko|ja|zh] [--remote origin] [--no-sync] [--no-validate]",
 			behaviorLine: "  Sync, validate, push the current work branch, and create or reuse a GitHub pull request. Add --review to request Codex review.",
 		},
 		{
@@ -514,7 +514,7 @@ func TestSingleUsageLineCommandUsageTextPreservesSimpleCommandShapes(t *testing.
 		{
 			name:         "release",
 			got:          releaseUsageText(),
-			usageLine:    "  namba release [--bump patch|minor|major] [--version vX.Y.Z] [--push] [--remote origin]",
+			usageLine:    "  namba release [--bump patch|minor|major] [--version vX.Y.Z] [--language en|ko|ja|zh] [--push] [--remote origin]",
 			behaviorLine: "  Create a release tag from a clean main branch and optionally push main plus the tag.",
 		},
 	}

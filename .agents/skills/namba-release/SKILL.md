@@ -14,7 +14,8 @@ Behavior:
 - Determine the target version from explicit input or the next semver bump.
 - Collect commits since the previous semver tag, ignoring merge noise and excluding any release-note prep commit when the notes artifact is committed separately.
 - Draft release notes from that commit range and group them into user-visible changes, fixes, docs/workflow, and internal maintenance while preserving SPEC IDs, PR numbers, and short commit hashes when useful.
+- Release notes must describe actual changes and include evidence sources such as SPEC IDs, PR numbers, short commit hashes, source artifacts, and validation results when available.
 - Write the notes to a durable per-version artifact such as `.namba/releases/<version>.md`, then use that file as the handoff for the guarded `namba release --version <version> --push` path.
-- Write release-facing prose in Korean by default for this repository unless configuration changes the language contract.
+- Write release-facing prose in the explicit user-requested language when one is given, such as `--language en`; otherwise use the init or project-configured language.
 - Do not tag until the notes exist and validation has passed.
 - Make sure the GitHub Release body uses the generated notes rather than an empty or generic body.
