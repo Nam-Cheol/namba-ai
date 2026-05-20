@@ -2,14 +2,19 @@ package namba
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
-const currentWorkspacePlanningFlag = "--current-workspace"
+const (
+	currentWorkspacePlanningFlag    = "--current-workspace"
+	maxPlanningBranchSlugRuneLength = 48
+)
 
 type planningStartOptions struct {
 	Kind             string
@@ -71,7 +76,7 @@ func (a *App) resolvePlanningStart(ctx context.Context, currentRoot string, opti
 		return planningStartResolution{}, err
 	}
 
-	slug, err := normalizeCreateSlug(options.Description)
+	slug, err := normalizePlanningBranchSlug(options.Description)
 	if err != nil {
 		return planningStartResolution{}, fmt.Errorf("normalize planning slug: %w", err)
 	}
@@ -151,6 +156,46 @@ func (a *App) resolvePlanningStart(ctx context.Context, currentRoot string, opti
 		NextStep:        fmt.Sprintf("continue in the current workspace on branch %s.", targetBranch),
 		CreatedBranch:   true,
 	}, nil
+}
+
+func normalizePlanningBranchSlug(description string) (string, error) {
+	raw := strings.TrimSpace(description)
+	if raw == "" {
+		return "", errors.New("invalid slug: description is required")
+	}
+	if strings.Contains(raw, "..") || strings.ContainsAny(raw, `/\`) {
+		return "", fmt.Errorf("path traversal is not allowed in planning descriptions: %q", description)
+	}
+
+	var builder strings.Builder
+	for _, r := range strings.ToLower(raw) {
+		switch {
+		case unicode.IsLetter(r), unicode.IsDigit(r):
+			builder.WriteRune(r)
+		case unicode.IsSpace(r), r == '-', r == '_':
+			builder.WriteRune('-')
+		default:
+			builder.WriteRune('-')
+		}
+	}
+	slug := createCollapseHyphenPattern.ReplaceAllString(builder.String(), "-")
+	slug = strings.Trim(slug, "-")
+	if slug == "" {
+		return "", fmt.Errorf("invalid slug %q", description)
+	}
+	return truncatePlanningBranchSlug(slug), nil
+}
+
+func truncatePlanningBranchSlug(slug string) string {
+	runes := []rune(slug)
+	if len(runes) <= maxPlanningBranchSlugRuneLength {
+		return slug
+	}
+	truncated := strings.Trim(string(runes[:maxPlanningBranchSlugRuneLength]), "-")
+	if truncated == "" {
+		return string(runes[:maxPlanningBranchSlugRuneLength])
+	}
+	return truncated
 }
 
 func (a *App) planningWorktrees(ctx context.Context, root string) ([]gitWorktree, error) {

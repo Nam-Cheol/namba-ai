@@ -1250,6 +1250,8 @@ func TestRenderPlanCommandSkillDefaultsToAutoReviewHandoff(t *testing.T) {
 		"`--no-review`",
 		"automatic handoff",
 		"`$namba-plan-review SPEC-XXX`",
+		"`Cleared reviews: 3/3`",
+		"do not treat planning as complete",
 		"clarification gate",
 		"`게시판 만들어줘`",
 		"Goal, Scope, Constraints, and Acceptance",
@@ -1268,6 +1270,8 @@ func TestRenderPlanCommandSkillDefaultsToAutoReviewHandoff(t *testing.T) {
 		"same clarification gate as `$namba-plan`",
 		"do not run the CLI while the raw request is still vague",
 		"Goal/Scope/Constraints/Acceptance",
+		"`Cleared reviews: 3/3`",
+		"do not report the review loop as complete",
 	} {
 		if !strings.Contains(planReview, want) {
 			t.Fatalf("plan-review command skill missing %q: %q", want, planReview)
@@ -1380,6 +1384,10 @@ func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 		"dedupe_key",
 		"permissionDecision\": \"allow\"",
 		"REPORT_SECTIONS",
+		"REPORT_SECTION_ALIASES",
+		"configured_prompt_language",
+		"conversation_language",
+		"concrete command",
 		"approval_risk_note",
 		"NAMBA_HOOK_TRACE_PATH",
 		`record["prompt_refinement"]`,

@@ -179,6 +179,154 @@ func TestRunPlanCreatesDedicatedSpecBranchInCurrentWorkspace(t *testing.T) {
 	}
 }
 
+func TestRunPlanCapsLongPlanningBranchSlug(t *testing.T) {
+	t.Parallel()
+
+	description := strings.Join([]string{
+		"Goal:",
+		strings.Repeat("ship safer planning branches ", 12),
+		"Scope:",
+		"planning branch generation only.",
+		"Constraints:",
+		"keep the spec prefix intact.",
+		"Acceptance:",
+		"bounded branch names and go tests pass.",
+	}, " ")
+	expectedSlug, err := normalizePlanningBranchSlug(description)
+	if err != nil {
+		t.Fatalf("normalize planning branch slug failed: %v", err)
+	}
+	if len([]rune(expectedSlug)) != maxPlanningBranchSlugRuneLength {
+		t.Fatalf("expected capped slug length %d, got %d: %q", maxPlanningBranchSlugRuneLength, len([]rune(expectedSlug)), expectedSlug)
+	}
+	expectedBranch := "spec/SPEC-001-" + expectedSlug
+
+	root := preparePlanningGitProject(t)
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+
+	restore := chdirExecution(t, root)
+	defer restore()
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "git" && strings.Join(args, " ") == "worktree list --porcelain":
+			return renderPlanningWorktreeList(gitWorktree{Path: root, Branch: "main"}), nil
+		case name == "git" && strings.Join(args, " ") == "for-each-ref --format=%(refname:short) refs/heads":
+			return "main", nil
+		case name == "git" && strings.Join(args, " ") == "ls-tree -r --name-only --full-tree main .namba/specs":
+			return ".namba/specs/.gitkeep", nil
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return "main", nil
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return "", nil
+		case name == "git" && len(args) == 3 && args[0] == "branch" && args[1] == "--list":
+			if args[2] != expectedBranch {
+				t.Fatalf("expected branch lookup for %q, got %q", expectedBranch, args[2])
+			}
+			return "", nil
+		case name == "git" && len(args) == 4 && args[0] == "checkout" && args[1] == "-b":
+			if args[2] != expectedBranch {
+				t.Fatalf("expected capped planning branch %q, got %q", expectedBranch, args[2])
+			}
+			if args[3] != "main" {
+				t.Fatalf("unexpected checkout base: %v", args)
+			}
+			return "", nil
+		default:
+			t.Fatalf("unexpected command: %s %v dir=%s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"plan", description}); err != nil {
+		t.Fatalf("plan failed: %v", err)
+	}
+	if got := stdout.String(); !strings.Contains(got, "Branch: "+expectedBranch) {
+		t.Fatalf("expected output to contain capped branch %q, got %q", expectedBranch, got)
+	}
+}
+
+func TestRunFixCommandPlanCapsLongKoreanPlanningBranchSlug(t *testing.T) {
+	t.Parallel()
+
+	description := strings.Join([]string{
+		"Goal:",
+		strings.Repeat("계획 브랜치 이름이 너무 길어지는 문제를 고친다 ", 10),
+		"Scope:",
+		"버그픽스 SPEC 생성 경로만 다룬다.",
+		"Constraints:",
+		"SPEC 접두사와 번호는 그대로 둔다.",
+		"Acceptance:",
+		"긴 한국어 설명도 제한된 브랜치 이름을 만든다.",
+	}, " ")
+	expectedSlug, err := normalizePlanningBranchSlug(description)
+	if err != nil {
+		t.Fatalf("normalize planning branch slug failed: %v", err)
+	}
+	if len([]rune(expectedSlug)) != maxPlanningBranchSlugRuneLength {
+		t.Fatalf("expected capped Korean slug length %d, got %d: %q", maxPlanningBranchSlugRuneLength, len([]rune(expectedSlug)), expectedSlug)
+	}
+	expectedBranch := "spec/SPEC-001-" + expectedSlug
+
+	root := preparePlanningGitProject(t)
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+
+	restore := chdirExecution(t, root)
+	defer restore()
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "git" && strings.Join(args, " ") == "worktree list --porcelain":
+			return renderPlanningWorktreeList(gitWorktree{Path: root, Branch: "main"}), nil
+		case name == "git" && strings.Join(args, " ") == "for-each-ref --format=%(refname:short) refs/heads":
+			return "main", nil
+		case name == "git" && strings.Join(args, " ") == "ls-tree -r --name-only --full-tree main .namba/specs":
+			return ".namba/specs/.gitkeep", nil
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return "main", nil
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return "", nil
+		case name == "git" && len(args) == 3 && args[0] == "branch" && args[1] == "--list":
+			if args[2] != expectedBranch {
+				t.Fatalf("expected branch lookup for %q, got %q", expectedBranch, args[2])
+			}
+			return "", nil
+		case name == "git" && len(args) == 4 && args[0] == "checkout" && args[1] == "-b":
+			if args[2] != expectedBranch {
+				t.Fatalf("expected capped planning branch %q, got %q", expectedBranch, args[2])
+			}
+			if args[3] != "main" {
+				t.Fatalf("unexpected checkout base: %v", args)
+			}
+			return "", nil
+		default:
+			t.Fatalf("unexpected command: %s %v dir=%s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"fix", "--command", "plan", description}); err != nil {
+		t.Fatalf("fix plan failed: %v", err)
+	}
+	if got := stdout.String(); !strings.Contains(got, "Branch: "+expectedBranch) {
+		t.Fatalf("expected output to contain capped branch %q, got %q", expectedBranch, got)
+	}
+}
+
+func TestNormalizePlanningBranchSlugKeepsShortDescriptionsUnchanged(t *testing.T) {
+	t.Parallel()
+
+	got, err := normalizePlanningBranchSlug("ship safer planning flow")
+	if err != nil {
+		t.Fatalf("normalize planning branch slug failed: %v", err)
+	}
+	if got != "ship-safer-planning-flow" {
+		t.Fatalf("expected short slug unchanged, got %q", got)
+	}
+}
+
 func TestRunPlanReusesCurrentMatchingSpecBranch(t *testing.T) {
 	t.Parallel()
 

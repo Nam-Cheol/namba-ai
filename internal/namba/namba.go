@@ -653,7 +653,7 @@ func (a *App) runPlan(ctx context.Context, args []string) error {
 	if options.help {
 		return a.printPlanUsage()
 	}
-	if clarification, ok := evaluateSpecCreationClarification("plan", options.description); ok {
+	if clarification, ok := a.evaluateSpecCreationClarification("plan", options.description); ok {
 		fmt.Fprint(a.stdout, clarification)
 		return errors.New("namba plan requires clarification before creating a SPEC")
 	}
@@ -668,7 +668,7 @@ func (a *App) runHarness(ctx context.Context, args []string) error {
 	if options.help {
 		return a.printHarnessUsage()
 	}
-	if clarification, ok := evaluateSpecCreationClarification("harness", options.description); ok {
+	if clarification, ok := a.evaluateSpecCreationClarification("harness", options.description); ok {
 		fmt.Fprint(a.stdout, clarification)
 		return errors.New("namba harness requires clarification before creating a SPEC")
 	}
@@ -685,7 +685,7 @@ func (a *App) runFix(ctx context.Context, args []string) error {
 	}
 
 	if options.command == "plan" {
-		if clarification, ok := evaluateSpecCreationClarification("fix", options.description); ok {
+		if clarification, ok := a.evaluateSpecCreationClarification("fix", options.description); ok {
 			fmt.Fprint(a.stdout, clarification)
 			return errors.New("namba fix --command plan requires clarification before creating a SPEC")
 		}
@@ -749,10 +749,16 @@ func (a *App) createSpecPackage(ctx context.Context, kind, description string, c
 }
 
 func formatSpecCreationReport(scaffoldCtx specPackageScaffoldContext, start planningStartResolution, outputs map[string]string, autoReview bool, language string) string {
-	if language == "ko" {
+	switch normalizeReadmeLanguage(language) {
+	case "ko":
 		return formatSpecCreationReportKorean(scaffoldCtx, start, outputs, autoReview)
+	case "ja":
+		return formatSpecCreationReportJapanese(scaffoldCtx, start, outputs, autoReview)
+	case "zh":
+		return formatSpecCreationReportChinese(scaffoldCtx, start, outputs, autoReview)
+	default:
+		return formatSpecCreationReportEnglish(scaffoldCtx, start, outputs, autoReview)
 	}
-	return formatSpecCreationReportEnglish(scaffoldCtx, start, outputs, autoReview)
 }
 
 func formatSpecCreationReportKorean(scaffoldCtx specPackageScaffoldContext, start planningStartResolution, outputs map[string]string, autoReview bool) string {
@@ -764,6 +770,7 @@ func formatSpecCreationReportKorean(scaffoldCtx specPackageScaffoldContext, star
 		"쉬운 요약:",
 		fmt.Sprintf("- 진행 이유: %s", specReportWhyKorean(kind, scaffoldCtx.Description)),
 		fmt.Sprintf("- 앞으로 할 일: %s", specReportWhatKorean(kind)),
+		fmt.Sprintf("- 다음에 해야 할 작업: %s", specReportNextWorkKorean(kind, specID, autoReview)),
 		fmt.Sprintf("- 진행 판단: %s", specReportProceedSignalKorean(kind)),
 		"",
 		"검토할 애매한 부분:",
@@ -800,6 +807,7 @@ func formatSpecCreationReportEnglish(scaffoldCtx specPackageScaffoldContext, sta
 		"Plain-language summary:",
 		fmt.Sprintf("- Why this SPEC exists: %s", specReportWhy(kind, scaffoldCtx.Description)),
 		fmt.Sprintf("- What this SPEC will do: %s", specReportWhat(kind)),
+		fmt.Sprintf("- Next work to do: %s", specReportNextWork(kind, specID, autoReview)),
 		fmt.Sprintf("- Proceed signal: %s", specReportProceedSignal(kind)),
 		"",
 		"Open points to review:",
@@ -821,6 +829,80 @@ func formatSpecCreationReportEnglish(scaffoldCtx specPackageScaffoldContext, sta
 		lines = append(lines, fmt.Sprintf("- Next command: %s", next))
 	}
 	lines = append(lines, "- Generated files:")
+	for _, path := range specReportGeneratedPaths(outputs) {
+		lines = append(lines, fmt.Sprintf("  - %s", path))
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func formatSpecCreationReportJapanese(scaffoldCtx specPackageScaffoldContext, start planningStartResolution, outputs map[string]string, autoReview bool) string {
+	kind := scaffoldCtx.Kind
+	specID := scaffoldCtx.SpecID
+	lines := []string{
+		"",
+		"SPEC 判断レポート:",
+		"要約:",
+		fmt.Sprintf("- 進める理由: %s", specReportWhyJapanese(kind, scaffoldCtx.Description)),
+		fmt.Sprintf("- これから行う作業: %s", specReportWhatJapanese(kind)),
+		fmt.Sprintf("- 次にやる作業: %s", specReportNextWorkJapanese(kind, specID, autoReview)),
+		fmt.Sprintf("- 判断: %s", specReportProceedSignalJapanese(kind)),
+		"",
+		"確認が必要な点:",
+	}
+	lines = append(lines, specReportOpenPointsJapanese(kind, scaffoldCtx.Description)...)
+	lines = append(lines,
+		"",
+		"セキュリティと安全性のメモ:",
+	)
+	lines = append(lines, specReportSecurityNotesJapanese(scaffoldCtx.Description)...)
+	lines = append(lines,
+		"",
+		"開発者向け詳細:",
+		fmt.Sprintf("- SPEC パッケージ: %s", filepath.ToSlash(filepath.Join(specsDir, specID))),
+		fmt.Sprintf("- コマンド surface: %s", specCreationInvocation(kind)),
+		fmt.Sprintf("- ブランチ/ワークスペース: %s | %s", firstNonBlank(start.Branch, "n/a"), firstNonBlank(start.WorkspaceAction, "n/a")),
+	)
+	if next := specReportNextCommand(kind, specID, autoReview); next != "" {
+		lines = append(lines, fmt.Sprintf("- 次のコマンド: %s", next))
+	}
+	lines = append(lines, "- 生成されたファイル:")
+	for _, path := range specReportGeneratedPaths(outputs) {
+		lines = append(lines, fmt.Sprintf("  - %s", path))
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func formatSpecCreationReportChinese(scaffoldCtx specPackageScaffoldContext, start planningStartResolution, outputs map[string]string, autoReview bool) string {
+	kind := scaffoldCtx.Kind
+	specID := scaffoldCtx.SpecID
+	lines := []string{
+		"",
+		"SPEC 决策报告:",
+		"简要摘要:",
+		fmt.Sprintf("- 推进原因: %s", specReportWhyChinese(kind, scaffoldCtx.Description)),
+		fmt.Sprintf("- 接下来要做的事: %s", specReportWhatChinese(kind)),
+		fmt.Sprintf("- 下一步工作: %s", specReportNextWorkChinese(kind, specID, autoReview)),
+		fmt.Sprintf("- 判断: %s", specReportProceedSignalChinese(kind)),
+		"",
+		"需要确认的点:",
+	}
+	lines = append(lines, specReportOpenPointsChinese(kind, scaffoldCtx.Description)...)
+	lines = append(lines,
+		"",
+		"安全与风险备注:",
+	)
+	lines = append(lines, specReportSecurityNotesChinese(scaffoldCtx.Description)...)
+	lines = append(lines,
+		"",
+		"开发者详情:",
+		fmt.Sprintf("- SPEC 包: %s", filepath.ToSlash(filepath.Join(specsDir, specID))),
+		fmt.Sprintf("- 命令 surface: %s", specCreationInvocation(kind)),
+		fmt.Sprintf("- 分支/工作区: %s | %s", firstNonBlank(start.Branch, "n/a"), firstNonBlank(start.WorkspaceAction, "n/a")),
+	)
+	if next := specReportNextCommand(kind, specID, autoReview); next != "" {
+		lines = append(lines, fmt.Sprintf("- 下一条命令: %s", next))
+	}
+	lines = append(lines, "- 已生成文件:")
 	for _, path := range specReportGeneratedPaths(outputs) {
 		lines = append(lines, fmt.Sprintf("  - %s", path))
 	}
@@ -851,6 +933,30 @@ func specReportWhyKorean(kind, description string) string {
 	}
 }
 
+func specReportWhyJapanese(kind, description string) string {
+	description = strings.TrimSpace(description)
+	switch kind {
+	case "fix":
+		return fmt.Sprintf("コードを直接直す前に、問題の再現方法と安全な修正計画を確認する必要があります: %s", description)
+	case "harness":
+		return fmt.Sprintf("再利用する Namba/Codex 構成要素の作業なので、通常の機能計画ではなく harness 向けの計画が必要です: %s", description)
+	default:
+		return fmt.Sprintf("依頼された機能またはプロダクト変更を、実装可能な計画に落とし込む必要があります: %s", description)
+	}
+}
+
+func specReportWhyChinese(kind, description string) string {
+	description = strings.TrimSpace(description)
+	switch kind {
+	case "fix":
+		return fmt.Sprintf("在直接修改代码前，需要先确认复现路径和安全修复计划: %s", description)
+	case "harness":
+		return fmt.Sprintf("这是可复用的 Namba/Codex 组件工作，需要使用 harness 取向的计划: %s", description)
+	default:
+		return fmt.Sprintf("需要把请求的功能或产品变更整理成可实施的计划: %s", description)
+	}
+}
+
 func specReportWhat(kind string) string {
 	switch kind {
 	case "fix":
@@ -873,6 +979,96 @@ func specReportWhatKorean(kind string) string {
 	}
 }
 
+func specReportWhatJapanese(kind string) string {
+	switch kind {
+	case "fix":
+		return "問題を再現または確認し、最小で安全な修正、回帰テスト、検証手順を進めます。"
+	case "harness":
+		return "skill、agent、workflow、orchestration など再利用構成要素の境界と評価方法を SPEC レビューの流れで整理します。"
+	default:
+		return "依頼を実装手順、完了基準、レビュー成果物に分け、次の実行者がすぐ判断できる状態にします。"
+	}
+}
+
+func specReportWhatChinese(kind string) string {
+	switch kind {
+	case "fix":
+		return "先复现或确认问题，再推进最小且安全的修复、回归测试和验证步骤。"
+	case "harness":
+		return "在 SPEC 审查流程中整理 skill、agent、workflow、orchestration 等可复用组件的边界和评估方法。"
+	default:
+		return "把请求拆成实施步骤、完成标准和审查产物，让下一位执行者可以直接判断。"
+	}
+}
+
+func specReportNextWork(kind, specID string, autoReview bool) string {
+	readinessPath := specReviewReadinessPath(specID)
+	switch kind {
+	case "fix":
+		return fmt.Sprintf("confirm the reproduction path and regression test in `$namba-plan-review %s`; if `%s` does not say `Cleared reviews: 3/3`, rerun `$namba-plan-review %s` or the missing review skills before `namba run %s`.", specID, readinessPath, specID, specID)
+	case "harness":
+		return fmt.Sprintf("confirm reusable boundaries and evaluation evidence in `$namba-plan-review %s`; if `%s` does not say `Cleared reviews: 3/3`, rerun `$namba-plan-review %s` or the missing review skills before `namba run %s`.", specID, readinessPath, specID, specID)
+	case "plan":
+		if autoReview {
+			return fmt.Sprintf("run `$namba-plan-review %s` first; if `%s` does not say `Cleared reviews: 3/3`, rerun `$namba-plan-review %s` or the missing review skills before `namba run %s`.", specID, readinessPath, specID, specID)
+		}
+		return fmt.Sprintf("review product, engineering, and design concerns if needed; if `%s` does not say `Cleared reviews: 3/3`, run the missing individual review skills before `namba run %s`.", readinessPath, specID)
+	default:
+		return fmt.Sprintf("review the SPEC package; if `%s` does not say `Cleared reviews: 3/3`, rerun `$namba-plan-review %s` or the missing review skills before `namba run %s`.", readinessPath, specID, specID)
+	}
+}
+
+func specReportNextWorkKorean(kind, specID string, autoReview bool) string {
+	readinessPath := specReviewReadinessPath(specID)
+	switch kind {
+	case "fix":
+		return fmt.Sprintf("먼저 `$namba-plan-review %s`로 재현 경로와 회귀 테스트를 확인하세요. `%s`가 `Cleared reviews: 3/3`이 아니면 `namba run %s` 전에 `$namba-plan-review %s` 또는 누락된 review skill을 다시 진행하세요.", specID, readinessPath, specID, specID)
+	case "harness":
+		return fmt.Sprintf("먼저 `$namba-plan-review %s`로 재사용 경계와 평가 증거를 확인하세요. `%s`가 `Cleared reviews: 3/3`이 아니면 `namba run %s` 전에 `$namba-plan-review %s` 또는 누락된 review skill을 다시 진행하세요.", specID, readinessPath, specID, specID)
+	case "plan":
+		if autoReview {
+			return fmt.Sprintf("먼저 `$namba-plan-review %s`로 product/engineering/design 쟁점을 확인하세요. `%s`가 `Cleared reviews: 3/3`이 아니면 `namba run %s` 전에 `$namba-plan-review %s` 또는 누락된 review skill을 다시 진행하세요.", specID, readinessPath, specID, specID)
+		}
+		return fmt.Sprintf("리뷰를 생략한 상태입니다. 필요하면 product/engineering/design 쟁점을 확인하고, `%s`가 `Cleared reviews: 3/3`이 아니면 `namba run %s` 전에 누락된 개별 review skill을 진행하세요.", readinessPath, specID)
+	default:
+		return fmt.Sprintf("SPEC 패키지를 확인하세요. `%s`가 `Cleared reviews: 3/3`이 아니면 `namba run %s` 전에 `$namba-plan-review %s` 또는 누락된 review skill을 진행하세요.", readinessPath, specID, specID)
+	}
+}
+
+func specReportNextWorkJapanese(kind, specID string, autoReview bool) string {
+	readinessPath := specReviewReadinessPath(specID)
+	switch kind {
+	case "fix":
+		return fmt.Sprintf("まず `$namba-plan-review %s` で再現方法と回帰テストを確認してください。`%s` が `Cleared reviews: 3/3` でなければ、`namba run %s` の前に `$namba-plan-review %s` または不足している review skill を再実行してください。", specID, readinessPath, specID, specID)
+	case "harness":
+		return fmt.Sprintf("まず `$namba-plan-review %s` で再利用境界と評価証拠を確認してください。`%s` が `Cleared reviews: 3/3` でなければ、`namba run %s` の前に `$namba-plan-review %s` または不足している review skill を再実行してください。", specID, readinessPath, specID, specID)
+	case "plan":
+		if autoReview {
+			return fmt.Sprintf("まず `$namba-plan-review %s` で product/engineering/design の論点を確認してください。`%s` が `Cleared reviews: 3/3` でなければ、`namba run %s` の前に `$namba-plan-review %s` または不足している review skill を再実行してください。", specID, readinessPath, specID, specID)
+		}
+		return fmt.Sprintf("レビューを省略した状態です。必要なら product/engineering/design の論点を確認し、`%s` が `Cleared reviews: 3/3` でなければ `namba run %s` の前に不足している個別 review skill を実行してください。", readinessPath, specID)
+	default:
+		return fmt.Sprintf("SPEC パッケージを確認してください。`%s` が `Cleared reviews: 3/3` でなければ `namba run %s` の前に `$namba-plan-review %s` または不足している review skill を実行してください。", readinessPath, specID, specID)
+	}
+}
+
+func specReportNextWorkChinese(kind, specID string, autoReview bool) string {
+	readinessPath := specReviewReadinessPath(specID)
+	switch kind {
+	case "fix":
+		return fmt.Sprintf("先用 `$namba-plan-review %s` 确认复现路径和回归测试；如果 `%s` 不是 `Cleared reviews: 3/3`，请在 `namba run %s` 前重新运行 `$namba-plan-review %s` 或缺失的 review skill。", specID, readinessPath, specID, specID)
+	case "harness":
+		return fmt.Sprintf("先用 `$namba-plan-review %s` 确认可复用边界和评估证据；如果 `%s` 不是 `Cleared reviews: 3/3`，请在 `namba run %s` 前重新运行 `$namba-plan-review %s` 或缺失的 review skill。", specID, readinessPath, specID, specID)
+	case "plan":
+		if autoReview {
+			return fmt.Sprintf("先用 `$namba-plan-review %s` 确认 product/engineering/design 议题；如果 `%s` 不是 `Cleared reviews: 3/3`，请在 `namba run %s` 前重新运行 `$namba-plan-review %s` 或缺失的 review skill。", specID, readinessPath, specID, specID)
+		}
+		return fmt.Sprintf("当前跳过了自动审查。需要时先确认 product/engineering/design 议题；如果 `%s` 不是 `Cleared reviews: 3/3`，请在 `namba run %s` 前运行缺失的单项 review skill。", readinessPath, specID)
+	default:
+		return fmt.Sprintf("请先确认 SPEC 包；如果 `%s` 不是 `Cleared reviews: 3/3`，请在 `namba run %s` 前运行 `$namba-plan-review %s` 或缺失的 review skill。", readinessPath, specID, specID)
+	}
+}
+
 func specReportProceedSignal(kind string) string {
 	switch kind {
 	case "fix":
@@ -892,6 +1088,28 @@ func specReportProceedSignalKorean(kind string) string {
 		return "harness 계획 검토를 시작할 수 있지만, 재사용 경계와 평가 증거가 분명해진 뒤 구현하는 편이 안전합니다."
 	default:
 		return "계획 리뷰를 시작할 수 있지만, 제품/엔지니어링/디자인 우려를 확인한 뒤 구현하는 편이 안전합니다."
+	}
+}
+
+func specReportProceedSignalJapanese(kind string) string {
+	switch kind {
+	case "fix":
+		return "バグ修正計画レビューを始められますが、再現方法と回帰テストが明確になってから実装する方が安全です。"
+	case "harness":
+		return "harness 計画レビューを始められますが、再利用境界と評価証拠が明確になってから実装する方が安全です。"
+	default:
+		return "計画レビューを始められますが、product/engineering/design の懸念を確認してから実装する方が安全です。"
+	}
+}
+
+func specReportProceedSignalChinese(kind string) string {
+	switch kind {
+	case "fix":
+		return "可以开始 bugfix 计划审查，但最好在复现路径和回归测试明确后再实现。"
+	case "harness":
+		return "可以开始 harness 计划审查，但最好在可复用边界和评估证据明确后再实现。"
+	default:
+		return "可以开始计划审查，但最好先确认 product/engineering/design 风险后再实现。"
 	}
 }
 
@@ -949,6 +1167,60 @@ func specReportOpenPointsKorean(kind, description string) []string {
 	return points
 }
 
+func specReportOpenPointsJapanese(kind, description string) []string {
+	points := []string{
+		"- product、engineering、design のレビュー ファイルは作成済みですが、まだ pending です。",
+	}
+	lower := strings.ToLower(description)
+	groups := planClarificationEvidenceGroups()
+	labels := []string{"目標", "範囲", "制約", "完了基準"}
+	var missing []string
+	for i, group := range groups {
+		if !containsAnyFolded(lower, group) && i < len(labels) {
+			missing = append(missing, labels[i])
+		}
+	}
+	if len(missing) > 0 {
+		points = append(points, fmt.Sprintf("- 元の依頼では %s が明示されていません。重要な場合はレビューで先に確定してください。", strings.Join(missing, ", ")))
+	}
+	switch kind {
+	case "fix":
+		points = append(points, "- コーディング前に再現方法と回帰テストを確認してください。")
+	case "harness":
+		points = append(points, "- Namba core の動作変更なのか、repo-local の再利用成果物変更なのかを確認してください。")
+	default:
+		points = append(points, "- `namba run` の前にユーザーフローの例外ケースを確認してください。")
+	}
+	return points
+}
+
+func specReportOpenPointsChinese(kind, description string) []string {
+	points := []string{
+		"- product、engineering、design 审查文件已创建，但仍处于 pending 状态。",
+	}
+	lower := strings.ToLower(description)
+	groups := planClarificationEvidenceGroups()
+	labels := []string{"目标", "范围", "约束", "完成标准"}
+	var missing []string
+	for i, group := range groups {
+		if !containsAnyFolded(lower, group) && i < len(labels) {
+			missing = append(missing, labels[i])
+		}
+	}
+	if len(missing) > 0 {
+		points = append(points, fmt.Sprintf("- 原始请求没有明确说明 %s；如果重要，请先在审查中确认。", strings.Join(missing, ", ")))
+	}
+	switch kind {
+	case "fix":
+		points = append(points, "- 编码前请确认复现路径和回归测试。")
+	case "harness":
+		points = append(points, "- 请确认这是 Namba core 行为变更，还是 repo-local 可复用产物变更。")
+	default:
+		points = append(points, "- 在 `namba run` 前请确认用户流程的例外情况。")
+	}
+	return points
+}
+
 func specReportSecurityNotes(description string) []string {
 	notes := []string{
 		"- No application code has changed yet; this command only created planning artifacts.",
@@ -971,6 +1243,32 @@ func specReportSecurityNotesKorean(description string) []string {
 		notes = append(notes, "- 보안 민감 단어가 감지되었습니다. 구현 전에 인증, 권한, 비밀값, 개인정보 처리를 꼭 검토하세요.")
 	} else {
 		notes = append(notes, "- 리뷰 중 인증, 권한, 비밀값, 결제, 개인정보, 삭제성 데이터 변경이 포함되는지 확인하세요.")
+	}
+	return notes
+}
+
+func specReportSecurityNotesJapanese(description string) []string {
+	notes := []string{
+		"- まだアプリケーションコードは変更されておらず、このコマンドは計画成果物だけを作成しました。",
+	}
+	lower := strings.ToLower(description)
+	if containsAnyFolded(lower, []string{"auth", "login", "permission", "role", "token", "secret", "password", "admin", "payment", "billing", "pii", "personal data", "個人情報", "認証", "権限", "支払い", "トークン", "パスワード", "管理者"}) {
+		notes = append(notes, "- セキュリティに関わる語が検出されました。実装前に認証、認可、秘密情報、個人情報の扱いを必ず確認してください。")
+	} else {
+		notes = append(notes, "- レビュー中に、認証、権限、秘密情報、支払い、個人情報、破壊的なデータ変更が含まれるか確認してください。")
+	}
+	return notes
+}
+
+func specReportSecurityNotesChinese(description string) []string {
+	notes := []string{
+		"- 目前还没有修改应用代码；这个命令只创建了计划产物。",
+	}
+	lower := strings.ToLower(description)
+	if containsAnyFolded(lower, []string{"auth", "login", "permission", "role", "token", "secret", "password", "admin", "payment", "billing", "pii", "personal data", "个人信息", "认证", "权限", "支付", "令牌", "密码", "管理员"}) {
+		notes = append(notes, "- 检测到安全敏感词。实现前请务必审查认证、授权、密钥和个人信息处理。")
+	} else {
+		notes = append(notes, "- 审查时仍需确认是否涉及认证、权限、密钥、支付、个人信息或破坏性数据变更。")
 	}
 	return notes
 }
@@ -1060,16 +1358,45 @@ func evaluatePlanClarification(description string) (string, bool) {
 }
 
 func evaluateSpecCreationClarification(command, description string) (string, bool) {
+	return evaluateSpecCreationClarificationForLanguage(command, description, fallbackSpecCreationClarificationLanguage(description))
+}
+
+func (a *App) evaluateSpecCreationClarification(command, description string) (string, bool) {
+	return evaluateSpecCreationClarificationForLanguage(command, description, a.specCreationClarificationLanguage(description))
+}
+
+func (a *App) specCreationClarificationLanguage(description string) string {
+	root, err := a.requireProjectRoot()
+	if err == nil {
+		profile, err := a.loadInitProfileFromConfig(root)
+		if err == nil {
+			if language := strings.TrimSpace(firstNonBlank(profile.ConversationLanguage, profile.DocumentationLanguage, profile.PRLanguage)); language != "" {
+				return language
+			}
+		}
+	}
+	return fallbackSpecCreationClarificationLanguage(description)
+}
+
+func fallbackSpecCreationClarificationLanguage(description string) string {
+	if hasKorean(description) {
+		return "ko"
+	}
+	return "en"
+}
+
+func evaluateSpecCreationClarificationForLanguage(command, description, language string) (string, bool) {
 	normalized := strings.Join(strings.Fields(description), " ")
 	if normalized == "" {
 		return "", false
 	}
+	clarificationLanguage := normalizeReadmeLanguage(language)
 	lower := strings.ToLower(normalized)
 	if planDescriptionHasClarifyingEvidence(lower) {
 		return "", false
 	}
 	if planDescriptionHasPartialClarifyingEvidence(lower) {
-		return formatSpecCreationClarificationQuestions(command, normalized, hasKorean(normalized)), true
+		return formatSpecCreationClarificationQuestionsForLanguage(command, normalized, clarificationLanguage), true
 	}
 
 	runeCount := len([]rune(normalized))
@@ -1116,10 +1443,10 @@ func evaluateSpecCreationClarification(command, description string) (string, boo
 		"api",
 	})
 	if hasKorean(normalized) && runeCount < 70 && (vague || genericKoreanSurface) {
-		return formatSpecCreationClarificationQuestions(command, normalized, true), true
+		return formatSpecCreationClarificationQuestionsForLanguage(command, normalized, clarificationLanguage), true
 	}
 	if runeCount < 45 && vague {
-		return formatSpecCreationClarificationQuestions(command, normalized, false), true
+		return formatSpecCreationClarificationQuestionsForLanguage(command, normalized, clarificationLanguage), true
 	}
 	return "", false
 }
@@ -1144,10 +1471,10 @@ func planDescriptionHasPartialClarifyingEvidence(lower string) bool {
 
 func planClarificationEvidenceGroups() [][]string {
 	return [][]string{
-		{"goal:", "goal -", "목표"},
-		{"scope:", "scope -", "범위"},
-		{"constraints:", "constraint:", "constraints -", "constraint -", "제약"},
-		{"acceptance:", "validation:", "acceptance -", "validation -", "완료 기준", "성공 기준", "검증"},
+		{"goal:", "goal -", "목표", "目標", "目标"},
+		{"scope:", "scope -", "범위", "範囲", "范围"},
+		{"constraints:", "constraint:", "constraints -", "constraint -", "제약", "制約", "制约", "约束"},
+		{"acceptance:", "validation:", "acceptance -", "validation -", "완료 기준", "성공 기준", "검증", "完了基準", "成功基準", "検証", "完成标准", "成功标准", "验证", "验收标准"},
 	}
 }
 
@@ -1174,8 +1501,17 @@ func formatPlanClarificationQuestions(description string, korean bool) string {
 }
 
 func formatSpecCreationClarificationQuestions(command, description string, korean bool) string {
-	invocation := specCreationInvocation(command)
+	language := "en"
 	if korean {
+		language = "ko"
+	}
+	return formatSpecCreationClarificationQuestionsForLanguage(command, description, language)
+}
+
+func formatSpecCreationClarificationQuestionsForLanguage(command, description, language string) string {
+	invocation := specCreationInvocation(command)
+	switch normalizeReadmeLanguage(language) {
+	case "ko":
 		return strings.Join([]string{
 			"NambaAI clarification gate: SPEC을 만들기 전에 요구가 아직 너무 넓거나 모호합니다.",
 			"입력: " + description,
@@ -1188,6 +1524,44 @@ func formatSpecCreationClarificationQuestions(command, description string, korea
 			"3. 완료 기준과 검증 방법은 무엇인가요?",
 			"",
 			"가능하면 다음 형식으로 답해주세요:",
+			"Goal: ...",
+			"Scope: ...",
+			"Constraints: ...",
+			"Acceptance: ...",
+			"",
+		}, "\n")
+	case "ja":
+		return strings.Join([]string{
+			"NambaAI clarification gate: SPEC を作る前に、依頼がまだ広すぎるか曖昧です。",
+			"入力: " + description,
+			"",
+			fmt.Sprintf("Codex では可能なら Plan mode の選択 UI で回答を先に整理し、整理された Goal/Scope/Constraints/Acceptance だけを `%s` に渡してください。", invocation),
+			"",
+			"まず次の質問に答えてください:",
+			"1. この作業の対象 surface は何ですか？例: CLI、Web app、API、特定モジュール。",
+			"2. 望むユーザーフローと、今回の範囲外にするものは何ですか？",
+			"3. 完了基準と検証方法は何ですか？",
+			"",
+			"可能なら次の形式で答えてください:",
+			"Goal: ...",
+			"Scope: ...",
+			"Constraints: ...",
+			"Acceptance: ...",
+			"",
+		}, "\n")
+	case "zh":
+		return strings.Join([]string{
+			"NambaAI clarification gate: 在创建 SPEC 前，请先降低需求的模糊度。",
+			"输入: " + description,
+			"",
+			fmt.Sprintf("在 Codex 中，如果可以，请先用 Plan mode 选择 UI 整理回答，然后只把整理后的 Goal/Scope/Constraints/Acceptance 传给 `%s`。", invocation),
+			"",
+			"请先回答以下问题:",
+			"1. 这项变更影响哪个目标 surface？例如 CLI、Web app、API 或特定模块。",
+			"2. 期望的用户流程是什么？哪些内容应排除在范围外？",
+			"3. 完成标准和验证方法是什么？",
+			"",
+			"可以的话，请使用以下格式回答:",
 			"Goal: ...",
 			"Scope: ...",
 			"Constraints: ...",
@@ -1302,7 +1676,7 @@ func (a *App) resolveFixSubcommand(name string) (fixSubcommandDefinition, bool) 
 }
 
 func (a *App) runFixPlanSubcommand(ctx context.Context, _ string, options fixInvocation) error {
-	if clarification, ok := evaluateSpecCreationClarification("fix", options.description); ok {
+	if clarification, ok := a.evaluateSpecCreationClarification("fix", options.description); ok {
 		fmt.Fprint(a.stdout, clarification)
 		return errors.New("namba fix --command plan requires clarification before creating a SPEC")
 	}

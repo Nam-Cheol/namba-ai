@@ -201,12 +201,12 @@ func TestOutputContractSpecLocalizedByLanguage(t *testing.T) {
 	t.Parallel()
 
 	ko := outputContractSpecFor(initProfile{ConversationLanguage: "ko"})
-	if ko.Header != "NAMBA-AI 작업 결과 보고" || ko.Sections[0].Primary != "작업 정의" || ko.Sections[5].Primary != "다음 스텝" {
+	if ko.Header != "NAMBA-AI 작업 결과 보고" || ko.Sections[0].Primary != "작업 정의" || ko.Sections[5].Primary != "다음에 해야 할 작업" {
 		t.Fatalf("unexpected Korean output contract spec: %+v", ko)
 	}
 
 	en := outputContractSpecFor(initProfile{ConversationLanguage: "en"})
-	if en.Header != "NAMBA-AI Work Report" || en.Sections[0].Primary != "Scope" || en.Sections[5].Primary != "Next Steps" {
+	if en.Header != "NAMBA-AI Work Report" || en.Sections[0].Primary != "Scope" || en.Sections[5].Primary != "Next Work" {
 		t.Fatalf("unexpected English output contract spec: %+v", en)
 	}
 }

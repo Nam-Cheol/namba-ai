@@ -358,6 +358,7 @@ func renderPlanCommandSkill() string {
 			"- Create the next sequential `SPEC-XXX` package under `.namba/specs/` after that branch decision is explicit.",
 			"- Seed `.namba/specs/<SPEC>/reviews/` with product, engineering, design, and aggregate readiness artifacts.",
 			"- Unless the invocation includes `--no-review`, treat the created SPEC as an automatic handoff and immediately continue with `$namba-plan-review SPEC-XXX` after the CLI prints the new SPEC ID.",
+			"- After the automatic handoff, read `.namba/specs/<SPEC>/reviews/readiness.md`; if it does not say `Cleared reviews: 3/3`, do not treat planning as complete. Continue with `$namba-plan-review SPEC-XXX` again, or run the missing `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review` tracks before implementation.",
 			"- When `--no-review` is present, stop after scaffold creation and point any later review work to `$namba-plan-pm-review`, `$namba-plan-eng-review`, and `$namba-plan-design-review`, or `$namba-plan-review SPEC-XXX`.",
 			"- Keep the scope concrete and implementation-ready.",
 		},
@@ -382,6 +383,7 @@ func renderPlanReviewLoopCommandSkill() string {
 			"- After the three review tracks finish, run an aggregate validation pass over `spec.md`, `plan.md`, `acceptance.md`, and `.namba/specs/<SPEC>/reviews/*.md` to check coverage gaps, contradictions, and whether the advisory readiness state is credible.",
 			"- If the aggregate validator finds issues, revise the SPEC or review artifacts directly, rerun only the affected review tracks, and repeat the validation loop instead of restarting every pass blindly.",
 			"- Refresh `.namba/specs/<SPEC>/reviews/readiness.md` after each review and validation cycle so the advisory summary stays current.",
+			"- Before ending, inspect `.namba/specs/<SPEC>/reviews/readiness.md`; if it does not say `Cleared reviews: 3/3`, do not report the review loop as complete. Continue the review loop when useful, or make the final next-work item explicitly name `$namba-plan-review SPEC-XXX` or the missing individual review skills to run next.",
 			"- Keep the loop bounded and explicit: stop when the readiness state is clear enough to proceed or when the remaining blockers are concrete enough that another loop would be redundant.",
 			"- Keep the whole flow advisory by default; missing depth or blockers should be visible, not silently converted into a hard gate.",
 		},
@@ -851,6 +853,7 @@ func renderCodexUsageOutputContractSection(profile initProfile) []string {
 		fmt.Sprintf("- `AGENTS.md` defines a Namba report header such as `%s` for substantial responses.", outputContractHeaderExample(profile)),
 		fmt.Sprintf("- The report sections follow this semantic order: %s.", outputContractSequence(profile)),
 		"- The semantic order stays fixed, but the exact labels can vary within the selected language palette so the writing does not become robotic.",
+		"- The final next-work section should name the concrete command, review, validation, or handoff the operator should do next.",
 		"- `.namba/codex/validate-output-contract.py` checks this contract from a saved response file or stdin.",
 		"- Namba keeps the validator script as the explicit repository enforcement path even as Codex's documented config and hook surface evolves.",
 	}
@@ -950,7 +953,7 @@ func outputContractSpecFor(profile initProfile) outputContractSpec {
 				{Emoji: "🛠", Primary: "수행한 작업", Aliases: []string{"수행한 작업", "진행한 작업", "작업 내용", "적용한 작업"}},
 				{Emoji: "🚧", Primary: "현재 이슈", Aliases: []string{"현재 이슈", "이슈", "남은 이슈", "현재 문제"}},
 				{Emoji: "⚠", Primary: "잠재 문제", Aliases: []string{"잠재 문제", "잠재 리스크", "위험 요소", "잠재 이슈"}},
-				{Emoji: "➡", Primary: "다음 스텝", Aliases: []string{"다음 스텝", "다음 단계", "추천", "권장 흐름"}},
+				{Emoji: "➡", Primary: "다음에 해야 할 작업", Aliases: []string{"다음에 해야 할 작업", "다음 작업", "다음 스텝", "다음 단계", "권장 작업", "권장 흐름"}},
 			},
 		}
 	case "ja":
@@ -963,7 +966,7 @@ func outputContractSpecFor(profile initProfile) outputContractSpec {
 				{Emoji: "🛠", Primary: "実施した作業", Aliases: []string{"実施した作業", "対応内容", "実施内容", "作業内容"}},
 				{Emoji: "🚧", Primary: "現在の課題", Aliases: []string{"現在の課題", "現在のイシュー", "残課題", "現状の問題"}},
 				{Emoji: "⚠", Primary: "潜在リスク", Aliases: []string{"潜在リスク", "潜在課題", "想定リスク", "潜在問題"}},
-				{Emoji: "➡", Primary: "次のステップ", Aliases: []string{"次のステップ", "次の一手", "推奨フロー", "次段階"}},
+				{Emoji: "➡", Primary: "次にやる作業", Aliases: []string{"次にやる作業", "次の作業", "次のステップ", "次の一手", "推奨フロー", "次段階"}},
 			},
 		}
 	case "zh":
@@ -976,7 +979,7 @@ func outputContractSpecFor(profile initProfile) outputContractSpec {
 				{Emoji: "🛠", Primary: "已完成工作", Aliases: []string{"已完成工作", "执行工作", "已做事项", "工作内容"}},
 				{Emoji: "🚧", Primary: "当前问题", Aliases: []string{"当前问题", "当前议题", "现有问题", "剩余问题"}},
 				{Emoji: "⚠", Primary: "潜在风险", Aliases: []string{"潜在风险", "潜在问题", "风险点", "潜在议题"}},
-				{Emoji: "➡", Primary: "下一步", Aliases: []string{"下一步", "建议步骤", "推荐动作", "后续步骤"}},
+				{Emoji: "➡", Primary: "下一步工作", Aliases: []string{"下一步工作", "下一步", "建议步骤", "推荐动作", "后续步骤"}},
 			},
 		}
 	default:
@@ -989,7 +992,7 @@ func outputContractSpecFor(profile initProfile) outputContractSpec {
 				{Emoji: "🛠", Primary: "Work Completed", Aliases: []string{"Work Completed", "Work Done", "Actions Taken", "Completed Work"}},
 				{Emoji: "🚧", Primary: "Current Issues", Aliases: []string{"Current Issues", "Open Issues", "Current Gaps", "Current Problems"}},
 				{Emoji: "⚠", Primary: "Potential Risks", Aliases: []string{"Potential Risks", "Risks", "Potential Problems", "Risk Boundaries"}},
-				{Emoji: "➡", Primary: "Next Steps", Aliases: []string{"Next Steps", "Recommended Next Steps", "Recommendations", "Next Move"}},
+				{Emoji: "➡", Primary: "Next Work", Aliases: []string{"Next Work", "Next Action", "Next Steps", "Recommended Next Steps", "Recommendations", "Next Move"}},
 			},
 		}
 	}
@@ -1029,6 +1032,7 @@ func renderOutputContractDocLocalized(profile initProfile) string {
 		"",
 		fmt.Sprintf("- The header and label palette should follow the init-selected language: %s.", humanLanguageName(outputContractLanguage(profile))),
 		"- The semantic order is fixed, but the exact labels may vary within the selected language palette.",
+		"- The final next-work section should name the concrete command, review, validation, or handoff the operator should do next.",
 		"- Light visual styling such as simple emoji section markers is encouraged when it improves scanability.",
 		"- Recommended label palette:",
 	)
@@ -1597,7 +1601,15 @@ VAGUE_MARKERS = (
 )
 
 REPORT_HEADER = "NAMBA-AI 작업 결과 보고"
-REPORT_SECTIONS = ("작업 정의", "판단", "수행한 작업", "현재 이슈", "잠재 문제", "다음 스텝")
+REPORT_SECTIONS = ("작업 정의", "판단", "수행한 작업", "현재 이슈", "잠재 문제", "다음에 해야 할 작업")
+REPORT_SECTION_ALIASES = (
+    ("작업 정의", "정의", "정의한 범위", "문제 정의"),
+    ("판단", "내린 판단", "핵심 판단", "결정"),
+    ("수행한 작업", "진행한 작업", "작업 내용", "적용한 작업"),
+    ("현재 이슈", "이슈", "남은 이슈", "현재 문제"),
+    ("잠재 문제", "잠재 리스크", "위험 요소", "잠재 이슈"),
+    ("다음에 해야 할 작업", "다음 작업", "다음 스텝", "다음 단계", "권장 작업", "권장 흐름"),
+)
 CURRENT_PAYLOAD = {}
 configure_stdio()
 
@@ -1791,13 +1803,15 @@ def prompt_refinement_context(prompt):
     )
 
 
-def prompt_refinement_guidance(prompt):
+def prompt_refinement_guidance(prompt, configured_language=""):
     context = prompt_refinement_context(prompt)
     if not context:
         return ""
     normalized = " ".join(prompt.split())
-    korean = bool(re.search(r"[가-힣]", normalized))
-    if korean:
+    language = (configured_language or "").strip().lower()
+    if not language:
+        language = "ko" if re.search(r"[가-힣]", normalized) else "en"
+    if language == "ko":
         questions = [
             "1. 이 작업의 대상 surface는 무엇인가요? 예: CLI, 웹 앱, API, 특정 모듈.",
             "2. 원하는 사용자 흐름과 제외할 범위는 무엇인가요?",
@@ -1808,6 +1822,32 @@ def prompt_refinement_guidance(prompt):
             "가능하면 Codex Plan mode 선택 UI로 아래 질문을 먼저 처리한 뒤, 정리된 Goal/Scope/Constraints/Acceptance만 해당 SPEC 생성 명령(namba plan, namba harness, namba fix --command plan)에 넘기세요.\n"
             + "\n".join(questions)
             + "\n\n답변은 가능하면 다음 형식으로 주세요:\n"
+            "Goal: ...\nScope: ...\nConstraints: ...\nAcceptance: ..."
+        )
+    if language == "ja":
+        questions = [
+            "1. この作業の対象 surface は何ですか？例: CLI、Web app、API、特定モジュール。",
+            "2. 望むユーザーフローと、今回の範囲外にするものは何ですか？",
+            "3. 完了基準と検証方法は何ですか？",
+        ]
+        return (
+            "NambaAI clarification gate: SPEC を作る前に、依頼がまだ広すぎるか曖昧です。\n"
+            "可能なら Codex Plan mode の選択 UI で以下の質問を先に整理し、整理された Goal/Scope/Constraints/Acceptance だけを該当する SPEC 作成コマンド(namba plan, namba harness, namba fix --command plan)に渡してください。\n"
+            + "\n".join(questions)
+            + "\n\n可能なら次の形式で答えてください:\n"
+            "Goal: ...\nScope: ...\nConstraints: ...\nAcceptance: ..."
+        )
+    if language == "zh":
+        questions = [
+            "1. 这项变更影响哪个目标 surface？例如 CLI、Web app、API 或特定模块。",
+            "2. 期望的用户流程是什么？哪些内容应排除在范围外？",
+            "3. 完成标准和验证方法是什么？",
+        ]
+        return (
+            "NambaAI clarification gate: 在创建 SPEC 前，请先降低需求的模糊度。\n"
+            "如果可以，请先用 Codex Plan mode 选择 UI 整理以下问题，然后只把整理后的 Goal/Scope/Constraints/Acceptance 传给对应的 SPEC 创建命令(namba plan, namba harness, namba fix --command plan)。\n"
+            + "\n".join(questions)
+            + "\n\n可以的话，请使用以下格式回答:\n"
             "Goal: ...\nScope: ...\nConstraints: ...\nAcceptance: ..."
         )
     questions = [
@@ -1825,7 +1865,7 @@ def prompt_refinement_guidance(prompt):
 
 
 def handle_user_prompt_submit(payload):
-    guidance = prompt_refinement_guidance(prompt_from(payload))
+    guidance = prompt_refinement_guidance(prompt_from(payload), configured_prompt_language(cwd_from_payload(payload)))
     if not guidance:
         emit_continue()
         return
@@ -1972,15 +2012,62 @@ def namba_repo(cwd):
     return os.path.exists(os.path.join(cwd, ".namba")) or os.path.exists(os.path.join(cwd, "AGENTS.md"))
 
 
+def namba_root(cwd):
+    if not cwd:
+        return ""
+    root = os.path.abspath(cwd)
+    while True:
+        if os.path.exists(os.path.join(root, ".namba")) or os.path.exists(os.path.join(root, "AGENTS.md")):
+            return root
+        parent = os.path.dirname(root)
+        if parent == root:
+            return ""
+        root = parent
+
+
+def read_simple_config(path):
+    values = {}
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            for line in handle:
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#") or ":" not in stripped:
+                    continue
+                key, value = stripped.split(":", 1)
+                values[key.strip()] = value.strip().strip("\"'")
+    except OSError:
+        return values
+    return values
+
+
+def configured_prompt_language(cwd):
+    root = namba_root(cwd)
+    if not root:
+        return ""
+    language_cfg = read_simple_config(os.path.join(root, ".namba", "config", "sections", "language.yaml"))
+    for key in ("conversation_language", "documentation_language", "comment_language"):
+        value = language_cfg.get(key, "").strip().lower()
+        if value:
+            return value
+    git_cfg = read_simple_config(os.path.join(root, ".namba", "config", "sections", "git-strategy.yaml"))
+    return git_cfg.get("pr_language", "").strip().lower()
+
+
 def report_missing_sections(message):
     if REPORT_HEADER not in message:
         return list(REPORT_SECTIONS)
+    lines = message.splitlines()
     positions = []
-    for section in REPORT_SECTIONS:
-        index = message.find(section)
-        if index < 0:
-            return [section]
-        positions.append(index)
+    for index, aliases in enumerate(REPORT_SECTION_ALIASES):
+        section_index = -1
+        pattern = re.compile(r"^\s*(?:#{1,6}\s*|[-*]\s+)?(?:\*\*)?[\W_]*(?:" + "|".join(re.escape(alias) for alias in aliases) + r")(?:\*\*)?\s*(?:[:：-].*)?$")
+        for line_index, line in enumerate(lines):
+            if pattern.match(line.strip()):
+                section_index = line_index
+                break
+        if section_index < 0:
+            return [REPORT_SECTIONS[index]]
+        positions.append(section_index)
     if positions != sorted(positions):
         return ["section order"]
     return []
@@ -2011,7 +2098,9 @@ def handle_stop(payload):
         "reason": (
             "Before ending, rewrite the final response using the Namba report frame: "
             "# NAMBA-AI 작업 결과 보고, then 🧭 작업 정의, 🧠 판단, 🛠 수행한 작업, "
-            "🚧 현재 이슈, ⚠ 잠재 문제, ➡ 다음 스텝. Keep it concise and high-signal."
+            "🚧 현재 이슈, ⚠ 잠재 문제, ➡ 다음에 해야 할 작업. "
+            "In the final section, name the concrete command, review, validation, or handoff to do next. "
+            "Keep it concise and high-signal."
         ),
     })
 

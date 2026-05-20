@@ -218,7 +218,7 @@ func TestInitSupportsCodexProfileFlags(t *testing.T) {
 	}
 
 	agents := mustRead(t, filepath.Join(tmp, "AGENTS.md"))
-	if !strings.Contains(agents, "NAMBA-AI 작업 결과 보고") || !strings.Contains(agents, "🧭 작업 정의") || !strings.Contains(agents, "➡ 다음 스텝") {
+	if !strings.Contains(agents, "NAMBA-AI 작업 결과 보고") || !strings.Contains(agents, "🧭 작업 정의") || !strings.Contains(agents, "➡ 다음에 해야 할 작업") {
 		t.Fatalf("expected localized Korean output contract in AGENTS, got: %s", agents)
 	}
 

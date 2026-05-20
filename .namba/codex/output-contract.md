@@ -11,12 +11,13 @@ This repository uses a NambaAI-specific output contract for substantial task res
 3. `🛠 수행한 작업`
 4. `🚧 현재 이슈`
 5. `⚠ 잠재 문제`
-6. `➡ 다음 스텝`
+6. `➡ 다음에 해야 할 작업`
 
 ## Namba Style
 
 - The header and label palette should follow the init-selected language: Korean.
 - The semantic order is fixed, but the exact labels may vary within the selected language palette.
+- The final next-work section should name the concrete command, review, validation, or handoff the operator should do next.
 - Light visual styling such as simple emoji section markers is encouraged when it improves scanability.
 - Recommended label palette:
   - `🧭 작업 정의`: `작업 정의`, `정의`, `정의한 범위`, `문제 정의`
@@ -24,7 +25,7 @@ This repository uses a NambaAI-specific output contract for substantial task res
   - `🛠 수행한 작업`: `수행한 작업`, `진행한 작업`, `작업 내용`, `적용한 작업`
   - `🚧 현재 이슈`: `현재 이슈`, `이슈`, `남은 이슈`, `현재 문제`
   - `⚠ 잠재 문제`: `잠재 문제`, `잠재 리스크`, `위험 요소`, `잠재 이슈`
-  - `➡ 다음 스텝`: `다음 스텝`, `다음 단계`, `추천`, `권장 흐름`
+  - `➡ 다음에 해야 할 작업`: `다음에 해야 할 작업`, `다음 작업`, `다음 스텝`, `다음 단계`, `권장 작업`, `권장 흐름`
 - The answer should read like a concise engineering field report rather than a stiff checklist.
 
 ## Scope
