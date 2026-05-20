@@ -653,7 +653,7 @@ func (a *App) runPlan(ctx context.Context, args []string) error {
 	if options.help {
 		return a.printPlanUsage()
 	}
-	if clarification, ok := evaluateSpecCreationClarification("plan", options.description); ok {
+	if clarification, ok := a.evaluateSpecCreationClarification("plan", options.description); ok {
 		fmt.Fprint(a.stdout, clarification)
 		return errors.New("namba plan requires clarification before creating a SPEC")
 	}
@@ -668,7 +668,7 @@ func (a *App) runHarness(ctx context.Context, args []string) error {
 	if options.help {
 		return a.printHarnessUsage()
 	}
-	if clarification, ok := evaluateSpecCreationClarification("harness", options.description); ok {
+	if clarification, ok := a.evaluateSpecCreationClarification("harness", options.description); ok {
 		fmt.Fprint(a.stdout, clarification)
 		return errors.New("namba harness requires clarification before creating a SPEC")
 	}
@@ -685,7 +685,7 @@ func (a *App) runFix(ctx context.Context, args []string) error {
 	}
 
 	if options.command == "plan" {
-		if clarification, ok := evaluateSpecCreationClarification("fix", options.description); ok {
+		if clarification, ok := a.evaluateSpecCreationClarification("fix", options.description); ok {
 			fmt.Fprint(a.stdout, clarification)
 			return errors.New("namba fix --command plan requires clarification before creating a SPEC")
 		}
@@ -764,6 +764,7 @@ func formatSpecCreationReportKorean(scaffoldCtx specPackageScaffoldContext, star
 		"쉬운 요약:",
 		fmt.Sprintf("- 진행 이유: %s", specReportWhyKorean(kind, scaffoldCtx.Description)),
 		fmt.Sprintf("- 앞으로 할 일: %s", specReportWhatKorean(kind)),
+		fmt.Sprintf("- 다음에 해야 할 작업: %s", specReportNextWorkKorean(kind, specID, autoReview)),
 		fmt.Sprintf("- 진행 판단: %s", specReportProceedSignalKorean(kind)),
 		"",
 		"검토할 애매한 부분:",
@@ -800,6 +801,7 @@ func formatSpecCreationReportEnglish(scaffoldCtx specPackageScaffoldContext, sta
 		"Plain-language summary:",
 		fmt.Sprintf("- Why this SPEC exists: %s", specReportWhy(kind, scaffoldCtx.Description)),
 		fmt.Sprintf("- What this SPEC will do: %s", specReportWhat(kind)),
+		fmt.Sprintf("- Next work to do: %s", specReportNextWork(kind, specID, autoReview)),
 		fmt.Sprintf("- Proceed signal: %s", specReportProceedSignal(kind)),
 		"",
 		"Open points to review:",
@@ -870,6 +872,38 @@ func specReportWhatKorean(kind string) string {
 		return "skill, agent, workflow, orchestration 같은 재사용 구성요소의 경계와 평가 방법을 SPEC 리뷰 흐름 안에서 정리합니다."
 	default:
 		return "요청을 구현 단계, 완료 기준, 리뷰 산출물로 나눠 다음 실행자가 바로 판단할 수 있게 만듭니다."
+	}
+}
+
+func specReportNextWork(kind, specID string, autoReview bool) string {
+	switch kind {
+	case "fix":
+		return fmt.Sprintf("confirm the reproduction path and regression test in `$namba-plan-review %s`, then implement with `namba run %s` once readiness is clear.", specID, specID)
+	case "harness":
+		return fmt.Sprintf("confirm reusable boundaries and evaluation evidence in `$namba-plan-review %s`, then implement with `namba run %s` once readiness is clear.", specID, specID)
+	case "plan":
+		if autoReview {
+			return fmt.Sprintf("run `$namba-plan-review %s` first, then implement with `namba run %s` once readiness is clear.", specID, specID)
+		}
+		return fmt.Sprintf("review product, engineering, and design concerns if needed, then implement with `namba run %s` once readiness is clear.", specID)
+	default:
+		return fmt.Sprintf("review the SPEC package, then implement with `namba run %s` once readiness is clear.", specID)
+	}
+}
+
+func specReportNextWorkKorean(kind, specID string, autoReview bool) string {
+	switch kind {
+	case "fix":
+		return fmt.Sprintf("먼저 `$namba-plan-review %s`로 재현 경로와 회귀 테스트를 확인하고, readiness가 충분하면 `namba run %s`로 수정 구현을 시작하세요.", specID, specID)
+	case "harness":
+		return fmt.Sprintf("먼저 `$namba-plan-review %s`로 재사용 경계와 평가 증거를 확인하고, readiness가 충분하면 `namba run %s`로 구현을 시작하세요.", specID, specID)
+	case "plan":
+		if autoReview {
+			return fmt.Sprintf("먼저 `$namba-plan-review %s`로 product/engineering/design 쟁점을 확인하고, readiness가 충분하면 `namba run %s`로 구현을 시작하세요.", specID, specID)
+		}
+		return fmt.Sprintf("리뷰를 생략한 상태입니다. 필요하면 product/engineering/design 쟁점을 확인한 뒤 `namba run %s`로 구현을 시작하세요.", specID)
+	default:
+		return fmt.Sprintf("SPEC 패키지를 확인한 뒤 readiness가 충분하면 `namba run %s`로 구현을 시작하세요.", specID)
 	}
 }
 
@@ -1060,16 +1094,45 @@ func evaluatePlanClarification(description string) (string, bool) {
 }
 
 func evaluateSpecCreationClarification(command, description string) (string, bool) {
+	return evaluateSpecCreationClarificationForLanguage(command, description, fallbackSpecCreationClarificationLanguage(description))
+}
+
+func (a *App) evaluateSpecCreationClarification(command, description string) (string, bool) {
+	return evaluateSpecCreationClarificationForLanguage(command, description, a.specCreationClarificationLanguage(description))
+}
+
+func (a *App) specCreationClarificationLanguage(description string) string {
+	root, err := a.requireProjectRoot()
+	if err == nil {
+		profile, err := a.loadInitProfileFromConfig(root)
+		if err == nil {
+			if language := strings.TrimSpace(firstNonBlank(profile.ConversationLanguage, profile.DocumentationLanguage, profile.PRLanguage)); language != "" {
+				return language
+			}
+		}
+	}
+	return fallbackSpecCreationClarificationLanguage(description)
+}
+
+func fallbackSpecCreationClarificationLanguage(description string) string {
+	if hasKorean(description) {
+		return "ko"
+	}
+	return "en"
+}
+
+func evaluateSpecCreationClarificationForLanguage(command, description, language string) (string, bool) {
 	normalized := strings.Join(strings.Fields(description), " ")
 	if normalized == "" {
 		return "", false
 	}
+	korean := normalizeReadmeLanguage(language) == "ko"
 	lower := strings.ToLower(normalized)
 	if planDescriptionHasClarifyingEvidence(lower) {
 		return "", false
 	}
 	if planDescriptionHasPartialClarifyingEvidence(lower) {
-		return formatSpecCreationClarificationQuestions(command, normalized, hasKorean(normalized)), true
+		return formatSpecCreationClarificationQuestions(command, normalized, korean), true
 	}
 
 	runeCount := len([]rune(normalized))
@@ -1116,10 +1179,10 @@ func evaluateSpecCreationClarification(command, description string) (string, boo
 		"api",
 	})
 	if hasKorean(normalized) && runeCount < 70 && (vague || genericKoreanSurface) {
-		return formatSpecCreationClarificationQuestions(command, normalized, true), true
+		return formatSpecCreationClarificationQuestions(command, normalized, korean), true
 	}
 	if runeCount < 45 && vague {
-		return formatSpecCreationClarificationQuestions(command, normalized, false), true
+		return formatSpecCreationClarificationQuestions(command, normalized, korean), true
 	}
 	return "", false
 }
@@ -1302,7 +1365,7 @@ func (a *App) resolveFixSubcommand(name string) (fixSubcommandDefinition, bool) 
 }
 
 func (a *App) runFixPlanSubcommand(ctx context.Context, _ string, options fixInvocation) error {
-	if clarification, ok := evaluateSpecCreationClarification("fix", options.description); ok {
+	if clarification, ok := a.evaluateSpecCreationClarification("fix", options.description); ok {
 		fmt.Fprint(a.stdout, clarification)
 		return errors.New("namba fix --command plan requires clarification before creating a SPEC")
 	}

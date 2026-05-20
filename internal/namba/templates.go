@@ -851,6 +851,7 @@ func renderCodexUsageOutputContractSection(profile initProfile) []string {
 		fmt.Sprintf("- `AGENTS.md` defines a Namba report header such as `%s` for substantial responses.", outputContractHeaderExample(profile)),
 		fmt.Sprintf("- The report sections follow this semantic order: %s.", outputContractSequence(profile)),
 		"- The semantic order stays fixed, but the exact labels can vary within the selected language palette so the writing does not become robotic.",
+		"- The final next-work section should name the concrete command, review, validation, or handoff the operator should do next.",
 		"- `.namba/codex/validate-output-contract.py` checks this contract from a saved response file or stdin.",
 		"- Namba keeps the validator script as the explicit repository enforcement path even as Codex's documented config and hook surface evolves.",
 	}
@@ -950,7 +951,7 @@ func outputContractSpecFor(profile initProfile) outputContractSpec {
 				{Emoji: "🛠", Primary: "수행한 작업", Aliases: []string{"수행한 작업", "진행한 작업", "작업 내용", "적용한 작업"}},
 				{Emoji: "🚧", Primary: "현재 이슈", Aliases: []string{"현재 이슈", "이슈", "남은 이슈", "현재 문제"}},
 				{Emoji: "⚠", Primary: "잠재 문제", Aliases: []string{"잠재 문제", "잠재 리스크", "위험 요소", "잠재 이슈"}},
-				{Emoji: "➡", Primary: "다음 스텝", Aliases: []string{"다음 스텝", "다음 단계", "추천", "권장 흐름"}},
+				{Emoji: "➡", Primary: "다음에 해야 할 작업", Aliases: []string{"다음에 해야 할 작업", "다음 작업", "다음 스텝", "다음 단계", "권장 작업", "권장 흐름"}},
 			},
 		}
 	case "ja":
@@ -963,7 +964,7 @@ func outputContractSpecFor(profile initProfile) outputContractSpec {
 				{Emoji: "🛠", Primary: "実施した作業", Aliases: []string{"実施した作業", "対応内容", "実施内容", "作業内容"}},
 				{Emoji: "🚧", Primary: "現在の課題", Aliases: []string{"現在の課題", "現在のイシュー", "残課題", "現状の問題"}},
 				{Emoji: "⚠", Primary: "潜在リスク", Aliases: []string{"潜在リスク", "潜在課題", "想定リスク", "潜在問題"}},
-				{Emoji: "➡", Primary: "次のステップ", Aliases: []string{"次のステップ", "次の一手", "推奨フロー", "次段階"}},
+				{Emoji: "➡", Primary: "次にやる作業", Aliases: []string{"次にやる作業", "次の作業", "次のステップ", "次の一手", "推奨フロー", "次段階"}},
 			},
 		}
 	case "zh":
@@ -976,7 +977,7 @@ func outputContractSpecFor(profile initProfile) outputContractSpec {
 				{Emoji: "🛠", Primary: "已完成工作", Aliases: []string{"已完成工作", "执行工作", "已做事项", "工作内容"}},
 				{Emoji: "🚧", Primary: "当前问题", Aliases: []string{"当前问题", "当前议题", "现有问题", "剩余问题"}},
 				{Emoji: "⚠", Primary: "潜在风险", Aliases: []string{"潜在风险", "潜在问题", "风险点", "潜在议题"}},
-				{Emoji: "➡", Primary: "下一步", Aliases: []string{"下一步", "建议步骤", "推荐动作", "后续步骤"}},
+				{Emoji: "➡", Primary: "下一步工作", Aliases: []string{"下一步工作", "下一步", "建议步骤", "推荐动作", "后续步骤"}},
 			},
 		}
 	default:
@@ -989,7 +990,7 @@ func outputContractSpecFor(profile initProfile) outputContractSpec {
 				{Emoji: "🛠", Primary: "Work Completed", Aliases: []string{"Work Completed", "Work Done", "Actions Taken", "Completed Work"}},
 				{Emoji: "🚧", Primary: "Current Issues", Aliases: []string{"Current Issues", "Open Issues", "Current Gaps", "Current Problems"}},
 				{Emoji: "⚠", Primary: "Potential Risks", Aliases: []string{"Potential Risks", "Risks", "Potential Problems", "Risk Boundaries"}},
-				{Emoji: "➡", Primary: "Next Steps", Aliases: []string{"Next Steps", "Recommended Next Steps", "Recommendations", "Next Move"}},
+				{Emoji: "➡", Primary: "Next Work", Aliases: []string{"Next Work", "Next Action", "Next Steps", "Recommended Next Steps", "Recommendations", "Next Move"}},
 			},
 		}
 	}
@@ -1029,6 +1030,7 @@ func renderOutputContractDocLocalized(profile initProfile) string {
 		"",
 		fmt.Sprintf("- The header and label palette should follow the init-selected language: %s.", humanLanguageName(outputContractLanguage(profile))),
 		"- The semantic order is fixed, but the exact labels may vary within the selected language palette.",
+		"- The final next-work section should name the concrete command, review, validation, or handoff the operator should do next.",
 		"- Light visual styling such as simple emoji section markers is encouraged when it improves scanability.",
 		"- Recommended label palette:",
 	)
@@ -1597,7 +1599,15 @@ VAGUE_MARKERS = (
 )
 
 REPORT_HEADER = "NAMBA-AI 작업 결과 보고"
-REPORT_SECTIONS = ("작업 정의", "판단", "수행한 작업", "현재 이슈", "잠재 문제", "다음 스텝")
+REPORT_SECTIONS = ("작업 정의", "판단", "수행한 작업", "현재 이슈", "잠재 문제", "다음에 해야 할 작업")
+REPORT_SECTION_ALIASES = (
+    ("작업 정의", "정의", "정의한 범위", "문제 정의"),
+    ("판단", "내린 판단", "핵심 판단", "결정"),
+    ("수행한 작업", "진행한 작업", "작업 내용", "적용한 작업"),
+    ("현재 이슈", "이슈", "남은 이슈", "현재 문제"),
+    ("잠재 문제", "잠재 리스크", "위험 요소", "잠재 이슈"),
+    ("다음에 해야 할 작업", "다음 작업", "다음 스텝", "다음 단계", "권장 작업", "권장 흐름"),
+)
 CURRENT_PAYLOAD = {}
 configure_stdio()
 
@@ -1791,12 +1801,15 @@ def prompt_refinement_context(prompt):
     )
 
 
-def prompt_refinement_guidance(prompt):
+def prompt_refinement_guidance(prompt, configured_language=""):
     context = prompt_refinement_context(prompt)
     if not context:
         return ""
     normalized = " ".join(prompt.split())
-    korean = bool(re.search(r"[가-힣]", normalized))
+    language = (configured_language or "").strip().lower()
+    if not language:
+        language = "ko" if re.search(r"[가-힣]", normalized) else "en"
+    korean = language == "ko"
     if korean:
         questions = [
             "1. 이 작업의 대상 surface는 무엇인가요? 예: CLI, 웹 앱, API, 특정 모듈.",
@@ -1825,7 +1838,7 @@ def prompt_refinement_guidance(prompt):
 
 
 def handle_user_prompt_submit(payload):
-    guidance = prompt_refinement_guidance(prompt_from(payload))
+    guidance = prompt_refinement_guidance(prompt_from(payload), configured_prompt_language(cwd_from_payload(payload)))
     if not guidance:
         emit_continue()
         return
@@ -1972,15 +1985,62 @@ def namba_repo(cwd):
     return os.path.exists(os.path.join(cwd, ".namba")) or os.path.exists(os.path.join(cwd, "AGENTS.md"))
 
 
+def namba_root(cwd):
+    if not cwd:
+        return ""
+    root = os.path.abspath(cwd)
+    while True:
+        if os.path.exists(os.path.join(root, ".namba")) or os.path.exists(os.path.join(root, "AGENTS.md")):
+            return root
+        parent = os.path.dirname(root)
+        if parent == root:
+            return ""
+        root = parent
+
+
+def read_simple_config(path):
+    values = {}
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            for line in handle:
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#") or ":" not in stripped:
+                    continue
+                key, value = stripped.split(":", 1)
+                values[key.strip()] = value.strip().strip("\"'")
+    except OSError:
+        return values
+    return values
+
+
+def configured_prompt_language(cwd):
+    root = namba_root(cwd)
+    if not root:
+        return ""
+    language_cfg = read_simple_config(os.path.join(root, ".namba", "config", "sections", "language.yaml"))
+    for key in ("conversation_language", "documentation_language", "comment_language"):
+        value = language_cfg.get(key, "").strip().lower()
+        if value:
+            return value
+    git_cfg = read_simple_config(os.path.join(root, ".namba", "config", "sections", "git-strategy.yaml"))
+    return git_cfg.get("pr_language", "").strip().lower()
+
+
 def report_missing_sections(message):
     if REPORT_HEADER not in message:
         return list(REPORT_SECTIONS)
+    lines = message.splitlines()
     positions = []
-    for section in REPORT_SECTIONS:
-        index = message.find(section)
-        if index < 0:
-            return [section]
-        positions.append(index)
+    for index, aliases in enumerate(REPORT_SECTION_ALIASES):
+        section_index = -1
+        pattern = re.compile(r"^\s*(?:#{1,6}\s*|[-*]\s+)?(?:\*\*)?[\W_]*(?:" + "|".join(re.escape(alias) for alias in aliases) + r")(?:\*\*)?\s*(?:[:：-].*)?$")
+        for line_index, line in enumerate(lines):
+            if pattern.match(line.strip()):
+                section_index = line_index
+                break
+        if section_index < 0:
+            return [REPORT_SECTIONS[index]]
+        positions.append(section_index)
     if positions != sorted(positions):
         return ["section order"]
     return []
@@ -2011,7 +2071,9 @@ def handle_stop(payload):
         "reason": (
             "Before ending, rewrite the final response using the Namba report frame: "
             "# NAMBA-AI 작업 결과 보고, then 🧭 작업 정의, 🧠 판단, 🛠 수행한 작업, "
-            "🚧 현재 이슈, ⚠ 잠재 문제, ➡ 다음 스텝. Keep it concise and high-signal."
+            "🚧 현재 이슈, ⚠ 잠재 문제, ➡ 다음에 해야 할 작업. "
+            "In the final section, name the concrete command, review, validation, or handoff to do next. "
+            "Keep it concise and high-signal."
         ),
     })
 

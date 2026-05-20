@@ -82,7 +82,15 @@ VAGUE_MARKERS = (
 )
 
 REPORT_HEADER = "NAMBA-AI 작업 결과 보고"
-REPORT_SECTIONS = ("작업 정의", "판단", "수행한 작업", "현재 이슈", "잠재 문제", "다음 스텝")
+REPORT_SECTIONS = ("작업 정의", "판단", "수행한 작업", "현재 이슈", "잠재 문제", "다음에 해야 할 작업")
+REPORT_SECTION_ALIASES = (
+    ("작업 정의", "정의", "정의한 범위", "문제 정의"),
+    ("판단", "내린 판단", "핵심 판단", "결정"),
+    ("수행한 작업", "진행한 작업", "작업 내용", "적용한 작업"),
+    ("현재 이슈", "이슈", "남은 이슈", "현재 문제"),
+    ("잠재 문제", "잠재 리스크", "위험 요소", "잠재 이슈"),
+    ("다음에 해야 할 작업", "다음 작업", "다음 스텝", "다음 단계", "권장 작업", "권장 흐름"),
+)
 CURRENT_PAYLOAD = {}
 configure_stdio()
 
@@ -276,12 +284,15 @@ def prompt_refinement_context(prompt):
     )
 
 
-def prompt_refinement_guidance(prompt):
+def prompt_refinement_guidance(prompt, configured_language=""):
     context = prompt_refinement_context(prompt)
     if not context:
         return ""
     normalized = " ".join(prompt.split())
-    korean = bool(re.search(r"[가-힣]", normalized))
+    language = (configured_language or "").strip().lower()
+    if not language:
+        language = "ko" if re.search(r"[가-힣]", normalized) else "en"
+    korean = language == "ko"
     if korean:
         questions = [
             "1. 이 작업의 대상 surface는 무엇인가요? 예: CLI, 웹 앱, API, 특정 모듈.",
@@ -310,7 +321,7 @@ def prompt_refinement_guidance(prompt):
 
 
 def handle_user_prompt_submit(payload):
-    guidance = prompt_refinement_guidance(prompt_from(payload))
+    guidance = prompt_refinement_guidance(prompt_from(payload), configured_prompt_language(cwd_from_payload(payload)))
     if not guidance:
         emit_continue()
         return
@@ -457,15 +468,62 @@ def namba_repo(cwd):
     return os.path.exists(os.path.join(cwd, ".namba")) or os.path.exists(os.path.join(cwd, "AGENTS.md"))
 
 
+def namba_root(cwd):
+    if not cwd:
+        return ""
+    root = os.path.abspath(cwd)
+    while True:
+        if os.path.exists(os.path.join(root, ".namba")) or os.path.exists(os.path.join(root, "AGENTS.md")):
+            return root
+        parent = os.path.dirname(root)
+        if parent == root:
+            return ""
+        root = parent
+
+
+def read_simple_config(path):
+    values = {}
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            for line in handle:
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#") or ":" not in stripped:
+                    continue
+                key, value = stripped.split(":", 1)
+                values[key.strip()] = value.strip().strip("\"'")
+    except OSError:
+        return values
+    return values
+
+
+def configured_prompt_language(cwd):
+    root = namba_root(cwd)
+    if not root:
+        return ""
+    language_cfg = read_simple_config(os.path.join(root, ".namba", "config", "sections", "language.yaml"))
+    for key in ("conversation_language", "documentation_language", "comment_language"):
+        value = language_cfg.get(key, "").strip().lower()
+        if value:
+            return value
+    git_cfg = read_simple_config(os.path.join(root, ".namba", "config", "sections", "git-strategy.yaml"))
+    return git_cfg.get("pr_language", "").strip().lower()
+
+
 def report_missing_sections(message):
     if REPORT_HEADER not in message:
         return list(REPORT_SECTIONS)
+    lines = message.splitlines()
     positions = []
-    for section in REPORT_SECTIONS:
-        index = message.find(section)
-        if index < 0:
-            return [section]
-        positions.append(index)
+    for index, aliases in enumerate(REPORT_SECTION_ALIASES):
+        section_index = -1
+        pattern = re.compile(r"^\s*(?:#{1,6}\s*|[-*]\s+)?(?:\*\*)?[\W_]*(?:" + "|".join(re.escape(alias) for alias in aliases) + r")(?:\*\*)?\s*(?:[:：-].*)?$")
+        for line_index, line in enumerate(lines):
+            if pattern.match(line.strip()):
+                section_index = line_index
+                break
+        if section_index < 0:
+            return [REPORT_SECTIONS[index]]
+        positions.append(section_index)
     if positions != sorted(positions):
         return ["section order"]
     return []
@@ -496,7 +554,9 @@ def handle_stop(payload):
         "reason": (
             "Before ending, rewrite the final response using the Namba report frame: "
             "# NAMBA-AI 작업 결과 보고, then 🧭 작업 정의, 🧠 판단, 🛠 수행한 작업, "
-            "🚧 현재 이슈, ⚠ 잠재 문제, ➡ 다음 스텝. Keep it concise and high-signal."
+            "🚧 현재 이슈, ⚠ 잠재 문제, ➡ 다음에 해야 할 작업. "
+            "In the final section, name the concrete command, review, validation, or handoff to do next. "
+            "Keep it concise and high-signal."
         ),
     })
 

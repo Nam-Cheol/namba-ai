@@ -105,8 +105,9 @@ Read this boundary in order: Codex displays runtime state, Namba generates repo 
 ## Output Contract
 
 - `AGENTS.md` defines a Namba report header such as `# NAMBA-AI 작업 결과 보고` for substantial responses.
-- The report sections follow this semantic order: `🧭 작업 정의` -> `🧠 판단` -> `🛠 수행한 작업` -> `🚧 현재 이슈` -> `⚠ 잠재 문제` -> `➡ 다음 스텝`.
+- The report sections follow this semantic order: `🧭 작업 정의` -> `🧠 판단` -> `🛠 수행한 작업` -> `🚧 현재 이슈` -> `⚠ 잠재 문제` -> `➡ 다음에 해야 할 작업`.
 - The semantic order stays fixed, but the exact labels can vary within the selected language palette so the writing does not become robotic.
+- The final next-work section should name the concrete command, review, validation, or handoff the operator should do next.
 - `.namba/codex/validate-output-contract.py` checks this contract from a saved response file or stdin.
 - Namba keeps the validator script as the explicit repository enforcement path even as Codex's documented config and hook surface evolves.
 

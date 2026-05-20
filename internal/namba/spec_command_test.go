@@ -52,7 +52,7 @@ func TestRunPlanClarificationGateBlocksAmbiguousKoreanPrompt(t *testing.T) {
 	tmp := t.TempDir()
 	stdout := &bytes.Buffer{}
 	app := NewApp(stdout, &bytes.Buffer{})
-	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes", "--human-language", "ko"}); err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
 
@@ -85,7 +85,7 @@ func TestRunHarnessClarificationGateBlocksAmbiguousPrompt(t *testing.T) {
 	tmp := t.TempDir()
 	stdout := &bytes.Buffer{}
 	app := NewApp(stdout, &bytes.Buffer{})
-	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes", "--human-language", "ko"}); err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
 
@@ -118,7 +118,7 @@ func TestRunFixCommandPlanClarificationGateBlocksAmbiguousPrompt(t *testing.T) {
 	tmp := t.TempDir()
 	stdout := &bytes.Buffer{}
 	app := NewApp(stdout, &bytes.Buffer{})
-	if err := app.Run(context.Background(), []string{"init", tmp, "--yes"}); err != nil {
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes", "--human-language", "ko"}); err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
 
@@ -142,6 +142,36 @@ func TestRunFixCommandPlanClarificationGateBlocksAmbiguousPrompt(t *testing.T) {
 	}
 	if got, want := len(entries), 1; got != want || entries[0].Name() != ".gitkeep" {
 		t.Fatalf("expected no SPEC write for ambiguous fix plan prompt, got entries=%v", entries)
+	}
+}
+
+func TestSpecCreationClarificationUsesConfiguredLanguageForEnglishPrompt(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes", "--human-language", "ko"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	err := app.Run(context.Background(), []string{"plan", currentWorkspacePlanningFlag, "build", "something"})
+	if err == nil || !strings.Contains(err.Error(), "namba plan requires clarification") {
+		t.Fatalf("expected configured-language clarification error, got %v", err)
+	}
+	got := stdout.String()
+	for _, want := range []string{"NambaAI clarification gate", "SPEC을 만들기 전에", "대상 surface", "완료 기준"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected Korean clarification output to contain %q, got %q", want, got)
+		}
+	}
+	for _, unwanted := range []string{"Please answer these questions first:", "What target surface should this change affect"} {
+		if strings.Contains(got, unwanted) {
+			t.Fatalf("expected configured Korean language to override English prompt, got %q", got)
+		}
 	}
 }
 
@@ -180,6 +210,44 @@ func TestRunFixCommandPlanClarificationRunsBeforeProjectLookup(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSpecCreationReportUsesConfiguredLanguageForEnglishPrompt(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+	if err := app.Run(context.Background(), []string{"init", tmp, "--yes", "--human-language", "ko"}); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	restore := chdirExecution(t, tmp)
+	defer restore()
+
+	err := app.Run(context.Background(), []string{
+		"plan",
+		currentWorkspacePlanningFlag,
+		"Goal:", "Improve dashboard filters.",
+		"Scope:", "filter controls only.",
+		"Constraints:", "keep existing layout.",
+		"Acceptance:", "Go tests pass.",
+	})
+	if err != nil {
+		t.Fatalf("plan failed: %v", err)
+	}
+
+	got := stdout.String()
+	for _, want := range []string{"SPEC 결정 보고서:", "쉬운 요약:", "다음에 해야 할 작업:", "검토할 애매한 부분:"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected configured Korean report to contain %q, got %q", want, got)
+		}
+	}
+	for _, unwanted := range []string{"SPEC decision report:", "Plain-language summary:", "Next work to do:"} {
+		if strings.Contains(got, unwanted) {
+			t.Fatalf("expected configured Korean report to override English prompt, got %q", got)
+		}
 	}
 }
 
@@ -269,6 +337,8 @@ func TestRunSpecCreationCommandsPrintDecisionReport(t *testing.T) {
 				"Plain-language summary:",
 				"Why this SPEC exists:",
 				"What this SPEC will do:",
+				"Next work to do:",
+				"namba run SPEC-001",
 				"Open points to review:",
 				"Security and safety notes:",
 				"Developer detail:",

@@ -17,14 +17,18 @@ func TestNambaCodexGuardPromptRefinement(t *testing.T) {
 	ambiguous := runNambaCodexGuard(t, map[string]any{
 		"hook_event_name": "UserPromptSubmit",
 		"prompt":          "namba plan improve this",
+		"cwd":             repoRootForHookTest(t),
 	})
-	if !strings.Contains(ambiguous, "prompt-refinement gate") {
-		t.Fatalf("expected ambiguous prompt guidance, got %q", ambiguous)
+	ambiguousOutput := hookSpecificOutput(t, parseGuardJSON(t, ambiguous))
+	guidance, ok := ambiguousOutput["additionalContext"].(string)
+	if !ok || !strings.Contains(guidance, "프롬프트 교정 게이트") || !strings.Contains(guidance, "대상 surface") {
+		t.Fatalf("expected configured-language ambiguous prompt guidance, got %q", ambiguous)
 	}
 
 	clear := runNambaCodexGuard(t, map[string]any{
 		"hook_event_name": "UserPromptSubmit",
 		"prompt":          "Implement the CLI parser for --review in namba pr. Scope: PR command only. Acceptance: parser test passes and unknown flags still fail. Constraints: keep existing output contract.",
+		"cwd":             repoRootForHookTest(t),
 	})
 	if parsed := parseGuardJSON(t, clear); parsed["continue"] != true {
 		t.Fatalf("expected clear prompt to emit explicit continue JSON, got %q", clear)
