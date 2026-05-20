@@ -74,12 +74,23 @@ type harnessPREvalCase struct {
 	Rationale                      string   `json:"rationale"`
 }
 
+type harnessMentionPluginEvalCase struct {
+	Name                          string   `json:"name"`
+	Input                         string   `json:"input"`
+	MentionKinds                  []string `json:"mention_kinds"`
+	ExpectedNambaRouting          string   `json:"expected_namba_routing"`
+	ExpectedPlatformReadiness     bool     `json:"expected_platform_readiness"`
+	ExpectedRequiresPluginInstall bool     `json:"expected_requires_plugin_install"`
+	Rationale                     string   `json:"rationale"`
+}
+
 func TestHarnessEvalFixtureDirectoryIsComplete(t *testing.T) {
 	t.Parallel()
 
 	required := []string{
 		"README.md",
 		"route_cases.json",
+		"mention_plugin_cases.json",
 		"prompt_refinement_cases.json",
 		"guardrail_cases.json",
 		"evidence_manifest_cases.json",
@@ -90,6 +101,35 @@ func TestHarnessEvalFixtureDirectoryIsComplete(t *testing.T) {
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("missing harness eval fixture %s: %v", name, err)
 		}
+	}
+}
+
+func TestHarnessMentionPluginEvalCases(t *testing.T) {
+	t.Parallel()
+
+	var cases []harnessMentionPluginEvalCase
+	readHarnessEvalFixture(t, "mention_plugin_cases.json", &cases)
+	if len(cases) == 0 {
+		t.Fatal("mention_plugin_cases.json must contain eval cases")
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			requireHarnessEvalCaseBasics(t, tc.Name, tc.Input, tc.Rationale)
+
+			actual := evaluateMentionPluginCase(tc)
+			if actual.routing != tc.ExpectedNambaRouting {
+				t.Fatal(formatHarnessEvalDiagnostic(tc.Name, tc.Input, "expected_namba_routing", tc.ExpectedNambaRouting, actual.routing, tc.Rationale))
+			}
+			if actual.platformReadiness != tc.ExpectedPlatformReadiness {
+				t.Fatal(formatHarnessEvalDiagnostic(tc.Name, tc.Input, "expected_platform_readiness", tc.ExpectedPlatformReadiness, actual.platformReadiness, tc.Rationale))
+			}
+			if actual.requiresPluginInstall != tc.ExpectedRequiresPluginInstall {
+				t.Fatal(formatHarnessEvalDiagnostic(tc.Name, tc.Input, "expected_requires_plugin_install", tc.ExpectedRequiresPluginInstall, actual.requiresPluginInstall, tc.Rationale))
+			}
+		})
 	}
 }
 
@@ -222,6 +262,38 @@ type harnessRouteEvaluation struct {
 	requiredEvidence  []string
 	reviewFlags       []string
 	sidecarPersisted  bool
+}
+
+type mentionPluginEvaluation struct {
+	routing               string
+	platformReadiness     bool
+	requiresPluginInstall bool
+}
+
+func evaluateMentionPluginCase(tc harnessMentionPluginEvalCase) mentionPluginEvaluation {
+	input := strings.ToLower(tc.Input)
+	kinds := map[string]bool{}
+	for _, kind := range tc.MentionKinds {
+		kinds[strings.ToLower(strings.TrimSpace(kind))] = true
+	}
+	routing := "explicit_namba_skill"
+	if kinds["plugin"] || strings.Contains(input, "plugin") || strings.Contains(input, "marketplace") || strings.Contains(input, "share checkout") {
+		routing = "platform_readiness_note"
+	}
+	if kinds["file"] || kinds["directory"] {
+		routing = "explicit_namba_skill"
+	}
+	if kinds["mixed"] {
+		routing = "ask_to_disambiguate"
+	}
+	if strings.Contains(input, "namba plan") || strings.Contains(input, "$namba-plan") {
+		routing = "explicit_namba_skill"
+	}
+	return mentionPluginEvaluation{
+		routing:               routing,
+		platformReadiness:     strings.Contains(input, "codex 0.131") || kinds["plugin"],
+		requiresPluginInstall: false,
+	}
 }
 
 func evaluateHarnessRouteCase(t *testing.T, tc harnessRouteEvalCase) harnessRouteEvaluation {

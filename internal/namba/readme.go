@@ -1330,6 +1330,59 @@ func renderNambaCLIRootCommandSkillsSection(lang string) []string {
 	}
 }
 
+func renderNambaCLIRootPlatformReadinessSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 🔌 Optional Codex Platform Readiness",
+			"",
+			"- 로컬 NambaAI 흐름에는 plugin 설치, marketplace publish, remote-control, remote environment, Python SDK가 필요하지 않습니다.",
+			"- Codex unified `@` mention은 파일, 디렉터리, plugin, skill을 찾는 Codex 플랫폼 기능입니다. Namba workflow 라우팅은 `$namba-*` skill과 `namba ...` 명령 의미를 기준으로 판단합니다.",
+			"- Plugin packaging, marketplace CLI, version-aware sharing, share checkout, shared-workspace plugin bucket, default-enabled plugin hook은 선택적 readiness path입니다. Namba docs가 이를 언급해도 publish/install 요구가 아닙니다.",
+			"- Remote-control과 remote environment는 `.namba/logs/project/codex-diagnostics-evidence.json`, run evidence, queue evidence의 `codex_diagnostics`에 `unavailable`, `disabled`, `enabled`, `configured`, `local_fallback` 같은 상태로만 기록됩니다.",
+			"- Remote readiness 상태가 workflow 실패를 뜻하지 않습니다. 일반 `namba plan`, `namba run`, `namba queue`, `namba sync`, `namba pr`, `namba land`, `namba release`는 기본적으로 local-first입니다.",
+			"- Codex Python SDK를 언급해야 할 때 distribution은 `openai-codex`, import package는 `openai_codex`로 씁니다. NambaAI는 이 언급만으로 Python runtime dependency를 추가하지 않습니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 🔌 Optional Codex Platform Readiness",
+			"",
+			"- Local NambaAI workflow does not require plugin installation, marketplace publication, remote-control, remote environments, or the Python SDK.",
+			"- Codex unified `@` mentions are a Codex platform search feature for files, directories, plugins, and skills. Namba workflow routing still follows `$namba-*` skills and `namba ...` command intent.",
+			"- Plugin packaging, marketplace CLI, version-aware sharing, share checkout, shared-workspace plugin buckets, and default-enabled plugin hooks are optional readiness paths, not publish or install requirements.",
+			"- Remote-control and remote-environment status may appear only as `codex_diagnostics` evidence such as `unavailable`, `disabled`, `enabled`, `configured`, or `local_fallback`.",
+			"- Remote readiness status is not workflow failure; normal Namba commands remain local-first.",
+			"- When the Codex Python SDK is mentioned, use `openai-codex` for the distribution and `openai_codex` for the import package.",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 🔌 Optional Codex Platform Readiness",
+			"",
+			"- 本地 NambaAI workflow 不需要安装 plugin、发布 marketplace、启用 remote-control、配置 remote environment 或使用 Python SDK。",
+			"- Codex unified `@` mention 是 Codex 平台搜索文件、目录、plugin 和 skill 的功能。Namba workflow routing 仍以 `$namba-*` skill 和 `namba ...` 命令意图为准。",
+			"- Plugin packaging、marketplace CLI、version-aware sharing、share checkout、shared-workspace plugin bucket 和 default-enabled plugin hook 都是可选 readiness path，不是发布或安装要求。",
+			"- Remote-control 和 remote-environment 状态只会作为 `codex_diagnostics` evidence 出现，例如 `unavailable`、`disabled`、`enabled`、`configured` 或 `local_fallback`。",
+			"- Remote readiness 状态不等于 workflow failure；普通 Namba 命令保持 local-first。",
+			"- 提到 Codex Python SDK 时，distribution 使用 `openai-codex`，import package 使用 `openai_codex`。",
+			"",
+		}
+	default:
+		return []string{
+			"## 🔌 Optional Codex Platform Readiness",
+			"",
+			"- Local NambaAI workflows do not require plugin installation, marketplace publication, remote-control, remote environments, or the Python SDK.",
+			"- Codex unified `@` mentions are a Codex platform search feature across files, directories, plugins, and skills. Namba workflow routing still follows explicit `$namba-*` skills and `namba ...` command intent.",
+			"- Plugin packaging, marketplace CLI commands, version-aware sharing, share checkout, shared-workspace plugin buckets, and default-enabled plugin hooks are optional readiness paths. Mentioning them is not a publish or install requirement.",
+			"- Remote-control and remote-environment status is recorded only as optional `codex_diagnostics` evidence, using statuses such as `unavailable`, `disabled`, `enabled`, `configured`, and `local_fallback`.",
+			"- Remote readiness status is not workflow failure. Normal `namba plan`, `namba run`, `namba queue`, `namba sync`, `namba pr`, `namba land`, and `namba release` remain local-first.",
+			"- When the Codex Python SDK is relevant, use `openai-codex` for the distribution and `openai_codex` for the import package. NambaAI does not add a Python runtime dependency just to document that name.",
+			"",
+		}
+	}
+}
+
 func renderNambaCLIRootSkillMappingSection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
@@ -1947,6 +2000,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 		}
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
 		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
+		lines = append(lines, renderNambaCLIRootPlatformReadinessSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)
@@ -1988,6 +2042,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 		}
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
 		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
+		lines = append(lines, renderNambaCLIRootPlatformReadinessSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)
@@ -2029,6 +2084,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 		}
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
 		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
+		lines = append(lines, renderNambaCLIRootPlatformReadinessSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)
@@ -2070,6 +2126,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 		}
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
 		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
+		lines = append(lines, renderNambaCLIRootPlatformReadinessSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
 		lines = append(lines, renderNambaCLIRootCommandSkillsSection(lang)...)

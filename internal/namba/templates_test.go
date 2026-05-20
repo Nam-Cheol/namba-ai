@@ -1221,6 +1221,22 @@ func TestRenderNambaSkillRouterSectionsReserveCoachForAdvisoryRouting(t *testing
 		}
 	}
 
+	for _, skill := range []struct {
+		name    string
+		content string
+		effect  string
+	}{
+		{name: "help", content: renderHelpCommandSkill(), effect: "State effect: read-only guidance"},
+		{name: "coach", content: renderCoachCommandSkill(), effect: "State effect: read-only guidance"},
+		{name: "plan", content: renderPlanCommandSkill(), effect: "State effect: mutating workflow entry point"},
+		{name: "fix", content: renderFixCommandSkill(), effect: "State effect: mixed"},
+		{name: "create", content: renderCreateCommandSkill(), effect: "State effect: preview-first mutation"},
+	} {
+		if !strings.Contains(skill.content, skill.effect) {
+			t.Fatalf("%s skill missing state-effect label %q: %q", skill.name, skill.effect, skill.content)
+		}
+	}
+
 	executionRules := strings.Join(renderNambaSkillExecutionRulesSection(initProfile{}), "\n")
 	for _, want := range []string{
 		"current-goal command coaching",
@@ -1238,6 +1254,28 @@ func TestRenderNambaSkillRouterSectionsReserveCoachForAdvisoryRouting(t *testing
 	} {
 		if !strings.Contains(executionRules, want) {
 			t.Fatalf("namba skill execution-rules section missing %q: %q", want, executionRules)
+		}
+	}
+}
+
+func TestRenderCodexUsagePlatformReadinessSection(t *testing.T) {
+	t.Parallel()
+
+	content := strings.Join(renderCodexUsagePlatformReadinessSection(), "\n")
+	for _, want := range []string{
+		"Unified `@` mentions",
+		"platform search",
+		"not make plugin installation or marketplace publication required",
+		"`codex_diagnostics.remote_control`",
+		"`codex_diagnostics.remote_environments`",
+		"`unavailable`, `disabled`, `enabled`, `configured`, or `local_fallback`",
+		"non-blocking snapshots",
+		"`openai-codex`",
+		"`openai_codex`",
+		"Field-level schema map",
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("platform readiness section missing %q: %q", want, content)
 		}
 	}
 }

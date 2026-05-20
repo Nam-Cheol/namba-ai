@@ -1,0 +1,38 @@
+[
+  {
+    "name": "explicit_namba_plan_beats_ambiguous_skill_mention",
+    "input": "Use $namba-plan for @plan and create the next feature SPEC",
+    "mention_kinds": ["skill"],
+    "expected_namba_routing": "explicit_namba_skill",
+    "expected_platform_readiness": false,
+    "expected_requires_plugin_install": false,
+    "rationale": "Explicit Namba command skills remain the workflow router even when Codex unified mention search could surface similarly named skills."
+  },
+  {
+    "name": "plugin_reference_is_readiness_not_install",
+    "input": "Explain Codex 0.131 plugin marketplace and share checkout readiness for Namba",
+    "mention_kinds": ["plugin"],
+    "expected_namba_routing": "platform_readiness_note",
+    "expected_platform_readiness": true,
+    "expected_requires_plugin_install": false,
+    "rationale": "Plugin and marketplace references should be described as optional readiness paths, not as installation requirements."
+  },
+  {
+    "name": "file_and_directory_mentions_do_not_replace_namba_router",
+    "input": "Check @README.md and @.agents/skills before deciding whether this is namba plan or namba harness",
+    "mention_kinds": ["file", "directory"],
+    "expected_namba_routing": "explicit_namba_skill",
+    "expected_platform_readiness": false,
+    "expected_requires_plugin_install": false,
+    "rationale": "File and directory mentions provide context for Codex, but Namba still routes by explicit workflow intent."
+  },
+  {
+    "name": "mixed_mentions_require_disambiguation",
+    "input": "Use @namba, @Browser, and @.namba/specs to do the right thing",
+    "mention_kinds": ["mixed", "skill", "plugin", "directory"],
+    "expected_namba_routing": "ask_to_disambiguate",
+    "expected_platform_readiness": true,
+    "expected_requires_plugin_install": false,
+    "rationale": "Mixed skill, plugin, and directory mentions should not silently become a Namba command or a plugin installation flow."
+  }
+]

@@ -19,17 +19,19 @@ const (
 )
 
 type codexDiagnosticsEvidence struct {
-	SchemaVersion           string                 `json:"schema_version"`
-	GeneratedAt             string                 `json:"generated_at"`
-	CodexAvailable          string                 `json:"codex_available"`
-	Version                 codexVersionEvidence   `json:"version"`
-	Doctor                  codexDoctorEvidence    `json:"doctor"`
-	Redaction               codexRedactionEvidence `json:"redaction"`
-	Roots                   codexRootsEvidence     `json:"roots"`
-	WorkspaceRootComparison codexRootComparison    `json:"workspace_root_comparison"`
-	SandboxMode             string                 `json:"sandbox_mode,omitempty"`
-	ApprovalPolicy          string                 `json:"approval_policy,omitempty"`
-	PermissionProfile       string                 `json:"permission_profile,omitempty"`
+	SchemaVersion           string                  `json:"schema_version"`
+	GeneratedAt             string                  `json:"generated_at"`
+	CodexAvailable          string                  `json:"codex_available"`
+	Version                 codexVersionEvidence    `json:"version"`
+	Doctor                  codexDoctorEvidence     `json:"doctor"`
+	Redaction               codexRedactionEvidence  `json:"redaction"`
+	Roots                   codexRootsEvidence      `json:"roots"`
+	WorkspaceRootComparison codexRootComparison     `json:"workspace_root_comparison"`
+	RemoteControl           codexRemoteControl      `json:"remote_control"`
+	RemoteEnvironments      codexRemoteEnvironments `json:"remote_environments"`
+	SandboxMode             string                  `json:"sandbox_mode,omitempty"`
+	ApprovalPolicy          string                  `json:"approval_policy,omitempty"`
+	PermissionProfile       string                  `json:"permission_profile,omitempty"`
 }
 
 type codexVersionEvidence struct {
@@ -77,6 +79,21 @@ type codexRootComparison struct {
 	Message    string   `json:"message,omitempty"`
 }
 
+type codexRemoteControl struct {
+	Status        string `json:"status"`
+	Source        string `json:"source"`
+	Detail        string `json:"detail,omitempty"`
+	LocalFallback bool   `json:"local_fallback,omitempty"`
+}
+
+type codexRemoteEnvironments struct {
+	Status    string   `json:"status"`
+	Source    string   `json:"source"`
+	Names     []string `json:"names,omitempty"`
+	CodexHome string   `json:"codex_home,omitempty"`
+	Detail    string   `json:"detail,omitempty"`
+}
+
 type projectCodexDiagnosticsEvidence struct {
 	SchemaVersion string                   `json:"schema_version"`
 	GeneratedAt   string                   `json:"generated_at"`
@@ -85,17 +102,19 @@ type projectCodexDiagnosticsEvidence struct {
 }
 
 type codexDiagnosticsOptions struct {
-	LogDir                string
-	LogPrefix             string
-	RunCommands           bool
-	Request               *executionRequest
-	SystemConfig          systemConfig
-	ConfiguredRoots       []string
-	EffectiveRoots        []string
-	EffectiveRootsStatus  string
-	PermissionProfile     string
-	IncludeDoctorLogFiles bool
-	DoctorTimeout         time.Duration
+	LogDir                 string
+	LogPrefix              string
+	RunCommands            bool
+	Request                *executionRequest
+	SystemConfig           systemConfig
+	ConfiguredRoots        []string
+	EffectiveRoots         []string
+	EffectiveRootsStatus   string
+	RemoteControlStatus    string
+	RemoteEnvironmentNames []string
+	PermissionProfile      string
+	IncludeDoctorLogFiles  bool
+	DoctorTimeout          time.Duration
 }
 
 func (a *App) buildCodexDiagnosticsEvidence(ctx context.Context, root string, opts codexDiagnosticsOptions) codexDiagnosticsEvidence {
@@ -124,12 +143,20 @@ func (a *App) buildCodexDiagnosticsEvidence(ctx context.Context, root string, op
 	}
 	evidence.Roots = a.codexDiagnosticsRoots(ctx, root, opts)
 	evidence.WorkspaceRootComparison = compareCodexWorkspaceRoots(evidence.Roots)
+	evidence.RemoteControl = a.codexRemoteControlEvidence(ctx, root, opts)
+	evidence.RemoteEnvironments = a.codexRemoteEnvironmentsEvidence(root, opts)
 
 	if !opts.RunCommands {
 		evidence.Version.Status = "unavailable"
 		evidence.Version.ParseStatus = "unavailable"
 		evidence.Doctor.Status = "unavailable"
 		evidence.Doctor.LocalFallback = true
+		evidence.RemoteControl = codexRemoteControl{
+			Status:        "local_fallback",
+			Source:        "non_blocking_snapshot",
+			Detail:        "Run and queue evidence do not execute remote-control probes.",
+			LocalFallback: true,
+		}
 		return evidence
 	}
 
@@ -137,6 +164,14 @@ func (a *App) buildCodexDiagnosticsEvidence(ctx context.Context, root string, op
 		evidence.CodexAvailable = "not_detected"
 		evidence.Version.Error = err.Error()
 		evidence.Doctor.Error = err.Error()
+		if evidence.RemoteControl.Source == "unavailable" {
+			evidence.RemoteControl = codexRemoteControl{
+				Status:        "unavailable",
+				Source:        "codex_cli_missing",
+				Detail:        err.Error(),
+				LocalFallback: true,
+			}
+		}
 		return evidence
 	}
 	evidence.CodexAvailable = "detected"
@@ -144,6 +179,9 @@ func (a *App) buildCodexDiagnosticsEvidence(ctx context.Context, root string, op
 	rawVersion, err := a.runBinary(ctx, "codex", []string{"--version"}, root)
 	evidence.Version = buildCodexVersionEvidence(rawVersion, err)
 	evidence.Doctor, evidence.Redaction = a.runCodexDoctorEvidence(ctx, root, opts)
+	if evidence.RemoteControl.Source == "unavailable" {
+		evidence.RemoteControl = a.probeCodexRemoteControl(ctx, root)
+	}
 	return evidence
 }
 
@@ -376,6 +414,131 @@ func compareCodexWorkspaceRoots(roots codexRootsEvidence) codexRootComparison {
 		Status:   "detected",
 		Compared: compared,
 		Message:  "Configured workspace roots match Codex effective workspace roots.",
+	}
+}
+
+func (a *App) codexRemoteControlEvidence(ctx context.Context, root string, opts codexDiagnosticsOptions) codexRemoteControl {
+	if status := normalizeCodexReadinessStatus(opts.RemoteControlStatus); status != "" {
+		return codexRemoteControl{Status: status, Source: "explicit_option"}
+	}
+	if status := normalizeCodexReadinessStatus(a.getenv("NAMBA_CODEX_REMOTE_CONTROL_STATUS")); status != "" {
+		return codexRemoteControl{Status: status, Source: "explicit_config"}
+	}
+	if status := normalizeCodexReadinessStatus(a.getenv("CODEX_REMOTE_CONTROL_STATUS")); status != "" {
+		return codexRemoteControl{Status: status, Source: "environment_snapshot"}
+	}
+	if opts.RunCommands {
+		return codexRemoteControl{Status: "unavailable", Source: "unavailable"}
+	}
+	return codexRemoteControl{
+		Status:        "local_fallback",
+		Source:        "non_blocking_snapshot",
+		Detail:        "Remote-control status is optional and was not probed.",
+		LocalFallback: true,
+	}
+}
+
+func (a *App) probeCodexRemoteControl(ctx context.Context, root string) codexRemoteControl {
+	if a.runCmd == nil {
+		return codexRemoteControl{Status: "local_fallback", Source: "local_runner_missing", LocalFallback: true}
+	}
+	if _, err := a.runBinary(ctx, "codex", []string{"remote-control", "--help"}, root); err != nil {
+		return codexRemoteControl{
+			Status:        "unavailable",
+			Source:        "stable_cli_help",
+			Detail:        err.Error(),
+			LocalFallback: true,
+		}
+	}
+	output, err := a.runBinary(ctx, "codex", []string{"remote-control", "status"}, root)
+	if err != nil {
+		return codexRemoteControl{
+			Status: "disabled",
+			Source: "stable_cli_help",
+			Detail: "remote-control help is available, but status read did not report enabled state",
+		}
+	}
+	status := parseRemoteControlStatus(output)
+	if status == "" {
+		status = "disabled"
+	}
+	return codexRemoteControl{Status: status, Source: "stable_cli_status", Detail: strings.TrimSpace(output)}
+}
+
+func parseRemoteControlStatus(raw string) string {
+	normalized := strings.ToLower(strings.TrimSpace(raw))
+	switch {
+	case strings.Contains(normalized, "enabled") || strings.Contains(normalized, "running"):
+		return "enabled"
+	case strings.Contains(normalized, "disabled") || strings.Contains(normalized, "stopped"):
+		return "disabled"
+	case strings.Contains(normalized, "unavailable"):
+		return "unavailable"
+	default:
+		return ""
+	}
+}
+
+func (a *App) codexRemoteEnvironmentsEvidence(root string, opts codexDiagnosticsOptions) codexRemoteEnvironments {
+	names := normalizeRemoteEnvironmentNames(opts.RemoteEnvironmentNames)
+	source := "explicit_option"
+	if len(names) == 0 {
+		names = normalizeRemoteEnvironmentNames(parsePathList(a.getenv("NAMBA_CODEX_REMOTE_ENVIRONMENTS")))
+		source = "explicit_config"
+	}
+	if len(names) == 0 {
+		names = normalizeRemoteEnvironmentNames(parsePathList(a.getenv("CODEX_REMOTE_ENVIRONMENTS")))
+		source = "environment_snapshot"
+	}
+	codexHome := strings.TrimSpace(a.getenv("CODEX_HOME"))
+	if len(names) > 0 {
+		return codexRemoteEnvironments{
+			Status:    "configured",
+			Source:    source,
+			Names:     names,
+			CodexHome: codexHome,
+		}
+	}
+	if codexHome != "" {
+		return codexRemoteEnvironments{
+			Status:    "unavailable",
+			Source:    "codex_home_snapshot",
+			CodexHome: filepath.Clean(codexHome),
+			Detail:    "CODEX_HOME is configured, but no Namba-readable remote environment list was found.",
+		}
+	}
+	_ = root
+	return codexRemoteEnvironments{
+		Status: "unavailable",
+		Source: "local_snapshot",
+		Detail: "No configured remote environments were found; local workspace editing remains the default.",
+	}
+}
+
+func normalizeRemoteEnvironmentNames(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := map[string]bool{}
+	var names []string
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		names = append(names, value)
+	}
+	sortStrings(names)
+	return names
+}
+
+func normalizeCodexReadinessStatus(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "unavailable", "disabled", "enabled", "configured", "local_fallback", "detected", "not_detected", "timed_out", "advisory_mismatch", "redacted":
+		return strings.ToLower(strings.TrimSpace(status))
+	default:
+		return ""
 	}
 }
 

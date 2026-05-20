@@ -126,9 +126,28 @@ func renderCommandSkill(name, description string, body []string) string {
 		fmt.Sprintf("description: %s", description),
 		"---",
 		"",
+		stateEffectForCommandSkill(name),
+		"",
 	}
 	lines = append(lines, body...)
 	return strings.Join(lines, "\n") + "\n"
+}
+
+func stateEffectForCommandSkill(name string) string {
+	switch name {
+	case "namba-help", "namba-coach":
+		return "State effect: read-only guidance. Do not mutate repository state."
+	case "namba-plan-pm-review", "namba-plan-eng-review", "namba-plan-design-review":
+		return "State effect: mutating review update. Writes SPEC review artifacts and readiness summaries."
+	case "namba-create":
+		return "State effect: preview-first mutation. Do not write repo-local skills or agents until the preview is confirmed."
+	case "namba-fix":
+		return "State effect: mixed. Help/probe paths are read-only; direct repair mutates the current workspace; `--command plan` creates a bugfix SPEC."
+	case "namba-codex-access":
+		return "State effect: mixed. Inspect mode is read-only; explicit access flags update Namba runner defaults."
+	default:
+		return "State effect: mutating workflow entry point. Use help/probe paths read-only, and otherwise expect repository state or GitHub state to change."
+	}
 }
 
 func renderInitCommandSkill() string {
@@ -606,6 +625,8 @@ func renderFoundationSkill() string {
 		"",
 		"Use this skill when the task involves NambaAI workflow orchestration, SPEC handling, quality gates, or phased delivery.",
 		"",
+		"State effect: guidance plus execution support. Read-only when used for orientation; mutating only when the active Namba workflow is already executing.",
+		"",
 		"Key ideas:",
 		"- SPEC-first execution",
 		"- Codex-native implementation for `namba run` requests inside an interactive session",
@@ -626,6 +647,8 @@ func renderInitSkill() string {
 		"---",
 		"",
 		"Use this skill when the user asks about `namba init`, project bootstrap, or Claude-to-Codex migration.",
+		"",
+		"State effect: mutating scaffold workflow when applied. Read-only when used only to explain migration or init behavior.",
 		"",
 		"Core mapping:",
 		"- `CLAUDE.md` -> `AGENTS.md`",
@@ -652,6 +675,8 @@ func renderProjectSkill() string {
 		"description: Project analysis, codemap refresh, and documentation generation for NambaAI.",
 		"---",
 		"",
+		"State effect: mutating project documentation workflow. Read-only only when explaining current project-analysis behavior.",
+		"",
 		"Use this skill to:",
 		"- refresh project docs",
 		"- summarize structure and entry points",
@@ -670,6 +695,8 @@ func renderExecutionSkill(profile initProfile) string {
 		"---",
 		"",
 		"Use this skill when implementing a SPEC package.",
+		"",
+		"State effect: mutating SPEC execution workflow. Read-only only while inspecting the SPEC package before implementation.",
 		"",
 		"Execution pattern:",
 		"1. Read `.namba/specs/<SPEC>/spec.md`",
@@ -702,6 +729,7 @@ func renderCodexUsage(profile initProfile) string {
 	lines = append(lines, renderCodexUsageInitEnablesSection()...)
 	lines = append(lines, renderCodexUsageHowCodexUsesNambaSection()...)
 	lines = append(lines, renderCodexUsageWorkflowCommandSemanticsSection()...)
+	lines = append(lines, renderCodexUsagePlatformReadinessSection()...)
 	lines = append(lines, renderCodexUsageCompatibilityBoundarySection()...)
 	lines = append(lines, renderCodexUsageAgentRosterSection()...)
 	lines = append(lines, renderCodexUsageDelegationHeuristicsSection()...)
@@ -711,6 +739,26 @@ func renderCodexUsage(profile initProfile) string {
 	lines = append(lines, renderCodexUsageClaudeMappingSection()...)
 	lines = append(lines, renderCodexUsageImportantDistinctionSection()...)
 	return strings.Join(lines, "\n") + "\n"
+}
+
+func renderCodexUsagePlatformReadinessSection() []string {
+	return []string{
+		"## Optional Platform Readiness",
+		"",
+		"- Unified `@` mentions across files, directories, plugins, and skills are Codex platform search. Namba command routing still follows explicit `$namba-*` skills and `namba ...` command intent.",
+		"- Plugin packaging, marketplace CLI commands, version-aware sharing, share checkout, shared-workspace plugin buckets, and default-enabled plugin hooks are readiness paths. They do not make plugin installation or marketplace publication required for local NambaAI use.",
+		"- Remote-control and configured remote environments are optional diagnostics. When visible, they appear as additive `codex_diagnostics.remote_control` and `codex_diagnostics.remote_environments` evidence with normalized statuses such as `unavailable`, `disabled`, `enabled`, `configured`, or `local_fallback`.",
+		"- Project diagnostics may run stable local Codex probes; run, queue, hook, and parallel evidence use non-blocking snapshots or neutral fallback status.",
+		"- Multi-environment `apply_patch` selection remains a Codex platform capability; Namba's default editing path is the local workspace.",
+		"- Codex Python SDK references should use the `openai-codex` distribution and `openai_codex` import package. NambaAI does not add a Python runtime dependency for documentation-only references.",
+		"",
+		"Field-level schema map:",
+		"- `codex_diagnostics.remote_control.status`: owner `codexDiagnosticsEvidence`; allowed `unavailable`, `disabled`, `enabled`, `local_fallback`; producer `buildCodexDiagnosticsEvidence`; consumers project/run/queue/hook/parallel evidence and docs.",
+		"- `codex_diagnostics.remote_control.source`: owner `codexRemoteControl`; allowed local source labels such as `stable_cli_status`, `stable_cli_help`, `explicit_config`, `environment_snapshot`, `codex_cli_missing`, and `non_blocking_snapshot`; producer diagnostics builder; consumers evidence readers and docs.",
+		"- `codex_diagnostics.remote_environments.status`: owner `codexDiagnosticsEvidence`; allowed `unavailable` or `configured`; producer diagnostics builder from explicit options, environment snapshots, or `CODEX_HOME`; consumers project/run/queue/hook/parallel evidence and docs.",
+		"- `codex_diagnostics.remote_environments.names`: owner `codexRemoteEnvironments`; allowed normalized configured environment labels; producer diagnostics builder; consumers project diagnostics and evidence readers.",
+		"",
+	}
 }
 
 func renderCodexUsageCompatibilityBoundarySection() []string {

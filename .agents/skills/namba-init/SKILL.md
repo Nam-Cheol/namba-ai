@@ -3,6 +3,8 @@ name: namba-init
 description: Command-style entry point for project bootstrap with NambaAI.
 ---
 
+State effect: mutating workflow entry point. Use help/probe paths read-only, and otherwise expect repository state or GitHub state to change.
+
 Use this skill when the user explicitly says `$namba-init`, `namba init`, or asks to bootstrap a repository with NambaAI.
 
 Behavior:

@@ -5,6 +5,8 @@ description: Codex-adapted init workflow that maps MoAI and Claude assets into N
 
 Use this skill when the user asks about `namba init`, project bootstrap, or Claude-to-Codex migration.
 
+State effect: mutating scaffold workflow when applied. Read-only when used only to explain migration or init behavior.
+
 Core mapping:
 - `CLAUDE.md` -> `AGENTS.md`
 - `.claude/skills/*` -> `.agents/skills/*`

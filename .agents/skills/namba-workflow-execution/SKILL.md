@@ -5,6 +5,8 @@ description: Execute NambaAI SPEC packages with Codex-native workflow and explic
 
 Use this skill when implementing a SPEC package.
 
+State effect: mutating SPEC execution workflow. Read-only only while inspecting the SPEC package before implementation.
+
 Execution pattern:
 1. Read `.namba/specs/<SPEC>/spec.md`
 2. Read `.namba/specs/<SPEC>/plan.md`

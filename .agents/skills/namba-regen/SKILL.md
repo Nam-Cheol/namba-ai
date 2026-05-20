@@ -3,6 +3,8 @@ name: namba-regen
 description: Command-style entry point for regenerating Namba scaffold assets from config.
 ---
 
+State effect: mutating workflow entry point. Use help/probe paths read-only, and otherwise expect repository state or GitHub state to change.
+
 Use this skill when the user explicitly says `$namba-regen`, `namba regen`, or asks to re-render generated Namba assets from configuration.
 
 Behavior:

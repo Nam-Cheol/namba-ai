@@ -90,11 +90,17 @@ func TestCodexDiagnosticsEvidenceCoversVersionDoctorRedactionAndMismatch(t *test
 		return "", errors.New("missing")
 	}
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
-		if isCodexVersionCommand(name, args) {
+		switch {
+		case isCodexVersionCommand(name, args):
 			return "codex 0.130.0", nil
+		case name == "codex" && len(args) == 2 && args[0] == "remote-control" && args[1] == "--help":
+			return "Usage: codex remote-control", nil
+		case name == "codex" && len(args) == 2 && args[0] == "remote-control" && args[1] == "status":
+			return "", errors.New("remote-control disabled")
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
 		}
-		t.Fatalf("unexpected command: %s %v", name, args)
-		return "", nil
 	}
 	app.runCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
 		if name == "codex" && len(args) == 1 && args[0] == "doctor" {
@@ -129,6 +135,12 @@ func TestCodexDiagnosticsEvidenceCoversVersionDoctorRedactionAndMismatch(t *test
 	if diagnostics.WorkspaceRootComparison.Status != "advisory_mismatch" {
 		t.Fatalf("expected advisory mismatch, got %+v", diagnostics.WorkspaceRootComparison)
 	}
+	if diagnostics.RemoteControl.Status != "disabled" || diagnostics.RemoteControl.Source != "stable_cli_help" {
+		t.Fatalf("expected disabled remote-control readiness from help-only probe, got %+v", diagnostics.RemoteControl)
+	}
+	if diagnostics.RemoteEnvironments.Status != "unavailable" {
+		t.Fatalf("expected absent remote environments to stay unavailable, got %+v", diagnostics.RemoteEnvironments)
+	}
 }
 
 func TestCodexDiagnosticsEvidenceHandlesMissingAndUnparsableVersion(t *testing.T) {
@@ -154,6 +166,91 @@ func TestCodexDiagnosticsEvidenceHandlesMissingAndUnparsableVersion(t *testing.T
 	unparsable := app.buildCodexDiagnosticsEvidence(context.Background(), tmp, codexDiagnosticsOptions{RunCommands: true})
 	if unparsable.Version.ParseStatus != "unparsable" || unparsable.Doctor.Status != "failed" {
 		t.Fatalf("expected unparsable version and failed doctor, got %+v", unparsable)
+	}
+}
+
+func TestCodexDiagnosticsRemoteControlAndEnvironmentReadiness(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return "codex", nil
+		}
+		return "", errors.New("missing")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case isCodexVersionCommand(name, args):
+			return "codex 0.131.0", nil
+		case name == "codex" && len(args) == 2 && args[0] == "remote-control" && args[1] == "--help":
+			return "Usage: codex remote-control", nil
+		case name == "codex" && len(args) == 2 && args[0] == "remote-control" && args[1] == "status":
+			return "remote-control enabled", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+	app.runCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
+		if name == "codex" && len(args) == 1 && args[0] == "doctor" {
+			return "doctor ok", "", nil
+		}
+		t.Fatalf("unexpected command with input: %s %v", name, args)
+		return "", "", nil
+	}
+
+	diagnostics := app.buildCodexDiagnosticsEvidence(context.Background(), tmp, codexDiagnosticsOptions{
+		RunCommands:            true,
+		RemoteEnvironmentNames: []string{"linux-large", "macos-arm64", "linux-large"},
+	})
+	if diagnostics.RemoteControl.Status != "enabled" || diagnostics.RemoteControl.Source != "stable_cli_status" {
+		t.Fatalf("expected enabled remote-control status read, got %+v", diagnostics.RemoteControl)
+	}
+	if diagnostics.RemoteEnvironments.Status != "configured" || diagnostics.RemoteEnvironments.Source != "explicit_option" {
+		t.Fatalf("expected configured remote environments, got %+v", diagnostics.RemoteEnvironments)
+	}
+	if got := strings.Join(diagnostics.RemoteEnvironments.Names, ","); got != "linux-large,macos-arm64" {
+		t.Fatalf("expected normalized remote environment names, got %q", got)
+	}
+}
+
+func TestRunEvidenceKeepsCodexRemoteReadinessNonBlocking(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		switch name {
+		case "codex", "git":
+			return name, nil
+		default:
+			return "", errors.New("missing dependency")
+		}
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			return "runner output", nil
+		case isShellCommand(name):
+			return "validation ok", nil
+		case name == "codex" && len(args) > 0 && args[0] == "remote-control":
+			t.Fatalf("run evidence must not probe remote-control: %s %v", name, args)
+			return "", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	if err := app.Run(context.Background(), []string{"run", "SPEC-001"}); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-evidence.json"))
+	if manifest.CodexDiagnostics == nil {
+		t.Fatal("expected codex diagnostics in execution evidence")
+	}
+	if manifest.CodexDiagnostics.RemoteControl.Status != "local_fallback" {
+		t.Fatalf("expected run evidence remote-control local_fallback, got %+v", manifest.CodexDiagnostics.RemoteControl)
 	}
 }
 
@@ -206,11 +303,17 @@ func TestRunProjectWritesCodexDiagnosticsEvidence(t *testing.T) {
 		return "", errors.New("missing")
 	}
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
-		if isCodexVersionCommand(name, args) {
+		switch {
+		case isCodexVersionCommand(name, args):
 			return "codex 0.131.0", nil
+		case name == "codex" && len(args) == 2 && args[0] == "remote-control" && args[1] == "--help":
+			return "Usage: codex remote-control", nil
+		case name == "codex" && len(args) == 2 && args[0] == "remote-control" && args[1] == "status":
+			return "remote-control disabled", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
 		}
-		t.Fatalf("unexpected command: %s %v", name, args)
-		return "", nil
 	}
 	app.runCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
 		if name == "codex" && len(args) == 1 && args[0] == "doctor" {
@@ -642,6 +745,9 @@ func TestRunParallelWritesExecutionEvidenceManifest(t *testing.T) {
 	}
 	if manifest.Preflight.State != executionEvidenceStatePresent || manifest.Execution.State != executionEvidenceStatePresent || manifest.Progress.State != executionEvidenceStatePresent {
 		t.Fatalf("expected preflight/execution/progress evidence on parallel run, got %+v", manifest)
+	}
+	if manifest.CodexDiagnostics == nil || manifest.CodexDiagnostics.RemoteControl.Status != "local_fallback" {
+		t.Fatalf("expected non-blocking codex diagnostics on parallel aggregate evidence, got %+v", manifest.CodexDiagnostics)
 	}
 }
 

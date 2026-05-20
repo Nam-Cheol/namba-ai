@@ -3,6 +3,8 @@ name: namba-land
 description: Command-style entry point for merging a prepared GitHub PR and updating local main safely.
 ---
 
+State effect: mutating workflow entry point. Use help/probe paths read-only, and otherwise expect repository state or GitHub state to change.
+
 Use this skill when the user explicitly says `$namba-land`, `namba land`, or asks to merge a prepared PR.
 
 Behavior:

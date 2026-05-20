@@ -3,6 +3,8 @@ name: namba-plan-pm-review
 description: Command-style entry point for product review of a SPEC before implementation starts.
 ---
 
+State effect: mutating review update. Writes SPEC review artifacts and readiness summaries.
+
 Use this skill when the user explicitly says `$namba-plan-pm-review` or asks for a product review on a SPEC package.
 
 Behavior:

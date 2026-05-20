@@ -3,6 +3,8 @@ name: namba-queue
 description: Command-style entry point for operating the existing-SPEC queue conveyor.
 ---
 
+State effect: mutating workflow entry point. Use help/probe paths read-only, and otherwise expect repository state or GitHub state to change.
+
 Use this skill when the user explicitly says `$namba-queue`, `namba queue`, or asks to process multiple existing SPEC packages in order.
 
 Behavior:

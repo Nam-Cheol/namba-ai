@@ -3,6 +3,8 @@ name: namba-run
 description: Command-style entry point for executing a SPEC package with the Namba workflow.
 ---
 
+State effect: mutating workflow entry point. Use help/probe paths read-only, and otherwise expect repository state or GitHub state to change.
+
 Use this skill when the user explicitly says `$namba-run`, `namba run SPEC-XXX`, or asks to execute a SPEC through Namba.
 
 Behavior:

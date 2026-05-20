@@ -555,6 +555,7 @@ internal/namba/test_helpers_test.go
 internal/namba/testdata/evals/harness/README.md
 internal/namba/testdata/evals/harness/evidence_manifest_cases.json
 internal/namba/testdata/evals/harness/guardrail_cases.json
+internal/namba/testdata/evals/harness/mention_plugin_cases.json
 internal/namba/testdata/evals/harness/pr_review_cases.json
 internal/namba/testdata/evals/harness/prompt_refinement_cases.json
 internal/namba/testdata/evals/harness/route_cases.json

@@ -3,6 +3,8 @@ name: namba-coach
 description: Read-only advisory entry point for choosing the right Namba workflow handoff.
 ---
 
+State effect: read-only guidance. Do not mutate repository state.
+
 Use this skill when the user explicitly says `$namba-coach`, arrives with a vague current goal, asks what to do next, or appears to have selected the wrong Namba command.
 
 Behavior:

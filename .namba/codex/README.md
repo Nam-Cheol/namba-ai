@@ -58,6 +58,21 @@ NambaAI's differentiator is prompt refinement before execution: ambiguous ideas 
 - `namba run SPEC-XXX --team` requests a standalone Codex run that explicitly coordinates multiple subagents inside one workspace.
 - `namba run SPEC-XXX --parallel` still refers to the standalone worktree runner path. It uses git worktrees, merges only after every worker passes execution and validation, and preserves failed worktrees and branches for inspection.
 - Codex `/goal` workflows are tracked as a future orchestration candidate, not a required Namba runtime dependency.
+## Optional Platform Readiness
+
+- Unified `@` mentions across files, directories, plugins, and skills are Codex platform search. Namba command routing still follows explicit `$namba-*` skills and `namba ...` command intent.
+- Plugin packaging, marketplace CLI commands, version-aware sharing, share checkout, shared-workspace plugin buckets, and default-enabled plugin hooks are readiness paths. They do not make plugin installation or marketplace publication required for local NambaAI use.
+- Remote-control and configured remote environments are optional diagnostics. When visible, they appear as additive `codex_diagnostics.remote_control` and `codex_diagnostics.remote_environments` evidence with normalized statuses such as `unavailable`, `disabled`, `enabled`, `configured`, or `local_fallback`.
+- Project diagnostics may run stable local Codex probes; run, queue, hook, and parallel evidence use non-blocking snapshots or neutral fallback status.
+- Multi-environment `apply_patch` selection remains a Codex platform capability; Namba's default editing path is the local workspace.
+- Codex Python SDK references should use the `openai-codex` distribution and `openai_codex` import package. NambaAI does not add a Python runtime dependency for documentation-only references.
+
+Field-level schema map:
+- `codex_diagnostics.remote_control.status`: owner `codexDiagnosticsEvidence`; allowed `unavailable`, `disabled`, `enabled`, `local_fallback`; producer `buildCodexDiagnosticsEvidence`; consumers project/run/queue/hook/parallel evidence and docs.
+- `codex_diagnostics.remote_control.source`: owner `codexRemoteControl`; allowed local source labels such as `stable_cli_status`, `stable_cli_help`, `explicit_config`, `environment_snapshot`, `codex_cli_missing`, and `non_blocking_snapshot`; producer diagnostics builder; consumers evidence readers and docs.
+- `codex_diagnostics.remote_environments.status`: owner `codexDiagnosticsEvidence`; allowed `unavailable` or `configured`; producer diagnostics builder from explicit options, environment snapshots, or `CODEX_HOME`; consumers project/run/queue/hook/parallel evidence and docs.
+- `codex_diagnostics.remote_environments.names`: owner `codexRemoteEnvironments`; allowed normalized configured environment labels; producer diagnostics builder; consumers project diagnostics and evidence readers.
+
 
 ## Codex 0.131 Boundary
 

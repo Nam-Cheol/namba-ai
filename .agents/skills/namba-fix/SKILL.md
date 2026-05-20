@@ -3,6 +3,8 @@ name: namba-fix
 description: Command-style entry point for direct bug repair or bugfix SPEC planning.
 ---
 
+State effect: mixed. Help/probe paths are read-only; direct repair mutates the current workspace; `--command plan` creates a bugfix SPEC.
+
 Use this skill when the user explicitly says `$namba-fix`, `namba fix`, or asks to repair a bug through Namba.
 
 Behavior:

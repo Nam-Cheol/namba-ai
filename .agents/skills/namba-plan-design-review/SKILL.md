@@ -3,6 +3,8 @@ name: namba-plan-design-review
 description: Command-style entry point for design review of a SPEC before implementation starts.
 ---
 
+State effect: mutating review update. Writes SPEC review artifacts and readiness summaries.
+
 Use this skill when the user explicitly says `$namba-plan-design-review` or asks for a design review on a SPEC package.
 
 Behavior:

@@ -90,6 +90,15 @@ continue_on_failure = false
 - ⚙️ Common events: `before_preflight`, `after_preflight`, `before_execution`, `after_execution`, `before_validation`, `after_validation`, and `on_failure`.
 - 🔭 Tool-boundary events `after_patch`, `after_bash`, and `after_mcp_tool` run only when the runner provides typed observations; Namba does not infer them from free-form logs.
 
+## 🔌 Optional Codex Platform Readiness
+
+- Local NambaAI workflows do not require plugin installation, marketplace publication, remote-control, remote environments, or the Python SDK.
+- Codex unified `@` mentions are a Codex platform search feature across files, directories, plugins, and skills. Namba workflow routing still follows explicit `$namba-*` skills and `namba ...` command intent.
+- Plugin packaging, marketplace CLI commands, version-aware sharing, share checkout, shared-workspace plugin buckets, and default-enabled plugin hooks are optional readiness paths. Mentioning them is not a publish or install requirement.
+- Remote-control and remote-environment status is recorded only as optional `codex_diagnostics` evidence, using statuses such as `unavailable`, `disabled`, `enabled`, `configured`, and `local_fallback`.
+- Remote readiness status is not workflow failure. Normal `namba plan`, `namba run`, `namba queue`, `namba sync`, `namba pr`, `namba land`, and `namba release` remain local-first.
+- When the Codex Python SDK is relevant, use `openai-codex` for the distribution and `openai_codex` for the import package. NambaAI does not add a Python runtime dependency just to document that name.
+
 ## 📦 Install, Update, and Uninstall
 
 - Install on Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
