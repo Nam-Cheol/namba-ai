@@ -429,6 +429,13 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-049/reviews/product.md
 .namba/specs/SPEC-049/reviews/readiness.md
 .namba/specs/SPEC-049/spec.md
+.namba/specs/SPEC-050/acceptance.md
+.namba/specs/SPEC-050/plan.md
+.namba/specs/SPEC-050/reviews/design.md
+.namba/specs/SPEC-050/reviews/engineering.md
+.namba/specs/SPEC-050/reviews/product.md
+.namba/specs/SPEC-050/reviews/readiness.md
+.namba/specs/SPEC-050/spec.md
 AGENTS.md
 README.ja.md
 README.ko.md

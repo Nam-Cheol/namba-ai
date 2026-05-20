@@ -79,7 +79,7 @@ func codexUsageText() string {
 	lines = append(lines,
 		"",
 		"Behavior:",
-		"  Inspect or update repo-owned Codex access defaults from the project root.",
+		"  Inspect or update Namba runner Codex access defaults from the project root.",
 	)
 	return strings.Join(lines, "\n") + "\n"
 }
@@ -93,9 +93,10 @@ func codexAccessUsageText() string {
 		"  namba codex access --approval-policy POLICY --sandbox-mode MODE",
 		"",
 		"Behavior:",
-		"  Inspect the current repo-owned Codex access preset and effective approval_policy / sandbox_mode without mutating by default.",
+		"  Inspect the current Namba runner Codex access preset and effective approval_policy / sandbox_mode without mutating by default.",
 		"  Apply a change only when both --approval-policy and --sandbox-mode are provided.",
-		"  `namba init` and `namba codex access` share the same preset labels, consequence statements, and raw-value preview.",
+		"  `namba init` and `namba codex access` share the same preset labels and raw-value preview for Namba-runner `codex exec` defaults.",
+		"  `.codex/config.toml` deliberately does not set interactive Codex approval mode or sandbox mode.",
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
@@ -149,7 +150,7 @@ func (a *App) runCodexAccessSubcommand(_ context.Context, args []string) error {
 	}
 
 	if strings.TrimSpace(options.ApprovalPolicy) == "" && strings.TrimSpace(options.SandboxMode) == "" {
-		writeCodexAccessSummary(a.stdout, "Current Codex access", current)
+		writeCodexAccessSummary(a.stdout, "Current Namba runner Codex access", current)
 		return nil
 	}
 
@@ -166,23 +167,22 @@ func (a *App) runCodexAccessSubcommand(_ context.Context, args []string) error {
 	}
 
 	if current.ApprovalPolicy == desired.ApprovalPolicy && current.SandboxMode == desired.SandboxMode {
-		writeCodexAccessSummary(a.stdout, "Current Codex access", current)
+		writeCodexAccessSummary(a.stdout, "Current Namba runner Codex access", current)
 		fmt.Fprintln(a.stdout, "No change: requested access already matches the current repo defaults.")
 		return nil
 	}
 
 	outputs := map[string]string{
 		filepath.ToSlash(filepath.Join(configDir, "system.yaml")): renderSystemConfig(desiredProfile),
-		filepath.ToSlash(repoCodexConfigPath):                     renderRepoCodexConfig(desiredProfile),
 	}
 	report, err := a.writeOutputs(root, outputs)
 	if err != nil {
 		return err
 	}
 
-	writeCodexAccessSummary(a.stdout, "Previous Codex access", current)
-	fmt.Fprintln(a.stdout, "Updated Codex access defaults.")
-	writeCodexAccessSummary(a.stdout, "New Codex access", desired)
+	writeCodexAccessSummary(a.stdout, "Previous Namba runner Codex access", current)
+	fmt.Fprintln(a.stdout, "Updated Namba runner Codex access defaults.")
+	writeCodexAccessSummary(a.stdout, "New Namba runner Codex access", desired)
 	if len(report.InstructionSurfacePaths) > 0 {
 		fmt.Fprintf(a.stdout, "Session refresh required: start a fresh Codex session before continuing long team or repair runs (%s)\n", strings.Join(report.InstructionSurfacePaths, ", "))
 	}
@@ -430,7 +430,7 @@ func writeCodexAccessSummary(out io.Writer, heading string, choice codexAccessCh
 	if strings.TrimSpace(heading) != "" {
 		fmt.Fprintln(out, heading)
 	}
-	fmt.Fprintf(out, "Codex access preset: %s\n", choice.Label)
+	fmt.Fprintf(out, "Namba runner Codex access preset: %s\n", choice.Label)
 	fmt.Fprintf(out, "Consequence: %s\n", choice.Consequence)
 	fmt.Fprintf(out, "approval_policy: %s\n", choice.ApprovalPolicy)
 	fmt.Fprintf(out, "sandbox_mode: %s\n", choice.SandboxMode)

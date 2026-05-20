@@ -37,7 +37,7 @@ func TestCodexUsageTextMatchesSubcommandUsageSummaries(t *testing.T) {
 	if !strings.HasPrefix(got, "namba codex\n\nUsage:\n") {
 		t.Fatalf("unexpected codex usage header: %q", got)
 	}
-	if !strings.Contains(got, "\n\nBehavior:\n  Inspect or update repo-owned Codex access defaults from the project root.\n") {
+	if !strings.Contains(got, "\n\nBehavior:\n  Inspect or update Namba runner Codex access defaults from the project root.\n") {
 		t.Fatalf("expected codex behavior block, got %q", got)
 	}
 	for _, definition := range codexSubcommandDefinitions() {
@@ -218,9 +218,9 @@ func TestRunCodexAccessUpdatesManagedConfigWithoutClobberingOtherFiles(t *testin
 	}
 
 	codexConfig := mustReadFile(t, filepath.Join(tmp, ".codex", "config.toml"))
-	for _, want := range []string{`approval_policy = "never"`, `sandbox_mode = "read-only"`} {
-		if !strings.Contains(codexConfig, want) {
-			t.Fatalf("expected updated codex config to contain %q, got %q", want, codexConfig)
+	for _, unwanted := range []string{`approval_policy =`, `sandbox_mode =`} {
+		if strings.Contains(codexConfig, unwanted) {
+			t.Fatalf("repo Codex config must not own session access key %q, got %q", unwanted, codexConfig)
 		}
 	}
 
@@ -229,15 +229,14 @@ func TestRunCodexAccessUpdatesManagedConfigWithoutClobberingOtherFiles(t *testin
 	}
 
 	got := stdout.String()
-	for _, want := range []string{"Updated Codex access defaults", "Session refresh required", ".codex/config.toml"} {
+	for _, want := range []string{"Updated Namba runner Codex access defaults", "approval_policy: never", "sandbox_mode: read-only"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected update output to contain %q, got %q", want, got)
 		}
 	}
 
-	notice := mustReadFile(t, filepath.Join(tmp, ".namba", "logs", "session-refresh-required.json"))
-	if !strings.Contains(notice, ".codex/config.toml") {
-		t.Fatalf("expected refresh notice to mention codex config, got %q", notice)
+	if _, err := os.Stat(filepath.Join(tmp, ".namba", "logs", "session-refresh-required.json")); !os.IsNotExist(err) {
+		t.Fatalf("expected runner access update to avoid Codex session refresh notice, stat err=%v", err)
 	}
 }
 

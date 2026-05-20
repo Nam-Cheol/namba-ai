@@ -811,9 +811,9 @@ func TestRenderCodexUsageWorkflowCommandSemanticsSectionPreservesAnchors(t *test
 		"`$namba-queue` operates the existing-SPEC queue conveyor",
 		"`$namba-review-resolve` resolves GitHub review threads one by one",
 		"`$namba-release` handles NambaAI release orchestration",
-		"`namba codex access` inspects the current repo-owned Codex access defaults",
-		"Permission profiles, models, auth, apps, web search, and platform sandbox choices stay user-owned",
-		"Avoid deprecated Codex full-auto style flags",
+		"`namba codex access` inspects Namba runner `codex exec` access defaults",
+		"Interactive Codex approval mode, permissions, service tier, effective workspace roots, models, auth, apps, web search, and platform sandbox choices stay user/session-owned",
+		"Codex 0.131 may display approval mode, permissions, service tier, and effective workspace roots",
 		"`codex update` updates the upstream Codex CLI itself",
 		"`namba fix --command plan \"<issue description>\"` creates the next bugfix SPEC package plus review scaffolds.",
 		"`namba queue start <SPEC-RANGE|SPEC-LIST>` processes existing SPEC packages",
@@ -879,6 +879,7 @@ func TestRenderCodexUsageWorkflowCommandSemanticsSectionStaysOrderedInIntegrated
 	for _, want := range []string{
 		"## How Codex Uses Namba After Init",
 		"## Workflow Command Semantics",
+		"## Codex 0.131 Boundary",
 		"## Namba Custom Agent Roster",
 	} {
 		index := strings.Index(content, want)
@@ -907,6 +908,7 @@ func TestRenderCodexUsageMidAndTailSectionsStayOrderedInIntegratedDoc(t *testing
 	lastIndex := -1
 	for _, want := range []string{
 		"## Workflow Command Semantics",
+		"## Codex 0.131 Boundary",
 		"## Namba Custom Agent Roster",
 		"## Delegation Heuristics",
 		"## Plan Review Readiness",
@@ -943,6 +945,7 @@ func TestRenderCodexUsageFrontMidAndTailSectionsStayOrderedInIntegratedDoc(t *te
 		"## What `namba init .` Enables",
 		"## How Codex Uses Namba After Init",
 		"## Workflow Command Semantics",
+		"## Codex 0.131 Boundary",
 		"## Namba Custom Agent Roster",
 		"## Delegation Heuristics",
 		"## Plan Review Readiness",
@@ -1272,6 +1275,52 @@ func TestRenderPlanCommandSkillDefaultsToAutoReviewHandoff(t *testing.T) {
 	}
 }
 
+func TestRenderRepoCodexConfigAvoidsSessionOwnedSettings(t *testing.T) {
+	t.Parallel()
+
+	profile := initProfile{
+		AgentMode:         "multi",
+		StatusLinePreset:  "namba",
+		ApprovalPolicy:    "never",
+		SandboxMode:       "danger-full-access",
+		DefaultMCPServers: []string{"context7"},
+	}
+	first := renderRepoCodexConfig(profile)
+	second := renderRepoCodexConfig(profile)
+	if first != second {
+		t.Fatalf("repo Codex config should render deterministically\nfirst=%q\nsecond=%q", first, second)
+	}
+	for _, want := range []string{
+		"#:schema https://developers.openai.com/codex/config-schema.json",
+		"# This file intentionally avoids session-owned Codex choices.",
+		"[features]",
+		"hooks = true",
+		"goals = true",
+		"[agents]",
+		"max_threads = 5",
+		"[tui]",
+		"status_line",
+		"[mcp_servers.context7]",
+	} {
+		if !strings.Contains(first, want) {
+			t.Fatalf("repo Codex config missing %q: %q", want, first)
+		}
+	}
+	for _, unwanted := range []string{
+		"approval_policy =",
+		"sandbox_mode =",
+		"model =",
+		"auth =",
+		"web_search",
+		"service_tier",
+		"features.codex_hooks",
+	} {
+		if strings.Contains(first, unwanted) {
+			t.Fatalf("repo Codex config must not render session-owned or legacy key %q: %q", unwanted, first)
+		}
+	}
+}
+
 func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 	t.Parallel()
 
@@ -1308,6 +1357,8 @@ func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 		"python3",
 		"NambaAI hook guard failed",
 		"emit_failure",
+		"extract_hook_event_name",
+		"json_escape",
 		"exit 1",
 	} {
 		if !strings.Contains(shellWrapper, want) {
@@ -1325,6 +1376,9 @@ func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 		"matching SPEC creation command",
 		"namba fix --command plan",
 		`"additionalContext": guidance`,
+		"updatedInput",
+		"dedupe_key",
+		"permissionDecision\": \"allow\"",
 		"REPORT_SECTIONS",
 		"approval_risk_note",
 		"NAMBA_HOOK_TRACE_PATH",
@@ -1377,11 +1431,19 @@ func TestRenderNambaCodexHooksScaffold(t *testing.T) {
 		"py.exe",
 		"python.exe",
 		"NambaAI hook guard failed",
+		"HookEventName",
 		"catch",
 		"ConvertTo-Json -Compress",
+		"--%",
 		"exit 1",
 		"exit 0",
 	} {
+		if want == "--%" {
+			if strings.Contains(powerShellWrapper, want) {
+				t.Fatalf("PowerShell hook wrapper must avoid unsupported stop-parsing token %q: %q", want, powerShellWrapper)
+			}
+			continue
+		}
 		if !strings.Contains(powerShellWrapper, want) {
 			t.Fatalf("PowerShell hook wrapper missing %q: %q", want, powerShellWrapper)
 		}
@@ -1509,6 +1571,37 @@ func TestShellHookLauncherFailsLoudlyWhenPythonIsUnavailable(t *testing.T) {
 	for _, want := range []string{"NambaAI hook guard failed", "Python 3 was not found", `"hookSpecificOutput"`} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected loud hook launcher failure to contain %q, got %q", want, got)
+		}
+	}
+	if !strings.Contains(got, `"hookEventName":"UserPromptSubmit"`) {
+		t.Fatalf("expected launcher failure to preserve originating hook event, got %q", got)
+	}
+}
+
+func TestShellHookLauncherHandlesQuotedPathsAndStdinJSON(t *testing.T) {
+	t.Parallel()
+
+	tmp := filepath.Join(canonicalTempDir(t), "repo with spaces")
+	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.py"), renderNambaCodexHookGuardScript())
+	writeTestFile(t, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.sh"), renderNambaCodexHookGuardShellWrapper())
+
+	shellPath := "/bin/sh"
+	if _, err := os.Stat(shellPath); err != nil {
+		t.Skipf("%s is unavailable: %v", shellPath, err)
+	}
+
+	cmd := exec.Command(shellPath, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.sh"))
+	cmd.Dir = tmp
+	cmd.Env = append(os.Environ(), "NAMBA_HOOK_DEDUPE=0")
+	cmd.Stdin = strings.NewReader(`{"hook_event_name":"SessionStart","session-id":"quoted-path-session"}`)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("expected quoted-path hook launcher to succeed, err=%v output=%s", err, output)
+	}
+	got := string(output)
+	for _, want := range []string{`"hookSpecificOutput"`, `"hookEventName":"SessionStart"`, "NambaAI lifecycle hook is active"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected quoted-path launcher output to contain %q, got %q", want, got)
 		}
 	}
 }

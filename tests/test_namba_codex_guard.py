@@ -18,6 +18,7 @@ class NambaCodexGuardTest(unittest.TestCase):
 
     def run_hook(self, payload, *, env=None):
         process_env = os.environ.copy()
+        process_env["NAMBA_HOOK_DEDUPE"] = "0"
         if env:
             process_env.update(env)
         proc = subprocess.run(
@@ -64,6 +65,9 @@ class NambaCodexGuardTest(unittest.TestCase):
     def assert_no_deny(self, outputs):
         self.assertEqual([], self.deny_decisions(outputs))
 
+    def assert_continue_only(self, outputs):
+        self.assertEqual([{"continue": True}], outputs)
+
     def test_user_prompt_submit_guides_ambiguous_prompts(self):
         for prompt in ("대충 로그인 개선해줘", "make this better"):
             with self.subTest(prompt=prompt):
@@ -89,7 +93,7 @@ class NambaCodexGuardTest(unittest.TestCase):
                 ),
             }
         )
-        self.assertEqual([], outputs)
+        self.assert_continue_only(outputs)
 
     def test_prompt_refinement_eval_cases_use_real_hook_subprocess(self):
         for case in self.load_eval_cases("prompt_refinement_cases.json"):
@@ -200,7 +204,7 @@ class NambaCodexGuardTest(unittest.TestCase):
                         "tool_input": {"command": command},
                     }
                 )
-                self.assertEqual([], outputs)
+                self.assert_continue_only(outputs)
 
     def test_permission_request_denies_dangerous_commands(self):
         outputs = self.run_hook(
@@ -238,7 +242,7 @@ class NambaCodexGuardTest(unittest.TestCase):
                 "tool_input": {"command": "git status --short"},
             }
         )
-        self.assertEqual([], outputs)
+        self.assert_continue_only(outputs)
 
     def test_post_tool_use_reports_managed_surface_changes_only(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -270,7 +274,7 @@ class NambaCodexGuardTest(unittest.TestCase):
                 capture_output=True,
             )
             outputs = self.run_hook({"hook_event_name": "PostToolUse", "cwd": tmp})
-            self.assertEqual([], outputs)
+            self.assert_continue_only(outputs)
 
     def test_stop_checks_only_namba_related_long_messages(self):
         short = self.run_hook(
@@ -280,7 +284,7 @@ class NambaCodexGuardTest(unittest.TestCase):
                 "last_assistant_message": "short",
             }
         )
-        self.assertEqual([], short)
+        self.assert_continue_only(short)
 
         missing_frame = self.run_hook(
             {
@@ -308,7 +312,7 @@ class NambaCodexGuardTest(unittest.TestCase):
                 "last_assistant_message": framed_message,
             }
         )
-        self.assertEqual([], framed)
+        self.assert_continue_only(framed)
 
     def test_trace_records_prompt_refinement_and_dangerous_command(self):
         with tempfile.TemporaryDirectory() as tmp:
