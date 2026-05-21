@@ -1230,7 +1230,7 @@ func TestQueueLocalFallbackMergesBranchWhenRemoteHandoffUnavailable(t *testing.T
 	if err != nil {
 		t.Fatalf("applyQueueLocalFallback failed: %v", err)
 	}
-	if !done || !got.LocalFallbackUsed || got.Status != queueStateActive && got.Status != "" {
+	if done || !got.LocalFallbackUsed || got.Status != queueStateStopped || got.Detail != "local_fallback_remote_parity_required" {
 		t.Fatalf("unexpected fallback state: done=%v state=%+v", done, got)
 	}
 	if spec := got.Specs["SPEC-001"]; !spec.LocalFallback || spec.Phase != queuePhaseLanded || !strings.Contains(spec.LandEvidence, "local fallback merged") {
@@ -1281,6 +1281,30 @@ func TestRemoteHandoffFallbackRequiresExplicitHandoffError(t *testing.T) {
 	err := fmt.Errorf("%w: push branch spec/SPEC-001-queue-fixture: network unavailable", errQueueRemoteHandoffUnavailable)
 	if !isRemoteHandoffUnavailable(err) {
 		t.Fatalf("explicit handoff error should enable local fallback: %v", err)
+	}
+}
+
+func TestRemoteHandoffTransportErrorClassification(t *testing.T) {
+	t.Parallel()
+
+	for _, err := range []error{
+		errors.New("create pull request from branch into main: network unavailable"),
+		errors.New("load pull request 17: authentication required"),
+		errors.New("list pull requests for branch spec/SPEC-001: i/o timeout"),
+	} {
+		if !isRemoteHandoffTransportError(err) {
+			t.Fatalf("expected transport error classification for %v", err)
+		}
+	}
+
+	for _, err := range []error{
+		errors.New("parse pull request list: invalid character '<'"),
+		errors.New("load pull request 17: parse pull request 17: invalid json"),
+		errors.New("create pull request from branch into main: GraphQL: No commits between main and branch"),
+	} {
+		if isRemoteHandoffTransportError(err) {
+			t.Fatalf("non-transport PR error should not enable local fallback: %v", err)
+		}
 	}
 }
 

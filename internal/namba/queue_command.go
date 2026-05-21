@@ -1386,7 +1386,10 @@ func (a *App) prepareQueuePullRequest(ctx context.Context, root string, state qu
 	baseBranch := prBaseBranch(profile)
 	pr, _, err := a.findOrCreatePullRequest(ctx, root, branch, baseBranch, title, buildPullRequestBodyForSpec(root, profile, specPkg.ID))
 	if err != nil {
-		return githubPullRequest{}, fmt.Errorf("%w: %w", errQueueRemoteHandoffUnavailable, err)
+		if isRemoteHandoffTransportError(err) {
+			return githubPullRequest{}, fmt.Errorf("%w: %w", errQueueRemoteHandoffUnavailable, err)
+		}
+		return githubPullRequest{}, err
 	}
 	if state.Options.RequestReview {
 		if err := a.ensureReviewComment(ctx, root, pr.Number, codexReviewComment(profile)); err != nil {
@@ -1435,13 +1438,17 @@ func (a *App) applyQueueLocalFallback(ctx context.Context, root string, state qu
 	state.LocalFallbackUsed = true
 	state.LastEvidencePath = validationEvidence
 	state.LastSafeCheckpoint = specID + ":local_fallback_landed"
-	state.LastRecoveryAction = "queue used a local branch/local base-branch merge fallback because remote PR handoff was unavailable"
+	state.Status = queueStateStopped
+	state.OperatorState = queueOperatorBlocked
+	state.Detail = "local_fallback_remote_parity_required"
+	state.LastBlocker = "local fallback merged only into the local base branch"
+	state.LastRecoveryAction = "restore remote parity for the local fallback merge, then start a new queue for remaining SPECs"
 	state = markQueueSpecDone(state, specID, specState)
 	state.UpdatedAt = a.now().Format(time.RFC3339)
 	if err := a.writeQueueState(root, state); err != nil {
 		return state, false, err
 	}
-	return state, true, nil
+	return state, false, nil
 }
 
 func queueGitAddArgs() []string {
@@ -1515,6 +1522,34 @@ func queueSpecIDFromBranch(branch string) string {
 
 func isRemoteHandoffUnavailable(err error) bool {
 	return errors.Is(err, errQueueRemoteHandoffUnavailable)
+}
+
+func isRemoteHandoffTransportError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	for _, needle := range []string{
+		"authentication",
+		"authorization",
+		"gh auth",
+		"could not resolve host",
+		"connection refused",
+		"connection reset",
+		"connection timed out",
+		"i/o timeout",
+		"network",
+		"no such host",
+		"tls handshake timeout",
+		"timeout",
+		"timed out",
+		"unable to access",
+	} {
+		if strings.Contains(msg, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 func queuePullRequestTitle(specPkg specPackage) string {
