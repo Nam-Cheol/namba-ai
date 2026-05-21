@@ -614,6 +614,7 @@ internal/namba/project_analysis_inventory_test.go
 internal/namba/queue_command.go
 internal/namba/queue_command_test.go
 internal/namba/readme.go
+internal/namba/readme_components.go
 internal/namba/readme_contract_test.go
 internal/namba/readme_sync_test.go
 internal/namba/release.go

@@ -247,10 +247,18 @@ func TestGeneratedDocsUseVisualDocumentationGrammar(t *testing.T) {
 		} {
 			assertContains(t, root, want, fmt.Sprintf("%s root README", lang))
 		}
+		for _, want := range []string{
+			fmt.Sprintf("<a href=\"%s\"><img src=\"https://img.shields.io/static/v1?", guidePath("getting-started", lang)),
+			fmt.Sprintf("<a href=\"%s\"><img src=\"https://img.shields.io/static/v1?", guidePath("workflow-guide", lang)),
+			fmt.Sprintf("<a href=\"%s/releases/latest\"><img src=\"https://img.shields.io/static/v1?", nambaRepositoryURL),
+			"<a href=\"SECURITY.md\"><img src=\"https://img.shields.io/static/v1?",
+		} {
+			assertContains(t, root, want, fmt.Sprintf("%s root README CTA row", lang))
+		}
 
 		firstTrust := strings.Index(root, "[![Release]")
 		firstRun := strings.Index(root, "namba project")
-		firstCommandChooser := strings.Index(root, "## 🧭")
+		firstCommandChooser := strings.Index(root, readmeRootCommandChooserHeading(lang))
 		firstReadNext := strings.Index(root, "## Read Next")
 		if lang != "en" {
 			firstReadNext = strings.Index(root, "## 다음에 읽을 문서")

@@ -16,7 +16,12 @@ NambaAI 是一份给 Codex 工作流用的操作指南，帮助你少纠结“�
 
 这一行只展示 release、CI、security policy、license 和入门文档这些新用户优先查看的信任信号。
 
-[开始使用](docs/getting-started.zh.md) | [工作流指南](docs/workflow-guide.zh.md) | [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [Security](SECURITY.md)
+<p align="center">
+  <a href="docs/getting-started.zh.md"><img src="https://img.shields.io/static/v1?color=2ea44f&amp;label=%E5%BC%80%E5%A7%8B&amp;labelColor=24292f&amp;message=%E6%8C%87%E5%8D%97" alt="开始使用" /></a>
+  <a href="docs/workflow-guide.zh.md"><img src="https://img.shields.io/static/v1?color=0969da&amp;label=%E5%B7%A5%E4%BD%9C%E6%B5%81&amp;labelColor=24292f&amp;message=%E6%8C%87%E5%8D%97" alt="工作流指南" /></a>
+  <a href="https://github.com/Nam-Cheol/namba-ai/releases/latest"><img src="https://img.shields.io/static/v1?color=8250df&amp;label=%E7%89%88%E6%9C%AC&amp;labelColor=24292f&amp;message=%E6%9C%80%E6%96%B0" alt="Release" /></a>
+  <a href="SECURITY.md"><img src="https://img.shields.io/static/v1?color=1a7f37&amp;label=%E5%AE%89%E5%85%A8&amp;labelColor=24292f&amp;message=%E7%AD%96%E7%95%A5" alt="Security" /></a>
+</p>
 
 ## 首先运行
 
