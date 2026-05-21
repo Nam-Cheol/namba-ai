@@ -394,6 +394,28 @@ func TestEvalGuardrailDenyMatchesHookGitCleanVariants(t *testing.T) {
 	}
 }
 
+func TestEvalMentionPluginScenarioDerivesRoutingFromInput(t *testing.T) {
+	t.Parallel()
+
+	actual, failures := evaluateMentionPluginScenario(evalScenario{
+		Input: "Use @namba, @Browser, and @.namba/specs to do the right thing",
+		Expected: map[string]any{
+			"mention_kinds":      []string{"skill"},
+			"route_selection":    "explicit_namba_skill",
+			"platform_readiness": false,
+		},
+	})
+	if len(failures) != 0 {
+		t.Fatalf("expected no direct mention plugin failures, got %+v", failures)
+	}
+	if actual["route_selection"] != "ask_to_disambiguate" || actual["namba_routing"] != "ask_to_disambiguate" {
+		t.Fatalf("expected mixed mentions to require disambiguation from input, got %+v", actual)
+	}
+	if actual["platform_readiness"] != true || actual["execution_ready"] != false {
+		t.Fatalf("expected plugin/directory mix to set readiness and block execution, got %+v", actual)
+	}
+}
+
 func TestEvalPromptRefinementDerivesLanguageFromInput(t *testing.T) {
 	t.Parallel()
 

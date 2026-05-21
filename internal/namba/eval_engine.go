@@ -327,10 +327,7 @@ func looksLikeDomainHarnessRequest(input string) bool {
 
 func evaluateMentionPluginScenario(scenario evalScenario) (map[string]any, []string) {
 	input := strings.ToLower(scenario.Input)
-	kinds := map[string]bool{}
-	for _, kind := range normalizeEvalStringSlice(scenario.Expected["mention_kinds"]) {
-		kinds[strings.ToLower(strings.TrimSpace(kind))] = true
-	}
+	kinds := evalMentionKindsFromInput(input)
 	routing := "explicit_namba_skill"
 	if kinds["plugin"] || strings.Contains(input, "plugin") || strings.Contains(input, "marketplace") || strings.Contains(input, "share checkout") {
 		routing = "platform_readiness_note"
@@ -352,6 +349,30 @@ func evaluateMentionPluginScenario(scenario evalScenario) (map[string]any, []str
 		"clarification_required":  routing == "ask_to_disambiguate",
 		"execution_ready":         routing != "ask_to_disambiguate",
 	}, nil
+}
+
+func evalMentionKindsFromInput(input string) map[string]bool {
+	lower := strings.ToLower(input)
+	kinds := map[string]bool{}
+	if strings.Contains(lower, "$namba-") || strings.Contains(lower, "@namba") || strings.Contains(lower, "@plan") || strings.Contains(lower, "namba plan") {
+		kinds["skill"] = true
+	}
+	if strings.Contains(lower, "@browser") || strings.Contains(lower, "@chrome") || strings.Contains(lower, "@github") || strings.Contains(lower, "plugin") || strings.Contains(lower, "marketplace") || strings.Contains(lower, "share checkout") {
+		kinds["plugin"] = true
+	}
+	if strings.Contains(lower, "@.") || strings.Contains(lower, ".namba/") || strings.Contains(lower, "/specs") {
+		kinds["directory"] = true
+	}
+	meaningfulKinds := 0
+	for _, kind := range []string{"skill", "plugin", "directory"} {
+		if kinds[kind] {
+			meaningfulKinds++
+		}
+	}
+	if meaningfulKinds > 1 {
+		kinds["mixed"] = true
+	}
+	return kinds
 }
 
 func evaluatePromptRefinementScenario(scenario evalScenario) (map[string]any, []string) {
