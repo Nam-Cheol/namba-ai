@@ -227,6 +227,36 @@ func TestEvalComparisonIncludesCommand(t *testing.T) {
 	}
 }
 
+func TestEvalComparisonIncludesEventType(t *testing.T) {
+	t.Parallel()
+
+	failures := compareExpectedActual(
+		map[string]any{"event_type": "PreToolUse"},
+		map[string]any{"event_type": "PermissionRequest"},
+	)
+	if len(failures) != 1 || !strings.Contains(failures[0], "event_type expected PreToolUse, got PermissionRequest") {
+		t.Fatalf("expected event_type mismatch failure, got %+v", failures)
+	}
+}
+
+func TestEvalEvidenceBuilderRejectsEscapingExistingPaths(t *testing.T) {
+	t.Parallel()
+
+	_, err := buildEvalEvidenceManifest(evalEvidenceBuilderFixture{
+		LogID:         "eval-evidence",
+		SpecID:        "SPEC-001",
+		ExecutionMode: string(executionModeDefault),
+		Status:        "completed",
+		ExistingPaths: []string{"../../outside.json"},
+	})
+	if err == nil {
+		t.Fatal("expected escaping existing path to fail")
+	}
+	if !strings.Contains(err.Error(), "escapes eval evidence workspace") {
+		t.Fatalf("expected workspace escape diagnostic, got %v", err)
+	}
+}
+
 func TestEvalGuardrailScenarioUsesInputCommand(t *testing.T) {
 	t.Parallel()
 

@@ -535,7 +535,10 @@ func buildEvalEvidenceManifest(builder evalEvidenceBuilderFixture) (executionEvi
 	}
 	defer os.RemoveAll(tmp)
 	for _, rel := range builder.ExistingPaths {
-		path := filepath.Join(tmp, filepath.FromSlash(rel))
+		path, err := resolveEvalEvidenceExistingPath(tmp, rel)
+		if err != nil {
+			return executionEvidenceManifest{}, err
+		}
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			return executionEvidenceManifest{}, err
 		}
@@ -564,6 +567,14 @@ func buildEvalEvidenceManifest(builder evalEvidenceBuilderFixture) (executionEvi
 		Progress:           progress,
 		Hooks:              hooks,
 	})
+}
+
+func resolveEvalEvidenceExistingPath(root, rel string) (string, error) {
+	clean := filepath.Clean(filepath.FromSlash(rel))
+	if clean == "." || !filepath.IsLocal(clean) {
+		return "", fmt.Errorf("existing evidence path %q escapes eval evidence workspace", rel)
+	}
+	return filepath.Join(root, clean), nil
 }
 
 func validateRawEvalExecutionEvidenceManifest(data json.RawMessage) []string {
@@ -636,7 +647,7 @@ func compareExpectedActual(expected, actual map[string]any) []string {
 	var failures []string
 	keys := make([]string, 0, len(expected))
 	for key := range expected {
-		if strings.HasPrefix(key, "_") || key == "argv" || key == "event_type" || key == "existing_comments" || key == "mention_kinds" || key == "reason_substring" {
+		if strings.HasPrefix(key, "_") || key == "argv" || key == "existing_comments" || key == "mention_kinds" || key == "reason_substring" {
 			continue
 		}
 		keys = append(keys, key)
