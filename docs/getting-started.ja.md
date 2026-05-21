@@ -29,6 +29,20 @@ NambaAI は、Codex の作業をすぐ実装へ進める前に、目標・範囲
 | 新しい repo を準備 | `namba init .` | 最初の Codex session で `/hooks` review を承認します。 |
 | 最初の作業を実行 | `namba project` -> `namba plan "..."` -> `namba run SPEC-001` | `namba sync`、`namba pr`、`namba land` へ進みます。 |
 
+### 初回実行パス
+
+インストール後、最初の PR まで進む最短経路です。
+
+```mermaid
+flowchart LR
+    install["install"] --> init["namba init ."]
+    init --> project["namba project"]
+    project --> plan["namba plan"]
+    plan --> run["namba run"]
+    run --> sync["namba sync"]
+    sync --> pr["namba pr"]
+```
+
 ## 1. インストール
 
 - Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`

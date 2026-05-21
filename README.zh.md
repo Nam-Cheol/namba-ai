@@ -31,6 +31,25 @@ NambaAI 是一份给 Codex 工作流用的操作指南，帮助你少纠结“�
 | 2 | `namba plan "description"` | 把功能工作变成可评审的 SPEC。 |
 | 3 | `namba run SPEC-001` | 实现并验证 SPEC。 |
 
+### 命令流程
+
+这是最常用的 NambaAI 命令流程。顺序处理多个已有 SPEC 时，从 `namba queue` 开始。
+
+```mermaid
+flowchart LR
+    project["namba project"] --> choose{"choose path"}
+    choose --> plan["namba plan"]
+    choose --> harness["namba harness"]
+    choose --> fix["namba fix"]
+    plan --> run["namba run"]
+    harness --> run
+    fix --> run
+    queue["namba queue"] --> run
+    run --> sync["namba sync"]
+    sync --> pr["namba pr"]
+    pr --> land["namba land"]
+```
+
 ## 🧭 应该使用哪个命令？
 
 | 场景 | 命令 | 下一篇文档 |
