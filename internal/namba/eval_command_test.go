@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -164,6 +165,56 @@ func TestEvalCommandRejectsCaseBaselineUpdate(t *testing.T) {
 	}
 }
 
+func TestEvalCommandDoesNotUpdateBaselineWhenScenariosFail(t *testing.T) {
+	t.Parallel()
+
+	root := repoRootForHookTest(t)
+	tmp := canonicalTempDir(t)
+	fixturePath := filepath.Join(tmp, "failing-scenarios.json")
+	baselinePath := filepath.Join(tmp, "baseline.json")
+	writeTestFile(t, fixturePath, `{
+  "schema_version": "namba-eval-scenarios/v1",
+  "suite": "harness",
+  "corpus_version": "test",
+  "scenarios": [
+    {
+      "id": "route_command_regression",
+      "type": "route",
+      "tags": ["coverage:core-runtime-or-harness-change"],
+      "input": "Change the namba pr workflow so Codex review is opt-in",
+      "expected": {
+        "route_selection": "core",
+        "command": "namba harness",
+        "clarification_required": false,
+        "execution_ready": true
+      },
+      "rationale": "Intentional command mismatch for baseline update guard."
+    }
+  ]
+}`)
+	writeTestFile(t, baselinePath, "sentinel\n")
+
+	var stdout bytes.Buffer
+	app := NewApp(&stdout, &bytes.Buffer{})
+	restore := chdirExecution(t, root)
+	defer restore()
+
+	err := app.Run(context.Background(), []string{"eval", "--fixture", fixturePath, "--baseline", baselinePath, "--format", "json", "--update-baseline"})
+	if err == nil {
+		t.Fatal("expected failing scenarios to block baseline update")
+	}
+	if code := ExitCode(err); code != 1 {
+		t.Fatalf("expected exit code 1 for scenario failure, got %d (%v)", code, err)
+	}
+	data, readErr := os.ReadFile(baselinePath)
+	if readErr != nil {
+		t.Fatalf("read baseline after failed update: %v", readErr)
+	}
+	if string(data) != "sentinel\n" {
+		t.Fatalf("baseline should not be rewritten when scenarios fail, got %q", string(data))
+	}
+}
+
 func TestEvalComparisonIncludesCommand(t *testing.T) {
 	t.Parallel()
 
@@ -173,6 +224,24 @@ func TestEvalComparisonIncludesCommand(t *testing.T) {
 	)
 	if len(failures) != 1 || !strings.Contains(failures[0], "command expected namba harness, got namba plan") {
 		t.Fatalf("expected command mismatch failure, got %+v", failures)
+	}
+}
+
+func TestEvalGuardrailScenarioUsesInputCommand(t *testing.T) {
+	t.Parallel()
+
+	actual, failures := evaluateGuardrailScenario(evalScenario{
+		Input:    "git clean -fd",
+		Expected: map[string]any{"event_type": "PreToolUse", "command": "go test ./..."},
+	})
+	if len(failures) != 0 {
+		t.Fatalf("expected no direct guardrail failures, got %+v", failures)
+	}
+	if actual["command"] != "git clean -fd" {
+		t.Fatalf("expected actual command from scenario input, got %v", actual["command"])
+	}
+	if actual["deny"] != true || actual["event_type"] != "PreToolUse" {
+		t.Fatalf("expected denied pre-tool command from input, got %+v", actual)
 	}
 }
 

@@ -62,6 +62,10 @@ func (a *App) runEvalSuite(_ context.Context, root string, options evalOptions) 
 		if strings.TrimSpace(options.caseID) != "" {
 			return evalRunResult{}, errors.New("--update-baseline cannot be combined with --case; run the full suite to update the baseline")
 		}
+		if result.Summary.Failed > 0 {
+			result.Baseline = evalBaselineResult{Compared: true, Path: options.baseline, Passed: false, CorpusVersion: corpus.CorpusVersion}
+			return result, nil
+		}
 		baseline := buildEvalBaseline(corpus, result)
 		if err := a.writeEvalBaseline(root, options.baseline, baseline); err != nil {
 			return evalRunResult{}, err
@@ -350,10 +354,13 @@ func evaluatePromptRefinementScenario(scenario evalScenario) (map[string]any, []
 }
 
 func evaluateGuardrailScenario(scenario evalScenario) (map[string]any, []string) {
-	command := evalString(scenario.Expected["command"])
-	eventType := evalString(scenario.Expected["event_type"])
+	command := strings.TrimSpace(scenario.Input)
 	deny, reason := evalGuardrailDeny(command)
 	risk, riskReason := evalGuardrailRisk(command)
+	eventType := "PreToolUse"
+	if risk && !deny {
+		eventType = "PermissionRequest"
+	}
 	reasonOut := reason
 	if reasonOut == "" {
 		reasonOut = riskReason
