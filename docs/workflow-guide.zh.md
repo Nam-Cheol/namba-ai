@@ -140,3 +140,14 @@ NambaAI 工作流会先读取仓库，把工作整理成 SPEC，完成实现和�
 - [快速开始](./getting-started.zh.md): 安装和首次运行流程
 - [Codex Upstream Reference](./codex-upstream-reference.md): 本仓库遵循的 Codex 基线
 - [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration 背景和设计上下文
+
+<details>
+<summary>高级参考</summary>
+
+- 较长的 command semantics、queue state、review readiness、PR/merge flow 放在 workflow guide 中。
+- [工作流指南](./workflow-guide.zh.md)
+- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)
+- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)
+- [Security](../SECURITY.md)
+
+</details>

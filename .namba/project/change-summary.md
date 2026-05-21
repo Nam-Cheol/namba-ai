@@ -2,7 +2,7 @@
 
 Project: namba-ai
 Project type: existing
-Latest SPEC: SPEC-059
+Latest SPEC: SPEC-060
 
 ## Workflow Docs Synced
 
@@ -23,5 +23,5 @@ Latest SPEC: SPEC-059
 
 ## Latest Review Readiness
 
-- Latest readiness artifact: `.namba/specs/SPEC-059/reviews/readiness.md`
-- Advisory summary: all review tracks clear
+- Latest readiness artifact: `.namba/specs/SPEC-060/reviews/readiness.md`
+- Advisory summary: all review tracks clear; frontend=not-applicable

@@ -206,6 +206,73 @@ func TestCheckedInRepoDocsMatchRendererForRepoConfig(t *testing.T) {
 	}
 }
 
+func TestGeneratedDocsUseVisualDocumentationGrammar(t *testing.T) {
+	outputs := buildReadmeOutputs(projectConfig{Name: "NambaAI"}, initProfile{}, docsConfig{
+		ManageReadme:        true,
+		ReadmeProfile:       readmeProfileNambaCLI,
+		DefaultLanguage:     "en",
+		AdditionalLanguages: []string{"ko", "ja", "zh"},
+		HeroImage:           "assets/images/namba-ai-hero.png",
+	})
+
+	for _, lang := range []string{"en", "ko", "ja", "zh"} {
+		root := outputs[readmePath(lang)]
+		for _, want := range []string{
+			renderGeneratedDocHeader(),
+			"<img src=\"assets/images/namba-ai-hero.png\" alt=\"NambaAI\" width=\"100%\" />",
+			"[![Release]",
+			"[![CI]",
+			"[![Security]",
+			"[![License]",
+			"[![Docs]",
+			"| `namba project` |",
+			"| `namba plan \"description\"` |",
+			"`namba harness \"description\"`",
+			"`namba fix --command plan",
+			"`namba queue start SPEC-001..SPEC-003`",
+			"`namba sync`",
+			"`namba pr \"title\"`",
+			"<details>",
+			"<summary>",
+			"</details>",
+		} {
+			assertContains(t, root, want, fmt.Sprintf("%s root README", lang))
+		}
+
+		firstTrust := strings.Index(root, "[![Release]")
+		firstRun := strings.Index(root, "namba project")
+		firstCommandChooser := strings.Index(root, "## 🧭")
+		firstReadNext := strings.Index(root, "## Read Next")
+		if lang != "en" {
+			firstReadNext = strings.Index(root, "## 다음에 읽을 문서")
+			if firstReadNext < 0 {
+				firstReadNext = strings.Index(root, "## 次に読む文書")
+			}
+			if firstReadNext < 0 {
+				firstReadNext = strings.Index(root, "## 接下来阅读")
+			}
+		}
+		if firstTrust < 0 || firstRun < 0 || firstCommandChooser < 0 || firstReadNext < 0 {
+			t.Fatalf("%s root README missing expected orientation anchors", lang)
+		}
+		if !(firstTrust < firstRun && firstRun < firstCommandChooser && firstCommandChooser < firstReadNext) {
+			t.Fatalf("%s root README orientation order is wrong: trust=%d run=%d chooser=%d next=%d", lang, firstTrust, firstRun, firstCommandChooser, firstReadNext)
+		}
+
+		for _, path := range []string{readmePath(lang), guidePath("getting-started", lang), guidePath("workflow-guide", lang)} {
+			doc := outputs[path]
+			for _, forbidden := range []string{"<script", "<iframe", "style=", "<button"} {
+				if strings.Contains(strings.ToLower(doc), forbidden) {
+					t.Fatalf("%s contains unsupported GitHub HTML %q: %q", path, forbidden, doc)
+				}
+			}
+			for _, want := range []string{"<details>", "<summary>", "</details>"} {
+				assertContains(t, doc, want, path)
+			}
+		}
+	}
+}
+
 func loadRepoDocsConfig(t *testing.T, root string) (projectConfig, docsConfig, initProfile) {
 	t.Helper()
 

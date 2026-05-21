@@ -12,13 +12,41 @@ NambaAI is a practical guide for working with Codex without guessing the next st
 
 [Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](SECURITY.md)
 
+[![Release](https://img.shields.io/github/v/release/Nam-Cheol/namba-ai?label=release)](https://github.com/Nam-Cheol/namba-ai/releases/latest) [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) [![Security](https://img.shields.io/badge/security-policy-green)](SECURITY.md) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-getting%20started-informational)](docs/getting-started.md)
+
+These badges show only trust signals a new user can verify first: release, CI, security policy, license, and starting docs.
+
+[Start here](docs/getting-started.md) | [Workflow Guide](docs/workflow-guide.md) | [Latest release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [Security](SECURITY.md)
+
+## Run First
+
+| Step | Run | Purpose |
+| --- | --- | --- |
+| 1 | `namba project` | Refresh repository context and project docs. |
+| 2 | `namba plan "description"` | Turn feature work into a reviewable SPEC. |
+| 3 | `namba run SPEC-001` | Implement and validate the SPEC. |
+
 ## 🧭 Which Command Should I Use?
 
-- `namba project`: start here when you need Codex to look around and refresh its notes about the repository.
-- `namba plan`: use this when you want to add or change a feature and need a clear plan.
-- `namba harness`: use this for reusable Namba/Codex building blocks such as skills, agents, or workflows.
-- `namba fix`: use this when something is broken and you want to repair it now. Use `namba fix --command plan` when the fix should have a reviewable plan first.
-- `namba queue start SPEC-001..SPEC-003`: use this when existing SPECs should be processed in order without creating new ones.
+| Situation | Command | Read next |
+| --- | --- | --- |
+| Understand repository state | `namba project` | [Getting Started](docs/getting-started.md) |
+| Plan a feature | `namba plan "description"` | [Workflow Guide](docs/workflow-guide.md) |
+| Plan harness work | `namba harness` / `namba harness "description"` | [Workflow Guide](docs/workflow-guide.md) |
+| Repair a bug | `namba fix`, `namba fix "issue"`, `namba fix --command plan`, or `namba fix --command plan "issue"` | [Workflow Guide](docs/workflow-guide.md) |
+| Process existing SPECs | `namba queue start SPEC-001..SPEC-003` | [Workflow Guide](docs/workflow-guide.md) |
+| Refresh artifacts | `namba sync` | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) |
+| Hand off a PR | `namba pr "title"` | [Latest release](https://github.com/Nam-Cheol/namba-ai/releases/latest) |
+
+## Read Next
+
+| Document | Use it when |
+| --- | --- |
+| [Getting Started](docs/getting-started.md) | You need install, update, uninstall, init, and first-run steps. |
+| [Workflow Guide](docs/workflow-guide.md) | You need run modes, queue behavior, review readiness, PR flow, and merge flow. |
+| [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | You need the version and checksum source before installing. |
+| [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | You need the current validation signal. |
+| [Security](SECURITY.md) | You need the security policy and reporting path. |
 
 ## 🧰 What You Can Do With NambaAI
 
@@ -194,3 +222,14 @@ This is a quick translation table: the `$...` names are what you ask Codex for, 
 - `.codex/agents/*.toml` stores the role-based custom agents Codex can use when work needs a specialist.
 - Emoji density rule: section headings by default, selected lifecycle/caution bullets only when they add scan value, and no emoji inside command literals, language links, release/CI/security links, or shell snippets.
 - `namba update`, `namba regen`, `namba sync`, `namba pr`, and `namba land` solve different problems and should not be mixed. Ask `$namba-coach` or `$namba-help` first when unsure.
+
+<details>
+<summary>Advanced reference</summary>
+
+- Longer command semantics, queue state, review readiness, PR flow, and merge flow live in the workflow guide.
+- [Workflow Guide](docs/workflow-guide.md)
+- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)
+- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)
+- [Security](SECURITY.md)
+
+</details>
