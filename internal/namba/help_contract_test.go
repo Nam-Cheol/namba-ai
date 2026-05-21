@@ -90,6 +90,11 @@ func TestHelpFlowsAreReadOnlyAndCommandSpecific(t *testing.T) {
 			want: []string{"namba fix", "Usage:", "Use --command run, or omit --command, to repair the issue directly in the current workspace."},
 		},
 		{
+			name: "eval --help",
+			args: []string{"eval", "--help"},
+			want: []string{"namba eval", "Usage:", "deterministic, local Namba harness-quality scenarios"},
+		},
+		{
 			name: "run --help",
 			args: []string{"run", "--help"},
 			want: []string{"namba run", "Usage:"},
@@ -492,6 +497,12 @@ func TestSingleUsageLineCommandUsageTextPreservesSimpleCommandShapes(t *testing.
 			got:          runUsageText(),
 			usageLine:    "  namba run SPEC-XXX [--solo|--team|--parallel] [--dry-run]",
 			behaviorLine: "  Execute the selected SPEC package with one runner, same-workspace team routing, or managed worktree fan-out.",
+		},
+		{
+			name:         "eval",
+			got:          evalUsageText(),
+			usageLine:    "  namba eval [--suite harness] [--format markdown|json] [--fixture PATH] [--baseline PATH] [--fail-on-regression] [--update-baseline] [--case ID]",
+			behaviorLine: "  Runs deterministic, local Namba harness-quality scenarios without live Codex, network, GitHub API, browser, telemetry, or LLM judging.",
 		},
 		{
 			name:         "sync",

@@ -1,0 +1,445 @@
+{
+  "schema_version": "namba-eval-scenarios/v1",
+  "suite": "harness",
+  "corpus_version": "2026-05-20.v1",
+  "scenarios": [
+    {
+      "id": "route_core_pr_review_opt_in_workflow",
+      "type": "route",
+      "tags": ["coverage:core-runtime-or-harness-change", "family:route"],
+      "input": "Change the namba pr workflow so Codex review is opt-in",
+      "expected": {
+        "route_selection": "core",
+        "command": "namba plan",
+        "delivery_mode": "spec",
+        "required_evidence": ["contract", "baseline", "eval-plan"],
+        "required_reviews": ["product", "engineering", "design"],
+        "clarification_required": false,
+        "spec_required_fields_complete": true,
+        "execution_ready": true,
+        "harness_request_kind_or_none": "core_harness_change",
+        "sidecar_persisted": true
+      },
+      "rationale": "Core Namba workflow changes must remain on the plan path with a harness sidecar."
+    },
+    {
+      "id": "route_domain_spring_boot_backend_skill",
+      "type": "route",
+      "tags": ["coverage:domain-feature-change", "family:route"],
+      "input": "Add a Spring Boot backend skill for transactional service testing",
+      "expected": {
+        "route_selection": "domain",
+        "command": "namba harness",
+        "delivery_mode": "spec",
+        "required_evidence": ["contract", "baseline", "eval-plan"],
+        "required_reviews": ["product", "engineering", "design"],
+        "clarification_required": false,
+        "spec_required_fields_complete": true,
+        "execution_ready": true,
+        "harness_request_kind_or_none": "domain_harness_change",
+        "sidecar_persisted": true
+      },
+      "rationale": "Domain harness extensions should use the existing namba harness request path."
+    },
+    {
+      "id": "route_direct_release_checklist_artifact",
+      "type": "route",
+      "tags": ["coverage:direct-artifact-generation", "family:route"],
+      "input": "Create a markdown checklist for release validation",
+      "expected": {
+        "route_selection": "direct",
+        "command": "$namba-create",
+        "delivery_mode": "direct",
+        "artifact_targets": ["skill"],
+        "required_evidence": [],
+        "required_reviews": [],
+        "clarification_required": false,
+        "execution_ready": true,
+        "harness_request_kind_or_none": "direct_artifact_creation",
+        "sidecar_persisted": false
+      },
+      "rationale": "Standalone artifact creation must stay transient and must not persist a SPEC sidecar."
+    },
+    {
+      "id": "route_ordinary_login_audit_logs",
+      "type": "route",
+      "tags": ["coverage:domain-feature-change", "family:route"],
+      "input": "Add login audit logs to the app",
+      "expected": {
+        "route_selection": "ordinary",
+        "command": "namba plan",
+        "delivery_mode": "spec",
+        "clarification_required": false,
+        "execution_ready": true,
+        "harness_request_kind_or_none": "none",
+        "sidecar_persisted": false
+      },
+      "rationale": "Ordinary product work should not be reclassified as a harness request."
+    },
+    {
+      "id": "route_planned_generated_hook_template_fix",
+      "type": "route",
+      "tags": ["coverage:core-runtime-or-harness-change", "family:route"],
+      "input": "Fix a broken generated hook template, but create a SPEC first",
+      "expected": {
+        "route_selection": "planned_fix",
+        "command": "namba fix --command plan",
+        "delivery_mode": "spec",
+        "clarification_required": false,
+        "execution_ready": true,
+        "harness_request_kind_or_none": "none",
+        "sidecar_persisted": false
+      },
+      "rationale": "Bugfix SPEC planning uses the existing fix planning command without inventing a harness kind."
+    },
+    {
+      "id": "mention_explicit_namba_plan_beats_ambiguous_skill_mention",
+      "type": "mention_plugin",
+      "tags": ["coverage:core-runtime-or-harness-change", "family:mention-plugin"],
+      "input": "Use $namba-plan for @plan and create the next feature SPEC",
+      "expected": {
+        "mention_kinds": ["skill"],
+        "route_selection": "explicit_namba_skill",
+        "namba_routing": "explicit_namba_skill",
+        "platform_readiness": false,
+        "requires_plugin_install": false,
+        "clarification_required": false,
+        "execution_ready": true
+      },
+      "rationale": "Explicit Namba command skills remain the workflow router even when unified mention search could surface similarly named skills."
+    },
+    {
+      "id": "mention_plugin_reference_is_readiness_not_install",
+      "type": "mention_plugin",
+      "tags": ["coverage:docs-only-change", "family:mention-plugin"],
+      "input": "Explain Codex 0.131 plugin marketplace and share checkout readiness for Namba",
+      "expected": {
+        "mention_kinds": ["plugin"],
+        "route_selection": "platform_readiness_note",
+        "namba_routing": "platform_readiness_note",
+        "platform_readiness": true,
+        "requires_plugin_install": false,
+        "clarification_required": false,
+        "execution_ready": true
+      },
+      "rationale": "Plugin references should be described as optional readiness paths, not as installation requirements."
+    },
+    {
+      "id": "mention_mixed_mentions_require_disambiguation",
+      "type": "mention_plugin",
+      "tags": ["coverage:ambiguous-clarification", "family:mention-plugin"],
+      "input": "Use @namba, @Browser, and @.namba/specs to do the right thing",
+      "expected": {
+        "mention_kinds": ["mixed", "skill", "plugin", "directory"],
+        "route_selection": "ask_to_disambiguate",
+        "namba_routing": "ask_to_disambiguate",
+        "platform_readiness": true,
+        "requires_plugin_install": false,
+        "clarification_required": true,
+        "execution_ready": false
+      },
+      "rationale": "Mixed skill, plugin, and directory mentions should not silently become a Namba command or plugin installation flow."
+    },
+    {
+      "id": "prompt_korean_vague_login_improvement",
+      "type": "prompt_refinement",
+      "tags": ["coverage:ambiguous-clarification", "family:prompt-refinement"],
+      "input": "대충 로그인 개선해줘",
+      "expected": {
+        "clarification_required": true,
+        "language_behavior": "ko",
+        "execution_ready": false
+      },
+      "rationale": "Short Korean implementation requests with vague markers need Goal/Scope/Acceptance clarification."
+    },
+    {
+      "id": "prompt_english_make_this_better",
+      "type": "prompt_refinement",
+      "tags": ["coverage:ambiguous-clarification", "family:prompt-refinement"],
+      "input": "make this better",
+      "expected": {
+        "clarification_required": true,
+        "language_behavior": "en",
+        "execution_ready": false
+      },
+      "rationale": "Vague improvement wording needs the prompt refinement gate."
+    },
+    {
+      "id": "prompt_clear_structured_goal_scope_acceptance",
+      "type": "prompt_refinement",
+      "tags": ["coverage:core-runtime-or-harness-change", "family:prompt-refinement"],
+      "input": "Goal: Add deterministic hook guard regression tests. Scope: .codex hook behavior and CI only. Constraints: Use Python unittest and no network access. Acceptance: tests cover prompt guidance, command denial, risk notes, post-tool reminders, and Stop framing with clear diagnostics.",
+      "expected": {
+        "clarification_required": false,
+        "language_behavior": "en",
+        "execution_ready": true
+      },
+      "rationale": "Structured Goal/Scope/Constraints/Acceptance prompts are ready for the matching workflow."
+    },
+    {
+      "id": "guardrail_deny_git_reset_hard",
+      "type": "guardrail",
+      "tags": ["coverage:unsafe-or-blocked-command", "coverage:security-sensitive-change", "family:guardrail"],
+      "input": "git reset --hard HEAD",
+      "expected": {
+        "event_type": "PreToolUse",
+        "command": "git reset --hard HEAD",
+        "deny": true,
+        "risk_note": false,
+        "reason_substring": "discards repository changes",
+        "execution_ready": false
+      },
+      "rationale": "Hard reset can discard user changes."
+    },
+    {
+      "id": "guardrail_deny_git_clean_fd",
+      "type": "guardrail",
+      "tags": ["coverage:unsafe-or-blocked-command", "family:guardrail"],
+      "input": "git clean -fd",
+      "expected": {
+        "event_type": "PreToolUse",
+        "command": "git clean -fd",
+        "deny": true,
+        "risk_note": false,
+        "reason_substring": "delete untracked files",
+        "execution_ready": false
+      },
+      "rationale": "Clean can delete untracked work."
+    },
+    {
+      "id": "guardrail_deny_git_clean_ffdx",
+      "type": "guardrail",
+      "tags": ["coverage:unsafe-or-blocked-command", "family:guardrail"],
+      "input": "git clean -ffdx",
+      "expected": {
+        "event_type": "PreToolUse",
+        "command": "git clean -ffdx",
+        "deny": true,
+        "risk_note": false,
+        "reason_substring": "delete untracked files",
+        "execution_ready": false
+      },
+      "rationale": "Aggressive git clean variants can delete ignored and untracked work."
+    },
+    {
+      "id": "guardrail_safe_go_test",
+      "type": "guardrail",
+      "tags": ["coverage:core-runtime-or-harness-change", "family:guardrail"],
+      "input": "go test ./...",
+      "expected": {
+        "event_type": "PreToolUse",
+        "command": "go test ./...",
+        "deny": false,
+        "risk_note": false,
+        "execution_ready": true
+      },
+      "rationale": "Project tests should run without hook output."
+    },
+    {
+      "id": "guardrail_risk_note_sudo_go_test",
+      "type": "guardrail",
+      "tags": ["coverage:security-sensitive-change", "family:guardrail"],
+      "input": "sudo go test ./...",
+      "expected": {
+        "event_type": "PermissionRequest",
+        "command": "sudo go test ./...",
+        "deny": false,
+        "risk_note": true,
+        "reason_substring": "uses sudo",
+        "execution_ready": true
+      },
+      "rationale": "Escalated tests should show an approval note without a hard deny."
+    },
+    {
+      "id": "evidence_raw_complete_manifest",
+      "type": "evidence_manifest",
+      "tags": ["coverage:missing-evidence", "family:evidence-manifest"],
+      "expected": {
+        "valid": true,
+        "missing_or_invalid_fields": [],
+        "required_evidence": ["execution-evidence"],
+        "execution_ready": true
+      },
+      "fixture": {
+        "validation_path": "raw_schema",
+        "manifest": {
+          "schema_version": "execution-evidence/v1",
+          "log_id": "spec-048",
+          "run_id": "spec-048",
+          "spec_id": "SPEC-048",
+          "generated_at": "2026-05-19T00:00:00Z",
+          "execution_mode": "team",
+          "status": "completed",
+          "finalization": {"finalized_at": "2026-05-19T00:00:00Z", "finalized_by": "eval"},
+          "request": {"state": "present"},
+          "preflight": {"state": "present"},
+          "execution": {"state": "present"},
+          "validation": {"state": "present"},
+          "progress": {"state": "not_applicable"},
+          "extensions": {"browser": {"state": "not_applicable"}, "runtime": {"state": "present"}},
+          "hooks": []
+        }
+      },
+      "rationale": "A complete raw manifest represents identity, modes, base evidence, extensions, and hook boundaries."
+    },
+    {
+      "id": "evidence_raw_missing_identity_and_base_sections",
+      "type": "evidence_manifest",
+      "tags": ["coverage:missing-evidence", "family:evidence-manifest"],
+      "expected": {
+        "valid": false,
+        "missing_or_invalid_fields": ["schema_version", "execution_mode", "finalization.finalized_at", "request", "execution", "progress", "extensions.browser.state", "extensions.runtime.state", "hooks"],
+        "required_evidence": ["execution-evidence"],
+        "execution_ready": false
+      },
+      "fixture": {
+        "validation_path": "raw_schema",
+        "manifest": {
+          "log_id": "spec-048-invalid",
+          "run_id": "spec-048-invalid",
+          "generated_at": "2026-05-19T00:00:00Z",
+          "status": "completed",
+          "finalization": {"finalized_by": "eval"},
+          "preflight": {"state": "present"},
+          "validation": {"state": "present"},
+          "extensions": {"browser": {}, "runtime": {}}
+        }
+      },
+      "rationale": "Raw schema validation must not let absent fields pass through Go zero values or builder defaults."
+    },
+    {
+      "id": "evidence_builder_normalizes_default_run_with_validation_attempts",
+      "type": "evidence_manifest",
+      "tags": ["coverage:missing-evidence", "family:evidence-manifest"],
+      "expected": {
+        "valid": true,
+        "section_states": {
+          "request": "present",
+          "preflight": "present",
+          "execution": "present",
+          "validation": "present",
+          "progress": "not_applicable",
+          "runtime": "present",
+          "browser": "not_applicable"
+        },
+        "hook_count": 0,
+        "required_evidence": ["execution-evidence"],
+        "execution_ready": true
+      },
+      "fixture": {
+        "validation_path": "builder_normalization",
+        "builder": {
+          "log_id": "spec-048-builder",
+          "spec_id": "SPEC-048",
+          "execution_mode": "default",
+          "status": "completed",
+          "validation_attempts": 1,
+          "existing_paths": [
+            ".namba/logs/runs/spec-048-builder-request.json",
+            ".namba/logs/runs/spec-048-builder-preflight.json",
+            ".namba/logs/runs/spec-048-builder-execution.json",
+            ".namba/logs/runs/spec-048-builder-validation.json",
+            ".namba/logs/runs/spec-048-builder-validation-attempt-1.json"
+          ]
+        }
+      },
+      "rationale": "The existing builder should normalize default evidence paths and runtime validation-attempt bundles deterministically."
+    },
+    {
+      "id": "pr_default_without_review",
+      "type": "pr_review",
+      "tags": ["coverage:review-required", "family:pr-review"],
+      "expected": {
+        "argv": ["Example title"],
+        "existing_comments": [],
+        "review_requested": false,
+        "required_reviews": [],
+        "duplicate_review_comment": false,
+        "created_review_comments": 0,
+        "execution_ready": true
+      },
+      "rationale": "Normal PR handoff must not request Codex review."
+    },
+    {
+      "id": "pr_explicit_review_flag",
+      "type": "pr_review",
+      "tags": ["coverage:review-required", "family:pr-review"],
+      "expected": {
+        "argv": ["--review", "Example title"],
+        "existing_comments": [],
+        "review_requested": true,
+        "required_reviews": ["codex"],
+        "duplicate_review_comment": false,
+        "created_review_comments": 1,
+        "execution_ready": true
+      },
+      "rationale": "Only --review opts into creating a Codex review request."
+    },
+    {
+      "id": "pr_marker_comment_with_review_flag",
+      "type": "pr_review",
+      "tags": ["coverage:review-required", "family:pr-review"],
+      "expected": {
+        "argv": ["--review", "Example title"],
+        "existing_comments": ["<!-- namba:codex-review-request -->\n@codex review"],
+        "review_requested": true,
+        "required_reviews": ["codex"],
+        "duplicate_review_comment": false,
+        "created_review_comments": 0,
+        "execution_ready": true
+      },
+      "rationale": "Existing Namba marker comments prevent duplicate review comments."
+    },
+    {
+      "id": "release_eval_notes_are_docs_only",
+      "type": "prompt_refinement",
+      "tags": ["coverage:release-related-change", "coverage:docs-only-change", "family:prompt-refinement"],
+      "input": "Explain the release note handoff for namba release without making changes",
+      "expected": {
+        "clarification_required": false,
+        "language_behavior": "en",
+        "execution_ready": true
+      },
+      "rationale": "Read-only release guidance should stay outside the SPEC creation gate."
+    },
+    {
+      "id": "security_sensitive_pr_credential_redaction",
+      "type": "prompt_refinement",
+      "tags": ["coverage:security-sensitive-change", "family:prompt-refinement"],
+      "input": "Goal: Harden GitHub credential redaction in namba pr. Scope: PR command environment parsing only. Constraints: no network-dependent tests and no secret logging. Acceptance: tests prove sensitive values are redacted and missing credentials fail with actionable diagnostics.",
+      "expected": {
+        "clarification_required": false,
+        "language_behavior": "en",
+        "execution_ready": true
+      },
+      "rationale": "Security-sensitive work can proceed when goal, scope, constraints, and acceptance are explicit."
+    },
+    {
+      "id": "docs_readme_validation_summary",
+      "type": "prompt_refinement",
+      "tags": ["coverage:docs-only-change", "family:prompt-refinement"],
+      "input": "Read README and summarize local validation commands without making changes",
+      "expected": {
+        "clarification_required": false,
+        "language_behavior": "en",
+        "execution_ready": true
+      },
+      "rationale": "Read-only documentation requests should not trigger implementation refinement."
+    },
+    {
+      "id": "release_branch_validation_command",
+      "type": "guardrail",
+      "tags": ["coverage:release-related-change", "family:guardrail"],
+      "input": "git push origin HEAD",
+      "expected": {
+        "event_type": "PermissionRequest",
+        "command": "git push origin HEAD",
+        "deny": false,
+        "risk_note": true,
+        "reason_substring": "publish",
+        "execution_ready": true
+      },
+      "rationale": "Release-related publishing should be called out during approval without being treated as a destructive local command."
+    }
+  ]
+}

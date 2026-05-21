@@ -308,6 +308,7 @@ func publicTopLevelCommandDefinitions() []topLevelCommandDefinition {
 		{Name: "plan", UsageSummary: "  namba plan \"<description>\"", UsageText: planUsageText, Run: (*App).runPlan},
 		{Name: "harness", UsageSummary: "  namba harness \"<description>\"", UsageText: harnessUsageText, Run: (*App).runHarness},
 		{Name: "fix", UsageSummary: "  namba fix [--command run|plan] \"<issue description>\"", UsageText: fixUsageText, Run: (*App).runFix},
+		{Name: "eval", UsageSummary: "  namba eval [--suite harness] [--format markdown|json]", UsageText: evalUsageText, Run: (*App).runEval},
 		{Name: "run", UsageSummary: "  namba run SPEC-XXX [--solo|--team|--parallel] [--dry-run]", UsageText: runUsageText, Run: (*App).runExecute},
 		{Name: "queue", UsageSummary: "  namba queue <start|status|resume|pause|stop>", UsageText: queueUsageText, Run: (*App).runQueue},
 		{Name: "sync", UsageSummary: "  namba sync", UsageText: syncUsageText, Run: (*App).runSync},
