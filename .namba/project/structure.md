@@ -72,6 +72,7 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .github/workflows/release.yml
 .github/workflows/secret-scan.yml
 .gitignore
+.gitleaksignore
 .namba/codex/README.md
 .namba/codex/claude-codex-mapping.md
 .namba/codex/output-contract.md
@@ -484,6 +485,18 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-056/reviews/product.md
 .namba/specs/SPEC-056/reviews/readiness.md
 .namba/specs/SPEC-056/spec.md
+.namba/specs/SPEC-057/acceptance.md
+.namba/specs/SPEC-057/baseline.md
+.namba/specs/SPEC-057/contract.md
+.namba/specs/SPEC-057/eval-plan.md
+.namba/specs/SPEC-057/frontend-brief.md
+.namba/specs/SPEC-057/harness-request.json
+.namba/specs/SPEC-057/plan.md
+.namba/specs/SPEC-057/reviews/design.md
+.namba/specs/SPEC-057/reviews/engineering.md
+.namba/specs/SPEC-057/reviews/product.md
+.namba/specs/SPEC-057/reviews/readiness.md
+.namba/specs/SPEC-057/spec.md
 AGENTS.md
 LICENSE
 README.ja.md
