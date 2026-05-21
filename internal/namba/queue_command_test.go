@@ -1224,7 +1224,7 @@ func TestQueueLocalFallbackMergesBranchWhenRemoteHandoffUnavailable(t *testing.T
 		}
 	}
 
-	state := queueState{ID: "queue-test", Targets: []string{"SPEC-001"}, ActiveSpecID: "SPEC-001", Specs: map[string]queueSpec{"SPEC-001": {SpecID: "SPEC-001", Branch: branch}}}
+	state := queueState{ID: "queue-test", Options: queueOptions{AutoLand: true}, Targets: []string{"SPEC-001"}, ActiveSpecID: "SPEC-001", Specs: map[string]queueSpec{"SPEC-001": {SpecID: "SPEC-001", Branch: branch}}}
 	specPkg := specPackage{ID: "SPEC-001", Description: "Queue fallback fixture", Path: filepath.Join(tmp, ".namba", "specs", "SPEC-001")}
 	got, done, err := app.applyQueueLocalFallback(context.Background(), tmp, state, "SPEC-001", state.Specs["SPEC-001"], specPkg, branch, queueRunEvidencePath("SPEC-001"), errors.New("push branch failed: network unavailable"))
 	if err != nil {
@@ -1238,6 +1238,30 @@ func TestQueueLocalFallbackMergesBranchWhenRemoteHandoffUnavailable(t *testing.T
 	}
 	if !hasCommandContaining(commands, "git merge --no-ff "+branch) {
 		t.Fatalf("expected local merge command, got %v", commands)
+	}
+}
+
+func TestQueueLocalFallbackRequiresAutoLand(t *testing.T) {
+	t.Parallel()
+
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+
+	branch := "spec/SPEC-001-queue-fixture"
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if name == "git" && len(args) > 0 && args[0] == "merge" {
+			t.Fatalf("local fallback must not merge when auto-land is disabled: %s %v in %s", name, args, dir)
+		}
+		t.Fatalf("unexpected command before auto-land guard: %s %v in %s", name, args, dir)
+		return "", nil
+	}
+
+	state := queueState{ID: "queue-test", Targets: []string{"SPEC-001"}, ActiveSpecID: "SPEC-001", Specs: map[string]queueSpec{"SPEC-001": {SpecID: "SPEC-001", Branch: branch}}}
+	specPkg := specPackage{ID: "SPEC-001", Description: "Queue fallback fixture", Path: filepath.Join(tmp, ".namba", "specs", "SPEC-001")}
+	_, _, err := app.applyQueueLocalFallback(context.Background(), tmp, state, "SPEC-001", state.Specs["SPEC-001"], specPkg, branch, queueRunEvidencePath("SPEC-001"), errors.New("push branch failed"))
+	if err == nil || !strings.Contains(err.Error(), "--auto-land") {
+		t.Fatalf("expected auto-land guard error, got %v", err)
 	}
 }
 
@@ -1280,7 +1304,7 @@ func TestQueueLocalFallbackBlocksOnMergeConflict(t *testing.T) {
 		}
 	}
 
-	state := queueState{ID: "queue-test", Targets: []string{"SPEC-001"}, ActiveSpecID: "SPEC-001", Specs: map[string]queueSpec{"SPEC-001": {SpecID: "SPEC-001", Branch: branch}}}
+	state := queueState{ID: "queue-test", Options: queueOptions{AutoLand: true}, Targets: []string{"SPEC-001"}, ActiveSpecID: "SPEC-001", Specs: map[string]queueSpec{"SPEC-001": {SpecID: "SPEC-001", Branch: branch}}}
 	specPkg := specPackage{ID: "SPEC-001", Description: "Queue fallback fixture", Path: filepath.Join(tmp, ".namba", "specs", "SPEC-001")}
 	_, _, err := app.applyQueueLocalFallback(context.Background(), tmp, state, "SPEC-001", state.Specs["SPEC-001"], specPkg, branch, queueRunEvidencePath("SPEC-001"), errors.New("push branch failed"))
 	if err == nil || !strings.Contains(err.Error(), "local fallback merge") {

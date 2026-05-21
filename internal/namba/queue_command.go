@@ -727,6 +727,9 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 		pr, err = a.prepareQueuePullRequest(ctx, root, state, specPkg, branch)
 		if err != nil {
 			if isRemoteHandoffUnavailable(err) {
+				if !state.Options.AutoLand {
+					return blockQueueSpec(a, root, state, specID, "remote_handoff_unavailable", "", "restore remote PR handoff or rerun queue with `--auto-land` if local fallback is acceptable", fmt.Sprintf("remote handoff unavailable and auto-land is disabled: %v", err))
+				}
 				fallbackState, fallbackDone, fallbackErr := a.applyQueueLocalFallback(ctx, root, state, specID, specState, specPkg, branch, validationEvidence, err)
 				if fallbackErr != nil {
 					return blockQueueSpec(a, root, fallbackState, specID, "local_fallback_failed", "", "resolve local fallback merge state and run `namba queue resume`", fallbackErr.Error())
@@ -1394,6 +1397,9 @@ func (a *App) prepareQueuePullRequest(ctx context.Context, root string, state qu
 }
 
 func (a *App) applyQueueLocalFallback(ctx context.Context, root string, state queueState, specID string, specState queueSpec, specPkg specPackage, branch, validationEvidence string, handoffErr error) (queueState, bool, error) {
+	if !state.Options.AutoLand {
+		return state, false, errors.New("local fallback requires --auto-land")
+	}
 	profile, err := a.loadInitProfileFromConfig(root)
 	if err != nil {
 		return state, false, err
