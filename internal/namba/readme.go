@@ -1112,6 +1112,55 @@ func renderNambaCLIRootQuickStartSection(lang string) []string {
 	}
 }
 
+func renderNambaCLIRootQualityGatesSection(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## ✅ 로컬 품질 게이트",
+			"",
+			"- PR 전에 `scripts/quality.sh`로 CI의 핵심 품질 바를 로컬에서 실행할 수 있습니다.",
+			"- `go.mod`의 `toolchain go1.26.3` 기준을 사용하므로 CI와 `GOTOOLCHAIN=auto` 로컬 실행이 알려진 Go 1.26.2 표준 라이브러리 취약점을 피합니다.",
+			"- 이 게이트는 Python unittest, Go unit/race tests, harness eval regression, gofmt, go vet, staticcheck, govulncheck, Go coverage report를 실행합니다.",
+			"- aggregate Go coverage threshold는 73.0%입니다. 계획 중 측정한 73.7% baseline보다 약간 낮게 잡아 Go version/reporting noise는 흡수하고 의미 있는 회귀는 막습니다.",
+			"- `staticcheck` 또는 `govulncheck`가 없으면 스크립트가 정확한 `go install` 명령을 출력하고 중단합니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## ✅ ローカル品質ゲート",
+			"",
+			"- PR 前に `scripts/quality.sh` で CI の中核品質バーをローカル実行できます。",
+			"- `go.mod` の `toolchain go1.26.3` を使うため、CI と `GOTOOLCHAIN=auto` のローカル実行は既知の Go 1.26.2 標準ライブラリ脆弱性を避けます。",
+			"- このゲートは Python unittest、Go unit/race tests、harness eval regression、gofmt、go vet、staticcheck、govulncheck、Go coverage report を実行します。",
+			"- aggregate Go coverage threshold は 73.0% です。計画時に測定した 73.7% baseline より少し低くし、Go version/reporting noise を吸収しながら意味のある回帰を止めます。",
+			"- `staticcheck` または `govulncheck` がない場合、スクリプトは正確な `go install` コマンドを表示して停止します。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## ✅ 本地质量门禁",
+			"",
+			"- PR 前可以运行 `scripts/quality.sh`，在本地执行 CI 的核心质量标准。",
+			"- 该仓库使用 `go.mod` 中的 `toolchain go1.26.3`，因此 CI 和 `GOTOOLCHAIN=auto` 的本地运行会避开已知的 Go 1.26.2 标准库漏洞。",
+			"- 该门禁会运行 Python unittest、Go unit/race tests、harness eval regression、gofmt、go vet、staticcheck、govulncheck 和 Go coverage report。",
+			"- aggregate Go coverage threshold 为 73.0%。它略低于规划时测得的 73.7% baseline，用来吸收 Go version/reporting noise，同时阻止有意义的覆盖率回退。",
+			"- 如果缺少 `staticcheck` 或 `govulncheck`，脚本会输出准确的 `go install` 命令并停止。",
+			"",
+		}
+	default:
+		return []string{
+			"## ✅ Local Quality Gates",
+			"",
+			"- Run `scripts/quality.sh` before PR handoff to mirror the core CI quality bar locally.",
+			"- `go.mod` pins `toolchain go1.26.3`, so CI and local `GOTOOLCHAIN=auto` runs avoid the known Go 1.26.2 standard-library vulnerabilities.",
+			"- The gate runs Python unittest, Go unit/race tests, harness eval regression, gofmt, go vet, staticcheck, govulncheck, and the Go coverage report.",
+			"- The aggregate Go coverage threshold is 73.0%. It sits just below the 73.7% planning baseline to absorb Go version/reporting noise while still blocking meaningful regressions.",
+			"- If `staticcheck` or `govulncheck` is missing, the script prints the exact `go install` command and stops.",
+			"",
+		}
+	}
+}
+
 func renderNambaCLIRootHookRuntimeSection(lang string) []string {
 	switch normalizeReadmeLanguage(lang) {
 	case "ko":
@@ -1999,6 +2048,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 		}
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
+		lines = append(lines, renderNambaCLIRootQualityGatesSection(lang)...)
 		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
 		lines = append(lines, renderNambaCLIRootPlatformReadinessSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
@@ -2041,6 +2091,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 		}
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
+		lines = append(lines, renderNambaCLIRootQualityGatesSection(lang)...)
 		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
 		lines = append(lines, renderNambaCLIRootPlatformReadinessSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
@@ -2083,6 +2134,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 		}
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
+		lines = append(lines, renderNambaCLIRootQualityGatesSection(lang)...)
 		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
 		lines = append(lines, renderNambaCLIRootPlatformReadinessSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)
@@ -2125,6 +2177,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 		}
 		lines = append(lines, renderNambaCLIRootQuickStartSection(lang)...)
+		lines = append(lines, renderNambaCLIRootQualityGatesSection(lang)...)
 		lines = append(lines, renderNambaCLIRootHookRuntimeSection(lang)...)
 		lines = append(lines, renderNambaCLIRootPlatformReadinessSection(lang)...)
 		lines = append(lines, renderNambaCLIRootLifecycleSection(lang)...)

@@ -1576,6 +1576,7 @@ func TestUserPromptSubmitHookGuidesWithoutBlockingSubmission(t *testing.T) {
 		t.Run(prompt, func(t *testing.T) {
 			cmd := exec.Command("sh", "-c", codexHookCommandForEvent(t, renderNambaCodexHooksJSON(), "UserPromptSubmit"))
 			cmd.Dir = tmp
+			cmd.Env = append(os.Environ(), "NAMBA_HOOK_DEDUPE=0")
 			cmd.Stdin = strings.NewReader(`{"hook_event_name":"UserPromptSubmit","prompt":` + strconv.Quote(prompt) + `}`)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
@@ -1614,6 +1615,7 @@ func TestRenderedCodexHookCommandsRunOutsideGitRepository(t *testing.T) {
 		t.Run(event, func(t *testing.T) {
 			cmd := exec.Command("sh", "-c", codexHookCommandForEvent(t, renderNambaCodexHooksJSON(), event))
 			cmd.Dir = tmp
+			cmd.Env = append(os.Environ(), "NAMBA_HOOK_DEDUPE=0")
 			cmd.Stdin = strings.NewReader(payload)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
@@ -1705,7 +1707,7 @@ func TestHookGuardEmitsASCIIJSONUnderCP949Stdout(t *testing.T) {
 
 	cmd := exec.Command(pythonPath, filepath.Join(tmp, ".codex", "hooks", "namba_codex_guard.py"))
 	cmd.Dir = tmp
-	cmd.Env = append(os.Environ(), "PYTHONIOENCODING=cp949")
+	cmd.Env = append(os.Environ(), "PYTHONIOENCODING=cp949", "NAMBA_HOOK_DEDUPE=0")
 	cmd.Stdin = strings.NewReader(string(body))
 	output, err := cmd.CombinedOutput()
 	if err != nil {
