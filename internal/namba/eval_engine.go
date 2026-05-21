@@ -90,7 +90,7 @@ func (a *App) runEvalSuite(_ context.Context, root string, options evalOptions) 
 		if err != nil {
 			return evalRunResult{}, err
 		}
-		regressions := compareEvalBaseline(baseline, result, strings.TrimSpace(options.caseID) != "")
+		regressions := compareEvalBaseline(baseline, result, corpus.CorpusVersion, strings.TrimSpace(options.caseID) != "")
 		result.Baseline = evalBaselineResult{
 			Compared:      true,
 			Path:          options.baseline,
@@ -355,10 +355,7 @@ func evaluateMentionPluginScenario(scenario evalScenario) (map[string]any, []str
 }
 
 func evaluatePromptRefinementScenario(scenario evalScenario) (map[string]any, []string) {
-	language := evalString(scenario.Expected["language_behavior"])
-	if language == "" || language == "<nil>" {
-		language = fallbackSpecCreationClarificationLanguage(scenario.Input)
-	}
+	language := fallbackSpecCreationClarificationLanguage(scenario.Input)
 	_, required := evaluateSpecCreationClarificationForLanguage("plan", scenario.Input, language)
 	return map[string]any{
 		"clarification_required": required,
@@ -793,10 +790,13 @@ func buildEvalBaseline(corpus evalCorpus, result evalRunResult) evalBaseline {
 	}
 }
 
-func compareEvalBaseline(baseline evalBaseline, result evalRunResult, partial bool) []string {
+func compareEvalBaseline(baseline evalBaseline, result evalRunResult, corpusVersion string, partial bool) []string {
 	var regressions []string
 	if baseline.Suite != result.Suite {
 		regressions = append(regressions, fmt.Sprintf("baseline suite %q does not match result suite %q", baseline.Suite, result.Suite))
+	}
+	if strings.TrimSpace(baseline.CorpusVersion) != strings.TrimSpace(corpusVersion) {
+		regressions = append(regressions, fmt.Sprintf("baseline corpus_version %q does not match fixture corpus_version %q", baseline.CorpusVersion, corpusVersion))
 	}
 	currentByID := map[string]evalScenarioResult{}
 	for _, scenario := range result.Scenarios {

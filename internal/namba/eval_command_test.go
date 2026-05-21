@@ -122,6 +122,79 @@ func TestEvalCommandBaselineRegressionUsesExitCodeOne(t *testing.T) {
 	}
 }
 
+func TestEvalCommandBaselineCorpusVersionRegressionUsesExitCodeOne(t *testing.T) {
+	t.Parallel()
+
+	root := repoRootForHookTest(t)
+	tmp := canonicalTempDir(t)
+	fixturePath := filepath.Join(tmp, "scenarios.json")
+	baselinePath := filepath.Join(tmp, "baseline.json")
+	scenario := evalScenario{
+		ID:    "guardrail_safe_go_test",
+		Type:  "guardrail",
+		Tags:  []string{"coverage:core-runtime-or-harness-change"},
+		Input: "go test ./...",
+		Expected: map[string]any{
+			"event_type":      "PreToolUse",
+			"command":         "go test ./...",
+			"deny":            false,
+			"risk_note":       false,
+			"execution_ready": true,
+		},
+		Rationale: "Safe command fixture for corpus-version regression coverage.",
+	}
+	result := NewApp(&bytes.Buffer{}, &bytes.Buffer{}).evaluateHarnessScenario(root, scenario)
+	if !result.Passed {
+		t.Fatalf("test scenario should pass before baseline comparison: %+v", result)
+	}
+	fixture := evalCorpus{
+		SchemaVersion: evalSchemaVersion,
+		Suite:         defaultEvalSuite,
+		CorpusVersion: "new-corpus",
+		Scenarios:     []evalScenario{scenario},
+	}
+	fixtureData, err := json.Marshal(fixture)
+	if err != nil {
+		t.Fatalf("marshal fixture: %v", err)
+	}
+	writeTestFile(t, fixturePath, string(fixtureData))
+	baseline := evalBaseline{
+		SchemaVersion:        evalBaselineSchemaVersion,
+		ResultSchemaVersion:  evalResultSchemaVersion,
+		Suite:                defaultEvalSuite,
+		CorpusVersion:        "old-corpus",
+		ScenarioFingerprints: map[string]string{scenario.ID: result.Fingerprint},
+		MetricPassCounts:     map[string]int{},
+		RequiredCoverage:     []string{"core-runtime-or-harness-change"},
+	}
+	baselineData, err := json.Marshal(baseline)
+	if err != nil {
+		t.Fatalf("marshal baseline: %v", err)
+	}
+	writeTestFile(t, baselinePath, string(baselineData))
+
+	var stdout bytes.Buffer
+	app := NewApp(&stdout, &bytes.Buffer{})
+	restore := chdirExecution(t, root)
+	defer restore()
+
+	err = app.Run(context.Background(), []string{"eval", "--format", "json", "--fixture", fixturePath, "--baseline", baselinePath, "--fail-on-regression"})
+	if err == nil {
+		t.Fatal("expected baseline corpus_version mismatch to fail")
+	}
+	var exitErr evalExitError
+	if !errors.As(err, &exitErr) || exitErr.code != 1 {
+		t.Fatalf("expected exit code 1 regression error, got %T %v", err, err)
+	}
+	var resultOut evalRunResult
+	if unmarshalErr := json.Unmarshal(stdout.Bytes(), &resultOut); unmarshalErr != nil {
+		t.Fatalf("eval output should be json: %v\n%s", unmarshalErr, stdout.String())
+	}
+	if len(resultOut.Regressions) != 1 || resultOut.Regressions[0] != `baseline corpus_version "old-corpus" does not match fixture corpus_version "new-corpus"` {
+		t.Fatalf("expected corpus_version regression diagnostic in output, got %+v", resultOut.Regressions)
+	}
+}
+
 func TestEvalCommandCaseBaselineComparisonIgnoresUnselectedScenarios(t *testing.T) {
 	t.Parallel()
 
@@ -318,6 +391,24 @@ func TestEvalGuardrailDenyMatchesHookGitCleanVariants(t *testing.T) {
 		if !deny || !strings.Contains(reason, "delete untracked files") {
 			t.Fatalf("expected git clean variant %q to be denied, got deny=%v reason=%q", command, deny, reason)
 		}
+	}
+}
+
+func TestEvalPromptRefinementDerivesLanguageFromInput(t *testing.T) {
+	t.Parallel()
+
+	actual, failures := evaluatePromptRefinementScenario(evalScenario{
+		Input:    "대충 로그인 개선해줘",
+		Expected: map[string]any{"language_behavior": "en"},
+	})
+	if len(failures) != 0 {
+		t.Fatalf("expected no direct prompt refinement failures, got %+v", failures)
+	}
+	if actual["language_behavior"] != "ko" {
+		t.Fatalf("expected language from scenario input, got %+v", actual)
+	}
+	if actual["clarification_required"] != true || actual["execution_ready"] != false {
+		t.Fatalf("expected vague Korean prompt to require clarification, got %+v", actual)
 	}
 }
 
