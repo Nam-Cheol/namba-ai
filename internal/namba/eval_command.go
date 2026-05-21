@@ -85,6 +85,9 @@ func (a *App) runEval(ctx context.Context, args []string) error {
 	if options.help {
 		return a.printCommandUsage("eval")
 	}
+	if err := validateEvalFormat(options.format); err != nil {
+		return commandExitError(2, err)
+	}
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
@@ -113,6 +116,15 @@ func (a *App) runEval(ctx context.Context, args []string) error {
 		return commandExitError(1, errors.New("namba eval baseline regression detected"))
 	}
 	return nil
+}
+
+func validateEvalFormat(format string) error {
+	switch format {
+	case "json", "markdown":
+		return nil
+	default:
+		return fmt.Errorf("unsupported eval format %q", format)
+	}
 }
 
 func evalUsageText() string {

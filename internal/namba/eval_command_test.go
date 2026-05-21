@@ -165,6 +165,41 @@ func TestEvalCommandRejectsCaseBaselineUpdate(t *testing.T) {
 	}
 }
 
+func TestEvalCommandRejectsUnsupportedFormatBeforeBaselineUpdate(t *testing.T) {
+	t.Parallel()
+
+	root := repoRootForHookTest(t)
+	tmp := canonicalTempDir(t)
+	baselinePath := filepath.Join(tmp, "baseline.json")
+	writeTestFile(t, baselinePath, "sentinel\n")
+
+	var stdout bytes.Buffer
+	app := NewApp(&stdout, &bytes.Buffer{})
+	restore := chdirExecution(t, root)
+	defer restore()
+
+	err := app.Run(context.Background(), []string{"eval", "--format", "yaml", "--baseline", baselinePath, "--update-baseline"})
+	if err == nil {
+		t.Fatal("expected unsupported eval format to fail")
+	}
+	if code := ExitCode(err); code != 2 {
+		t.Fatalf("expected exit code 2 for unsupported format, got %d (%v)", code, err)
+	}
+	if !strings.Contains(err.Error(), `unsupported eval format "yaml"`) {
+		t.Fatalf("expected unsupported format diagnostic, got %v", err)
+	}
+	data, readErr := os.ReadFile(baselinePath)
+	if readErr != nil {
+		t.Fatalf("read baseline after unsupported format: %v", readErr)
+	}
+	if string(data) != "sentinel\n" {
+		t.Fatalf("baseline should not be rewritten when format is invalid, got %q", string(data))
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("unsupported format should not render eval output, got %q", stdout.String())
+	}
+}
+
 func TestEvalCommandDoesNotUpdateBaselineWhenScenariosFail(t *testing.T) {
 	t.Parallel()
 
