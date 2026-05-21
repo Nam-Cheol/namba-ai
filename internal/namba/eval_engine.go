@@ -109,20 +109,20 @@ func (a *App) loadEvalCorpus(root, path string) (evalCorpus, error) {
 
 func (a *App) readEvalFile(root, path string) ([]byte, error) {
 	clean := filepath.ToSlash(filepath.Clean(path))
-	if clean == defaultHarnessEvalFixture || clean == defaultHarnessEvalBase || strings.HasPrefix(clean, "internal/namba/testdata/evals/harness/") {
-		embeddedPath := strings.TrimPrefix(clean, "internal/namba/")
-		if data, err := embeddedEvalFixtures.ReadFile(embeddedPath); err == nil {
-			return data, nil
-		}
-	}
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(root, path)
 	}
 	data, err := a.readFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read eval file %s: %w", path, err)
+	if err == nil {
+		return data, nil
 	}
-	return data, nil
+	if clean == defaultHarnessEvalFixture || clean == defaultHarnessEvalBase || strings.HasPrefix(clean, "internal/namba/testdata/evals/harness/") {
+		embeddedPath := strings.TrimPrefix(clean, "internal/namba/")
+		if data, embedErr := embeddedEvalFixtures.ReadFile(embeddedPath); embedErr == nil {
+			return data, nil
+		}
+	}
+	return nil, fmt.Errorf("read eval file %s: %w", path, err)
 }
 
 func (a *App) loadEvalBaseline(root, path string) (evalBaseline, error) {
@@ -625,7 +625,7 @@ func compareExpectedActual(expected, actual map[string]any) []string {
 	var failures []string
 	keys := make([]string, 0, len(expected))
 	for key := range expected {
-		if strings.HasPrefix(key, "_") || key == "argv" || key == "command" || key == "event_type" || key == "existing_comments" || key == "mention_kinds" || key == "reason_substring" {
+		if strings.HasPrefix(key, "_") || key == "argv" || key == "event_type" || key == "existing_comments" || key == "mention_kinds" || key == "reason_substring" {
 			continue
 		}
 		keys = append(keys, key)

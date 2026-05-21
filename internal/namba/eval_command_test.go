@@ -120,3 +120,43 @@ func TestEvalCommandBaselineRegressionUsesExitCodeOne(t *testing.T) {
 		t.Fatalf("expected regression diagnostic in output, got %q", stdout.String())
 	}
 }
+
+func TestEvalComparisonIncludesCommand(t *testing.T) {
+	t.Parallel()
+
+	failures := compareExpectedActual(
+		map[string]any{"route_selection": "domain", "command": "namba harness"},
+		map[string]any{"route_selection": "domain", "command": "namba plan"},
+	)
+	if len(failures) != 1 || !strings.Contains(failures[0], "command expected namba harness, got namba plan") {
+		t.Fatalf("expected command mismatch failure, got %+v", failures)
+	}
+}
+
+func TestEvalFileReadsDiskBeforeEmbeddedFixture(t *testing.T) {
+	t.Parallel()
+
+	root := canonicalTempDir(t)
+	fixturePath := filepath.Join(root, filepath.FromSlash(defaultHarnessEvalFixture))
+	writeTestFile(t, fixturePath, "disk fixture\n")
+
+	data, err := NewApp(&bytes.Buffer{}, &bytes.Buffer{}).readEvalFile(root, defaultHarnessEvalFixture)
+	if err != nil {
+		t.Fatalf("read eval fixture: %v", err)
+	}
+	if string(data) != "disk fixture\n" {
+		t.Fatalf("expected disk fixture to win, got %q", string(data))
+	}
+}
+
+func TestEvalFileFallsBackToEmbeddedFixture(t *testing.T) {
+	t.Parallel()
+
+	data, err := NewApp(&bytes.Buffer{}, &bytes.Buffer{}).readEvalFile(canonicalTempDir(t), defaultHarnessEvalFixture)
+	if err != nil {
+		t.Fatalf("read embedded eval fixture: %v", err)
+	}
+	if !strings.Contains(string(data), `"schema_version": "namba-eval-scenarios/v1"`) {
+		t.Fatalf("expected embedded eval fixture, got %q", string(data))
+	}
+}
