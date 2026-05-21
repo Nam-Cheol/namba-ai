@@ -497,6 +497,17 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-057/reviews/product.md
 .namba/specs/SPEC-057/reviews/readiness.md
 .namba/specs/SPEC-057/spec.md
+.namba/specs/SPEC-058/acceptance.md
+.namba/specs/SPEC-058/baseline.md
+.namba/specs/SPEC-058/contract.md
+.namba/specs/SPEC-058/eval-plan.md
+.namba/specs/SPEC-058/harness-request.json
+.namba/specs/SPEC-058/plan.md
+.namba/specs/SPEC-058/reviews/design.md
+.namba/specs/SPEC-058/reviews/engineering.md
+.namba/specs/SPEC-058/reviews/product.md
+.namba/specs/SPEC-058/reviews/readiness.md
+.namba/specs/SPEC-058/spec.md
 AGENTS.md
 LICENSE
 README.ja.md
@@ -536,6 +547,7 @@ internal/namba/console_windows.go
 internal/namba/create_adapter.go
 internal/namba/create_engine.go
 internal/namba/create_workflow_test.go
+internal/namba/e2e_workflow_fixture_test.go
 internal/namba/eval_command.go
 internal/namba/eval_command_test.go
 internal/namba/eval_engine.go
