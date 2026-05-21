@@ -65,14 +65,6 @@ namba land
 
 - If the work is reusable agent, skill, workflow, or orchestration scaffolding, swap `namba plan` for `namba harness "description"`.
 
-## ✅ Local Quality Gates
-
-- Run `scripts/quality.sh` before PR handoff to mirror the core CI quality bar locally.
-- `go.mod` pins `toolchain go1.26.3`, so CI and local `GOTOOLCHAIN=auto` runs avoid the known Go 1.26.2 standard-library vulnerabilities.
-- The gate runs Python unittest, Go unit/race tests, harness eval regression, gofmt, go vet, staticcheck, govulncheck, and the Go coverage report.
-- The aggregate Go coverage threshold is 73.0%. It sits just below the 73.7% planning baseline to absorb Go version/reporting noise while still blocking meaningful regressions.
-- If `staticcheck` or `govulncheck` is missing, the script prints the exact `go install` command and stops.
-
 ## 🪝 Hook Runtime
 
 - You can skip this section at first. Hooks are for automatic checks or notifications that should run at specific points during `namba run`.

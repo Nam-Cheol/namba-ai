@@ -65,14 +65,6 @@ namba land
 
 - 如果工作是为了复用 agent、skill、workflow 或 orchestration，请把 `namba plan` 换成 `namba harness "description"`。
 
-## ✅ 本地质量门禁
-
-- PR 前可以运行 `scripts/quality.sh`，在本地执行 CI 的核心质量标准。
-- 该仓库使用 `go.mod` 中的 `toolchain go1.26.3`，因此 CI 和 `GOTOOLCHAIN=auto` 的本地运行会避开已知的 Go 1.26.2 标准库漏洞。
-- 该门禁会运行 Python unittest、Go unit/race tests、harness eval regression、gofmt、go vet、staticcheck、govulncheck 和 Go coverage report。
-- aggregate Go coverage threshold 为 73.0%。它略低于规划时测得的 73.7% baseline，用来吸收 Go version/reporting noise，同时阻止有意义的覆盖率回退。
-- 如果缺少 `staticcheck` 或 `govulncheck`，脚本会输出准确的 `go install` 命令并停止。
-
 ## 🪝 Hook Runtime
 
 - 如果你刚开始使用，可以先跳过这一节。Hook 用来在执行过程中的特定时机自动运行检查或通知。
