@@ -615,6 +615,8 @@ internal/namba/worktree_command_test.go
 internal/namba/write_outputs.go
 namba_test.go
 project_analysis_regression_test.go
+scripts/quality.sh
+staticcheck.conf
 sync_stability_test.go
 tests/installers/__init__.py
 tests/installers/test_install_ps1.py

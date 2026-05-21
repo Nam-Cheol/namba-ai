@@ -8,23 +8,121 @@ on:
 permissions:
   contents: read
 
+env:
+  GO_COVERAGE_THRESHOLD: "73.0"
+  STATICCHECK_VERSION: "v0.7.0"
+  GOVULNCHECK_VERSION: "v1.1.4"
+
 jobs:
-  test:
+  baseline:
+    name: Baseline tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - name: Run Python regression tests
+          cache: true
+          cache-dependency-path: go.mod
+      - name: Python unittest
         run: python3 -m unittest discover -s tests
-      - name: Run tests
+      - name: Go unit tests
         run: go test ./...
-      - name: Run harness eval regression check
+      - name: Harness eval regression
         run: go run ./cmd/namba eval --suite harness --format json --baseline internal/namba/testdata/evals/harness/baseline.json --fail-on-regression
-      - name: Run vet
-        run: go vet ./...
-      - name: Check formatting
+
+  analysis:
+    name: Formatting, vet, and staticcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.mod
+      - name: Add Go tool bin to PATH
+        run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: gofmt
         run: |
           out="$(git ls-files -z '*.go' | xargs -0 -r gofmt -l)"
-          test -z "$out" || { printf '%s\n' "$out"; exit 1; }
+          test -z "$out" || { printf 'Go files need gofmt:\n%s\n' "$out"; exit 1; }
+      - name: Go vet
+        run: go vet ./...
+      - name: Install staticcheck
+        run: go install "honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}"
+      - name: staticcheck
+        run: staticcheck ./...
+
+  vulnerability:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.mod
+      - name: Add Go tool bin to PATH
+        run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Install govulncheck
+        run: go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
+      - name: govulncheck
+        run: govulncheck ./...
+
+  race:
+    name: Go race tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.mod
+      - name: Go race tests
+        run: go test -race ./...
+
+  coverage:
+    name: Go coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.mod
+      - name: Generate Go coverage profile
+        run: go test ./... -coverprofile=coverage.out
+      - name: Generate Go coverage report
+        run: go tool cover -func=coverage.out | tee coverage.txt
+      - name: Enforce aggregate coverage threshold
+        run: |
+          measured="$(awk '/^total:/ {gsub(/%/, "", $3); print $3}' coverage.txt)"
+          if [ -z "$measured" ]; then
+            echo "Could not find total coverage in coverage.txt"
+            exit 1
+          fi
+          echo "Aggregate Go coverage: ${measured}%"
+          echo "Coverage threshold: ${GO_COVERAGE_THRESHOLD}%"
+          awk -v measured="$measured" -v threshold="$GO_COVERAGE_THRESHOLD" 'BEGIN { exit measured + 0 < threshold + 0 ? 1 : 0 }'
+      - name: Summarize Go coverage
+        run: |
+          {
+            echo "## Go coverage"
+            echo
+            echo "- Aggregate threshold: ${GO_COVERAGE_THRESHOLD}%"
+            echo
+            echo '```text'
+            cat coverage.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload Go coverage artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: go-coverage
+          path: |
+            coverage.out
+            coverage.txt
