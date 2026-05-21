@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -58,6 +59,9 @@ func (a *App) runEvalSuite(_ context.Context, root string, options evalOptions) 
 		}
 	}
 	if options.updateBaseline {
+		if strings.TrimSpace(options.caseID) != "" {
+			return evalRunResult{}, errors.New("--update-baseline cannot be combined with --case; run the full suite to update the baseline")
+		}
 		baseline := buildEvalBaseline(corpus, result)
 		if err := a.writeEvalBaseline(root, options.baseline, baseline); err != nil {
 			return evalRunResult{}, err
@@ -68,7 +72,7 @@ func (a *App) runEvalSuite(_ context.Context, root string, options evalOptions) 
 		if err != nil {
 			return evalRunResult{}, err
 		}
-		regressions := compareEvalBaseline(baseline, result)
+		regressions := compareEvalBaseline(baseline, result, strings.TrimSpace(options.caseID) != "")
 		result.Baseline = evalBaselineResult{
 			Compared:      true,
 			Path:          options.baseline,
@@ -768,7 +772,7 @@ func buildEvalBaseline(corpus evalCorpus, result evalRunResult) evalBaseline {
 	}
 }
 
-func compareEvalBaseline(baseline evalBaseline, result evalRunResult) []string {
+func compareEvalBaseline(baseline evalBaseline, result evalRunResult, partial bool) []string {
 	var regressions []string
 	if baseline.Suite != result.Suite {
 		regressions = append(regressions, fmt.Sprintf("baseline suite %q does not match result suite %q", baseline.Suite, result.Suite))
@@ -780,6 +784,9 @@ func compareEvalBaseline(baseline evalBaseline, result evalRunResult) []string {
 	for id, fingerprint := range baseline.ScenarioFingerprints {
 		current, ok := currentByID[id]
 		if !ok {
+			if partial {
+				continue
+			}
 			regressions = append(regressions, fmt.Sprintf("previously passing scenario %s disappeared", id))
 			continue
 		}
@@ -790,6 +797,10 @@ func compareEvalBaseline(baseline evalBaseline, result evalRunResult) []string {
 		if current.Fingerprint != fingerprint {
 			regressions = append(regressions, fmt.Sprintf("previously passing scenario %s changed fingerprint", id))
 		}
+	}
+	if partial {
+		sort.Strings(regressions)
+		return regressions
 	}
 	for _, metric := range result.Metrics {
 		if baselineCount, ok := baseline.MetricPassCounts[metric.Name]; ok && metric.Passed < baselineCount {

@@ -121,6 +121,49 @@ func TestEvalCommandBaselineRegressionUsesExitCodeOne(t *testing.T) {
 	}
 }
 
+func TestEvalCommandCaseBaselineComparisonIgnoresUnselectedScenarios(t *testing.T) {
+	t.Parallel()
+
+	root := repoRootForHookTest(t)
+	var stdout bytes.Buffer
+	app := NewApp(&stdout, &bytes.Buffer{})
+	restore := chdirExecution(t, root)
+	defer restore()
+
+	err := app.Run(context.Background(), []string{"eval", "--format", "json", "--fail-on-regression", "--case", "route_core_pr_review_opt_in_workflow"})
+	if err != nil {
+		t.Fatalf("expected selected eval case to pass baseline comparison: %v\n%s", err, stdout.String())
+	}
+	var result evalRunResult
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatalf("eval output should be json: %v\n%s", err, stdout.String())
+	}
+	if result.Summary.Total != 1 || result.Summary.RegressionCount != 0 || len(result.Regressions) != 0 {
+		t.Fatalf("expected only the selected case without false regressions, got summary=%+v regressions=%+v", result.Summary, result.Regressions)
+	}
+}
+
+func TestEvalCommandRejectsCaseBaselineUpdate(t *testing.T) {
+	t.Parallel()
+
+	root := repoRootForHookTest(t)
+	var stdout bytes.Buffer
+	app := NewApp(&stdout, &bytes.Buffer{})
+	restore := chdirExecution(t, root)
+	defer restore()
+
+	err := app.Run(context.Background(), []string{"eval", "--case", "route_core_pr_review_opt_in_workflow", "--update-baseline"})
+	if err == nil {
+		t.Fatal("expected --case with --update-baseline to fail")
+	}
+	if code := ExitCode(err); code != 2 {
+		t.Fatalf("expected exit code 2 for unsafe partial baseline update, got %d (%v)", code, err)
+	}
+	if !strings.Contains(err.Error(), "--update-baseline cannot be combined with --case") {
+		t.Fatalf("expected partial update diagnostic, got %v", err)
+	}
+}
+
 func TestEvalComparisonIncludesCommand(t *testing.T) {
 	t.Parallel()
 
