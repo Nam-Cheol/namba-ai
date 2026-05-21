@@ -41,6 +41,8 @@ type harnessArtifactTarget string
 const (
 	harnessArtifactTargetSkill     harnessArtifactTarget = "skill"
 	harnessArtifactTargetAgent     harnessArtifactTarget = "agent"
+	harnessArtifactTargetCLI       harnessArtifactTarget = "cli"
+	harnessArtifactTargetReport    harnessArtifactTarget = "report"
 	harnessArtifactTargetWorkflow  harnessArtifactTarget = "workflow"
 	harnessArtifactTargetValidator harnessArtifactTarget = "validator"
 	harnessArtifactTargetEvalPack  harnessArtifactTarget = "eval-pack"
@@ -105,10 +107,12 @@ type harnessEvidenceValidationReport struct {
 var harnessArtifactTargetOrder = map[harnessArtifactTarget]int{
 	harnessArtifactTargetSkill:     0,
 	harnessArtifactTargetAgent:     1,
-	harnessArtifactTargetWorkflow:  2,
-	harnessArtifactTargetValidator: 3,
-	harnessArtifactTargetEvalPack:  4,
-	harnessArtifactTargetDocs:      5,
+	harnessArtifactTargetCLI:       2,
+	harnessArtifactTargetReport:    3,
+	harnessArtifactTargetWorkflow:  4,
+	harnessArtifactTargetValidator: 5,
+	harnessArtifactTargetEvalPack:  6,
+	harnessArtifactTargetDocs:      7,
 }
 
 var harnessEvidenceOrder = map[harnessEvidence]int{
@@ -377,6 +381,12 @@ func isCoreHarnessPlanDescription(description string) bool {
 func inferCoreHarnessArtifactTargets(description string) []harnessArtifactTarget {
 	text := strings.TrimSpace(description)
 	targets := []harnessArtifactTarget{harnessArtifactTargetWorkflow}
+	if containsAnyNormalizedToken(text, "cli", "command", "commands") {
+		targets = append(targets, harnessArtifactTargetCLI)
+	}
+	if containsAnyNormalizedToken(text, "report", "observability", "status", "health") {
+		targets = append(targets, harnessArtifactTargetReport)
+	}
 	if containsAnyNormalizedToken(text, "validator", "readiness", "classifier", "classification") {
 		targets = append(targets, harnessArtifactTargetValidator)
 	}
