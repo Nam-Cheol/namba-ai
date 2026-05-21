@@ -12,13 +12,41 @@ NambaAI は、Codex と一緒に作業するときに「次に何をすればい
 
 [Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](SECURITY.md)
 
+[![Release](https://img.shields.io/github/v/release/Nam-Cheol/namba-ai?label=release)](https://github.com/Nam-Cheol/namba-ai/releases/latest) [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) [![Security](https://img.shields.io/badge/security-policy-green)](SECURITY.md) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-getting%20started-informational)](docs/getting-started.ja.md)
+
+このバッジ列は、release、CI、security policy、license、starting docs だけを信頼シグナルとして示します。
+
+[始める](docs/getting-started.ja.md) | [ワークフローガイド](docs/workflow-guide.ja.md) | [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [Security](SECURITY.md)
+
+## 最初に実行すること
+
+| 段階 | 実行 | 目的 |
+| --- | --- | --- |
+| 1 | `namba project` | repository state と project docs を最新にします。 |
+| 2 | `namba plan "description"` | feature work を review 可能な SPEC にします。 |
+| 3 | `namba run SPEC-001` | SPEC を実装し validation します。 |
+
 ## 🧭 どのコマンドを使うべきですか?
 
-- `namba project`: まず状況を把握したいときに使います。Codex がリポジトリ構造と文書を読み直します。
-- `namba plan`: 新しい機能やプロダクト変更を、順番に進められる計画にしたいときに使います。
-- `namba harness`: 再利用する skill、agent、workflow などの Namba/Codex 部品を計画したいときに使います。
-- `namba fix`: 目の前のバグをすぐ直したいときに使います。バグ修正もレビュー可能な計画にしたい場合は `namba fix --command plan` を使います。
-- `namba queue start SPEC-001..SPEC-003`: 既に作成済みの SPEC を、新しく作らず順番に最後まで処理したいときに使います。
+| 状況 | コマンド | 次の文書 |
+| --- | --- | --- |
+| 状況把握 | `namba project` | [スタートガイド](docs/getting-started.ja.md) |
+| 機能計画 | `namba plan "description"` | [ワークフローガイド](docs/workflow-guide.ja.md) |
+| harness 計画 | `namba harness "description"` | [ワークフローガイド](docs/workflow-guide.ja.md) |
+| バグ修正 | `namba fix "issue"` または `namba fix --command plan "issue"` | [ワークフローガイド](docs/workflow-guide.ja.md) |
+| 既存 SPEC の順次処理 | `namba queue start SPEC-001..SPEC-003` | [ワークフローガイド](docs/workflow-guide.ja.md) |
+| 成果物更新 | `namba sync` | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) |
+| PR handoff | `namba pr "title"` | [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) |
+
+## 次に読む文書
+
+| 文書 | 読むタイミング |
+| --- | --- |
+| [スタートガイド](docs/getting-started.ja.md) | install、update、uninstall、init、first run を確認するとき |
+| [ワークフローガイド](docs/workflow-guide.ja.md) | run modes、queue、review readiness、PR / merge flow を確認するとき |
+| [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | install する version と checksum を確認するとき |
+| [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | 現在の validation 状態を確認するとき |
+| [Security](SECURITY.md) | security policy と report path を確認するとき |
 
 ## 🧰 NambaAI でできること
 
@@ -192,3 +220,14 @@ Codex で `$...` と呼ぶ skill が、実際にはどの Namba command の流�
 - `.codex/agents/*.toml` には、Codex 内で役割を分ける custom agent 設定が入ります。
 - Emoji density rule: section headings by default, selected lifecycle/caution bullets only when they add scan value, and no emoji inside command literals, language links, release/CI/security links, or shell snippets.
 - `namba update`、`namba regen`、`namba sync`、`namba pr`、`namba land` は名前が似ていますが、別々の問題を解くコマンドです。迷ったら `$namba-coach` や `$namba-help` に先に聞けます。
+
+<details>
+<summary>高度な参考資料</summary>
+
+- 長い command semantics、queue state、review readiness、PR / merge flow は workflow guide に置きます。
+- [ワークフローガイド](docs/workflow-guide.ja.md)
+- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)
+- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)
+- [Security](SECURITY.md)
+
+</details>

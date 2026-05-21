@@ -140,3 +140,14 @@ NambaAI workflow は、まずリポジトリを読み、作業を SPEC に整理
 - [スタートガイド](./getting-started.ja.md): インストールと初回フロー
 - [Codex Upstream Reference](./codex-upstream-reference.md): このリポジトリが従う Codex 基準
 - [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration の背景と設計文脈
+
+<details>
+<summary>高度な参考資料</summary>
+
+- 長い command semantics、queue state、review readiness、PR / merge flow は workflow guide に置きます。
+- [ワークフローガイド](./workflow-guide.ja.md)
+- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)
+- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)
+- [Security](../SECURITY.md)
+
+</details>

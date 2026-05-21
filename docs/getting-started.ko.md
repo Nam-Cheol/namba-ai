@@ -80,3 +80,14 @@ namba land
 - [워크플로 가이드](./workflow-guide.ko.md)
 - [Codex Upstream Reference](./codex-upstream-reference.md)
 - [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md)
+
+<details>
+<summary>고급 참고 자료</summary>
+
+- 긴 command semantics, queue state, review readiness, PR/merge flow는 workflow guide에 둡니다.
+- [워크플로 가이드](./workflow-guide.ko.md)
+- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)
+- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)
+- [Security](../SECURITY.md)
+
+</details>

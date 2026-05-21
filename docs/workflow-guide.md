@@ -148,3 +148,14 @@ NambaAI work starts by reading the repository, shaping a SPEC, implementing and 
 - [Getting Started](./getting-started.md): install and first-run flow
 - [Codex Upstream Reference](./codex-upstream-reference.md): Codex baseline this repository follows
 - [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider-migration background and design context
+
+<details>
+<summary>Advanced reference</summary>
+
+- Longer command semantics, queue state, review readiness, PR flow, and merge flow live in the workflow guide.
+- [Workflow Guide](./workflow-guide.md)
+- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)
+- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)
+- [Security](../SECURITY.md)
+
+</details>

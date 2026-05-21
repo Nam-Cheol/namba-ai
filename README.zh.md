@@ -12,13 +12,41 @@ NambaAI 是一份给 Codex 工作流用的操作指南，帮助你少纠结“�
 
 [Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](SECURITY.md)
 
+[![Release](https://img.shields.io/github/v/release/Nam-Cheol/namba-ai?label=release)](https://github.com/Nam-Cheol/namba-ai/releases/latest) [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) [![Security](https://img.shields.io/badge/security-policy-green)](SECURITY.md) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-getting%20started-informational)](docs/getting-started.zh.md)
+
+这一行只展示 release、CI、security policy、license 和入门文档这些新用户优先查看的信任信号。
+
+[开始使用](docs/getting-started.zh.md) | [工作流指南](docs/workflow-guide.zh.md) | [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [Security](SECURITY.md)
+
+## 首先运行
+
+| 步骤 | 运行 | 目的 |
+| --- | --- | --- |
+| 1 | `namba project` | 刷新仓库状态和 project docs。 |
+| 2 | `namba plan "description"` | 把功能工作变成可评审的 SPEC。 |
+| 3 | `namba run SPEC-001` | 实现并验证 SPEC。 |
+
 ## 🧭 应该使用哪个命令？
 
-- `namba project`: 先了解情况时使用。它会让 Codex 重新读取仓库结构和文档。
-- `namba plan`: 想添加功能或做产品变更，并希望有一份清楚计划时使用。
-- `namba harness`: 想规划可复用的 skill、agent、workflow 等 Namba/Codex 组件时使用。
-- `namba fix`: 想直接修复眼前的 bug 时使用。如果 bug 修复也需要评审计划，就用 `namba fix --command plan`。
-- `namba queue start SPEC-001..SPEC-003`: 想按顺序处理已创建的 SPEC，而不再生成新 SPEC 时使用。
+| 场景 | 命令 | 下一篇文档 |
+| --- | --- | --- |
+| 了解仓库状态 | `namba project` | [快速开始](docs/getting-started.zh.md) |
+| 规划功能 | `namba plan "description"` | [工作流指南](docs/workflow-guide.zh.md) |
+| 规划 harness | `namba harness "description"` | [工作流指南](docs/workflow-guide.zh.md) |
+| 修复缺陷 | `namba fix "issue"` 或 `namba fix --command plan "issue"` | [工作流指南](docs/workflow-guide.zh.md) |
+| 顺序处理已有 SPEC | `namba queue start SPEC-001..SPEC-003` | [工作流指南](docs/workflow-guide.zh.md) |
+| 刷新产物 | `namba sync` | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) |
+| PR 交接 | `namba pr "title"` | [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) |
+
+## 接下来阅读
+
+| 文档 | 适合阅读的时机 |
+| --- | --- |
+| [快速开始](docs/getting-started.zh.md) | 需要安装、更新、卸载、init 和首次运行路径时 |
+| [工作流指南](docs/workflow-guide.zh.md) | 需要 run 模式、queue、review readiness、PR/merge 流程时 |
+| [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | 检查安装版本和 checksum 时 |
+| [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | 检查当前验证状态时 |
+| [Security](SECURITY.md) | 查看安全策略和报告路径时 |
 
 ## 🧰 你可以用 NambaAI 做什么
 
@@ -192,3 +220,14 @@ continue_on_failure = false
 - `.codex/agents/*.toml` 保存 Codex 内部分工用的 custom agent 设置。
 - Emoji density rule: section headings by default, selected lifecycle/caution bullets only when they add scan value, and no emoji inside command literals, language links, release/CI/security links, or shell snippets.
 - `namba update`、`namba regen`、`namba sync`、`namba pr`、`namba land` 名字相近，但各自解决不同的问题。拿不准时可以先问 `$namba-coach` 或 `$namba-help`。
+
+<details>
+<summary>高级参考</summary>
+
+- 较长的 command semantics、queue state、review readiness、PR/merge flow 放在 workflow guide 中。
+- [工作流指南](docs/workflow-guide.zh.md)
+- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)
+- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)
+- [Security](SECURITY.md)
+
+</details>

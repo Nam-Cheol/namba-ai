@@ -142,3 +142,14 @@ NambaAI 워크플로는 먼저 저장소를 읽고, 작업을 SPEC로 정리하�
 - [시작 가이드](./getting-started.ko.md): 설치와 첫 실행 흐름
 - [Codex Upstream Reference](./codex-upstream-reference.md): 이 저장소가 따르는 Codex 기준
 - [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration 배경과 설계 맥락
+
+<details>
+<summary>고급 참고 자료</summary>
+
+- 긴 command semantics, queue state, review readiness, PR/merge flow는 workflow guide에 둡니다.
+- [워크플로 가이드](./workflow-guide.ko.md)
+- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)
+- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)
+- [Security](../SECURITY.md)
+
+</details>

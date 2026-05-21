@@ -178,6 +178,182 @@ func renderHeroBlock(heroPath, alt string) string {
 	}, "\n")
 }
 
+func appendHeroOrFallback(lines []string, heroPath, alt, fallback string) []string {
+	if hero := renderHeroBlock(heroPath, alt); hero != "" {
+		return append(lines, hero)
+	}
+	return append(lines, fallback, "")
+}
+
+func renderRootTrustBadgeRow(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"[![Release](https://img.shields.io/github/v/release/Nam-Cheol/namba-ai?label=release)](https://github.com/Nam-Cheol/namba-ai/releases/latest) [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) [![Security](https://img.shields.io/badge/security-policy-green)](SECURITY.md) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-getting%20started-informational)](docs/getting-started.ko.md)",
+			"",
+			"이 배지는 릴리스, CI, 보안 정책, 라이선스, 시작 문서처럼 새 사용자가 먼저 확인할 수 있는 신뢰 신호만 보여줍니다.",
+			"",
+		}
+	case "ja":
+		return []string{
+			"[![Release](https://img.shields.io/github/v/release/Nam-Cheol/namba-ai?label=release)](https://github.com/Nam-Cheol/namba-ai/releases/latest) [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) [![Security](https://img.shields.io/badge/security-policy-green)](SECURITY.md) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-getting%20started-informational)](docs/getting-started.ja.md)",
+			"",
+			"このバッジ列は、release、CI、security policy、license、starting docs だけを信頼シグナルとして示します。",
+			"",
+		}
+	case "zh":
+		return []string{
+			"[![Release](https://img.shields.io/github/v/release/Nam-Cheol/namba-ai?label=release)](https://github.com/Nam-Cheol/namba-ai/releases/latest) [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) [![Security](https://img.shields.io/badge/security-policy-green)](SECURITY.md) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-getting%20started-informational)](docs/getting-started.zh.md)",
+			"",
+			"这一行只展示 release、CI、security policy、license 和入门文档这些新用户优先查看的信任信号。",
+			"",
+		}
+	default:
+		return []string{
+			"[![Release](https://img.shields.io/github/v/release/Nam-Cheol/namba-ai?label=release)](https://github.com/Nam-Cheol/namba-ai/releases/latest) [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) [![Security](https://img.shields.io/badge/security-policy-green)](SECURITY.md) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-getting%20started-informational)](docs/getting-started.md)",
+			"",
+			"These badges show only trust signals a new user can verify first: release, CI, security policy, license, and starting docs.",
+			"",
+		}
+	}
+}
+
+func renderRootCTARow(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			fmt.Sprintf("[시작하기](%s) | [%s](%s) | [릴리스](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [보안](SECURITY.md)", guidePath("getting-started", lang), localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			"",
+		}
+	case "ja":
+		return []string{
+			fmt.Sprintf("[始める](%s) | [%s](%s) | [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [Security](SECURITY.md)", guidePath("getting-started", lang), localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			"",
+		}
+	case "zh":
+		return []string{
+			fmt.Sprintf("[开始使用](%s) | [%s](%s) | [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [Security](SECURITY.md)", guidePath("getting-started", lang), localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			"",
+		}
+	default:
+		return []string{
+			fmt.Sprintf("[Start here](%s) | [%s](%s) | [Latest release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [Security](SECURITY.md)", guidePath("getting-started", lang), localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			"",
+		}
+	}
+}
+
+func renderRootNextDocsTable(lang string) []string {
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return []string{
+			"## 다음에 읽을 문서",
+			"",
+			"| 문서 | 읽을 때 |",
+			"| --- | --- |",
+			fmt.Sprintf("| [%s](%s) | 설치, update, 제거, init, 첫 실행 경로가 필요할 때 |", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
+			fmt.Sprintf("| [%s](%s) | run 모드, queue, review readiness, PR/merge 흐름이 필요할 때 |", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			"| [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | 설치할 버전과 checksum을 확인할 때 |",
+			"| [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | 현재 검증 상태를 확인할 때 |",
+			"| [Security](SECURITY.md) | 보안 정책과 신고 경로를 확인할 때 |",
+			"",
+		}
+	case "ja":
+		return []string{
+			"## 次に読む文書",
+			"",
+			"| 文書 | 読むタイミング |",
+			"| --- | --- |",
+			fmt.Sprintf("| [%s](%s) | install、update、uninstall、init、first run を確認するとき |", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
+			fmt.Sprintf("| [%s](%s) | run modes、queue、review readiness、PR / merge flow を確認するとき |", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			"| [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | install する version と checksum を確認するとき |",
+			"| [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | 現在の validation 状態を確認するとき |",
+			"| [Security](SECURITY.md) | security policy と report path を確認するとき |",
+			"",
+		}
+	case "zh":
+		return []string{
+			"## 接下来阅读",
+			"",
+			"| 文档 | 适合阅读的时机 |",
+			"| --- | --- |",
+			fmt.Sprintf("| [%s](%s) | 需要安装、更新、卸载、init 和首次运行路径时 |", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
+			fmt.Sprintf("| [%s](%s) | 需要 run 模式、queue、review readiness、PR/merge 流程时 |", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			"| [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | 检查安装版本和 checksum 时 |",
+			"| [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | 检查当前验证状态时 |",
+			"| [Security](SECURITY.md) | 查看安全策略和报告路径时 |",
+			"",
+		}
+	default:
+		return []string{
+			"## Read Next",
+			"",
+			"| Document | Use it when |",
+			"| --- | --- |",
+			fmt.Sprintf("| [%s](%s) | You need install, update, uninstall, init, and first-run steps. |", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
+			fmt.Sprintf("| [%s](%s) | You need run modes, queue behavior, review readiness, PR flow, and merge flow. |", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			"| [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | You need the version and checksum source before installing. |",
+			"| [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | You need the current validation signal. |",
+			"| [Security](SECURITY.md) | You need the security policy and reporting path. |",
+			"",
+		}
+	}
+}
+
+func renderAdvancedDetails(summary string, body []string) []string {
+	lines := []string{"<details>", fmt.Sprintf("<summary>%s</summary>", summary), ""}
+	lines = append(lines, body...)
+	lines = append(lines, "</details>", "")
+	return lines
+}
+
+func renderAdvancedReferenceDetails(lang, depth string) []string {
+	guideLink := guidePath("workflow-guide", lang)
+	securityLink := "SECURITY.md"
+	if depth == "docs" {
+		guideLink = "./" + guideFilename("workflow-guide", lang)
+		securityLink = "../SECURITY.md"
+	}
+	switch normalizeReadmeLanguage(lang) {
+	case "ko":
+		return renderAdvancedDetails("고급 참고 자료", []string{
+			"- 긴 command semantics, queue state, review readiness, PR/merge flow는 workflow guide에 둡니다.",
+			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "workflow-guide"), guideLink),
+			"- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)",
+			"- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)",
+			fmt.Sprintf("- [Security](%s)", securityLink),
+			"",
+		})
+	case "ja":
+		return renderAdvancedDetails("高度な参考資料", []string{
+			"- 長い command semantics、queue state、review readiness、PR / merge flow は workflow guide に置きます。",
+			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "workflow-guide"), guideLink),
+			"- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)",
+			"- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)",
+			fmt.Sprintf("- [Security](%s)", securityLink),
+			"",
+		})
+	case "zh":
+		return renderAdvancedDetails("高级参考", []string{
+			"- 较长的 command semantics、queue state、review readiness、PR/merge flow 放在 workflow guide 中。",
+			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "workflow-guide"), guideLink),
+			"- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)",
+			"- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)",
+			fmt.Sprintf("- [Security](%s)", securityLink),
+			"",
+		})
+	default:
+		return renderAdvancedDetails("Advanced reference", []string{
+			"- Longer command semantics, queue state, review readiness, PR flow, and merge flow live in the workflow guide.",
+			fmt.Sprintf("- [%s](%s)", localizeGuideLabel(lang, "workflow-guide"), guideLink),
+			"- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)",
+			"- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)",
+			fmt.Sprintf("- [Security](%s)", securityLink),
+			"",
+		})
+	}
+}
+
 func renderLanguageLinks(prefix string) string {
 	links := []string{
 		fmt.Sprintf("[English](%s%s)", prefix, readmePath("en")),
@@ -2028,13 +2204,41 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 			renderRootLinkBar(),
 			"",
+			"[![Release](https://img.shields.io/github/v/release/Nam-Cheol/namba-ai?label=release)](https://github.com/Nam-Cheol/namba-ai/releases/latest) [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) [![Security](https://img.shields.io/badge/security-policy-green)](SECURITY.md) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-getting%20started-informational)](docs/getting-started.ko.md)",
+			"",
+			"이 배지는 릴리스, CI, 보안 정책, 라이선스, 시작 문서처럼 새 사용자가 먼저 확인할 수 있는 신뢰 신호만 보여줍니다.",
+			"",
+			"[시작하기](docs/getting-started.ko.md) | [워크플로 가이드](docs/workflow-guide.ko.md) | [릴리스](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [보안](SECURITY.md)",
+			"",
+			"## 먼저 실행할 것",
+			"",
+			"| 단계 | 실행 | 목적 |",
+			"| --- | --- | --- |",
+			"| 1 | `namba project` | 저장소 상태와 project docs를 최신화합니다. |",
+			"| 2 | `namba plan \"description\"` | 기능 작업을 review 가능한 SPEC로 만듭니다. |",
+			"| 3 | `namba run SPEC-001` | SPEC을 구현하고 검증합니다. |",
+			"",
 			"## 🧭 어떤 명령을 써야 하나요?",
 			"",
-			"- `namba project`: 먼저 상황 파악이 필요할 때 씁니다. Codex가 저장소 구조와 문서를 다시 읽게 합니다.",
-			"- `namba plan`: 새 기능이나 제품 변경을 차근차근 진행할 계획으로 만들고 싶을 때 씁니다.",
-			"- `namba harness`: 재사용할 skill, agent, workflow 같은 Namba/Codex 구성요소를 계획할 때 씁니다.",
-			"- `namba fix`: 지금 보이는 버그를 바로 고치고 싶을 때 씁니다. 버그도 리뷰 가능한 계획으로 남기고 싶으면 `namba fix --command plan`을 씁니다.",
-			"- `namba queue start SPEC-001..SPEC-003`: 이미 만들어 둔 SPEC들을 새로 생성하지 않고 순서대로 끝까지 처리하고 싶을 때 씁니다.",
+			"| 상황 | 명령 | 다음 문서 |",
+			"| --- | --- | --- |",
+			"| 저장소 상태 파악 | `namba project` | [시작 가이드](docs/getting-started.ko.md) |",
+			"| 기능 계획 | `namba plan \"description\"` | [워크플로 가이드](docs/workflow-guide.ko.md) |",
+			"| harness 계획 | `namba harness \"description\"` | [워크플로 가이드](docs/workflow-guide.ko.md) |",
+			"| 버그 수리 | `namba fix \"issue\"` 또는 `namba fix --command plan \"issue\"` | [워크플로 가이드](docs/workflow-guide.ko.md) |",
+			"| 기존 SPEC 순차 처리 | `namba queue start SPEC-001..SPEC-003` | [워크플로 가이드](docs/workflow-guide.ko.md) |",
+			"| 산출물 갱신 | `namba sync` | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) |",
+			"| PR 인계 | `namba pr \"title\"` | [릴리스](https://github.com/Nam-Cheol/namba-ai/releases/latest) |",
+			"",
+			"## 다음에 읽을 문서",
+			"",
+			"| 문서 | 읽을 때 |",
+			"| --- | --- |",
+			"| [시작 가이드](docs/getting-started.ko.md) | 설치, update, 제거, init, 첫 실행 경로가 필요할 때 |",
+			"| [워크플로 가이드](docs/workflow-guide.ko.md) | run 모드, queue, review readiness, PR/merge 흐름이 필요할 때 |",
+			"| [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | 설치할 버전과 checksum을 확인할 때 |",
+			"| [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | 현재 검증 상태를 확인할 때 |",
+			"| [Security](SECURITY.md) | 보안 정책과 신고 경로를 확인할 때 |",
 			"",
 			"## 🧰 NambaAI로 할 수 있는 일",
 			"",
@@ -2058,6 +2262,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 		lines = append(lines, renderNambaCLIRootCustomAgentsSection(lang)...)
 		lines = append(lines, renderNambaCLIRootReadMoreSection(lang)...)
 		lines = append(lines, renderNambaCLIRootTechnicalSnapshotSection(lang)...)
+		lines = append(lines, renderAdvancedReferenceDetails(lang, "root")...)
 		return strings.Join(lines, "\n")
 	case "ja":
 		lines := []string{
@@ -2071,13 +2276,41 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 			renderRootLinkBar(),
 			"",
+			"[![Release](https://img.shields.io/github/v/release/Nam-Cheol/namba-ai?label=release)](https://github.com/Nam-Cheol/namba-ai/releases/latest) [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) [![Security](https://img.shields.io/badge/security-policy-green)](SECURITY.md) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-getting%20started-informational)](docs/getting-started.ja.md)",
+			"",
+			"このバッジ列は、release、CI、security policy、license、starting docs だけを信頼シグナルとして示します。",
+			"",
+			"[始める](docs/getting-started.ja.md) | [ワークフローガイド](docs/workflow-guide.ja.md) | [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [Security](SECURITY.md)",
+			"",
+			"## 最初に実行すること",
+			"",
+			"| 段階 | 実行 | 目的 |",
+			"| --- | --- | --- |",
+			"| 1 | `namba project` | repository state と project docs を最新にします。 |",
+			"| 2 | `namba plan \"description\"` | feature work を review 可能な SPEC にします。 |",
+			"| 3 | `namba run SPEC-001` | SPEC を実装し validation します。 |",
+			"",
 			"## 🧭 どのコマンドを使うべきですか?",
 			"",
-			"- `namba project`: まず状況を把握したいときに使います。Codex がリポジトリ構造と文書を読み直します。",
-			"- `namba plan`: 新しい機能やプロダクト変更を、順番に進められる計画にしたいときに使います。",
-			"- `namba harness`: 再利用する skill、agent、workflow などの Namba/Codex 部品を計画したいときに使います。",
-			"- `namba fix`: 目の前のバグをすぐ直したいときに使います。バグ修正もレビュー可能な計画にしたい場合は `namba fix --command plan` を使います。",
-			"- `namba queue start SPEC-001..SPEC-003`: 既に作成済みの SPEC を、新しく作らず順番に最後まで処理したいときに使います。",
+			"| 状況 | コマンド | 次の文書 |",
+			"| --- | --- | --- |",
+			"| 状況把握 | `namba project` | [スタートガイド](docs/getting-started.ja.md) |",
+			"| 機能計画 | `namba plan \"description\"` | [ワークフローガイド](docs/workflow-guide.ja.md) |",
+			"| harness 計画 | `namba harness \"description\"` | [ワークフローガイド](docs/workflow-guide.ja.md) |",
+			"| バグ修正 | `namba fix \"issue\"` または `namba fix --command plan \"issue\"` | [ワークフローガイド](docs/workflow-guide.ja.md) |",
+			"| 既存 SPEC の順次処理 | `namba queue start SPEC-001..SPEC-003` | [ワークフローガイド](docs/workflow-guide.ja.md) |",
+			"| 成果物更新 | `namba sync` | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) |",
+			"| PR handoff | `namba pr \"title\"` | [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) |",
+			"",
+			"## 次に読む文書",
+			"",
+			"| 文書 | 読むタイミング |",
+			"| --- | --- |",
+			"| [スタートガイド](docs/getting-started.ja.md) | install、update、uninstall、init、first run を確認するとき |",
+			"| [ワークフローガイド](docs/workflow-guide.ja.md) | run modes、queue、review readiness、PR / merge flow を確認するとき |",
+			"| [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | install する version と checksum を確認するとき |",
+			"| [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | 現在の validation 状態を確認するとき |",
+			"| [Security](SECURITY.md) | security policy と report path を確認するとき |",
 			"",
 			"## 🧰 NambaAI でできること",
 			"",
@@ -2101,6 +2334,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 		lines = append(lines, renderNambaCLIRootCustomAgentsSection(lang)...)
 		lines = append(lines, renderNambaCLIRootReadMoreSection(lang)...)
 		lines = append(lines, renderNambaCLIRootTechnicalSnapshotSection(lang)...)
+		lines = append(lines, renderAdvancedReferenceDetails(lang, "root")...)
 		return strings.Join(lines, "\n")
 	case "zh":
 		lines := []string{
@@ -2114,13 +2348,41 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 			renderRootLinkBar(),
 			"",
+			"[![Release](https://img.shields.io/github/v/release/Nam-Cheol/namba-ai?label=release)](https://github.com/Nam-Cheol/namba-ai/releases/latest) [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) [![Security](https://img.shields.io/badge/security-policy-green)](SECURITY.md) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-getting%20started-informational)](docs/getting-started.zh.md)",
+			"",
+			"这一行只展示 release、CI、security policy、license 和入门文档这些新用户优先查看的信任信号。",
+			"",
+			"[开始使用](docs/getting-started.zh.md) | [工作流指南](docs/workflow-guide.zh.md) | [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [Security](SECURITY.md)",
+			"",
+			"## 首先运行",
+			"",
+			"| 步骤 | 运行 | 目的 |",
+			"| --- | --- | --- |",
+			"| 1 | `namba project` | 刷新仓库状态和 project docs。 |",
+			"| 2 | `namba plan \"description\"` | 把功能工作变成可评审的 SPEC。 |",
+			"| 3 | `namba run SPEC-001` | 实现并验证 SPEC。 |",
+			"",
 			"## 🧭 应该使用哪个命令？",
 			"",
-			"- `namba project`: 先了解情况时使用。它会让 Codex 重新读取仓库结构和文档。",
-			"- `namba plan`: 想添加功能或做产品变更，并希望有一份清楚计划时使用。",
-			"- `namba harness`: 想规划可复用的 skill、agent、workflow 等 Namba/Codex 组件时使用。",
-			"- `namba fix`: 想直接修复眼前的 bug 时使用。如果 bug 修复也需要评审计划，就用 `namba fix --command plan`。",
-			"- `namba queue start SPEC-001..SPEC-003`: 想按顺序处理已创建的 SPEC，而不再生成新 SPEC 时使用。",
+			"| 场景 | 命令 | 下一篇文档 |",
+			"| --- | --- | --- |",
+			"| 了解仓库状态 | `namba project` | [快速开始](docs/getting-started.zh.md) |",
+			"| 规划功能 | `namba plan \"description\"` | [工作流指南](docs/workflow-guide.zh.md) |",
+			"| 规划 harness | `namba harness \"description\"` | [工作流指南](docs/workflow-guide.zh.md) |",
+			"| 修复缺陷 | `namba fix \"issue\"` 或 `namba fix --command plan \"issue\"` | [工作流指南](docs/workflow-guide.zh.md) |",
+			"| 顺序处理已有 SPEC | `namba queue start SPEC-001..SPEC-003` | [工作流指南](docs/workflow-guide.zh.md) |",
+			"| 刷新产物 | `namba sync` | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) |",
+			"| PR 交接 | `namba pr \"title\"` | [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) |",
+			"",
+			"## 接下来阅读",
+			"",
+			"| 文档 | 适合阅读的时机 |",
+			"| --- | --- |",
+			"| [快速开始](docs/getting-started.zh.md) | 需要安装、更新、卸载、init 和首次运行路径时 |",
+			"| [工作流指南](docs/workflow-guide.zh.md) | 需要 run 模式、queue、review readiness、PR/merge 流程时 |",
+			"| [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | 检查安装版本和 checksum 时 |",
+			"| [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | 检查当前验证状态时 |",
+			"| [Security](SECURITY.md) | 查看安全策略和报告路径时 |",
 			"",
 			"## 🧰 你可以用 NambaAI 做什么",
 			"",
@@ -2144,6 +2406,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 		lines = append(lines, renderNambaCLIRootCustomAgentsSection(lang)...)
 		lines = append(lines, renderNambaCLIRootReadMoreSection(lang)...)
 		lines = append(lines, renderNambaCLIRootTechnicalSnapshotSection(lang)...)
+		lines = append(lines, renderAdvancedReferenceDetails(lang, "root")...)
 		return strings.Join(lines, "\n")
 	default:
 		lines := []string{
@@ -2157,13 +2420,41 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"",
 			renderRootLinkBar(),
 			"",
+			"[![Release](https://img.shields.io/github/v/release/Nam-Cheol/namba-ai?label=release)](https://github.com/Nam-Cheol/namba-ai/releases/latest) [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) [![Security](https://img.shields.io/badge/security-policy-green)](SECURITY.md) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-getting%20started-informational)](docs/getting-started.md)",
+			"",
+			"These badges show only trust signals a new user can verify first: release, CI, security policy, license, and starting docs.",
+			"",
+			"[Start here](docs/getting-started.md) | [Workflow Guide](docs/workflow-guide.md) | [Latest release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [Security](SECURITY.md)",
+			"",
+			"## Run First",
+			"",
+			"| Step | Run | Purpose |",
+			"| --- | --- | --- |",
+			"| 1 | `namba project` | Refresh repository context and project docs. |",
+			"| 2 | `namba plan \"description\"` | Turn feature work into a reviewable SPEC. |",
+			"| 3 | `namba run SPEC-001` | Implement and validate the SPEC. |",
+			"",
 			"## 🧭 Which Command Should I Use?",
 			"",
-			"- `namba project`: start here when you need Codex to look around and refresh its notes about the repository.",
-			"- `namba plan`: use this when you want to add or change a feature and need a clear plan.",
-			"- `namba harness`: use this for reusable Namba/Codex building blocks such as skills, agents, or workflows.",
-			"- `namba fix`: use this when something is broken and you want to repair it now. Use `namba fix --command plan` when the fix should have a reviewable plan first.",
-			"- `namba queue start SPEC-001..SPEC-003`: use this when existing SPECs should be processed in order without creating new ones.",
+			"| Situation | Command | Read next |",
+			"| --- | --- | --- |",
+			"| Understand repository state | `namba project` | [Getting Started](docs/getting-started.md) |",
+			"| Plan a feature | `namba plan \"description\"` | [Workflow Guide](docs/workflow-guide.md) |",
+			"| Plan harness work | `namba harness \"description\"` | [Workflow Guide](docs/workflow-guide.md) |",
+			"| Repair a bug | `namba fix \"issue\"` or `namba fix --command plan \"issue\"` | [Workflow Guide](docs/workflow-guide.md) |",
+			"| Process existing SPECs | `namba queue start SPEC-001..SPEC-003` | [Workflow Guide](docs/workflow-guide.md) |",
+			"| Refresh artifacts | `namba sync` | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) |",
+			"| Hand off a PR | `namba pr \"title\"` | [Latest release](https://github.com/Nam-Cheol/namba-ai/releases/latest) |",
+			"",
+			"## Read Next",
+			"",
+			"| Document | Use it when |",
+			"| --- | --- |",
+			"| [Getting Started](docs/getting-started.md) | You need install, update, uninstall, init, and first-run steps. |",
+			"| [Workflow Guide](docs/workflow-guide.md) | You need run modes, queue behavior, review readiness, PR flow, and merge flow. |",
+			"| [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | You need the version and checksum source before installing. |",
+			"| [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | You need the current validation signal. |",
+			"| [Security](SECURITY.md) | You need the security policy and reporting path. |",
 			"",
 			"## 🧰 What You Can Do With NambaAI",
 			"",
@@ -2187,6 +2478,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 		lines = append(lines, renderNambaCLIRootCustomAgentsSection(lang)...)
 		lines = append(lines, renderNambaCLIRootReadMoreSection(lang)...)
 		lines = append(lines, renderNambaCLIRootTechnicalSnapshotSection(lang)...)
+		lines = append(lines, renderAdvancedReferenceDetails(lang, "root")...)
 		return strings.Join(lines, "\n")
 	}
 }
@@ -2551,6 +2843,7 @@ func renderManagedProjectRoot(lang string, projectCfg projectConfig, profile ini
 		lines = append(lines, renderManagedProjectRootQuickStartSection(lang)...)
 		lines = append(lines, renderManagedProjectRootReadMoreSection(lang)...)
 		lines = append(lines, renderManagedProjectRootCurrentDefaultsSection(lang, profile)...)
+		lines = append(lines, renderAdvancedReferenceDetails(lang, "root")...)
 		return strings.Join(lines, "\n")
 	case "ja":
 		lines := []string{
@@ -2567,6 +2860,7 @@ func renderManagedProjectRoot(lang string, projectCfg projectConfig, profile ini
 		lines = append(lines, renderManagedProjectRootQuickStartSection(lang)...)
 		lines = append(lines, renderManagedProjectRootReadMoreSection(lang)...)
 		lines = append(lines, renderManagedProjectRootCurrentDefaultsSection(lang, profile)...)
+		lines = append(lines, renderAdvancedReferenceDetails(lang, "root")...)
 		return strings.Join(lines, "\n")
 	case "zh":
 		lines := []string{
@@ -2583,6 +2877,7 @@ func renderManagedProjectRoot(lang string, projectCfg projectConfig, profile ini
 		lines = append(lines, renderManagedProjectRootQuickStartSection(lang)...)
 		lines = append(lines, renderManagedProjectRootReadMoreSection(lang)...)
 		lines = append(lines, renderManagedProjectRootCurrentDefaultsSection(lang, profile)...)
+		lines = append(lines, renderAdvancedReferenceDetails(lang, "root")...)
 		return strings.Join(lines, "\n")
 	default:
 		lines := []string{
@@ -2602,6 +2897,7 @@ func renderManagedProjectRoot(lang string, projectCfg projectConfig, profile ini
 		lines = append(lines, renderManagedProjectRootCustomAgentsSection(lang)...)
 		lines = append(lines, renderManagedProjectRootReadMoreSection(lang)...)
 		lines = append(lines, renderManagedProjectRootCurrentDefaultsSection(lang, profile)...)
+		lines = append(lines, renderAdvancedReferenceDetails(lang, "root")...)
 		return strings.Join(lines, "\n")
 	}
 }
@@ -2636,6 +2932,7 @@ func renderNambaCLIGettingStarted(lang string) string {
 	lines = append(lines, renderNambaCLIGettingStartedBootstrapSection(lang)...)
 	lines = append(lines, renderNambaCLIGettingStartedBasicFlowSection(lang)...)
 	lines = append(lines, renderNambaCLIGettingStartedNextDocsSection(lang)...)
+	lines = append(lines, renderAdvancedReferenceDetails(lang, "docs")...)
 	return strings.Join(lines, "\n")
 }
 
@@ -2705,6 +3002,7 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 		lines = append(lines, renderNambaCLIWorkflowGuideCollaborationDefaultsSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReferenceSection(lang)...)
+		lines = append(lines, renderAdvancedReferenceDetails(lang, "docs")...)
 		return strings.Join(lines, "\n")
 	case "ja":
 		lines := renderReadmeGuidePrelude(lang, "workflow-guide")
@@ -2770,6 +3068,7 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 		lines = append(lines, renderNambaCLIWorkflowGuideCollaborationDefaultsSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReferenceSection(lang)...)
+		lines = append(lines, renderAdvancedReferenceDetails(lang, "docs")...)
 		return strings.Join(lines, "\n")
 	case "zh":
 		lines := renderReadmeGuidePrelude(lang, "workflow-guide")
@@ -2835,6 +3134,7 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 		lines = append(lines, renderNambaCLIWorkflowGuideCollaborationDefaultsSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReferenceSection(lang)...)
+		lines = append(lines, renderAdvancedReferenceDetails(lang, "docs")...)
 		return strings.Join(lines, "\n")
 	default:
 		lines := renderReadmeGuidePrelude(lang, "workflow-guide")
@@ -2906,6 +3206,7 @@ func renderNambaCLIWorkflowGuide(lang string) string {
 		lines = append(lines, renderNambaCLIWorkflowGuideCollaborationDefaultsSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReleaseFlowSection(lang)...)
 		lines = append(lines, renderNambaCLIWorkflowGuideReferenceSection(lang)...)
+		lines = append(lines, renderAdvancedReferenceDetails(lang, "docs")...)
 		return strings.Join(lines, "\n")
 	}
 }
@@ -3181,6 +3482,7 @@ func renderManagedProjectGettingStarted(lang string, projectCfg projectConfig) s
 	lines = append(lines, renderManagedProjectGettingStartedReviewReadinessSection(lang)...)
 	lines = append(lines, renderManagedProjectGettingStartedImplementSection(lang)...)
 	lines = append(lines, renderManagedProjectGettingStartedHandoffSection(lang)...)
+	lines = append(lines, renderAdvancedReferenceDetails(lang, "docs")...)
 	return strings.Join(lines, "\n")
 }
 
@@ -3689,5 +3991,6 @@ func renderManagedProjectWorkflowGuide(lang string, projectCfg projectConfig, pr
 	lines := renderManagedProjectWorkflowGuidePrelude(normalizedLang, projectName)
 	lines = appendManagedProjectWorkflowGuideSections(lines, normalizedLang, includeEnglishOnlySections, includeEnglishOnlySections)
 	lines = append(lines, renderManagedProjectWorkflowGuideCollaborationRulesSection(normalizedLang, profile)...)
+	lines = append(lines, renderAdvancedReferenceDetails(normalizedLang, "docs")...)
 	return strings.Join(lines, "\n")
 }
