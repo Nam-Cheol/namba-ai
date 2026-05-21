@@ -32,7 +32,7 @@ Advisory only: use this summary to decide whether the SPEC has enough pre-implem
 
 ## Harness Advisory
 
-- Route: `harness`
+- Route: `namba plan`
 - Request kind: `core_harness_change`
 - Delivery mode: `spec`
 - Adaptation mode: `modify_core`

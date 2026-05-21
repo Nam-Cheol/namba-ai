@@ -66,6 +66,37 @@ func TestInferCoreHarnessPlanRequestClassifiesCorePlanningWork(t *testing.T) {
 	}
 }
 
+func TestHarnessRequestAcceptsCLIReportTargets(t *testing.T) {
+	t.Parallel()
+
+	root := canonicalTempDir(t)
+	specID := "SPEC-059"
+	specDir := filepath.Join(root, ".namba", "specs", specID)
+	if err := os.MkdirAll(specDir, 0o755); err != nil {
+		t.Fatalf("mkdir spec dir: %v", err)
+	}
+	body := `{
+  "request_kind": "core_harness_change",
+  "delivery_mode": "spec",
+  "adaptation_mode": "modify_core",
+  "base_contract_ref": "namba-core-harness",
+  "touches_namba_core": true,
+  "artifact_targets": ["cli", "report", "workflow", "validator"],
+  "required_evidence": ["contract", "baseline", "eval-plan"],
+  "required_reviews": ["product", "engineering", "design"]
+}`
+	if err := os.WriteFile(filepath.Join(specDir, "harness-request.json"), []byte(body), 0o644); err != nil {
+		t.Fatalf("write harness request: %v", err)
+	}
+	req, err := loadHarnessRequest(root, specID)
+	if err != nil {
+		t.Fatalf("load harness request: %v", err)
+	}
+	if req == nil || !equalHarnessArtifactTargets(req.ArtifactTargets, []harnessArtifactTarget{harnessArtifactTargetCLI, harnessArtifactTargetReport, harnessArtifactTargetWorkflow, harnessArtifactTargetValidator}) {
+		t.Fatalf("unexpected artifact targets: %+v", req)
+	}
+}
+
 func TestInferCoreHarnessPlanRequestSkipsRegularFeaturePlans(t *testing.T) {
 	t.Parallel()
 

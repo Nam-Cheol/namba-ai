@@ -301,6 +301,7 @@ func publicTopLevelCommandDefinitions() []topLevelCommandDefinition {
 		{Name: "init", UsageSummary: "  namba init [path] [--yes] [--name NAME] [--mode tdd|ddd] [--project-type new|existing]", UsageText: initUsageText, Run: (*App).runInit},
 		{Name: "doctor", UsageSummary: "  namba doctor", UsageText: doctorUsageText, Run: (*App).runDoctor},
 		{Name: "status", UsageSummary: "  namba status", UsageText: statusUsageText, Run: (*App).runStatus},
+		{Name: "report", UsageSummary: "  namba report [--format markdown|text|json] [--json]", UsageText: reportUsageText, Run: (*App).runReport},
 		{Name: "project", UsageSummary: "  namba project", UsageText: projectUsageText, Run: (*App).runProject},
 		{Name: "update", UsageSummary: "  namba update [--version vX.Y.Z]", UsageText: updateUsageText, Run: (*App).runUpdate},
 		{Name: "regen", UsageSummary: "  namba regen", UsageText: regenUsageText, Run: (*App).runRegen},
@@ -416,11 +417,15 @@ func doctorUsageText() string {
 }
 
 func statusUsageText() string {
-	return singleUsageLineCommandUsageText(
-		"status",
-		"  namba status",
+	return strings.Join([]string{
+		"namba status",
+		"",
+		"Usage:",
+		"  namba status [--json]",
+		"",
+		"Behavior:",
 		"  Print a read-only summary of the current NambaAI repository state.",
-	)
+	}, "\n") + "\n"
 }
 
 func projectUsageText() string {
@@ -587,13 +592,34 @@ func (a *App) runDoctor(ctx context.Context, args []string) error {
 }
 
 func (a *App) runStatus(_ context.Context, args []string) error {
-	if handled, err := a.handleNoArgTopLevelCommand("status", args); handled {
-		return err
+	if wantsCommandHelp(args) {
+		return a.printCommandUsage("status")
+	}
+	statusJSON := false
+	for _, arg := range args {
+		switch arg {
+		case "--json":
+			statusJSON = true
+		default:
+			if strings.HasPrefix(arg, "--") {
+				return commandUsageError("status", fmt.Errorf("unknown flag %q", arg))
+			}
+			return commandUsageError("status", errors.New("status does not accept arguments"))
+		}
 	}
 
 	root, err := a.requireProjectRoot()
 	if err != nil {
 		return err
+	}
+	if statusJSON {
+		report := collectNambaReport(root, a.now(), reportOptions{})
+		output, err := renderStatusJSON(report)
+		if err != nil {
+			return commandExitError(2, err)
+		}
+		fmt.Fprint(a.stdout, output)
+		return nil
 	}
 
 	projectCfg, _ := a.loadProjectConfig(root)
