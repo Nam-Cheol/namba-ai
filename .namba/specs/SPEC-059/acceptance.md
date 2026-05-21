@@ -1,0 +1,23 @@
+# Acceptance
+
+- [ ] `namba report` is available as a public read-only top-level command.
+- [ ] `namba report --json` emits stable JSON with `schema_version: namba-report/v1`.
+- [ ] `namba report --format json` is equivalent to `namba report --json`.
+- [ ] `namba report` default output is human-readable and surfaces health, top issues, blocked reasons, missing evidence, validation failures, review readiness, queue state, stale candidates, release readiness, and diagnostics.
+- [ ] `namba status` without flags keeps its existing text output contract.
+- [ ] `namba status --json` emits a compact JSON status without breaking existing status behavior.
+- [ ] The parser handles missing `.namba` logs, missing queue state, missing run evidence, missing readiness files, corrupt JSON, and partially corrupt JSONL without crashing.
+- [ ] JSON output includes automation-friendly `summary`, `runs`, `queue`, `specs`, `release`, `diagnostics`, `issues`, and `warnings` fields.
+- [ ] Blocked reason breakdown is visible in both JSON and human output.
+- [ ] Missing evidence count is derived from execution evidence refs and harness evidence requirements.
+- [ ] Validation failure count is derived from validation reports and execution evidence status.
+- [ ] Queue pending, running, blocked, and done counts are derived from `.namba/logs/queue/state.json` when present and gracefully report `none` when absent.
+- [ ] Review required and review ready counts are derived from SPEC readiness summaries.
+- [ ] SPEC completeness identifies missing core files and missing required harness evidence.
+- [ ] Stale candidates include stale queue runner heartbeat candidates and old incomplete SPEC candidates.
+- [ ] Release readiness summarizes release checklist completion and latest release note presence.
+- [ ] Recent diagnostics summary includes Codex availability, version comparison, doctor status, workspace root comparison, remote-control status, and remote-environment status when available.
+- [ ] Report generation performs no network calls and does not mutate repository files.
+- [ ] Parser unit tests cover tolerant missing, corrupt, and partial data behavior.
+- [ ] CLI tests cover help, invalid flags, JSON rendering, markdown/text rendering, and `status --json`.
+- [ ] The repository-wide Go test suite passes.
