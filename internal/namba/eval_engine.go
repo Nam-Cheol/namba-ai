@@ -10,10 +10,24 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 )
+
+var evalHookGuardDenyPatterns = []struct {
+	pattern *regexp.Regexp
+	reason  string
+}{
+	{regexp.MustCompile(`(?i)\bgit\s+reset\s+--hard\b`), "discards repository changes"},
+	{regexp.MustCompile(`(?i)\bgit\s+clean\s+-[^\n;&|]*[fd][^\n;&|]*`), "delete untracked files"},
+	{regexp.MustCompile(`(?i)\bgit\s+push\b[^\n;&|]*(?:\s-f\b|\s--force(?:-with-lease)?\b)`), "force-pushing"},
+	{regexp.MustCompile(`(?i)\brm\s+-[^\n;&|]*r[^\n;&|]*f[^\n;&|]*\s+(?:/|\*|\.|~|\$HOME)(?:\s|$|/)`), "broad rm -rf"},
+	{regexp.MustCompile(`(?i)\brm\s+-[^\n;&|]*f[^\n;&|]*r[^\n;&|]*\s+(?:/|\*|\.|~|\$HOME)(?:\s|$|/)`), "broad rm -rf"},
+	{regexp.MustCompile(`(?i)\bchmod\s+-R\s+777\b`), "chmod 777"},
+	{regexp.MustCompile(`(?i)\b(?:curl|wget)\b[^\n|;&]*(?:\||>)\s*(?:sudo\s+)?(?:sh|bash)\b`), "downloaded content"},
+}
 
 func (a *App) runEvalSuite(_ context.Context, root string, options evalOptions) (evalRunResult, error) {
 	if options.suite != defaultEvalSuite {
@@ -497,23 +511,12 @@ func harnessArtifactTargetStrings(targets []harnessArtifactTarget) []string {
 }
 
 func evalGuardrailDeny(command string) (bool, string) {
-	lower := strings.ToLower(command)
-	switch {
-	case strings.Contains(lower, "git reset --hard"):
-		return true, "discards repository changes"
-	case strings.Contains(lower, "git clean -fd") || strings.Contains(lower, "git clean -df"):
-		return true, "delete untracked files"
-	case strings.Contains(lower, "git push --force"):
-		return true, "force-pushing"
-	case strings.Contains(lower, "rm -rf /") || strings.Contains(lower, "rm -rf ."):
-		return true, "broad rm -rf"
-	case strings.Contains(lower, "chmod -r 777") || strings.Contains(lower, "chmod 777"):
-		return true, "chmod 777"
-	case (strings.Contains(lower, "curl ") || strings.Contains(lower, "wget ")) && (strings.Contains(lower, "| sh") || strings.Contains(lower, "| bash")):
-		return true, "downloaded content"
-	default:
-		return false, ""
+	for _, deny := range evalHookGuardDenyPatterns {
+		if deny.pattern.MatchString(command) {
+			return true, deny.reason
+		}
 	}
+	return false, ""
 }
 
 func evalGuardrailRisk(command string) (bool, string) {

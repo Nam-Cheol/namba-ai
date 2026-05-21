@@ -9,6 +9,7 @@
     "evidence_raw_complete_manifest": "22d9a69edaa4dee183440d0e8a16d82b29e55f07b028387a3c11d8bb75b305c8",
     "evidence_raw_missing_identity_and_base_sections": "cad5ee70f1838ee0568a6e21370e9c2d1853d338ad9e8b09b7f3ffb13f63a53b",
     "guardrail_deny_git_clean_fd": "bef419c886e2f8a7b5d89d853b50a1b8baccf69b530aeb855f67236ff6528fc2",
+    "guardrail_deny_git_clean_ffdx": "d58a2156a1d605e930c68a5092d34da91cc6b825eddb144406fdaf2462e8693c",
     "guardrail_deny_git_reset_hard": "fc27cea157045642bcc85f268766064cc2701ac7df9c79b84f0f2b036a9b5865",
     "guardrail_risk_note_sudo_go_test": "72dfd4059604199e4986343035820749a6903ed4b63e79c65ee4a5f3ceaceba9",
     "guardrail_safe_go_test": "d82382c4f71673832004c92b97ad61ebeb19efe43d40091e8c3718dd75f77415",
@@ -34,10 +35,10 @@
     "artifact_targets": 1,
     "clarification": 14,
     "delivery_mode": 5,
-    "execution_readiness": 25,
+    "execution_readiness": 26,
     "required_evidence": 6,
     "required_reviews": 6,
-    "route_selection": 13,
+    "route_selection": 14,
     "spec_required_fields": 2
   },
   "required_coverage": [

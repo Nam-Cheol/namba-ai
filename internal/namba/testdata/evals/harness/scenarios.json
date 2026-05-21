@@ -207,6 +207,21 @@
       "rationale": "Clean can delete untracked work."
     },
     {
+      "id": "guardrail_deny_git_clean_ffdx",
+      "type": "guardrail",
+      "tags": ["coverage:unsafe-or-blocked-command", "family:guardrail"],
+      "input": "git clean -ffdx",
+      "expected": {
+        "event_type": "PreToolUse",
+        "command": "git clean -ffdx",
+        "deny": true,
+        "risk_note": false,
+        "reason_substring": "delete untracked files",
+        "execution_ready": false
+      },
+      "rationale": "Aggressive git clean variants can delete ignored and untracked work."
+    },
+    {
       "id": "guardrail_safe_go_test",
       "type": "guardrail",
       "tags": ["coverage:core-runtime-or-harness-change", "family:guardrail"],

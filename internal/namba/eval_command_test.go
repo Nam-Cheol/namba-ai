@@ -310,6 +310,17 @@ func TestEvalGuardrailScenarioUsesInputCommand(t *testing.T) {
 	}
 }
 
+func TestEvalGuardrailDenyMatchesHookGitCleanVariants(t *testing.T) {
+	t.Parallel()
+
+	for _, command := range []string{"git clean -fd", "git clean -ffdx", "git clean -xdf"} {
+		deny, reason := evalGuardrailDeny(command)
+		if !deny || !strings.Contains(reason, "delete untracked files") {
+			t.Fatalf("expected git clean variant %q to be denied, got deny=%v reason=%q", command, deny, reason)
+		}
+	}
+}
+
 func TestEvalFileReadsDiskBeforeEmbeddedFixture(t *testing.T) {
 	t.Parallel()
 
