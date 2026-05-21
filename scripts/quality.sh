@@ -31,7 +31,7 @@ require_tool() {
 
 check_gofmt() {
   local out
-  out="$(git ls-files -z '*.go' | xargs -0 -r gofmt -l)"
+  out="$(git ls-files -z '*.go' | xargs -0 gofmt -l)"
   if [[ -n "$out" ]]; then
     printf 'Go files need gofmt:\n%s\n' "$out" >&2
     return 1
@@ -52,9 +52,7 @@ check_coverage_threshold() {
   awk -v measured="$measured" -v threshold="$coverage_threshold" 'BEGIN { exit measured + 0 < threshold + 0 ? 1 : 0 }'
 }
 
-if [[ -d tests ]]; then
-  run_step "Python unittest discovery" python3 -m unittest discover -s tests
-fi
+run_step "Python unittest discovery" python3 -m unittest discover -s tests
 
 run_step "gofmt check" check_gofmt
 run_step "Go vet" go vet ./...

@@ -45,7 +45,7 @@ jobs:
         run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: gofmt
         run: |
-          out="$(git ls-files -z '*.go' | xargs -0 -r gofmt -l)"
+          out="$(git ls-files -z '*.go' | xargs -0 gofmt -l)"
           test -z "$out" || { printf 'Go files need gofmt:\n%s\n' "$out"; exit 1; }
       - name: Go vet
         run: go vet ./...
