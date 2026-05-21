@@ -33,6 +33,11 @@ type executionTurnResult struct {
 	Error           string   `json:"error,omitempty"`
 }
 
+type codexExecCommand struct {
+	Args  []string
+	Input string
+}
+
 type executionResult struct {
 	Runner             string                `json:"runner"`
 	SpecID             string                `json:"spec_id"`
@@ -110,7 +115,7 @@ func (r codexRunner) Execute(ctx context.Context, req executionRequest, capabili
 		result.SessionAction = "exec"
 	}
 
-	args, err := buildCodexExecArgs(req, capabilities)
+	command, err := buildCodexExecCommand(req, capabilities)
 	if err != nil {
 		result.FinishedAt = r.now().Format(time.RFC3339)
 		result.Error = err.Error()
@@ -123,10 +128,10 @@ func (r codexRunner) Execute(ctx context.Context, req executionRequest, capabili
 		return result, fmt.Errorf(result.Error)
 	}
 
-	result.CommandArgs = append([]string{"codex"}, args...)
+	result.CommandArgs = append([]string{"codex"}, command.Args...)
 	var stdout, stderr string
 	if r.runCmd != nil {
-		stdout, stderr, err = r.runCmd(ctx, "codex", args, req.WorkDir, "")
+		stdout, stderr, err = r.runCmd(ctx, "codex", command.Args, req.WorkDir, command.Input)
 		output := strings.TrimSpace(strings.Join(nonEmptyArgs([]string{stdout, stderr}), "\n"))
 		result.Output = output
 		if writeErr := writeRunnerStreamArtifacts(req.WorkDir, req.SpecID, result.Name, stdout, stderr, &result); writeErr != nil && err == nil {
@@ -134,7 +139,7 @@ func (r codexRunner) Execute(ctx context.Context, req executionRequest, capabili
 		}
 	} else {
 		var output string
-		output, err = r.runBinary(ctx, "codex", args, req.WorkDir)
+		output, err = r.runBinary(ctx, "codex", command.Args, req.WorkDir)
 		result.Output = output
 		if writeErr := writeRunnerStreamArtifacts(req.WorkDir, req.SpecID, result.Name, output, "", &result); writeErr != nil && err == nil {
 			err = writeErr
@@ -152,11 +157,19 @@ func (r codexRunner) Execute(ctx context.Context, req executionRequest, capabili
 }
 
 func buildCodexExecArgs(req executionRequest, capabilities codexCapabilityMatrix) ([]string, error) {
-	invocation, err := resolveCodexInvocation(req, capabilities)
+	command, err := buildCodexExecCommand(req, capabilities)
 	if err != nil {
 		return nil, err
 	}
-	return invocation.Args, nil
+	return command.Args, nil
+}
+
+func buildCodexExecCommand(req executionRequest, capabilities codexCapabilityMatrix) (codexExecCommand, error) {
+	invocation, err := resolveCodexInvocation(req, capabilities)
+	if err != nil {
+		return codexExecCommand{}, err
+	}
+	return codexExecCommand{Args: invocation.Args, Input: req.Prompt}, nil
 }
 
 func writeRunnerStreamArtifacts(workDir, specID, turnName, stdout, stderr string, result *executionTurnResult) error {
@@ -324,6 +337,7 @@ func (a *App) runnerFor(cfg systemConfig) (runner, error) {
 		return codexRunner{
 			lookPath:  a.lookPath,
 			runBinary: a.runBinary,
+			runCmd:    a.runCodexCmdWithInput,
 			now:       a.now,
 		}, nil
 	default:

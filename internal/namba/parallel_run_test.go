@@ -66,6 +66,10 @@ func newParallelHarness(t *testing.T) (*parallelHarness, func()) {
 		}
 	}
 	app.runCmd = h.runCmd
+	app.runCodexCmdWithInput = func(ctx context.Context, name string, args []string, dir, input string) (string, string, error) {
+		out, err := h.runCmd(ctx, name, args, dir)
+		return out, "", err
+	}
 	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
 		return testCodexCapabilities(), nil
 	}

@@ -1145,6 +1145,129 @@ func TestQueueRuntimeFilesDoNotDirtyWorkingTreeGate(t *testing.T) {
 	}
 }
 
+func TestQueueWorkingTreeChangesClassifiesActiveQueueArtifactsOnly(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if name == "git" && strings.Join(args, " ") == "status --porcelain" {
+			return strings.Join([]string{
+				"?? .namba/logs/queue/state.json",
+				"?? .namba/logs/runs/spec-001-request.json",
+				"?? .namba/logs/runs/spec-002-request.json",
+				" M internal/namba/queue_command.go",
+			}, "\n"), nil
+		}
+		t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+		return "", nil
+	}
+
+	changes, err := app.queueWorkingTreeChanges(context.Background(), tmp, "SPEC-001")
+	if err != nil {
+		t.Fatalf("queueWorkingTreeChanges failed: %v", err)
+	}
+	if got := strings.Join(changes.QueueOwnedPaths, ","); got != ".namba/logs/queue/state.json,.namba/logs/runs/spec-001-request.json" {
+		t.Fatalf("unexpected queue-owned paths: %s", got)
+	}
+	if got := strings.Join(changes.UserPaths, ","); got != ".namba/logs/runs/spec-002-request.json,internal/namba/queue_command.go" {
+		t.Fatalf("unexpected user paths: %s", got)
+	}
+}
+
+func TestNonQueueWorkingTreeChangesDoNotIgnoreQueueLogs(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if name == "git" && strings.Join(args, " ") == "status --porcelain" {
+			return "?? .namba/logs/queue/state.json", nil
+		}
+		t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+		return "", nil
+	}
+
+	dirty, err := app.hasWorkingTreeChanges(context.Background(), tmp)
+	if err != nil {
+		t.Fatalf("hasWorkingTreeChanges failed: %v", err)
+	}
+	if !dirty {
+		t.Fatal("expected non-queue clean checks to report queue log changes")
+	}
+}
+
+func TestQueueLocalFallbackMergesBranchWhenRemoteHandoffUnavailable(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+
+	branch := "spec/SPEC-001-queue-fixture"
+	currentBranch := branch
+	var commands []string
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		commands = append(commands, name+" "+strings.Join(args, " "))
+		switch {
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return " M internal/namba/queue_command.go\n?? .namba/logs/runs/spec-001-request.json", nil
+		case name == "git" && strings.Join(args, " ") == strings.Join(queueGitAddArgs(), " "):
+			return "", nil
+		case name == "git" && len(args) == 3 && args[0] == "commit" && args[1] == "-m":
+			return "", nil
+		case name == "git" && len(args) == 2 && args[0] == "checkout" && args[1] == "main":
+			currentBranch = "main"
+			return "", nil
+		case name == "git" && len(args) == 5 && args[0] == "merge" && args[2] == branch:
+			return "", nil
+		default:
+			t.Fatalf("unexpected command: %s %v in %s (branch %s)", name, args, dir, currentBranch)
+			return "", nil
+		}
+	}
+
+	state := queueState{ID: "queue-test", Targets: []string{"SPEC-001"}, ActiveSpecID: "SPEC-001", Specs: map[string]queueSpec{"SPEC-001": {SpecID: "SPEC-001", Branch: branch}}}
+	specPkg := specPackage{ID: "SPEC-001", Description: "Queue fallback fixture", Path: filepath.Join(tmp, ".namba", "specs", "SPEC-001")}
+	got, done, err := app.applyQueueLocalFallback(context.Background(), tmp, state, "SPEC-001", state.Specs["SPEC-001"], specPkg, branch, queueRunEvidencePath("SPEC-001"), errors.New("push branch failed: network unavailable"))
+	if err != nil {
+		t.Fatalf("applyQueueLocalFallback failed: %v", err)
+	}
+	if !done || !got.LocalFallbackUsed || got.Status != queueStateActive && got.Status != "" {
+		t.Fatalf("unexpected fallback state: done=%v state=%+v", done, got)
+	}
+	if spec := got.Specs["SPEC-001"]; !spec.LocalFallback || spec.Phase != queuePhaseLanded || !strings.Contains(spec.LandEvidence, "local fallback merged") {
+		t.Fatalf("expected landed local fallback evidence, got %+v", spec)
+	}
+	if !hasCommandContaining(commands, "git merge --no-ff "+branch) {
+		t.Fatalf("expected local merge command, got %v", commands)
+	}
+}
+
+func TestQueueLocalFallbackBlocksOnMergeConflict(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+
+	branch := "spec/SPEC-001-queue-fixture"
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return "", nil
+		case name == "git" && len(args) == 2 && args[0] == "checkout" && args[1] == "main":
+			return "", nil
+		case name == "git" && len(args) == 5 && args[0] == "merge" && args[2] == branch:
+			return "", errors.New("merge conflict")
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	state := queueState{ID: "queue-test", Targets: []string{"SPEC-001"}, ActiveSpecID: "SPEC-001", Specs: map[string]queueSpec{"SPEC-001": {SpecID: "SPEC-001", Branch: branch}}}
+	specPkg := specPackage{ID: "SPEC-001", Description: "Queue fallback fixture", Path: filepath.Join(tmp, ".namba", "specs", "SPEC-001")}
+	_, _, err := app.applyQueueLocalFallback(context.Background(), tmp, state, "SPEC-001", state.Specs["SPEC-001"], specPkg, branch, queueRunEvidencePath("SPEC-001"), errors.New("push branch failed"))
+	if err == nil || !strings.Contains(err.Error(), "local fallback merge") {
+		t.Fatalf("expected merge conflict blocker, got %v", err)
+	}
+}
+
 func TestHonorQueueControlRequestsReloadsPauseFromStateFile(t *testing.T) {
 	tmp, _, app, restore := prepareQueueProject(t)
 	defer restore()

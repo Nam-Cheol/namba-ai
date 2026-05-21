@@ -341,28 +341,11 @@ func (a *App) hasWorkingTreeChanges(ctx context.Context, root string) (bool, err
 		return false, fmt.Errorf("check working tree: %w", err)
 	}
 	for _, line := range strings.Split(status, "\n") {
-		if trimmed := strings.TrimSpace(line); trimmed != "" && !isQueueRuntimeGitStatusLine(trimmed) {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
 			return true, nil
 		}
 	}
 	return false, nil
-}
-
-func isQueueRuntimeGitStatusLine(line string) bool {
-	if len(line) < 4 {
-		return false
-	}
-	path := strings.TrimSpace(line[3:])
-	if strings.Contains(path, " -> ") {
-		parts := strings.Split(path, " -> ")
-		path = strings.TrimSpace(parts[len(parts)-1])
-	}
-	path = strings.Trim(path, `"`)
-	path = filepath.ToSlash(path)
-	if strings.HasPrefix(path, ".namba/logs/queue/") {
-		return true
-	}
-	return strings.HasPrefix(path, ".namba/logs/runs/")
 }
 
 func (a *App) findOrCreatePullRequest(ctx context.Context, root, headBranch, baseBranch, title, body string) (githubPullRequest, bool, error) {

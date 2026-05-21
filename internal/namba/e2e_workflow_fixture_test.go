@@ -214,6 +214,7 @@ func (f *e2eFakeRunner) install(app *App) {
 	}
 	app.runCmd = f.run
 	app.runCmdWithInput = f.runWithInput
+	app.runCodexCmdWithInput = f.runWithInput
 	app.getenv = func(key string) string {
 		switch key {
 		case "NAMBA_CODEX_EFFECTIVE_WORKSPACE_ROOTS":
@@ -249,6 +250,10 @@ func (f *e2eFakeRunner) runWithInput(_ context.Context, name string, args []stri
 	f.calls = append(f.calls, e2eExternalCall{Name: name, Args: append([]string(nil), args...), Dir: filepath.Clean(dir)})
 	if name == "codex" && strings.Join(args, " ") == "doctor" && input == "" {
 		return "codex doctor ok\n", "", nil
+	}
+	if name == "codex" && len(args) > 0 && args[0] == "exec" && input != "" {
+		out, err := f.runCodex(args)
+		return out, "", err
 	}
 	return "", "", f.unexpected(name, args)
 }
