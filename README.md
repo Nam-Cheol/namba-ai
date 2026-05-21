@@ -16,7 +16,12 @@ NambaAI is a practical guide for working with Codex without guessing the next st
 
 These badges show only trust signals a new user can verify first: release, CI, security policy, license, and starting docs.
 
-[Start here](docs/getting-started.md) | [Workflow Guide](docs/workflow-guide.md) | [Latest release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [Security](SECURITY.md)
+<p align="center">
+  <a href="docs/getting-started.md"><img src="https://img.shields.io/static/v1?color=2ea44f&amp;label=Start&amp;labelColor=24292f&amp;message=Here" alt="Start here" /></a>
+  <a href="docs/workflow-guide.md"><img src="https://img.shields.io/static/v1?color=0969da&amp;label=Workflow&amp;labelColor=24292f&amp;message=Guide" alt="Workflow Guide" /></a>
+  <a href="https://github.com/Nam-Cheol/namba-ai/releases/latest"><img src="https://img.shields.io/static/v1?color=8250df&amp;label=Latest&amp;labelColor=24292f&amp;message=Release" alt="Latest release" /></a>
+  <a href="SECURITY.md"><img src="https://img.shields.io/static/v1?color=1a7f37&amp;label=Security&amp;labelColor=24292f&amp;message=Policy" alt="Security" /></a>
+</p>
 
 ## Run First
 

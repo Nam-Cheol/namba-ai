@@ -16,7 +16,12 @@ NambaAI は、Codex と一緒に作業するときに「次に何をすればい
 
 このバッジ列は、release、CI、security policy、license、starting docs だけを信頼シグナルとして示します。
 
-[始める](docs/getting-started.ja.md) | [ワークフローガイド](docs/workflow-guide.ja.md) | [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [Security](SECURITY.md)
+<p align="center">
+  <a href="docs/getting-started.ja.md"><img src="https://img.shields.io/static/v1?color=2ea44f&amp;label=%E9%96%8B%E5%A7%8B&amp;labelColor=24292f&amp;message=%E3%82%AC%E3%82%A4%E3%83%89" alt="始める" /></a>
+  <a href="docs/workflow-guide.ja.md"><img src="https://img.shields.io/static/v1?color=0969da&amp;label=%E3%83%AF%E3%83%BC%E3%82%AF%E3%83%95%E3%83%AD%E3%83%BC&amp;labelColor=24292f&amp;message=%E3%82%AC%E3%82%A4%E3%83%89" alt="ワークフローガイド" /></a>
+  <a href="https://github.com/Nam-Cheol/namba-ai/releases/latest"><img src="https://img.shields.io/static/v1?color=8250df&amp;label=%E3%83%AA%E3%83%AA%E3%83%BC%E3%82%B9&amp;labelColor=24292f&amp;message=%E6%9C%80%E6%96%B0" alt="Release" /></a>
+  <a href="SECURITY.md"><img src="https://img.shields.io/static/v1?color=1a7f37&amp;label=%E3%82%BB%E3%82%AD%E3%83%A5%E3%83%AA%E3%83%86%E3%82%A3&amp;labelColor=24292f&amp;message=%E3%83%9D%E3%83%AA%E3%82%B7%E3%83%BC" alt="Security" /></a>
+</p>
 
 ## 最初に実行すること
 

@@ -16,7 +16,12 @@ NambaAI는 Codex와 함께 일할 때 "다음에 뭘 해야 하지?"를 덜 헤�
 
 이 배지는 릴리스, CI, 보안 정책, 라이선스, 시작 문서처럼 새 사용자가 먼저 확인할 수 있는 신뢰 신호만 보여줍니다.
 
-[시작하기](docs/getting-started.ko.md) | [워크플로 가이드](docs/workflow-guide.ko.md) | [릴리스](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [보안](SECURITY.md)
+<p align="center">
+  <a href="docs/getting-started.ko.md"><img src="https://img.shields.io/static/v1?color=2ea44f&amp;label=%EC%8B%9C%EC%9E%91&amp;labelColor=24292f&amp;message=%EA%B0%80%EC%9D%B4%EB%93%9C" alt="시작하기" /></a>
+  <a href="docs/workflow-guide.ko.md"><img src="https://img.shields.io/static/v1?color=0969da&amp;label=%EC%9B%8C%ED%81%AC%ED%94%8C%EB%A1%9C&amp;labelColor=24292f&amp;message=%EA%B0%80%EC%9D%B4%EB%93%9C" alt="워크플로 가이드" /></a>
+  <a href="https://github.com/Nam-Cheol/namba-ai/releases/latest"><img src="https://img.shields.io/static/v1?color=8250df&amp;label=%EB%A6%B4%EB%A6%AC%EC%8A%A4&amp;labelColor=24292f&amp;message=%EC%B5%9C%EC%8B%A0" alt="릴리스" /></a>
+  <a href="SECURITY.md"><img src="https://img.shields.io/static/v1?color=1a7f37&amp;label=%EB%B3%B4%EC%95%88&amp;labelColor=24292f&amp;message=%EC%A0%95%EC%B1%85" alt="보안" /></a>
+</p>
 
 ## 먼저 실행할 것
 
