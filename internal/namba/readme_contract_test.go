@@ -31,9 +31,9 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		"## 🧱 Technical Snapshot",
 		"`namba project`",
 		"`namba plan`",
-		"`namba harness`",
-		"`namba fix --command plan`",
-		"`namba fix`",
+		"`namba harness \"description\"`",
+		"`namba fix --command plan \"issue\"`",
+		"`namba fix \"issue\"`",
 		"swap `namba plan` for `namba harness \"description\"`",
 		"`scripts/quality.sh`",
 		"`toolchain go1.26.3`",
@@ -69,6 +69,15 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 	}
 	if strings.Contains(rootReadme, "temperature and undertone discipline") {
 		t.Fatalf("root README should stay lightweight and not inline the full designer manifesto: %q", rootReadme)
+	}
+	for _, bad := range []string{
+		"| Plan harness work | `namba harness` /",
+		"| Repair a bug | `namba fix`,",
+		"`namba fix --command plan`, or",
+	} {
+		if strings.Contains(rootReadme, bad) {
+			t.Fatalf("root README command chooser should only show runnable examples, found %q", bad)
+		}
 	}
 
 	workflowGuide := outputs[guidePath("workflow-guide", "en")]

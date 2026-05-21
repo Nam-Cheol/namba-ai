@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-21T17:45:31+09:00",
+  "generated_at": "2026-05-21T17:54:49+09:00",
   "entries": [
     {
       "path": ".agents/skills/namba-coach/SKILL.md",
@@ -3018,8 +3018,8 @@
       "path": "README.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "2e58a0a28468fdd28ac4c3a349febf90f7febd576d3baaabc2055f57d56061e6",
-      "updated_at": "2026-05-21T17:45:31+09:00"
+      "checksum": "d8e29d8fee590af38753d329499e92c1b568d829a0afa0cb802a00bc46c79b53",
+      "updated_at": "2026-05-21T17:54:49+09:00"
     },
     {
       "path": "README.zh.md",
