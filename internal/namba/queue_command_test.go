@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1237,6 +1238,25 @@ func TestQueueLocalFallbackMergesBranchWhenRemoteHandoffUnavailable(t *testing.T
 	}
 	if !hasCommandContaining(commands, "git merge --no-ff "+branch) {
 		t.Fatalf("expected local merge command, got %v", commands)
+	}
+}
+
+func TestRemoteHandoffFallbackRequiresExplicitHandoffError(t *testing.T) {
+	t.Parallel()
+
+	for _, err := range []error{
+		errors.New("validation failed after network fixture setup"),
+		errors.New("checks failed: authentication smoke test failed"),
+		errors.New("pull request is not mergeable because validation failed"),
+	} {
+		if isRemoteHandoffUnavailable(err) {
+			t.Fatalf("non-handoff error should not enable local fallback: %v", err)
+		}
+	}
+
+	err := fmt.Errorf("%w: push branch spec/SPEC-001-queue-fixture: network unavailable", errQueueRemoteHandoffUnavailable)
+	if !isRemoteHandoffUnavailable(err) {
+		t.Fatalf("explicit handoff error should enable local fallback: %v", err)
 	}
 }
 

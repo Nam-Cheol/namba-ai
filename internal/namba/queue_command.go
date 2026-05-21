@@ -49,6 +49,8 @@ const (
 
 var specRangePattern = regexp.MustCompile(`^(SPEC-\d{3})\.\.(SPEC-\d{3})$`)
 
+var errQueueRemoteHandoffUnavailable = errors.New("remote handoff unavailable")
+
 type queueOptions struct {
 	AutoLand        bool   `json:"auto_land"`
 	SkipCodexReview bool   `json:"skip_codex_review"`
@@ -1346,7 +1348,7 @@ func (a *App) prepareQueuePullRequest(ctx context.Context, root string, state qu
 		return githubPullRequest{}, fmt.Errorf("queue PR currently supports only the GitHub provider, got %q", profile.GitProvider)
 	}
 	if err := a.requireGitHubCLI(ctx, root); err != nil {
-		return githubPullRequest{}, err
+		return githubPullRequest{}, fmt.Errorf("%w: %w", errQueueRemoteHandoffUnavailable, err)
 	}
 	currentBranch, err := a.currentBranch(ctx, root)
 	if err != nil {
@@ -1376,12 +1378,12 @@ func (a *App) prepareQueuePullRequest(ctx context.Context, root string, state qu
 		}
 	}
 	if _, err := a.runBinary(ctx, "git", []string{"push", "--set-upstream", state.Options.Remote, branch}, root); err != nil {
-		return githubPullRequest{}, fmt.Errorf("push branch %s: %w", branch, err)
+		return githubPullRequest{}, fmt.Errorf("%w: push branch %s: %w", errQueueRemoteHandoffUnavailable, branch, err)
 	}
 	baseBranch := prBaseBranch(profile)
 	pr, _, err := a.findOrCreatePullRequest(ctx, root, branch, baseBranch, title, buildPullRequestBodyForSpec(root, profile, specPkg.ID))
 	if err != nil {
-		return githubPullRequest{}, err
+		return githubPullRequest{}, fmt.Errorf("%w: %w", errQueueRemoteHandoffUnavailable, err)
 	}
 	if state.Options.RequestReview {
 		if err := a.ensureReviewComment(ctx, root, pr.Number, codexReviewComment(profile)); err != nil {
@@ -1506,24 +1508,7 @@ func queueSpecIDFromBranch(branch string) string {
 }
 
 func isRemoteHandoffUnavailable(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := strings.ToLower(err.Error())
-	for _, needle := range []string{
-		"github cli is required",
-		"github cli authentication",
-		"push branch",
-		"pr create",
-		"pull request",
-		"network",
-		"authentication",
-	} {
-		if strings.Contains(msg, needle) {
-			return true
-		}
-	}
-	return false
+	return errors.Is(err, errQueueRemoteHandoffUnavailable)
 }
 
 func queuePullRequestTitle(specPkg specPackage) string {
