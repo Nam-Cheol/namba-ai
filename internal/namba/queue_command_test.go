@@ -1291,6 +1291,7 @@ func TestRemoteHandoffTransportErrorClassification(t *testing.T) {
 		errors.New("create pull request from branch into main: network unavailable"),
 		errors.New("load pull request 17: authentication required"),
 		errors.New("list pull requests for branch spec/SPEC-001: i/o timeout"),
+		errors.New("push branch spec/SPEC-001: connection timed out"),
 	} {
 		if !isRemoteHandoffTransportError(err) {
 			t.Fatalf("expected transport error classification for %v", err)
@@ -1301,6 +1302,9 @@ func TestRemoteHandoffTransportErrorClassification(t *testing.T) {
 		errors.New("parse pull request list: invalid character '<'"),
 		errors.New("load pull request 17: parse pull request 17: invalid json"),
 		errors.New("create pull request from branch into main: GraphQL: No commits between main and branch"),
+		errors.New("create pull request from spec/SPEC-001-timeout-cleanup into main: GraphQL: No commits between main and branch"),
+		errors.New("push branch spec/SPEC-001-timeout-cleanup: non-fast-forward"),
+		errors.New("push branch spec/SPEC-001: protected branch hook declined"),
 	} {
 		if isRemoteHandoffTransportError(err) {
 			t.Fatalf("non-transport PR error should not enable local fallback: %v", err)

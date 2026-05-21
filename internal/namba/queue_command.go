@@ -1381,7 +1381,11 @@ func (a *App) prepareQueuePullRequest(ctx context.Context, root string, state qu
 		}
 	}
 	if _, err := a.runBinary(ctx, "git", []string{"push", "--set-upstream", state.Options.Remote, branch}, root); err != nil {
-		return githubPullRequest{}, fmt.Errorf("%w: push branch %s: %w", errQueueRemoteHandoffUnavailable, branch, err)
+		wrapped := fmt.Errorf("push branch %s: %w", branch, err)
+		if isRemoteHandoffTransportError(wrapped) {
+			return githubPullRequest{}, fmt.Errorf("%w: %w", errQueueRemoteHandoffUnavailable, wrapped)
+		}
+		return githubPullRequest{}, wrapped
 	}
 	baseBranch := prBaseBranch(profile)
 	pr, _, err := a.findOrCreatePullRequest(ctx, root, branch, baseBranch, title, buildPullRequestBodyForSpec(root, profile, specPkg.ID))
@@ -1541,7 +1545,6 @@ func isRemoteHandoffTransportError(err error) bool {
 		"network",
 		"no such host",
 		"tls handshake timeout",
-		"timeout",
 		"timed out",
 		"unable to access",
 	} {
