@@ -65,6 +65,14 @@ namba land
 
 - agent / skill / workflow / orchestration の再利用作業なら、`namba plan` の代わりに `namba harness "description"` を使ってください。
 
+## ✅ ローカル品質ゲート
+
+- PR 前に `scripts/quality.sh` で CI の中核品質バーをローカル実行できます。
+- `go.mod` の `toolchain go1.26.3` を使うため、CI と `GOTOOLCHAIN=auto` のローカル実行は既知の Go 1.26.2 標準ライブラリ脆弱性を避けます。
+- このゲートは Python unittest、Go unit/race tests、harness eval regression、gofmt、go vet、staticcheck、govulncheck、Go coverage report を実行します。
+- aggregate Go coverage threshold は 73.0% です。計画時に測定した 73.7% baseline より少し低くし、Go version/reporting noise を吸収しながら意味のある回帰を止めます。
+- `staticcheck` または `govulncheck` がない場合、スクリプトは正確な `go install` コマンドを表示して停止します。
+
 ## 🪝 Hook Runtime
 
 - 初めて使う場合、このセクションは読み飛ばしても大丈夫です。Hook は、実行中の特定のタイミングで自動チェックや通知を走らせたいときに使います。
