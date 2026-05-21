@@ -31,6 +31,25 @@ These badges show only trust signals a new user can verify first: release, CI, s
 | 2 | `namba plan "description"` | Turn feature work into a reviewable SPEC. |
 | 3 | `namba run SPEC-001` | Implement and validate the SPEC. |
 
+### Command Flow
+
+This is the main NambaAI command path. Start from `namba queue` when you need to process multiple existing SPECs.
+
+```mermaid
+flowchart LR
+    project["namba project"] --> choose{"choose path"}
+    choose --> plan["namba plan"]
+    choose --> harness["namba harness"]
+    choose --> fix["namba fix"]
+    plan --> run["namba run"]
+    harness --> run
+    fix --> run
+    queue["namba queue"] --> run
+    run --> sync["namba sync"]
+    sync --> pr["namba pr"]
+    pr --> land["namba land"]
+```
+
 ## 🧭 Which Command Should I Use?
 
 | Situation | Command | Read next |

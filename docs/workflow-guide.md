@@ -47,6 +47,26 @@ NambaAI work starts by reading the repository, shaping a SPEC, implementing and 
 | 5. Handoff | `namba pr "title"` | PR language and checks are aligned. Codex review is checked only when `--review` is used. |
 | 6. Merge | `namba land` | Only a clean and approved PR lands on `main`. |
 
+### SPEC Lifecycle
+
+A SPEC moves from idea to acceptance, implementation, validation, docs sync, PR handoff, and merge/land. Ambiguous state or failed validation stops as blocked and returns through repair/retry.
+
+```mermaid
+flowchart LR
+    idea["idea"] --> clarified["goal/scope/constraints/acceptance"]
+    clarified --> spec["SPEC"]
+    spec --> implementation["implementation"]
+    implementation --> validation["validation"]
+    validation --> docs["docs sync"]
+    docs --> pr["PR handoff"]
+    pr --> land["merge/land"]
+    clarified --> blocked["blocked"]
+    validation --> blocked
+    blocked --> repair["repair/retry"]
+    repair --> clarified
+    repair --> implementation
+```
+
 ## `update`, `regen`, `sync`, `pr`, and `land` are different commands
 
 - `namba update`: self-update the installed CLI from GitHub Release assets

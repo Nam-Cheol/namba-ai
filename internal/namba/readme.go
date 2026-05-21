@@ -495,6 +495,7 @@ func renderNambaCLIGettingStartedQuickStartSection(lang string) []string {
 			"| 새 repo 준비 | `namba init .` | 첫 Codex 세션에서 `/hooks` review를 승인합니다. |",
 			"| 첫 작업 실행 | `namba project` -> `namba plan \"...\"` -> `namba run SPEC-001` | `namba sync`, `namba pr`, `namba land`로 인계합니다. |",
 			"",
+			strings.Join(renderNambaCLIGettingStartedFirstRunDiagramSection(lang), "\n"),
 		}
 	case "ja":
 		return []string{
@@ -507,6 +508,7 @@ func renderNambaCLIGettingStartedQuickStartSection(lang string) []string {
 			"| 新しい repo を準備 | `namba init .` | 最初の Codex session で `/hooks` review を承認します。 |",
 			"| 最初の作業を実行 | `namba project` -> `namba plan \"...\"` -> `namba run SPEC-001` | `namba sync`、`namba pr`、`namba land` へ進みます。 |",
 			"",
+			strings.Join(renderNambaCLIGettingStartedFirstRunDiagramSection(lang), "\n"),
 		}
 	case "zh":
 		return []string{
@@ -519,6 +521,7 @@ func renderNambaCLIGettingStartedQuickStartSection(lang string) []string {
 			"| 准备新 repo | `namba init .` | 在第一次 Codex session 中批准 `/hooks` review。 |",
 			"| 执行第一项工作 | `namba project` -> `namba plan \"...\"` -> `namba run SPEC-001` | 继续运行 `namba sync`、`namba pr`、`namba land`。 |",
 			"",
+			strings.Join(renderNambaCLIGettingStartedFirstRunDiagramSection(lang), "\n"),
 		}
 	default:
 		return []string{
@@ -531,6 +534,7 @@ func renderNambaCLIGettingStartedQuickStartSection(lang string) []string {
 			"| Prepare a new repo | `namba init .` | Approve `/hooks` review in the first Codex session. |",
 			"| Run first work | `namba project` -> `namba plan \"...\"` -> `namba run SPEC-001` | Continue with `namba sync`, `namba pr`, and `namba land`. |",
 			"",
+			strings.Join(renderNambaCLIGettingStartedFirstRunDiagramSection(lang), "\n"),
 		}
 	}
 }
@@ -2064,6 +2068,7 @@ func renderNambaCLIWorkflowGuideAtAGlanceSection(lang string) []string {
 			"| 5. 인계 | `namba pr \"title\"` | PR 언어와 checks를 확인합니다. Codex review는 `--review`를 쓴 경우에만 확인합니다. |",
 			"| 6. 머지 | `namba land` | clean+approved PR만 `main`으로 merge합니다. |",
 			"",
+			strings.Join(renderNambaCLIWorkflowLifecycleDiagramSection(lang), "\n"),
 		}
 	case "ja":
 		return []string{
@@ -2078,6 +2083,7 @@ func renderNambaCLIWorkflowGuideAtAGlanceSection(lang string) []string {
 			"| 5. 引き渡し | `namba pr \"title\"` | PR language と checks を確認します。Codex review は `--review` 使用時だけ確認します。 |",
 			"| 6. マージ | `namba land` | clean+approved PR だけを `main` に merge します。 |",
 			"",
+			strings.Join(renderNambaCLIWorkflowLifecycleDiagramSection(lang), "\n"),
 		}
 	case "zh":
 		return []string{
@@ -2092,6 +2098,7 @@ func renderNambaCLIWorkflowGuideAtAGlanceSection(lang string) []string {
 			"| 5. 交接 | `namba pr \"title\"` | 检查 PR language 和 checks。只有使用 `--review` 时才检查 Codex review。 |",
 			"| 6. 合并 | `namba land` | 只把 clean+approved PR merge 到 `main`。 |",
 			"",
+			strings.Join(renderNambaCLIWorkflowLifecycleDiagramSection(lang), "\n"),
 		}
 	default:
 		return []string{
@@ -2106,6 +2113,7 @@ func renderNambaCLIWorkflowGuideAtAGlanceSection(lang string) []string {
 			"| 5. Handoff | `namba pr \"title\"` | PR language and checks are aligned. Codex review is checked only when `--review` is used. |",
 			"| 6. Merge | `namba land` | Only a clean and approved PR lands on `main`. |",
 			"",
+			strings.Join(renderNambaCLIWorkflowLifecycleDiagramSection(lang), "\n"),
 		}
 	}
 }
@@ -2179,6 +2187,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"| 2 | `namba plan \"description\"` | 기능 작업을 review 가능한 SPEC로 만듭니다. |",
 			"| 3 | `namba run SPEC-001` | SPEC을 구현하고 검증합니다. |",
 			"",
+			strings.Join(renderNambaCLIRootCommandFlowDiagramSection(lang), "\n"),
 			readmeRootCommandChooserHeading(lang),
 			"",
 			"| 상황 | 명령 | 다음 문서 |",
@@ -2251,6 +2260,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"| 2 | `namba plan \"description\"` | feature work を review 可能な SPEC にします。 |",
 			"| 3 | `namba run SPEC-001` | SPEC を実装し validation します。 |",
 			"",
+			strings.Join(renderNambaCLIRootCommandFlowDiagramSection(lang), "\n"),
 			readmeRootCommandChooserHeading(lang),
 			"",
 			"| 状況 | コマンド | 次の文書 |",
@@ -2323,6 +2333,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"| 2 | `namba plan \"description\"` | 把功能工作变成可评审的 SPEC。 |",
 			"| 3 | `namba run SPEC-001` | 实现并验证 SPEC。 |",
 			"",
+			strings.Join(renderNambaCLIRootCommandFlowDiagramSection(lang), "\n"),
 			readmeRootCommandChooserHeading(lang),
 			"",
 			"| 场景 | 命令 | 下一篇文档 |",
@@ -2395,6 +2406,7 @@ func renderNambaCLIRoot(lang string, cfg docsConfig) string {
 			"| 2 | `namba plan \"description\"` | Turn feature work into a reviewable SPEC. |",
 			"| 3 | `namba run SPEC-001` | Implement and validate the SPEC. |",
 			"",
+			strings.Join(renderNambaCLIRootCommandFlowDiagramSection(lang), "\n"),
 			readmeRootCommandChooserHeading(lang),
 			"",
 			"| Situation | Command | Read next |",

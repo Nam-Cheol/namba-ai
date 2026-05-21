@@ -290,6 +290,78 @@ func TestGeneratedDocsUseVisualDocumentationGrammar(t *testing.T) {
 	}
 }
 
+func TestGeneratedDocsIncludeGitHubSafeMermaidDiagrams(t *testing.T) {
+	outputs := buildReadmeOutputs(projectConfig{Name: "NambaAI"}, initProfile{}, docsConfig{
+		ManageReadme:        true,
+		ReadmeProfile:       readmeProfileNambaCLI,
+		DefaultLanguage:     "en",
+		AdditionalLanguages: []string{"ko", "ja", "zh"},
+	})
+	repeatedOutputs := buildReadmeOutputs(projectConfig{Name: "NambaAI"}, initProfile{}, docsConfig{
+		ManageReadme:        true,
+		ReadmeProfile:       readmeProfileNambaCLI,
+		DefaultLanguage:     "en",
+		AdditionalLanguages: []string{"ko", "ja", "zh"},
+	})
+	for path, want := range outputs {
+		if got := repeatedOutputs[path]; got != want {
+			t.Fatalf("generated output is not deterministic for %s", path)
+		}
+	}
+
+	commandFlowCommands := []string{
+		"namba project",
+		"namba plan",
+		"namba harness",
+		"namba fix",
+		"namba run",
+		"namba queue",
+		"namba sync",
+		"namba pr",
+		"namba land",
+	}
+	lifecycleConcepts := []string{
+		"SPEC",
+		"validation",
+		"docs sync",
+		"PR",
+		"blocked",
+		"repair/retry",
+	}
+
+	for _, lang := range []string{"en", "ko", "ja", "zh"} {
+		root := outputs[readmePath(lang)]
+		assertContains(t, root, localizedMermaidTitle(lang, "root-command-flow"), fmt.Sprintf("%s root README Mermaid title", lang))
+		assertContains(t, root, "```mermaid", fmt.Sprintf("%s root README Mermaid fence", lang))
+		for _, want := range commandFlowCommands {
+			assertContains(t, root, want, fmt.Sprintf("%s root README command flow", lang))
+		}
+
+		gettingStarted := outputs[guidePath("getting-started", lang)]
+		assertContains(t, gettingStarted, localizedMermaidTitle(lang, "getting-started-first-run"), fmt.Sprintf("%s getting-started Mermaid title", lang))
+		assertContains(t, gettingStarted, "```mermaid", fmt.Sprintf("%s getting-started Mermaid fence", lang))
+		for _, want := range []string{"install", "namba init .", "namba project", "namba plan", "namba run", "namba sync", "namba pr"} {
+			assertContains(t, gettingStarted, want, fmt.Sprintf("%s getting-started first-run diagram", lang))
+		}
+
+		workflowGuide := outputs[guidePath("workflow-guide", lang)]
+		assertContains(t, workflowGuide, localizedMermaidTitle(lang, "workflow-lifecycle"), fmt.Sprintf("%s workflow-guide Mermaid title", lang))
+		assertContains(t, workflowGuide, "```mermaid", fmt.Sprintf("%s workflow-guide Mermaid fence", lang))
+		for _, want := range lifecycleConcepts {
+			assertContains(t, workflowGuide, want, fmt.Sprintf("%s workflow-guide lifecycle diagram", lang))
+		}
+
+		for _, doc := range []string{root, gettingStarted, workflowGuide} {
+			assertContains(t, doc, "flowchart LR", fmt.Sprintf("%s Mermaid flowchart", lang))
+			for _, forbidden := range []string{"<script", "<iframe", "style=", "<button"} {
+				if strings.Contains(strings.ToLower(doc), forbidden) {
+					t.Fatalf("%s generated diagram output contains unsupported GitHub HTML %q: %q", lang, forbidden, doc)
+				}
+			}
+		}
+	}
+}
+
 func loadRepoDocsConfig(t *testing.T, root string) (projectConfig, docsConfig, initProfile) {
 	t.Helper()
 

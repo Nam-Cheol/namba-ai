@@ -47,6 +47,26 @@ NambaAI workflow は、まずリポジトリを読み、作業を SPEC に整理
 | 5. 引き渡し | `namba pr "title"` | PR language と checks を確認します。Codex review は `--review` 使用時だけ確認します。 |
 | 6. マージ | `namba land` | clean+approved PR だけを `main` に merge します。 |
 
+### SPEC ライフサイクル
+
+SPEC は idea を acceptance まで整理してから implementation、validation、docs sync、PR handoff、merge/land へ進みます。曖昧な状態や validation 失敗は blocked になり、repair/retry へ戻ります。
+
+```mermaid
+flowchart LR
+    idea["idea"] --> clarified["goal/scope/constraints/acceptance"]
+    clarified --> spec["SPEC"]
+    spec --> implementation["implementation"]
+    implementation --> validation["validation"]
+    validation --> docs["docs sync"]
+    docs --> pr["PR handoff"]
+    pr --> land["merge/land"]
+    clarified --> blocked["blocked"]
+    validation --> blocked
+    blocked --> repair["repair/retry"]
+    repair --> clarified
+    repair --> implementation
+```
+
 ## `update`, `regen`, `sync`, `pr`, `land` はそれぞれ別のコマンドです
 
 - `namba update`: インストール済み CLI を GitHub Release 資産から self-update します。

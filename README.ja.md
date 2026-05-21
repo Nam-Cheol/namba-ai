@@ -31,6 +31,25 @@ NambaAI は、Codex と一緒に作業するときに「次に何をすればい
 | 2 | `namba plan "description"` | feature work を review 可能な SPEC にします。 |
 | 3 | `namba run SPEC-001` | SPEC を実装し validation します。 |
 
+### コマンドフロー
+
+よく使う NambaAI command の流れです。既存 SPEC を複数処理するときは `namba queue` から始めます。
+
+```mermaid
+flowchart LR
+    project["namba project"] --> choose{"choose path"}
+    choose --> plan["namba plan"]
+    choose --> harness["namba harness"]
+    choose --> fix["namba fix"]
+    plan --> run["namba run"]
+    harness --> run
+    fix --> run
+    queue["namba queue"] --> run
+    run --> sync["namba sync"]
+    sync --> pr["namba pr"]
+    pr --> land["namba land"]
+```
+
 ## 🧭 どのコマンドを使うべきですか?
 
 | 状況 | コマンド | 次の文書 |

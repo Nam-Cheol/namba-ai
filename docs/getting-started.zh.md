@@ -29,6 +29,20 @@ NambaAI 是一个仓库工作流层，会在 Codex 直接实现前，把目标�
 | 准备新 repo | `namba init .` | 在第一次 Codex session 中批准 `/hooks` review。 |
 | 执行第一项工作 | `namba project` -> `namba plan "..."` -> `namba run SPEC-001` | 继续运行 `namba sync`、`namba pr`、`namba land`。 |
 
+### 首次运行路径
+
+这是安装后走到第一个 PR 的最短路径。
+
+```mermaid
+flowchart LR
+    install["install"] --> init["namba init ."]
+    init --> project["namba project"]
+    project --> plan["namba plan"]
+    plan --> run["namba run"]
+    run --> sync["namba sync"]
+    sync --> pr["namba pr"]
+```
+
 ## 1. 安装
 
 - Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`

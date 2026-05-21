@@ -31,6 +31,25 @@ NambaAI는 Codex와 함께 일할 때 "다음에 뭘 해야 하지?"를 덜 헤�
 | 2 | `namba plan "description"` | 기능 작업을 review 가능한 SPEC로 만듭니다. |
 | 3 | `namba run SPEC-001` | SPEC을 구현하고 검증합니다. |
 
+### 명령 흐름
+
+가장 자주 쓰는 NambaAI 명령 흐름입니다. 여러 기존 SPEC을 순서대로 처리할 때는 `namba queue`에서 시작합니다.
+
+```mermaid
+flowchart LR
+    project["namba project"] --> choose{"choose path"}
+    choose --> plan["namba plan"]
+    choose --> harness["namba harness"]
+    choose --> fix["namba fix"]
+    plan --> run["namba run"]
+    harness --> run
+    fix --> run
+    queue["namba queue"] --> run
+    run --> sync["namba sync"]
+    sync --> pr["namba pr"]
+    pr --> land["namba land"]
+```
+
 ## 🧭 어떤 명령을 써야 하나요?
 
 | 상황 | 명령 | 다음 문서 |

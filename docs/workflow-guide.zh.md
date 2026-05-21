@@ -47,6 +47,26 @@ NambaAI 工作流会先读取仓库，把工作整理成 SPEC，完成实现和�
 | 5. 交接 | `namba pr "title"` | 检查 PR language 和 checks。只有使用 `--review` 时才检查 Codex review。 |
 | 6. 合并 | `namba land` | 只把 clean+approved PR merge 到 `main`。 |
 
+### SPEC 生命周期
+
+SPEC 会把 idea 整理到 acceptance，再进入 implementation、validation、docs sync、PR handoff 和 merge/land。状态不明确或 validation 失败时会进入 blocked，并回到 repair/retry。
+
+```mermaid
+flowchart LR
+    idea["idea"] --> clarified["goal/scope/constraints/acceptance"]
+    clarified --> spec["SPEC"]
+    spec --> implementation["implementation"]
+    implementation --> validation["validation"]
+    validation --> docs["docs sync"]
+    docs --> pr["PR handoff"]
+    pr --> land["merge/land"]
+    clarified --> blocked["blocked"]
+    validation --> blocked
+    blocked --> repair["repair/retry"]
+    repair --> clarified
+    repair --> implementation
+```
+
 ## `update`、`regen`、`sync`、`pr`、`land` 是不同的命令
 
 - `namba update`: 从 GitHub Release 资产对已安装的 CLI 做 self-update。
