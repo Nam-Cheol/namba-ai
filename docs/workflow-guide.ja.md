@@ -47,6 +47,26 @@ NambaAI workflow は、まずリポジトリを読み、作業を SPEC に整理
 | 5. 引き渡し | `namba pr "title"` | PR language と checks を確認します。Codex review は `--review` 使用時だけ確認します。 |
 | 6. マージ | `namba land` | clean+approved PR だけを `main` に merge します。 |
 
+### SPEC ライフサイクル
+
+SPEC は idea を acceptance まで整理してから implementation、validation、docs sync、PR handoff、merge/land へ進みます。曖昧な状態や validation 失敗は blocked になり、repair/retry へ戻ります。
+
+```mermaid
+flowchart LR
+    idea["idea"] --> clarified["goal/scope/constraints/acceptance"]
+    clarified --> spec["SPEC"]
+    spec --> implementation["implementation"]
+    implementation --> validation["validation"]
+    validation --> docs["docs sync"]
+    docs --> pr["PR handoff"]
+    pr --> land["merge/land"]
+    clarified --> blocked["blocked"]
+    validation --> blocked
+    blocked --> repair["repair/retry"]
+    repair --> clarified
+    repair --> implementation
+```
+
 ## `update`, `regen`, `sync`, `pr`, `land` はそれぞれ別のコマンドです
 
 - `namba update`: インストール済み CLI を GitHub Release 資産から self-update します。
@@ -140,3 +160,14 @@ NambaAI workflow は、まずリポジトリを読み、作業を SPEC に整理
 - [スタートガイド](./getting-started.ja.md): インストールと初回フロー
 - [Codex Upstream Reference](./codex-upstream-reference.md): このリポジトリが従う Codex 基準
 - [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration の背景と設計文脈
+
+<details>
+<summary>高度な参考資料</summary>
+
+- 長い command semantics、queue state、review readiness、PR / merge flow は workflow guide に置きます。
+- [ワークフローガイド](./workflow-guide.ja.md)
+- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)
+- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)
+- [Security](../SECURITY.md)
+
+</details>

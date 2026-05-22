@@ -89,6 +89,7 @@ Read this boundary in order: Codex displays runtime state, Namba generates repo 
 
 - Codex 0.131 also reports service tier and richer status-line state. Namba-generated docs can explain those fields, but repo config must not persist a user's service tier or approval/session choices.
 - Project, run, and queue evidence may include a `codex_diagnostics` payload with neutral statuses such as `detected`, `not_detected`, `unavailable`, `timed_out`, `advisory_mismatch`, and `redacted`.
+- Evidence payloads are covered by append-only schema contracts including `codex-diagnostics-evidence/v1`, `project-codex-diagnostics-evidence/v1`, `execution-evidence/v1`, `queue-runner-evidence/v1`, `namba-eval-scorecard/v1`, and `namba-report/v1`.
 - Inspect project diagnostics at `.namba/logs/project/codex-diagnostics-evidence.json`, run diagnostics at `.namba/logs/runs/<log-id>-evidence.json`, queue handoff diagnostics at `.namba/logs/runs/<spec-id-lower>-queue-evidence.json`, and doctor logs beside the artifact that triggered them.
 - Git helper commands may ignore configured repository hooks, so Namba cannot rely on Git hooks for safety or validation evidence.
 - On Windows, prefer WSL for Codex workspaces when possible; otherwise expect stricter deny-read behavior, scoped write roots, ineffective firewall policy handling, and PowerShell launcher constraints.

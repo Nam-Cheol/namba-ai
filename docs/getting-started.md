@@ -29,6 +29,20 @@ NambaAI is a repository workflow layer that turns Codex work into goal, scope, c
 | Prepare a new repo | `namba init .` | Approve `/hooks` review in the first Codex session. |
 | Run first work | `namba project` -> `namba plan "..."` -> `namba run SPEC-001` | Continue with `namba sync`, `namba pr`, and `namba land`. |
 
+### First-Run Path
+
+This is the shortest path from install to the first PR.
+
+```mermaid
+flowchart LR
+    install["install"] --> init["namba init ."]
+    init --> project["namba project"]
+    project --> plan["namba plan"]
+    plan --> run["namba run"]
+    run --> sync["namba sync"]
+    sync --> pr["namba pr"]
+```
+
 ## 1. Install
 
 - Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
@@ -80,3 +94,14 @@ namba land
 - [Workflow Guide](./workflow-guide.md)
 - [Codex Upstream Reference](./codex-upstream-reference.md)
 - [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md)
+
+<details>
+<summary>Advanced reference</summary>
+
+- Longer command semantics, queue state, review readiness, PR flow, and merge flow live in the workflow guide.
+- [Workflow Guide](./workflow-guide.md)
+- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)
+- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)
+- [Security](../SECURITY.md)
+
+</details>

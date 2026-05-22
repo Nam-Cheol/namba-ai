@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "queue-runner-evidence/v1",
+  "title": "Namba queue runner evidence v1",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "const": "queue-runner-evidence/v1" },
+    "spec_id": { "type": "string" },
+    "status": { "type": "string" },
+    "runner": { "type": "string" },
+    "validation": { "type": "object" }
+  },
+  "required": ["schema_version", "spec_id", "status", "runner", "validation"]
+}

@@ -12,13 +12,65 @@ NambaAI는 Codex와 함께 일할 때 "다음에 뭘 해야 하지?"를 덜 헤�
 
 [Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](SECURITY.md)
 
+[![Release](https://img.shields.io/github/v/release/Nam-Cheol/namba-ai?label=release)](https://github.com/Nam-Cheol/namba-ai/releases/latest) [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) [![Security](https://img.shields.io/badge/security-policy-green)](SECURITY.md) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-getting%20started-informational)](docs/getting-started.ko.md)
+
+이 배지는 릴리스, CI, 보안 정책, 라이선스, 시작 문서처럼 새 사용자가 먼저 확인할 수 있는 신뢰 신호만 보여줍니다.
+
+<p align="center">
+  <a href="docs/getting-started.ko.md"><img src="https://img.shields.io/static/v1?color=2ea44f&amp;label=%EC%8B%9C%EC%9E%91&amp;labelColor=24292f&amp;message=%EA%B0%80%EC%9D%B4%EB%93%9C" alt="시작하기" /></a>
+  <a href="docs/workflow-guide.ko.md"><img src="https://img.shields.io/static/v1?color=0969da&amp;label=%EC%9B%8C%ED%81%AC%ED%94%8C%EB%A1%9C&amp;labelColor=24292f&amp;message=%EA%B0%80%EC%9D%B4%EB%93%9C" alt="워크플로 가이드" /></a>
+  <a href="https://github.com/Nam-Cheol/namba-ai/releases/latest"><img src="https://img.shields.io/static/v1?color=8250df&amp;label=%EB%A6%B4%EB%A6%AC%EC%8A%A4&amp;labelColor=24292f&amp;message=%EC%B5%9C%EC%8B%A0" alt="릴리스" /></a>
+  <a href="SECURITY.md"><img src="https://img.shields.io/static/v1?color=1a7f37&amp;label=%EB%B3%B4%EC%95%88&amp;labelColor=24292f&amp;message=%EC%A0%95%EC%B1%85" alt="보안" /></a>
+</p>
+
+## 먼저 실행할 것
+
+| 단계 | 실행 | 목적 |
+| --- | --- | --- |
+| 1 | `namba project` | 저장소 상태와 project docs를 최신화합니다. |
+| 2 | `namba plan "description"` | 기능 작업을 review 가능한 SPEC로 만듭니다. |
+| 3 | `namba run SPEC-001` | SPEC을 구현하고 검증합니다. |
+
+### 명령 흐름
+
+가장 자주 쓰는 NambaAI 명령 흐름입니다. 여러 기존 SPEC을 순서대로 처리할 때는 `namba queue`에서 시작합니다.
+
+```mermaid
+flowchart LR
+    project["namba project"] --> choose{"choose path"}
+    choose --> plan["namba plan"]
+    choose --> harness["namba harness"]
+    choose --> fix["namba fix"]
+    plan --> run["namba run"]
+    harness --> run
+    fix --> run
+    queue["namba queue"] --> run
+    run --> sync["namba sync"]
+    sync --> pr["namba pr"]
+    pr --> land["namba land"]
+```
+
 ## 🧭 어떤 명령을 써야 하나요?
 
-- `namba project`: 먼저 상황 파악이 필요할 때 씁니다. Codex가 저장소 구조와 문서를 다시 읽게 합니다.
-- `namba plan`: 새 기능이나 제품 변경을 차근차근 진행할 계획으로 만들고 싶을 때 씁니다.
-- `namba harness`: 재사용할 skill, agent, workflow 같은 Namba/Codex 구성요소를 계획할 때 씁니다.
-- `namba fix`: 지금 보이는 버그를 바로 고치고 싶을 때 씁니다. 버그도 리뷰 가능한 계획으로 남기고 싶으면 `namba fix --command plan`을 씁니다.
-- `namba queue start SPEC-001..SPEC-003`: 이미 만들어 둔 SPEC들을 새로 생성하지 않고 순서대로 끝까지 처리하고 싶을 때 씁니다.
+| 상황 | 명령 | 다음 문서 |
+| --- | --- | --- |
+| 저장소 상태 파악 | `namba project` | [시작 가이드](docs/getting-started.ko.md) |
+| 기능 계획 | `namba plan "description"` | [워크플로 가이드](docs/workflow-guide.ko.md) |
+| harness 계획 | `namba harness "description"` | [워크플로 가이드](docs/workflow-guide.ko.md) |
+| 버그 수리 | `namba fix "issue"` 또는 `namba fix --command plan "issue"` | [워크플로 가이드](docs/workflow-guide.ko.md) |
+| 기존 SPEC 순차 처리 | `namba queue start SPEC-001..SPEC-003` | [워크플로 가이드](docs/workflow-guide.ko.md) |
+| 산출물 갱신 | `namba sync` | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) |
+| PR 인계 | `namba pr "title"` | [릴리스](https://github.com/Nam-Cheol/namba-ai/releases/latest) |
+
+## 다음에 읽을 문서
+
+| 문서 | 읽을 때 |
+| --- | --- |
+| [시작 가이드](docs/getting-started.ko.md) | 설치, update, 제거, init, 첫 실행 경로가 필요할 때 |
+| [워크플로 가이드](docs/workflow-guide.ko.md) | run 모드, queue, review readiness, PR/merge 흐름이 필요할 때 |
+| [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | 설치할 버전과 checksum을 확인할 때 |
+| [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | 현재 검증 상태를 확인할 때 |
+| [Security](SECURITY.md) | 보안 정책과 신고 경로를 확인할 때 |
 
 ## 🧰 NambaAI로 할 수 있는 일
 
@@ -64,6 +116,15 @@ namba land
 ```
 
 - agent, skill, workflow, orchestration 재사용 작업이면 `namba plan` 대신 `namba harness "description"`를 넣으세요.
+
+## ✅ 로컬 품질 게이트
+
+- PR 전에 `scripts/quality.sh`로 CI의 핵심 품질 바를 로컬에서 실행할 수 있습니다.
+- `go.mod`의 `toolchain go1.26.3` 기준을 사용하므로 CI와 `GOTOOLCHAIN=auto` 로컬 실행이 알려진 Go 1.26.2 표준 라이브러리 취약점을 피합니다.
+- 이 게이트는 Python unittest, Go unit/race tests, harness eval regression, evidence schema validation, report JSON validation, gofmt, go vet, staticcheck, govulncheck, Go coverage report를 실행합니다.
+- 기본 artifact는 coverage profile/text, `eval-scorecard.json`, `eval-summary.md`, `report.json`, `schema-validation.txt`입니다.
+- aggregate Go coverage threshold는 73.0%입니다. 계획 중 측정한 73.7% baseline보다 약간 낮게 잡아 Go version/reporting noise는 흡수하고 의미 있는 회귀는 막습니다.
+- `staticcheck` 또는 `govulncheck`가 없으면 스크립트가 정확한 `go install` 명령을 출력하고 중단합니다.
 
 ## 🪝 Hook Runtime
 
@@ -186,3 +247,14 @@ Codex에서 `$...` 형태로 부르는 skill이 실제로는 어떤 Namba 명령
 - `.codex/agents/*.toml`에는 Codex 안에서 역할을 나눠 맡길 custom agent 설정이 들어갑니다.
 - Emoji density rule: section headings by default, selected lifecycle/caution bullets only when they add scan value, and no emoji inside command literals, language links, release/CI/security links, or shell snippets.
 - `namba update`, `namba regen`, `namba sync`, `namba pr`, `namba land`는 이름은 비슷하지만 서로 다른 문제를 푸는 명령입니다. 헷갈리면 `$namba-coach`나 `$namba-help`로 먼저 물어보면 됩니다.
+
+<details>
+<summary>고급 참고 자료</summary>
+
+- 긴 command semantics, queue state, review readiness, PR/merge flow는 workflow guide에 둡니다.
+- [워크플로 가이드](docs/workflow-guide.ko.md)
+- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)
+- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)
+- [Security](SECURITY.md)
+
+</details>

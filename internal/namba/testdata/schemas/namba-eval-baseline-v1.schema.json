@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "namba-eval-baseline/v1",
+  "title": "Namba eval baseline v1",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "const": "namba-eval-baseline/v1" },
+    "result_schema_version": { "const": "namba-eval-results/v1" },
+    "suite": { "type": "string" },
+    "corpus_version": { "type": "string" }
+  },
+  "required": ["schema_version", "result_schema_version", "suite", "corpus_version", "scenario_fingerprints", "metric_pass_counts", "required_coverage"]
+}

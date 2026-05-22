@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "codex-diagnostics-evidence/v1",
+  "title": "Namba Codex diagnostics evidence v1",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "const": "codex-diagnostics-evidence/v1" },
+    "generated_at": { "type": "string" },
+    "codex_available": { "type": "string" }
+  },
+  "required": ["schema_version", "generated_at", "codex_available", "version", "doctor", "redaction", "roots", "workspace_root_comparison", "remote_control", "remote_environments"]
+}

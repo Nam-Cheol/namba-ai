@@ -29,4 +29,4 @@
 
 ## Deploy Runtime And Test Risks
 
-- System-local regression coverage exists, but end-to-end drift across generated planning docs still needs command-level validation. Confidence: medium. Evidence: `cmd/namba/encoding_test.go`, `cmd/namba/main_test.go`, `internal/namba/codex_access_command_test.go`.
+- System-local regression coverage exists, but end-to-end drift across generated planning docs still needs command-level validation. Confidence: medium. Evidence: `cmd/namba/encoding_test.go`, `cmd/namba/main_test.go`, `internal/namba/architecture_quality_test.go`.

@@ -60,9 +60,11 @@ func (a *App) runEvalSuite(_ context.Context, root string, options evalOptions) 
 	result := evalRunResult{
 		SchemaVersion: evalResultSchemaVersion,
 		Suite:         corpus.Suite,
+		CorpusVersion: corpus.CorpusVersion,
 		GeneratedAt:   a.now().UTC().Format(time.RFC3339),
 		Scenarios:     results,
 		Metrics:       buildEvalMetrics(results),
+		Regressions:   []string{},
 	}
 	for _, scenario := range results {
 		result.Summary.Total++
@@ -91,6 +93,9 @@ func (a *App) runEvalSuite(_ context.Context, root string, options evalOptions) 
 			return evalRunResult{}, err
 		}
 		regressions := compareEvalBaseline(baseline, result, corpus.CorpusVersion, strings.TrimSpace(options.caseID) != "")
+		if regressions == nil {
+			regressions = []string{}
+		}
 		result.Baseline = evalBaselineResult{
 			Compared:      true,
 			Path:          options.baseline,
@@ -100,6 +105,7 @@ func (a *App) runEvalSuite(_ context.Context, root string, options evalOptions) 
 		result.Regressions = regressions
 		result.Summary.RegressionCount = len(regressions)
 	}
+	result.Scorecard = buildEvalScorecard(corpus, result)
 	return result, nil
 }
 
@@ -778,6 +784,98 @@ func buildEvalMetrics(results []evalScenarioResult) []evalMetric {
 		metrics = append(metrics, evalMetric{Name: name, Passed: passed, Total: total, PassRate: rate})
 	}
 	return metrics
+}
+
+func buildEvalScorecard(corpus evalCorpus, result evalRunResult) *evalScorecard {
+	metrics := make([]evalScorecardMetric, 0, len(evalScorecardMetricDefinitions()))
+	for _, definition := range evalScorecardMetricDefinitions() {
+		metric := evalScorecardMetric{
+			Name:        definition.name,
+			LegacyNames: append([]string(nil), definition.legacyNames...),
+			ScenarioIDs: []string{},
+		}
+		for _, scenario := range result.Scenarios {
+			if !definition.matches(scenario) {
+				continue
+			}
+			metric.Total++
+			metric.ScenarioIDs = append(metric.ScenarioIDs, scenario.ID)
+			if scenario.Passed {
+				metric.Passed++
+			}
+		}
+		if metric.Total > 0 {
+			metric.PassRate = float64(metric.Passed) / float64(metric.Total)
+		}
+		metrics = append(metrics, metric)
+	}
+	scenarios := make([]evalScorecardScenario, 0, len(result.Scenarios))
+	for _, scenario := range result.Scenarios {
+		scenarios = append(scenarios, evalScorecardScenario{
+			ID:          scenario.ID,
+			Type:        scenario.Type,
+			Passed:      scenario.Passed,
+			Fingerprint: scenario.Fingerprint,
+		})
+	}
+	schemas := append([]string(nil), requiredEvidenceSchemaVersions()...)
+	sort.Strings(schemas)
+	return &evalScorecard{
+		SchemaVersion:    evalScorecardSchemaVersion,
+		Suite:            result.Suite,
+		CorpusVersion:    corpus.CorpusVersion,
+		GeneratedAt:      result.GeneratedAt,
+		Summary:          result.Summary,
+		Metrics:          metrics,
+		RequiredCoverage: requiredEvalCoverageBuckets(result.Scenarios),
+		Scenarios:        scenarios,
+		Baseline:         result.Baseline,
+		Regressions:      nonNilEvalStrings(result.Regressions),
+		SchemaValidation: evalScorecardSchemaStatus{Status: "covered_by_contract_tests", Schemas: schemas},
+	}
+}
+
+func nonNilEvalStrings(values []string) []string {
+	if len(values) == 0 {
+		return []string{}
+	}
+	return append([]string(nil), values...)
+}
+
+type evalScorecardMetricDefinition struct {
+	name        string
+	legacyNames []string
+	matches     func(evalScenarioResult) bool
+}
+
+func evalScorecardMetricDefinitions() []evalScorecardMetricDefinition {
+	hasExpected := func(fields ...string) func(evalScenarioResult) bool {
+		return func(result evalScenarioResult) bool {
+			return scenarioContributesMetric(result.Expected, fields)
+		}
+	}
+	hasType := func(types ...string) func(evalScenarioResult) bool {
+		allowed := map[string]bool{}
+		for _, typ := range types {
+			allowed[typ] = true
+		}
+		return func(result evalScenarioResult) bool {
+			return allowed[result.Type]
+		}
+	}
+	return []evalScorecardMetricDefinition{
+		{name: "route_selection", legacyNames: []string{"route_selection"}, matches: hasExpected("route_selection", "command")},
+		{name: "clarification_quality", legacyNames: []string{"clarification"}, matches: hasExpected("clarification_required")},
+		{name: "spec_completeness", legacyNames: []string{"spec_required_fields"}, matches: hasExpected("spec_required_fields_complete")},
+		{name: "execution_readiness", legacyNames: []string{"execution_readiness"}, matches: hasExpected("execution_ready")},
+		{name: "review_readiness", legacyNames: []string{"required_reviews"}, matches: hasExpected("required_reviews", "review_requested")},
+		{name: "dangerous_command_blocking", matches: hasType("guardrail")},
+		{name: "evidence_completeness", legacyNames: []string{"required_evidence"}, matches: hasExpected("required_evidence", "missing_or_invalid_fields")},
+		{name: "schema_validity", matches: hasType("evidence_manifest")},
+		{name: "offline_e2e_workflow_health", matches: func(result evalScenarioResult) bool {
+			return len(result.Tags) > 0
+		}},
+	}
 }
 
 func scenarioContributesMetric(expected map[string]any, fields []string) bool {

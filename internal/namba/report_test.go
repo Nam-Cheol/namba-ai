@@ -60,6 +60,23 @@ func TestReportCommandRendersJSONAndAggregatesLocalState(t *testing.T) {
 	}
 }
 
+func TestReportJSONOutputValidatesAgainstSchemaContract(t *testing.T) {
+	t.Parallel()
+
+	root := newReportFixture(t)
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+	app.getwd = func() (string, error) { return root, nil }
+	app.now = func() time.Time { return time.Date(2026, 5, 22, 10, 0, 0, 0, time.UTC) }
+
+	if err := app.Run(context.Background(), []string{"report", "--format", "json"}); err != nil {
+		t.Fatalf("report --format json failed: %v\n%s", err, stdout.String())
+	}
+	if err := validateEvidenceContractJSON(reportSchemaVersion, stdout.Bytes()); err != nil {
+		t.Fatalf("report JSON should validate against %s: %v\n%s", reportSchemaVersion, err, stdout.String())
+	}
+}
+
 func TestReportCommandHumanOutputSurfacesOperatorSections(t *testing.T) {
 	root := newReportFixture(t)
 	stdout := &bytes.Buffer{}

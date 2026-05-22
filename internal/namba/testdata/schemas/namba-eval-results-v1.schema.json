@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "namba-eval-results/v1",
+  "title": "Namba eval results v1",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "const": "namba-eval-results/v1" },
+    "suite": { "type": "string" },
+    "generated_at": { "type": "string" },
+    "metrics": { "type": "array" },
+    "scenarios": { "type": "array" },
+    "regressions": { "type": "array" }
+  },
+  "required": ["schema_version", "suite", "generated_at", "summary", "metrics", "scenarios", "baseline", "regressions"]
+}

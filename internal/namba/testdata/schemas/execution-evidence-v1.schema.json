@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "execution-evidence/v1",
+  "title": "Namba execution evidence v1",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "const": "execution-evidence/v1" },
+    "log_id": { "type": "string" },
+    "run_id": { "type": "string" },
+    "generated_at": { "type": "string" },
+    "status": { "type": "string" },
+    "hooks": { "type": "array" }
+  },
+  "required": ["schema_version", "log_id", "run_id", "generated_at", "status", "finalization", "request", "preflight", "execution", "validation", "progress", "extensions", "hooks"]
+}

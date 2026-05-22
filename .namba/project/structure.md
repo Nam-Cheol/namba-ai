@@ -580,6 +580,7 @@ go.mod
 install.ps1
 install.sh
 internal/namba/agent_runtime.go
+internal/namba/architecture_quality_test.go
 internal/namba/codex.go
 internal/namba/codex_access.go
 internal/namba/codex_access_command_test.go
@@ -598,6 +599,7 @@ internal/namba/eval_engine.go
 internal/namba/eval_fixtures.go
 internal/namba/eval_render.go
 internal/namba/eval_schema.go
+internal/namba/eval_scorecard_test.go
 internal/namba/execution.go
 internal/namba/execution_evidence.go
 internal/namba/execution_evidence_test.go
@@ -646,6 +648,8 @@ internal/namba/report_test.go
 internal/namba/runtime_contract.go
 internal/namba/runtime_contract_test.go
 internal/namba/runtime_harness.go
+internal/namba/schema_contract.go
+internal/namba/schema_contract_test.go
 internal/namba/self_update_command.go
 internal/namba/self_update_command_test.go
 internal/namba/spec027_phase1_test.go
@@ -666,6 +670,14 @@ internal/namba/testdata/evals/harness/pr_review_cases.json
 internal/namba/testdata/evals/harness/prompt_refinement_cases.json
 internal/namba/testdata/evals/harness/route_cases.json
 internal/namba/testdata/evals/harness/scenarios.json
+internal/namba/testdata/schemas/codex-diagnostics-evidence-v1.schema.json
+internal/namba/testdata/schemas/execution-evidence-v1.schema.json
+internal/namba/testdata/schemas/namba-eval-baseline-v1.schema.json
+internal/namba/testdata/schemas/namba-eval-results-v1.schema.json
+internal/namba/testdata/schemas/namba-eval-scorecard-v1.schema.json
+internal/namba/testdata/schemas/namba-report-v1.schema.json
+internal/namba/testdata/schemas/project-codex-diagnostics-evidence-v1.schema.json
+internal/namba/testdata/schemas/queue-runner-evidence-v1.schema.json
 internal/namba/update_command.go
 internal/namba/update_command_test.go
 internal/namba/version.go

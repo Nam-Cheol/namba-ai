@@ -28,8 +28,27 @@ jobs:
         run: python3 -m unittest discover -s tests
       - name: Go unit tests
         run: go test ./...
-      - name: Harness eval regression
-        run: go run ./cmd/namba eval --suite harness --format json --baseline internal/namba/testdata/evals/harness/baseline.json --fail-on-regression
+      - name: Harness eval regression and scorecard artifacts
+        run: |
+          mkdir -p artifacts
+          go run ./cmd/namba eval --suite harness --format json --baseline internal/namba/testdata/evals/harness/baseline.json --fail-on-regression --scorecard-out artifacts/eval-scorecard.json --summary-out artifacts/eval-summary.md
+      - name: Evidence schema validation
+        run: |
+          mkdir -p artifacts
+          go test ./internal/namba -run 'TestEvidenceSchemaFilesExistAndMatchContracts|TestEvidenceContractValidation|TestReportJSONOutputValidatesAgainstSchemaContract|TestEvalScorecardUsesFixedHarnessQualityMetrics' -count=1 | tee artifacts/schema-validation.txt
+      - name: Report JSON artifact
+        run: |
+          mkdir -p artifacts
+          go run ./cmd/namba report --format json > artifacts/report.json
+      - name: Upload harness quality artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: harness-quality
+          path: |
+            artifacts/eval-scorecard.json
+            artifacts/eval-summary.md
+            artifacts/report.json
+            artifacts/schema-validation.txt
 
   analysis:
     name: Formatting, vet, and staticcheck

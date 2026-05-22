@@ -66,6 +66,48 @@ func renderEvalMarkdown(result evalRunResult) string {
 	return b.String()
 }
 
+func renderEvalScorecardMarkdown(result evalRunResult) string {
+	var b strings.Builder
+	scorecard := result.Scorecard
+	if scorecard == nil {
+		fmt.Fprintf(&b, "# Namba Eval Scorecard\n\n")
+		fmt.Fprintf(&b, "- status: `unavailable`\n")
+		return b.String()
+	}
+	fmt.Fprintf(&b, "# Namba Eval Scorecard\n\n")
+	fmt.Fprintf(&b, "- schema_version: `%s`\n", scorecard.SchemaVersion)
+	fmt.Fprintf(&b, "- suite: `%s`\n", scorecard.Suite)
+	fmt.Fprintf(&b, "- corpus_version: `%s`\n", scorecard.CorpusVersion)
+	fmt.Fprintf(&b, "- generated_at: `%s`\n", scorecard.GeneratedAt)
+	fmt.Fprintf(&b, "- scenarios: %d total, %d passed, %d failed\n", scorecard.Summary.Total, scorecard.Summary.Passed, scorecard.Summary.Failed)
+	fmt.Fprintf(&b, "- regressions: %d\n", scorecard.Summary.RegressionCount)
+	fmt.Fprintf(&b, "- schema_validation: `%s`\n", scorecard.SchemaValidation.Status)
+	if scorecard.Baseline.Compared {
+		status := "passed"
+		if !scorecard.Baseline.Passed {
+			status = "failed"
+		}
+		fmt.Fprintf(&b, "- baseline: %s `%s`\n", status, scorecard.Baseline.Path)
+	}
+	fmt.Fprintf(&b, "\n## 1.0 Metrics\n\n")
+	for _, metric := range scorecard.Metrics {
+		fmt.Fprintf(&b, "- `%s`: %d/%d (%.0f%%)\n", metric.Name, metric.Passed, metric.Total, metric.PassRate*100)
+	}
+	if len(scorecard.RequiredCoverage) > 0 {
+		fmt.Fprintf(&b, "\n## Required Coverage\n\n")
+		for _, bucket := range scorecard.RequiredCoverage {
+			fmt.Fprintf(&b, "- `%s`\n", bucket)
+		}
+	}
+	if len(scorecard.Regressions) > 0 {
+		fmt.Fprintf(&b, "\n## Baseline Regressions\n\n")
+		for _, regression := range scorecard.Regressions {
+			fmt.Fprintf(&b, "- %s\n", regression)
+		}
+	}
+	return b.String()
+}
+
 func renderEvalScenarioMarkdown(b *strings.Builder, scenario evalScenarioResult) {
 	fmt.Fprintf(b, "### `%s`\n\n", scenario.ID)
 	fmt.Fprintf(b, "- type: `%s`\n", scenario.Type)

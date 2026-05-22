@@ -12,13 +12,65 @@ NambaAI 是一份给 Codex 工作流用的操作指南，帮助你少纠结“�
 
 [Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](SECURITY.md)
 
+[![Release](https://img.shields.io/github/v/release/Nam-Cheol/namba-ai?label=release)](https://github.com/Nam-Cheol/namba-ai/releases/latest) [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) [![Security](https://img.shields.io/badge/security-policy-green)](SECURITY.md) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![Docs](https://img.shields.io/badge/docs-getting%20started-informational)](docs/getting-started.zh.md)
+
+这一行只展示 release、CI、security policy、license 和入门文档这些新用户优先查看的信任信号。
+
+<p align="center">
+  <a href="docs/getting-started.zh.md"><img src="https://img.shields.io/static/v1?color=2ea44f&amp;label=%E5%BC%80%E5%A7%8B&amp;labelColor=24292f&amp;message=%E6%8C%87%E5%8D%97" alt="开始使用" /></a>
+  <a href="docs/workflow-guide.zh.md"><img src="https://img.shields.io/static/v1?color=0969da&amp;label=%E5%B7%A5%E4%BD%9C%E6%B5%81&amp;labelColor=24292f&amp;message=%E6%8C%87%E5%8D%97" alt="工作流指南" /></a>
+  <a href="https://github.com/Nam-Cheol/namba-ai/releases/latest"><img src="https://img.shields.io/static/v1?color=8250df&amp;label=%E7%89%88%E6%9C%AC&amp;labelColor=24292f&amp;message=%E6%9C%80%E6%96%B0" alt="Release" /></a>
+  <a href="SECURITY.md"><img src="https://img.shields.io/static/v1?color=1a7f37&amp;label=%E5%AE%89%E5%85%A8&amp;labelColor=24292f&amp;message=%E7%AD%96%E7%95%A5" alt="Security" /></a>
+</p>
+
+## 首先运行
+
+| 步骤 | 运行 | 目的 |
+| --- | --- | --- |
+| 1 | `namba project` | 刷新仓库状态和 project docs。 |
+| 2 | `namba plan "description"` | 把功能工作变成可评审的 SPEC。 |
+| 3 | `namba run SPEC-001` | 实现并验证 SPEC。 |
+
+### 命令流程
+
+这是最常用的 NambaAI 命令流程。顺序处理多个已有 SPEC 时，从 `namba queue` 开始。
+
+```mermaid
+flowchart LR
+    project["namba project"] --> choose{"choose path"}
+    choose --> plan["namba plan"]
+    choose --> harness["namba harness"]
+    choose --> fix["namba fix"]
+    plan --> run["namba run"]
+    harness --> run
+    fix --> run
+    queue["namba queue"] --> run
+    run --> sync["namba sync"]
+    sync --> pr["namba pr"]
+    pr --> land["namba land"]
+```
+
 ## 🧭 应该使用哪个命令？
 
-- `namba project`: 先了解情况时使用。它会让 Codex 重新读取仓库结构和文档。
-- `namba plan`: 想添加功能或做产品变更，并希望有一份清楚计划时使用。
-- `namba harness`: 想规划可复用的 skill、agent、workflow 等 Namba/Codex 组件时使用。
-- `namba fix`: 想直接修复眼前的 bug 时使用。如果 bug 修复也需要评审计划，就用 `namba fix --command plan`。
-- `namba queue start SPEC-001..SPEC-003`: 想按顺序处理已创建的 SPEC，而不再生成新 SPEC 时使用。
+| 场景 | 命令 | 下一篇文档 |
+| --- | --- | --- |
+| 了解仓库状态 | `namba project` | [快速开始](docs/getting-started.zh.md) |
+| 规划功能 | `namba plan "description"` | [工作流指南](docs/workflow-guide.zh.md) |
+| 规划 harness | `namba harness "description"` | [工作流指南](docs/workflow-guide.zh.md) |
+| 修复缺陷 | `namba fix "issue"` 或 `namba fix --command plan "issue"` | [工作流指南](docs/workflow-guide.zh.md) |
+| 顺序处理已有 SPEC | `namba queue start SPEC-001..SPEC-003` | [工作流指南](docs/workflow-guide.zh.md) |
+| 刷新产物 | `namba sync` | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) |
+| PR 交接 | `namba pr "title"` | [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) |
+
+## 接下来阅读
+
+| 文档 | 适合阅读的时机 |
+| --- | --- |
+| [快速开始](docs/getting-started.zh.md) | 需要安装、更新、卸载、init 和首次运行路径时 |
+| [工作流指南](docs/workflow-guide.zh.md) | 需要 run 模式、queue、review readiness、PR/merge 流程时 |
+| [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | 检查安装版本和 checksum 时 |
+| [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | 检查当前验证状态时 |
+| [Security](SECURITY.md) | 查看安全策略和报告路径时 |
 
 ## 🧰 你可以用 NambaAI 做什么
 
@@ -64,6 +116,15 @@ namba land
 ```
 
 - 如果工作是为了复用 agent、skill、workflow 或 orchestration，请把 `namba plan` 换成 `namba harness "description"`。
+
+## ✅ 本地质量门禁
+
+- PR 前可以运行 `scripts/quality.sh`，在本地执行 CI 的核心质量标准。
+- 该仓库使用 `go.mod` 中的 `toolchain go1.26.3`，因此 CI 和 `GOTOOLCHAIN=auto` 的本地运行会避开已知的 Go 1.26.2 标准库漏洞。
+- 该门禁会运行 Python unittest、Go unit/race tests、harness eval regression、evidence schema validation、report JSON validation、gofmt、go vet、staticcheck、govulncheck 和 Go coverage report。
+- 默认 artifact 包括 coverage profile/text、`eval-scorecard.json`、`eval-summary.md`、`report.json` 和 `schema-validation.txt`。
+- aggregate Go coverage threshold 为 73.0%。它略低于规划时测得的 73.7% baseline，用来吸收 Go version/reporting noise，同时阻止有意义的覆盖率回退。
+- 如果缺少 `staticcheck` 或 `govulncheck`，脚本会输出准确的 `go install` 命令并停止。
 
 ## 🪝 Hook Runtime
 
@@ -184,3 +245,14 @@ continue_on_failure = false
 - `.codex/agents/*.toml` 保存 Codex 内部分工用的 custom agent 设置。
 - Emoji density rule: section headings by default, selected lifecycle/caution bullets only when they add scan value, and no emoji inside command literals, language links, release/CI/security links, or shell snippets.
 - `namba update`、`namba regen`、`namba sync`、`namba pr`、`namba land` 名字相近，但各自解决不同的问题。拿不准时可以先问 `$namba-coach` 或 `$namba-help`。
+
+<details>
+<summary>高级参考</summary>
+
+- 较长的 command semantics、queue state、review readiness、PR/merge flow 放在 workflow guide 中。
+- [工作流指南](docs/workflow-guide.zh.md)
+- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)
+- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)
+- [Security](SECURITY.md)
+
+</details>
