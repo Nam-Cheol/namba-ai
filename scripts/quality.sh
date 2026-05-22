@@ -65,7 +65,7 @@ run_step "gofmt check" check_gofmt
 run_step "Go vet" go vet ./...
 run_step "Go unit tests" go test ./...
 run_step "Harness eval regression" go run ./cmd/namba eval --suite harness --format json --baseline internal/namba/testdata/evals/harness/baseline.json --fail-on-regression --scorecard-out "$eval_scorecard" --summary-out "$eval_summary"
-run_step "Evidence schema validation" sh -c 'go test ./internal/namba -run "TestEvidenceSchemaFilesExistAndMatchContracts|TestEvidenceContractValidation|TestReportJSONOutputValidatesAgainstSchemaContract|TestEvalScorecardUsesFixedHarnessQualityMetrics" -count=1 | tee "$1"' sh "$schema_validation"
+run_step "Evidence schema validation" bash -o pipefail -c 'go test ./internal/namba -run "TestEvidenceSchemaFilesExistAndMatchContracts|TestEvidenceContractValidation|TestReportJSONOutputValidatesAgainstSchemaContract|TestEvalScorecardUsesFixedHarnessQualityMetrics" -count=1 | tee "$1"' bash "$schema_validation"
 run_step "Report JSON artifact" sh -c 'go run ./cmd/namba report --format json > "$1"' sh "$report_json"
 run_step "Go race tests" go test -race ./...
 
@@ -76,7 +76,7 @@ require_tool "govulncheck" "$govulncheck_install"
 run_step "govulncheck" govulncheck ./...
 
 run_step "Go coverage profile" go test ./... -coverprofile="$coverage_out"
-run_step "Go coverage report" sh -c 'go tool cover -func="$1" | tee "$2"' sh "$coverage_out" "$coverage_report"
+run_step "Go coverage report" bash -o pipefail -c 'go tool cover -func="$1" | tee "$2"' bash "$coverage_out" "$coverage_report"
 run_step "Go coverage threshold" check_coverage_threshold "$coverage_report"
 
 printf '\nQuality artifacts:\n'

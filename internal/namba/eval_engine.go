@@ -80,6 +80,7 @@ func (a *App) runEvalSuite(_ context.Context, root string, options evalOptions) 
 		}
 		if result.Summary.Failed > 0 {
 			result.Baseline = evalBaselineResult{Compared: true, Path: options.baseline, Passed: false, CorpusVersion: corpus.CorpusVersion}
+			result.Scorecard = buildEvalScorecard(corpus, result)
 			return result, nil
 		}
 		baseline := buildEvalBaseline(corpus, result)

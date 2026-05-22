@@ -280,6 +280,8 @@ func TestEvalCommandDoesNotUpdateBaselineWhenScenariosFail(t *testing.T) {
 	tmp := canonicalTempDir(t)
 	fixturePath := filepath.Join(tmp, "failing-scenarios.json")
 	baselinePath := filepath.Join(tmp, "baseline.json")
+	scorecardPath := filepath.Join(tmp, "scorecard.json")
+	summaryPath := filepath.Join(tmp, "summary.md")
 	writeTestFile(t, fixturePath, `{
   "schema_version": "namba-eval-scenarios/v1",
   "suite": "harness",
@@ -307,7 +309,7 @@ func TestEvalCommandDoesNotUpdateBaselineWhenScenariosFail(t *testing.T) {
 	restore := chdirExecution(t, root)
 	defer restore()
 
-	err := app.Run(context.Background(), []string{"eval", "--fixture", fixturePath, "--baseline", baselinePath, "--format", "json", "--update-baseline"})
+	err := app.Run(context.Background(), []string{"eval", "--fixture", fixturePath, "--baseline", baselinePath, "--format", "json", "--update-baseline", "--scorecard-out", scorecardPath, "--summary-out", summaryPath})
 	if err == nil {
 		t.Fatal("expected failing scenarios to block baseline update")
 	}
@@ -320,6 +322,16 @@ func TestEvalCommandDoesNotUpdateBaselineWhenScenariosFail(t *testing.T) {
 	}
 	if string(data) != "sentinel\n" {
 		t.Fatalf("baseline should not be rewritten when scenarios fail, got %q", string(data))
+	}
+	scorecardData, readErr := os.ReadFile(scorecardPath)
+	if readErr != nil {
+		t.Fatalf("scorecard artifact should still be written for failed baseline update: %v", readErr)
+	}
+	if err := validateEvidenceContractJSON(evalScorecardSchemaVersion, scorecardData); err != nil {
+		t.Fatalf("scorecard artifact should validate after failed baseline update: %v\n%s", err, string(scorecardData))
+	}
+	if _, readErr := os.ReadFile(summaryPath); readErr != nil {
+		t.Fatalf("summary artifact should still be written for failed baseline update: %v", readErr)
 	}
 }
 
