@@ -47,26 +47,6 @@ NambaAI 워크플로는 먼저 저장소를 읽고, 작업을 SPEC로 정리하�
 | 5. 인계 | `namba pr "title"` | PR 언어와 checks를 확인합니다. Codex review는 `--review`를 쓴 경우에만 확인합니다. |
 | 6. 머지 | `namba land` | clean+approved PR만 `main`으로 merge합니다. |
 
-### SPEC 생명주기
-
-SPEC은 아이디어를 수용 기준까지 정리한 뒤 구현, 검증, 문서 동기화, PR 인계, merge/land로 이동합니다. 애매하거나 검증이 실패하면 blocked 상태에서 repair/retry로 돌아갑니다.
-
-```mermaid
-flowchart LR
-    idea["idea"] --> clarified["goal/scope/constraints/acceptance"]
-    clarified --> spec["SPEC"]
-    spec --> implementation["implementation"]
-    implementation --> validation["validation"]
-    validation --> docs["docs sync"]
-    docs --> pr["PR handoff"]
-    pr --> land["merge/land"]
-    clarified --> blocked["blocked"]
-    validation --> blocked
-    blocked --> repair["repair/retry"]
-    repair --> clarified
-    repair --> implementation
-```
-
 ## `update`, `regen`, `sync`, `pr`, `land`는 서로 다른 명령입니다
 
 - `namba update`: 설치된 CLI를 GitHub Release 자산 기준으로 self-update 합니다.
@@ -162,14 +142,3 @@ flowchart LR
 - [시작 가이드](./getting-started.ko.md): 설치와 첫 실행 흐름
 - [Codex Upstream Reference](./codex-upstream-reference.md): 이 저장소가 따르는 Codex 기준
 - [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration 배경과 설계 맥락
-
-<details>
-<summary>고급 참고 자료</summary>
-
-- 긴 command semantics, queue state, review readiness, PR/merge flow는 workflow guide에 둡니다.
-- [워크플로 가이드](./workflow-guide.ko.md)
-- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)
-- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)
-- [Security](../SECURITY.md)
-
-</details>

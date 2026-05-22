@@ -28,20 +28,11 @@ Advisory only: use this summary to decide whether the SPEC has enough pre-implem
 ## Summary
 
 - Cleared reviews: 3/3
-- Advisory status: all current review tracks are marked clear.
+- Advisory status: follow up on harness=harness request invalid: unknown harness artifact target "cli" before execution or GitHub handoff if the risk profile justifies it.
 
 ## Harness Advisory
 
-- Route: `namba plan`
-- Request kind: `core_harness_change`
-- Delivery mode: `spec`
-- Adaptation mode: `modify_core`
-- Base contract ref: `namba-core-harness`
-- Touches Namba core: `true`
-- Required evidence: `contract, baseline, eval-plan`
-- Evidence status: complete
-- Required reviews: `product, engineering, design`
-- Review artifact status: complete
+- Harness request: invalid (unknown harness artifact target "cli")
 
 ## Phase-1 Evidence
 

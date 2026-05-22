@@ -47,26 +47,6 @@ NambaAI 工作流会先读取仓库，把工作整理成 SPEC，完成实现和�
 | 5. 交接 | `namba pr "title"` | 检查 PR language 和 checks。只有使用 `--review` 时才检查 Codex review。 |
 | 6. 合并 | `namba land` | 只把 clean+approved PR merge 到 `main`。 |
 
-### SPEC 生命周期
-
-SPEC 会把 idea 整理到 acceptance，再进入 implementation、validation、docs sync、PR handoff 和 merge/land。状态不明确或 validation 失败时会进入 blocked，并回到 repair/retry。
-
-```mermaid
-flowchart LR
-    idea["idea"] --> clarified["goal/scope/constraints/acceptance"]
-    clarified --> spec["SPEC"]
-    spec --> implementation["implementation"]
-    implementation --> validation["validation"]
-    validation --> docs["docs sync"]
-    docs --> pr["PR handoff"]
-    pr --> land["merge/land"]
-    clarified --> blocked["blocked"]
-    validation --> blocked
-    blocked --> repair["repair/retry"]
-    repair --> clarified
-    repair --> implementation
-```
-
 ## `update`、`regen`、`sync`、`pr`、`land` 是不同的命令
 
 - `namba update`: 从 GitHub Release 资产对已安装的 CLI 做 self-update。
@@ -160,14 +140,3 @@ flowchart LR
 - [快速开始](./getting-started.zh.md): 安装和首次运行流程
 - [Codex Upstream Reference](./codex-upstream-reference.md): 本仓库遵循的 Codex 基线
 - [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration 背景和设计上下文
-
-<details>
-<summary>高级参考</summary>
-
-- 较长的 command semantics、queue state、review readiness、PR/merge flow 放在 workflow guide 中。
-- [工作流指南](./workflow-guide.zh.md)
-- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)
-- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)
-- [Security](../SECURITY.md)
-
-</details>

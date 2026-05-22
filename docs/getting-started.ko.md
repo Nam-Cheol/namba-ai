@@ -29,20 +29,6 @@ NambaAI는 Codex 작업을 바로 실행하기 전에 목표, 범위, 제약, �
 | 새 repo 준비 | `namba init .` | 첫 Codex 세션에서 `/hooks` review를 승인합니다. |
 | 첫 작업 실행 | `namba project` -> `namba plan "..."` -> `namba run SPEC-001` | `namba sync`, `namba pr`, `namba land`로 인계합니다. |
 
-### 첫 실행 경로
-
-설치 뒤 첫 PR까지 이어지는 최소 경로입니다.
-
-```mermaid
-flowchart LR
-    install["install"] --> init["namba init ."]
-    init --> project["namba project"]
-    project --> plan["namba plan"]
-    plan --> run["namba run"]
-    run --> sync["namba sync"]
-    sync --> pr["namba pr"]
-```
-
 ## 1. 설치
 
 - Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
@@ -94,14 +80,3 @@ namba land
 - [워크플로 가이드](./workflow-guide.ko.md)
 - [Codex Upstream Reference](./codex-upstream-reference.md)
 - [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md)
-
-<details>
-<summary>고급 참고 자료</summary>
-
-- 긴 command semantics, queue state, review readiness, PR/merge flow는 workflow guide에 둡니다.
-- [워크플로 가이드](./workflow-guide.ko.md)
-- [Release](https://github.com/Nam-Cheol/namba-ai/releases/latest)
-- [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml)
-- [Security](../SECURITY.md)
-
-</details>
