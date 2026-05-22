@@ -543,7 +543,8 @@ func generatedInstructionContractTestSnippets() []string {
 		"cite source artifacts such as SPEC files",
 		"never expose or commit secrets",
 		"destructive commands",
-		"request approval for privileged, networked, or sandbox-blocked actions",
+		"request approval for privileged, networked, or sandbox-blocked actions only when the active approval mode allows it",
+		"report the blocker or use a safe non-escalating path",
 		"Fallback implementer boundary",
 		"non-project-specific",
 	}
