@@ -158,6 +158,10 @@ continue_on_failure = true
 			return "", nil
 		}
 	}
+	app.runCodexCmdWithInput = func(ctx context.Context, name string, args []string, dir, input string) (string, string, error) {
+		out, err := app.runCmd(ctx, name, args, dir)
+		return out, "", err
+	}
 	app.runCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
 		if !isShellCommand(name) || !strings.Contains(strings.Join(args, " "), "capture-context") {
 			t.Fatalf("unexpected hook command: %s %v", name, args)
@@ -689,6 +693,10 @@ continue_on_failure = true
 			return "", nil
 		}
 	}
+	app.runCodexCmdWithInput = func(ctx context.Context, name string, args []string, dir, input string) (string, string, error) {
+		out, err := app.runCmd(ctx, name, args, dir)
+		return out, "", err
+	}
 	app.runCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
 		t.Fatalf("after_bash hook should not run without runner observations: %s %v", name, args)
 		return "", "", nil
@@ -744,6 +752,10 @@ continue_on_failure = true
 			t.Fatalf("unexpected command: %s %v", name, args)
 			return "", nil
 		}
+	}
+	app.runCodexCmdWithInput = func(ctx context.Context, name string, args []string, dir, input string) (string, string, error) {
+		out, err := app.runCmd(ctx, name, args, dir)
+		return out, "", err
 	}
 	app.runCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
 		if dir != worker {

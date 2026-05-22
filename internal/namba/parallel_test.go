@@ -152,6 +152,10 @@ func newParallelTestApp(t *testing.T, responder func(name string, args []string,
 		mu.Unlock()
 		return responder(name, args, dir)
 	}
+	app.runCodexCmdWithInput = func(ctx context.Context, name string, args []string, dir, input string) (string, string, error) {
+		out, err := app.runCmd(ctx, name, args, dir)
+		return out, "", err
+	}
 	return root, app, &commands
 }
 

@@ -51,6 +51,7 @@ type App struct {
 	detectCodexCapabilities func(context.Context, string, executionRequest) (codexCapabilityMatrix, error)
 	runCmd                  func(context.Context, string, []string, string) (string, error)
 	runCmdWithInput         func(context.Context, string, []string, string, string) (string, string, error)
+	runCodexCmdWithInput    func(context.Context, string, []string, string, string) (string, string, error)
 	startCmd                func(string, []string, string) error
 	downloadURL             func(context.Context, string) ([]byte, error)
 	executablePath          func() (string, error)
@@ -168,6 +169,17 @@ func NewApp(stdout, stderr io.Writer) *App {
 			if input != "" {
 				cmd.Stdin = strings.NewReader(input)
 			}
+			var stdout strings.Builder
+			var stderr strings.Builder
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+			err := cmd.Run()
+			return stdout.String(), stderr.String(), err
+		},
+		runCodexCmdWithInput: func(ctx context.Context, name string, args []string, dir, input string) (string, string, error) {
+			cmd := exec.CommandContext(ctx, name, args...)
+			cmd.Dir = dir
+			cmd.Stdin = strings.NewReader(input)
 			var stdout strings.Builder
 			var stderr strings.Builder
 			cmd.Stdout = &stdout
@@ -2917,6 +2929,10 @@ func (a *App) runCodexExec(ctx context.Context, dir, prompt string) (string, err
 	args, err := buildCodexExecArgs(req, capabilities)
 	if err != nil {
 		return "", err
+	}
+	if a.runCodexCmdWithInput != nil {
+		stdout, stderr, err := a.runCodexCmdWithInput(ctx, "codex", args, dir, prompt)
+		return strings.TrimSpace(strings.Join(nonEmptyArgs([]string{stdout, stderr}), "\n")), err
 	}
 	return a.runBinary(ctx, "codex", args, dir)
 }

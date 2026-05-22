@@ -531,6 +531,13 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-060/reviews/product.md
 .namba/specs/SPEC-060/reviews/readiness.md
 .namba/specs/SPEC-060/spec.md
+.namba/specs/SPEC-061/acceptance.md
+.namba/specs/SPEC-061/plan.md
+.namba/specs/SPEC-061/reviews/design.md
+.namba/specs/SPEC-061/reviews/engineering.md
+.namba/specs/SPEC-061/reviews/product.md
+.namba/specs/SPEC-061/reviews/readiness.md
+.namba/specs/SPEC-061/spec.md
 AGENTS.md
 LICENSE
 README.ja.md
@@ -539,6 +546,7 @@ README.md
 README.zh.md
 SECURITY.md
 assets/.DS_Store
+assets/images/.DS_Store
 assets/images/namba-ai-hero.png
 cmd/namba/encoding_other.go
 cmd/namba/encoding_test.go

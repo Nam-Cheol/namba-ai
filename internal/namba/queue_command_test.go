@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -661,6 +662,73 @@ func TestPrepareQueuePullRequestReviewFlagAddsReviewComment(t *testing.T) {
 	}
 }
 
+func TestPrepareQueuePullRequestValidatesBeforeRemoteHandoffFallback(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "quality.yaml"), "development_mode: tdd\ntest_command: validate-queue\nlint_command: none\ntypecheck_command: none\nbuild_command: none\nmigration_dry_run_command: none\nsmoke_start_command: none\noutput_contract_command: none\n")
+
+	branch := "spec/SPEC-001-queue-fixture"
+	var commands []string
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		command := name + " " + strings.Join(args, " ")
+		commands = append(commands, command)
+		switch {
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return branch, nil
+		case name == "sh" && strings.Join(args, " ") == "-lc validate-queue":
+			return "", nil
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return "", nil
+		case name == "gh" && strings.Join(args, " ") == "auth status":
+			return "", errors.New("authentication required")
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	_, err := app.prepareQueuePullRequest(context.Background(), tmp, queueState{Options: queueOptions{Remote: defaultGitRemote}}, specPackage{ID: "SPEC-001", Description: "Queue fixture for SPEC-001.", Path: filepath.Join(tmp, ".namba", "specs", "SPEC-001")}, branch)
+	if !isRemoteHandoffUnavailable(err) {
+		t.Fatalf("expected remote handoff fallback error after validation, got %v", err)
+	}
+	validateIndex := indexOfCommand(commands, "sh -lc validate-queue")
+	authIndex := indexOfCommand(commands, "gh auth status")
+	if validateIndex < 0 || authIndex < 0 || validateIndex > authIndex {
+		t.Fatalf("expected validation before gh auth status, got %v", commands)
+	}
+}
+
+func TestPrepareQueuePullRequestValidationFailureDoesNotEnableRemoteFallback(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "quality.yaml"), "development_mode: tdd\ntest_command: validate-queue\nlint_command: none\ntypecheck_command: none\nbuild_command: none\nmigration_dry_run_command: none\nsmoke_start_command: none\noutput_contract_command: none\n")
+
+	branch := "spec/SPEC-001-queue-fixture"
+	var commands []string
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		commands = append(commands, name+" "+strings.Join(args, " "))
+		switch {
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return branch, nil
+		case name == "sh" && strings.Join(args, " ") == "-lc validate-queue":
+			return "", errors.New("validation failed")
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	_, err := app.prepareQueuePullRequest(context.Background(), tmp, queueState{Options: queueOptions{Remote: defaultGitRemote}}, specPackage{ID: "SPEC-001", Description: "Queue fixture for SPEC-001.", Path: filepath.Join(tmp, ".namba", "specs", "SPEC-001")}, branch)
+	if err == nil || isRemoteHandoffUnavailable(err) {
+		t.Fatalf("expected validation error without remote fallback classification, got %v", err)
+	}
+	if indexOfCommand(commands, "gh auth status") >= 0 {
+		t.Fatalf("validation failure must stop before remote handoff, got %v", commands)
+	}
+}
+
 func TestQueueStartDesktopRunnerWritesHandoffWithoutCodexExec(t *testing.T) {
 	tmp, _, app, restore := prepareQueueProject(t)
 	defer restore()
@@ -1142,6 +1210,203 @@ func TestQueueRuntimeFilesDoNotDirtyWorkingTreeGate(t *testing.T) {
 
 	if err := app.ensureQueueBranch(context.Background(), tmp, queueState{}, "spec/SPEC-001-queue-fixture"); err != nil {
 		t.Fatalf("queue-owned runtime files should not block branch readiness: %v", err)
+	}
+}
+
+func TestQueueWorkingTreeChangesClassifiesActiveQueueArtifactsOnly(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if name == "git" && strings.Join(args, " ") == "status --porcelain" {
+			return strings.Join([]string{
+				"?? .namba/logs/queue/state.json",
+				"?? .namba/logs/runs/spec-001-request.json",
+				"?? .namba/logs/runs/spec-002-request.json",
+				" M internal/namba/queue_command.go",
+			}, "\n"), nil
+		}
+		t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+		return "", nil
+	}
+
+	changes, err := app.queueWorkingTreeChanges(context.Background(), tmp, "SPEC-001")
+	if err != nil {
+		t.Fatalf("queueWorkingTreeChanges failed: %v", err)
+	}
+	if got := strings.Join(changes.QueueOwnedPaths, ","); got != ".namba/logs/queue/state.json,.namba/logs/runs/spec-001-request.json" {
+		t.Fatalf("unexpected queue-owned paths: %s", got)
+	}
+	if got := strings.Join(changes.UserPaths, ","); got != ".namba/logs/runs/spec-002-request.json,internal/namba/queue_command.go" {
+		t.Fatalf("unexpected user paths: %s", got)
+	}
+}
+
+func TestNonQueueWorkingTreeChangesDoNotIgnoreQueueLogs(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if name == "git" && strings.Join(args, " ") == "status --porcelain" {
+			return "?? .namba/logs/queue/state.json", nil
+		}
+		t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+		return "", nil
+	}
+
+	dirty, err := app.hasWorkingTreeChanges(context.Background(), tmp)
+	if err != nil {
+		t.Fatalf("hasWorkingTreeChanges failed: %v", err)
+	}
+	if !dirty {
+		t.Fatal("expected non-queue clean checks to report queue log changes")
+	}
+}
+
+func TestQueueLocalFallbackMergesBranchWhenRemoteHandoffUnavailable(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+
+	branch := "spec/SPEC-001-queue-fixture"
+	currentBranch := branch
+	var commands []string
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		commands = append(commands, name+" "+strings.Join(args, " "))
+		switch {
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return " M internal/namba/queue_command.go\n?? .namba/logs/runs/spec-001-request.json", nil
+		case name == "git" && strings.Join(args, " ") == strings.Join(queueGitAddArgs(), " "):
+			return "", nil
+		case name == "git" && len(args) == 3 && args[0] == "commit" && args[1] == "-m":
+			return "", nil
+		case name == "git" && len(args) == 2 && args[0] == "checkout" && args[1] == "main":
+			currentBranch = "main"
+			return "", nil
+		case name == "git" && len(args) == 5 && args[0] == "merge" && args[2] == branch:
+			return "", nil
+		default:
+			t.Fatalf("unexpected command: %s %v in %s (branch %s)", name, args, dir, currentBranch)
+			return "", nil
+		}
+	}
+
+	state := queueState{ID: "queue-test", Options: queueOptions{AutoLand: true}, Targets: []string{"SPEC-001"}, ActiveSpecID: "SPEC-001", Specs: map[string]queueSpec{"SPEC-001": {SpecID: "SPEC-001", Branch: branch}}}
+	specPkg := specPackage{ID: "SPEC-001", Description: "Queue fallback fixture", Path: filepath.Join(tmp, ".namba", "specs", "SPEC-001")}
+	got, done, err := app.applyQueueLocalFallback(context.Background(), tmp, state, "SPEC-001", state.Specs["SPEC-001"], specPkg, branch, queueRunEvidencePath("SPEC-001"), errors.New("push branch failed: network unavailable"))
+	if err != nil {
+		t.Fatalf("applyQueueLocalFallback failed: %v", err)
+	}
+	if !done || !got.LocalFallbackUsed || got.Status != queueStateActive || got.Detail != "local_fallback_continuing" {
+		t.Fatalf("unexpected fallback state: done=%v state=%+v", done, got)
+	}
+	if got.LastBlocker != "" || !strings.Contains(got.LastRecoveryAction, "continue remaining SPECs locally") {
+		t.Fatalf("expected continuation recovery guidance, got blocker=%q next=%q", got.LastBlocker, got.LastRecoveryAction)
+	}
+	if spec := got.Specs["SPEC-001"]; !spec.LocalFallback || spec.Phase != queuePhaseLanded || !strings.Contains(spec.LandEvidence, "local fallback merged") {
+		t.Fatalf("expected landed local fallback evidence, got %+v", spec)
+	}
+	if !hasCommandContaining(commands, "git merge --no-ff "+branch) {
+		t.Fatalf("expected local merge command, got %v", commands)
+	}
+}
+
+func TestQueueLocalFallbackRequiresAutoLand(t *testing.T) {
+	t.Parallel()
+
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+
+	branch := "spec/SPEC-001-queue-fixture"
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if name == "git" && len(args) > 0 && args[0] == "merge" {
+			t.Fatalf("local fallback must not merge when auto-land is disabled: %s %v in %s", name, args, dir)
+		}
+		t.Fatalf("unexpected command before auto-land guard: %s %v in %s", name, args, dir)
+		return "", nil
+	}
+
+	state := queueState{ID: "queue-test", Targets: []string{"SPEC-001"}, ActiveSpecID: "SPEC-001", Specs: map[string]queueSpec{"SPEC-001": {SpecID: "SPEC-001", Branch: branch}}}
+	specPkg := specPackage{ID: "SPEC-001", Description: "Queue fallback fixture", Path: filepath.Join(tmp, ".namba", "specs", "SPEC-001")}
+	_, _, err := app.applyQueueLocalFallback(context.Background(), tmp, state, "SPEC-001", state.Specs["SPEC-001"], specPkg, branch, queueRunEvidencePath("SPEC-001"), errors.New("push branch failed"))
+	if err == nil || !strings.Contains(err.Error(), "--auto-land") {
+		t.Fatalf("expected auto-land guard error, got %v", err)
+	}
+}
+
+func TestRemoteHandoffFallbackRequiresExplicitHandoffError(t *testing.T) {
+	t.Parallel()
+
+	for _, err := range []error{
+		errors.New("validation failed after network fixture setup"),
+		errors.New("checks failed: authentication smoke test failed"),
+		errors.New("pull request is not mergeable because validation failed"),
+	} {
+		if isRemoteHandoffUnavailable(err) {
+			t.Fatalf("non-handoff error should not enable local fallback: %v", err)
+		}
+	}
+
+	err := fmt.Errorf("%w: push branch spec/SPEC-001-queue-fixture: network unavailable", errQueueRemoteHandoffUnavailable)
+	if !isRemoteHandoffUnavailable(err) {
+		t.Fatalf("explicit handoff error should enable local fallback: %v", err)
+	}
+}
+
+func TestRemoteHandoffTransportErrorClassification(t *testing.T) {
+	t.Parallel()
+
+	for _, err := range []error{
+		errors.New("create pull request from branch into main: network unavailable"),
+		errors.New("load pull request 17: authentication required"),
+		errors.New("list pull requests for branch spec/SPEC-001: i/o timeout"),
+		errors.New("push branch spec/SPEC-001: connection timed out"),
+	} {
+		if !isRemoteHandoffTransportError(err) {
+			t.Fatalf("expected transport error classification for %v", err)
+		}
+	}
+
+	for _, err := range []error{
+		errors.New("parse pull request list: invalid character '<'"),
+		errors.New("load pull request 17: parse pull request 17: invalid json"),
+		errors.New("create pull request from branch into main: GraphQL: No commits between main and branch"),
+		errors.New("create pull request from spec/SPEC-001-timeout-cleanup into main: GraphQL: No commits between main and branch"),
+		errors.New("push branch spec/SPEC-001-timeout-cleanup: non-fast-forward"),
+		errors.New("push branch spec/SPEC-001: protected branch hook declined"),
+	} {
+		if isRemoteHandoffTransportError(err) {
+			t.Fatalf("non-transport PR error should not enable local fallback: %v", err)
+		}
+	}
+}
+
+func TestQueueLocalFallbackBlocksOnMergeConflict(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+
+	branch := "spec/SPEC-001-queue-fixture"
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		switch {
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return "", nil
+		case name == "git" && len(args) == 2 && args[0] == "checkout" && args[1] == "main":
+			return "", nil
+		case name == "git" && len(args) == 5 && args[0] == "merge" && args[2] == branch:
+			return "", errors.New("merge conflict")
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	state := queueState{ID: "queue-test", Options: queueOptions{AutoLand: true}, Targets: []string{"SPEC-001"}, ActiveSpecID: "SPEC-001", Specs: map[string]queueSpec{"SPEC-001": {SpecID: "SPEC-001", Branch: branch}}}
+	specPkg := specPackage{ID: "SPEC-001", Description: "Queue fallback fixture", Path: filepath.Join(tmp, ".namba", "specs", "SPEC-001")}
+	_, _, err := app.applyQueueLocalFallback(context.Background(), tmp, state, "SPEC-001", state.Specs["SPEC-001"], specPkg, branch, queueRunEvidencePath("SPEC-001"), errors.New("push branch failed"))
+	if err == nil || !strings.Contains(err.Error(), "local fallback merge") {
+		t.Fatalf("expected merge conflict blocker, got %v", err)
 	}
 }
 

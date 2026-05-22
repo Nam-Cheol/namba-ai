@@ -49,6 +49,8 @@ const (
 
 var specRangePattern = regexp.MustCompile(`^(SPEC-\d{3})\.\.(SPEC-\d{3})$`)
 
+var errQueueRemoteHandoffUnavailable = errors.New("remote handoff unavailable")
+
 type queueOptions struct {
 	AutoLand        bool   `json:"auto_land"`
 	SkipCodexReview bool   `json:"skip_codex_review"`
@@ -85,6 +87,7 @@ type queueState struct {
 	LastEvidencePath    string               `json:"last_evidence_path,omitempty"`
 	LastRecoveryAction  string               `json:"last_recovery_action,omitempty"`
 	CheckProofStrategy  string               `json:"check_proof_strategy,omitempty"`
+	LocalFallbackUsed   bool                 `json:"local_fallback_used,omitempty"`
 	Specs               map[string]queueSpec `json:"specs"`
 	CompletedSpecs      []string             `json:"completed_specs,omitempty"`
 	SkippedSpecs        []string             `json:"skipped_specs,omitempty"`
@@ -108,6 +111,7 @@ type queueSpec struct {
 	RecoveryAction     string `json:"recovery_action,omitempty"`
 	LastCheckpoint     string `json:"last_checkpoint,omitempty"`
 	Runner             string `json:"runner,omitempty"`
+	LocalFallback      bool   `json:"local_fallback,omitempty"`
 }
 
 type queueRunnerValidationEvidence struct {
@@ -720,8 +724,31 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 		if err := a.runActiveSpecSync(ctx, root, specID); err != nil {
 			return blockQueueSpec(a, root, state, specID, "sync_failed", "", "fix active-SPEC sync and run `namba queue resume`", err.Error())
 		}
+		if state.LocalFallbackUsed {
+			if !state.Options.AutoLand {
+				return blockQueueSpec(a, root, state, specID, "local_fallback_requires_auto_land", "", "rerun queue with `--auto-land` or restore remote parity before resuming", "prior local fallback requires --auto-land to continue locally")
+			}
+			if err := a.prepareQueueBranchForHandoff(ctx, root, specPkg, branch); err != nil {
+				return blockQueueSpec(a, root, state, specID, "validation_failed", "", "fix validation or branch state and run `namba queue resume`", err.Error())
+			}
+			fallbackState, fallbackDone, fallbackErr := a.applyQueueLocalFallback(ctx, root, state, specID, specState, specPkg, branch, validationEvidence, errQueueRemoteHandoffUnavailable)
+			if fallbackErr != nil {
+				return blockQueueSpec(a, root, fallbackState, specID, "local_fallback_failed", "", "resolve local fallback merge state and run `namba queue resume`", fallbackErr.Error())
+			}
+			return fallbackState, fallbackDone, nil
+		}
 		pr, err = a.prepareQueuePullRequest(ctx, root, state, specPkg, branch)
 		if err != nil {
+			if isRemoteHandoffUnavailable(err) {
+				if !state.Options.AutoLand {
+					return blockQueueSpec(a, root, state, specID, "remote_handoff_unavailable", "", "restore remote PR handoff or rerun queue with `--auto-land` if local fallback is acceptable", fmt.Sprintf("remote handoff unavailable and auto-land is disabled: %v", err))
+				}
+				fallbackState, fallbackDone, fallbackErr := a.applyQueueLocalFallback(ctx, root, state, specID, specState, specPkg, branch, validationEvidence, err)
+				if fallbackErr != nil {
+					return blockQueueSpec(a, root, fallbackState, specID, "local_fallback_failed", "", "resolve local fallback merge state and run `namba queue resume`", fallbackErr.Error())
+				}
+				return fallbackState, fallbackDone, nil
+			}
 			return blockQueueSpec(a, root, state, specID, "pr_failed", "", "fix PR state and run `namba queue resume`", err.Error())
 		}
 		if postPRHead, err := a.gitHeadSHA(ctx, root); err == nil {
@@ -940,12 +967,16 @@ func (a *App) ensureQueueBranch(ctx context.Context, root string, state queueSta
 	if err != nil {
 		return fmt.Errorf("detect current branch: %w", err)
 	}
-	dirty, err := a.hasWorkingTreeChanges(ctx, root)
+	activeSpecID := firstNonBlank(state.ActiveSpecID, queueSpecIDFromBranch(branch))
+	changes, err := a.queueWorkingTreeChanges(ctx, root, activeSpecID)
 	if err != nil {
 		return err
 	}
-	if dirty {
-		return fmt.Errorf("cannot continue queue branch with uncommitted changes")
+	if len(changes.UserPaths) > 0 {
+		if len(changes.QueueOwnedPaths) > 0 {
+			return fmt.Errorf("cannot continue queue branch with uncommitted changes from user files: %s (queue-owned writes ignored separately: %s)", strings.Join(changes.UserPaths, ", "), strings.Join(changes.QueueOwnedPaths, ", "))
+		}
+		return fmt.Errorf("cannot continue queue branch with uncommitted changes from user files: %s", strings.Join(changes.UserPaths, ", "))
 	}
 	if current == branch {
 		return nil
@@ -1332,42 +1363,26 @@ func (a *App) prepareQueuePullRequest(ctx context.Context, root string, state qu
 	if !strings.EqualFold(strings.TrimSpace(profile.GitProvider), "github") {
 		return githubPullRequest{}, fmt.Errorf("queue PR currently supports only the GitHub provider, got %q", profile.GitProvider)
 	}
+	if err := a.prepareQueueBranchForHandoff(ctx, root, specPkg, branch); err != nil {
+		return githubPullRequest{}, err
+	}
 	if err := a.requireGitHubCLI(ctx, root); err != nil {
-		return githubPullRequest{}, err
-	}
-	currentBranch, err := a.currentBranch(ctx, root)
-	if err != nil {
-		return githubPullRequest{}, err
-	}
-	if currentBranch != branch {
-		return githubPullRequest{}, fmt.Errorf("current branch is %q, expected queue branch %q", currentBranch, branch)
-	}
-	qualityCfg, err := a.loadQualityConfig(root)
-	if err != nil {
-		return githubPullRequest{}, err
-	}
-	if err := a.runValidators(ctx, root, qualityCfg); err != nil {
-		return githubPullRequest{}, err
-	}
-	dirty, err := a.hasWorkingTreeChanges(ctx, root)
-	if err != nil {
-		return githubPullRequest{}, err
-	}
-	title := queuePullRequestTitle(specPkg)
-	if dirty {
-		if _, err := a.runBinary(ctx, "git", queueGitAddArgs(), root); err != nil {
-			return githubPullRequest{}, fmt.Errorf("stage changes: %w", err)
-		}
-		if _, err := a.runBinary(ctx, "git", []string{"commit", "-m", title}, root); err != nil {
-			return githubPullRequest{}, fmt.Errorf("create commit: %w", err)
-		}
+		return githubPullRequest{}, fmt.Errorf("%w: %w", errQueueRemoteHandoffUnavailable, err)
 	}
 	if _, err := a.runBinary(ctx, "git", []string{"push", "--set-upstream", state.Options.Remote, branch}, root); err != nil {
-		return githubPullRequest{}, fmt.Errorf("push branch %s: %w", branch, err)
+		wrapped := fmt.Errorf("push branch %s: %w", branch, err)
+		if isRemoteHandoffTransportError(wrapped) {
+			return githubPullRequest{}, fmt.Errorf("%w: %w", errQueueRemoteHandoffUnavailable, wrapped)
+		}
+		return githubPullRequest{}, wrapped
 	}
 	baseBranch := prBaseBranch(profile)
+	title := queuePullRequestTitle(specPkg)
 	pr, _, err := a.findOrCreatePullRequest(ctx, root, branch, baseBranch, title, buildPullRequestBodyForSpec(root, profile, specPkg.ID))
 	if err != nil {
+		if isRemoteHandoffTransportError(err) {
+			return githubPullRequest{}, fmt.Errorf("%w: %w", errQueueRemoteHandoffUnavailable, err)
+		}
 		return githubPullRequest{}, err
 	}
 	if state.Options.RequestReview {
@@ -1378,8 +1393,187 @@ func (a *App) prepareQueuePullRequest(ctx context.Context, root string, state qu
 	return pr, nil
 }
 
+func (a *App) prepareQueueBranchForHandoff(ctx context.Context, root string, specPkg specPackage, branch string) error {
+	currentBranch, err := a.currentBranch(ctx, root)
+	if err != nil {
+		return err
+	}
+	if currentBranch != branch {
+		return fmt.Errorf("current branch is %q, expected queue branch %q", currentBranch, branch)
+	}
+	qualityCfg, err := a.loadQualityConfig(root)
+	if err != nil {
+		return err
+	}
+	if err := a.runValidators(ctx, root, qualityCfg); err != nil {
+		return err
+	}
+	changes, err := a.queueWorkingTreeChanges(ctx, root, specPkg.ID)
+	if err != nil {
+		return err
+	}
+	title := queuePullRequestTitle(specPkg)
+	if len(changes.UserPaths) > 0 {
+		if _, err := a.runBinary(ctx, "git", queueGitAddArgs(), root); err != nil {
+			return fmt.Errorf("stage changes: %w", err)
+		}
+		if _, err := a.runBinary(ctx, "git", []string{"commit", "-m", title}, root); err != nil {
+			return fmt.Errorf("create commit: %w", err)
+		}
+	}
+	return nil
+}
+
+func (a *App) applyQueueLocalFallback(ctx context.Context, root string, state queueState, specID string, specState queueSpec, specPkg specPackage, branch, validationEvidence string, handoffErr error) (queueState, bool, error) {
+	if !state.Options.AutoLand {
+		return state, false, errors.New("local fallback requires --auto-land")
+	}
+	profile, err := a.loadInitProfileFromConfig(root)
+	if err != nil {
+		return state, false, err
+	}
+	baseBranch := prBaseBranch(profile)
+	title := queuePullRequestTitle(specPkg)
+	changes, err := a.queueWorkingTreeChanges(ctx, root, specID)
+	if err != nil {
+		return state, false, err
+	}
+	if len(changes.UserPaths) > 0 {
+		if _, err := a.runBinary(ctx, "git", queueGitAddArgs(), root); err != nil {
+			return state, false, fmt.Errorf("stage local fallback changes: %w", err)
+		}
+		if _, err := a.runBinary(ctx, "git", []string{"commit", "-m", title}, root); err != nil {
+			return state, false, fmt.Errorf("commit local fallback branch: %w", err)
+		}
+	}
+	if _, err := a.runBinary(ctx, "git", []string{"checkout", baseBranch}, root); err != nil {
+		return state, false, fmt.Errorf("checkout local fallback base %s: %w", baseBranch, err)
+	}
+	if _, err := a.runBinary(ctx, "git", []string{"merge", "--no-ff", branch, "-m", "local fallback merge " + branch}, root); err != nil {
+		return state, false, fmt.Errorf("local fallback merge %s into %s: %w", branch, baseBranch, err)
+	}
+	evidence := fmt.Sprintf("local fallback merged %s into %s after remote handoff unavailable: %v", branch, baseBranch, handoffErr)
+	specState.Phase = queuePhaseLanded
+	specState.Status = queueStateDone
+	specState.OperatorState = queueOperatorDone
+	specState.ValidationEvidence = validationEvidence
+	specState.LandEvidence = evidence
+	specState.LocalFallback = true
+	state.Specs[specID] = specState
+	state.LocalFallbackUsed = true
+	state.LastEvidencePath = validationEvidence
+	state.LastSafeCheckpoint = specID + ":local_fallback_landed"
+	state.Status = queueStateActive
+	state.OperatorState = queueOperatorRunning
+	state.Detail = "local_fallback_continuing"
+	state.LastBlocker = ""
+	state.LastRecoveryAction = "continue remaining SPECs locally; restore remote parity after the queue completes"
+	state = markQueueSpecDone(state, specID, specState)
+	state.UpdatedAt = a.now().Format(time.RFC3339)
+	if err := a.writeQueueState(root, state); err != nil {
+		return state, false, err
+	}
+	return state, true, nil
+}
+
 func queueGitAddArgs() []string {
 	return []string{"add", "-A", "--", ".", ":(exclude).namba/logs/queue/*", ":(exclude).namba/logs/runs/*"}
+}
+
+type queueWorkingTreeChangeSet struct {
+	QueueOwnedPaths []string
+	UserPaths       []string
+}
+
+func (a *App) queueWorkingTreeChanges(ctx context.Context, root, activeSpecID string) (queueWorkingTreeChangeSet, error) {
+	status, err := a.runBinary(ctx, "git", []string{"status", "--porcelain"}, root)
+	if err != nil {
+		return queueWorkingTreeChangeSet{}, fmt.Errorf("check working tree: %w", err)
+	}
+	var changes queueWorkingTreeChangeSet
+	for _, line := range strings.Split(status, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		path := gitStatusPath(line)
+		if isQueueOwnedRuntimePath(path, activeSpecID) {
+			changes.QueueOwnedPaths = append(changes.QueueOwnedPaths, path)
+			continue
+		}
+		changes.UserPaths = append(changes.UserPaths, path)
+	}
+	sort.Strings(changes.QueueOwnedPaths)
+	sort.Strings(changes.UserPaths)
+	return changes, nil
+}
+
+func gitStatusPath(line string) string {
+	if len(line) < 4 {
+		return strings.TrimSpace(line)
+	}
+	path := strings.TrimSpace(line[3:])
+	if strings.Contains(path, " -> ") {
+		parts := strings.Split(path, " -> ")
+		path = strings.TrimSpace(parts[len(parts)-1])
+	}
+	path = strings.Trim(path, `"`)
+	return filepath.ToSlash(path)
+}
+
+func isQueueOwnedRuntimePath(path, activeSpecID string) bool {
+	path = filepath.ToSlash(strings.TrimSpace(path))
+	if strings.HasPrefix(path, ".namba/logs/queue/") {
+		return true
+	}
+	specToken := strings.ToLower(strings.TrimSpace(activeSpecID))
+	if specToken == "" {
+		return false
+	}
+	return strings.HasPrefix(path, filepath.ToSlash(filepath.Join(logsDir, "runs", specToken+"-")))
+}
+
+func queueSpecIDFromBranch(branch string) string {
+	for _, part := range strings.Split(branch, "/") {
+		fields := strings.Split(part, "-")
+		if len(fields) >= 2 {
+			candidate := fields[0] + "-" + fields[1]
+			if isQueueSpecID(candidate) {
+				return candidate
+			}
+		}
+	}
+	return ""
+}
+
+func isRemoteHandoffUnavailable(err error) bool {
+	return errors.Is(err, errQueueRemoteHandoffUnavailable)
+}
+
+func isRemoteHandoffTransportError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	for _, needle := range []string{
+		"authentication",
+		"authorization",
+		"gh auth",
+		"could not resolve host",
+		"connection refused",
+		"connection reset",
+		"connection timed out",
+		"i/o timeout",
+		"network",
+		"no such host",
+		"tls handshake timeout",
+		"timed out",
+		"unable to access",
+	} {
+		if strings.Contains(msg, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 func queuePullRequestTitle(specPkg specPackage) string {
@@ -1725,6 +1919,9 @@ func formatQueueReport(state queueState, verbose bool) string {
 	if state.LastEvidencePath != "" {
 		lines = append(lines, "Evidence: "+state.LastEvidencePath)
 	}
+	if state.LocalFallbackUsed {
+		lines = append(lines, "Fallback: local branch/local base-branch merge used")
+	}
 	if state.LastRecoveryAction != "" {
 		lines = append(lines, "Next: "+state.LastRecoveryAction)
 	} else {
@@ -1753,6 +1950,9 @@ func formatQueueReport(state queueState, verbose bool) string {
 			}
 			if specState.SkipReason != "" {
 				lines = append(lines, fmt.Sprintf("  skipped: %s", specState.SkipReason))
+			}
+			if specState.LocalFallback {
+				lines = append(lines, fmt.Sprintf("  fallback: %s", firstNonBlank(specState.LandEvidence, "local branch/local base-branch merge used")))
 			}
 		}
 	}

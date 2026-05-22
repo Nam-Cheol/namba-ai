@@ -1219,7 +1219,6 @@ func TestRunFixDirectRepairExecutesCurrentWorkspaceAndSyncs(t *testing.T) {
 		app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 			switch {
 			case isCodexExec(name, args):
-				promptArg = args[len(args)-1]
 				return "repair output", nil
 			case isShellCommand(name):
 				return "validation ok", nil
@@ -1227,6 +1226,13 @@ func TestRunFixDirectRepairExecutesCurrentWorkspaceAndSyncs(t *testing.T) {
 				t.Fatalf("unexpected command: %s %v", name, args)
 				return "", nil
 			}
+		}
+		app.runCodexCmdWithInput = func(ctx context.Context, name string, args []string, dir, input string) (string, string, error) {
+			if isCodexExec(name, args) {
+				promptArg = input
+			}
+			out, err := app.runCmd(ctx, name, args, dir)
+			return out, "", err
 		}
 		if err := app.Run(context.Background(), tc.args); err != nil {
 			t.Fatalf("%s direct fix failed: %v", tc.name, err)
@@ -1429,7 +1435,6 @@ func TestRunFixDirectRepairAllowsFlagLikeTextInIssueDescription(t *testing.T) {
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 		switch {
 		case isCodexExec(name, args):
-			promptArg = args[len(args)-1]
 			return "repair output", nil
 		case isShellCommand(name):
 			return "validation ok", nil
@@ -1437,6 +1442,13 @@ func TestRunFixDirectRepairAllowsFlagLikeTextInIssueDescription(t *testing.T) {
 			t.Fatalf("unexpected command: %s %v", name, args)
 			return "", nil
 		}
+	}
+	app.runCodexCmdWithInput = func(ctx context.Context, name string, args []string, dir, input string) (string, string, error) {
+		if isCodexExec(name, args) {
+			promptArg = input
+		}
+		out, err := app.runCmd(ctx, name, args, dir)
+		return out, "", err
 	}
 
 	if err := app.Run(context.Background(), []string{"fix", "--dry-run crashes startup"}); err != nil {

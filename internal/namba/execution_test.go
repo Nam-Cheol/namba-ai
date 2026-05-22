@@ -112,7 +112,7 @@ func TestBuildCodexExecArgsSupportsFallbacksAndResumeSurface(t *testing.T) {
 			caps: codexCapabilityMatrix{
 				Exec: codexCommandCapabilities{Config: true, SandboxFlag: true, ModelFlag: true, ProfileFlag: true, AddDirFlag: true},
 			},
-			want: []string{"exec", "-c", `approval_policy="on-request"`, "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "-c", `web_search="live"`, "--add-dir", "extra", "ship it"},
+			want: []string{"exec", "-c", `approval_policy="on-request"`, "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "-c", `web_search="live"`, "--add-dir", "extra", "-"},
 		},
 		{
 			name: "resume allows exec-level flags before resume",
@@ -131,7 +131,7 @@ func TestBuildCodexExecArgsSupportsFallbacksAndResumeSurface(t *testing.T) {
 				Exec:   codexCommandCapabilities{Config: true, SandboxFlag: true, ModelFlag: true, ProfileFlag: true, AddDirFlag: true},
 				Resume: codexCommandCapabilities{Config: true, ModelFlag: true},
 			},
-			want: []string{"exec", "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "--add-dir", `C:\extra`, "resume", "--last", "-c", `approval_policy="never"`, "-c", `web_search="live"`, "continue"},
+			want: []string{"exec", "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "--add-dir", `C:\extra`, "resume", "--last", "-c", `approval_policy="never"`, "-c", `web_search="live"`, "-"},
 		},
 		{
 			name: "resume uses resume-specific config fallbacks",
@@ -148,7 +148,7 @@ func TestBuildCodexExecArgsSupportsFallbacksAndResumeSurface(t *testing.T) {
 			caps: codexCapabilityMatrix{
 				Resume: codexCommandCapabilities{Config: true, ModelFlag: true},
 			},
-			want: []string{"exec", "resume", "--last", "-c", `approval_policy="never"`, "-c", `sandbox_mode="workspace-write"`, "-m", "gpt-5.4", "-c", `web_search="live"`, "-c", `sandbox_workspace_write.writable_roots=["C:\\extra"]`, "continue"},
+			want: []string{"exec", "resume", "--last", "-c", `approval_policy="never"`, "-c", `sandbox_mode="workspace-write"`, "-m", "gpt-5.4", "-c", `web_search="live"`, "-c", `sandbox_workspace_write.writable_roots=["C:\\extra"]`, "-"},
 		},
 	}
 
@@ -160,6 +160,62 @@ func TestBuildCodexExecArgsSupportsFallbacksAndResumeSurface(t *testing.T) {
 			}
 			if strings.Join(args, "\x00") != strings.Join(tt.want, "\x00") {
 				t.Fatalf("unexpected args: got %v want %v", args, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildCodexExecCommandTransportsPromptOverStdin(t *testing.T) {
+	longPrompt := strings.Repeat("ship SPEC-061 without argv bloat\n", 4000)
+	tests := []struct {
+		name string
+		req  executionRequest
+		caps codexCapabilityMatrix
+	}{
+		{
+			name: "exec",
+			req: executionRequest{
+				ApprovalPolicy: "on-request",
+				SandboxMode:    "workspace-write",
+				Prompt:         longPrompt,
+				SessionMode:    "stateful",
+			},
+			caps: codexCapabilityMatrix{Exec: codexCommandCapabilities{Config: true, SandboxFlag: true}},
+		},
+		{
+			name: "resume",
+			req: executionRequest{
+				ApprovalPolicy: "on-request",
+				SandboxMode:    "workspace-write",
+				Prompt:         longPrompt,
+				SessionMode:    "stateful",
+				ResumeSession:  true,
+			},
+			caps: codexCapabilityMatrix{
+				Exec:   codexCommandCapabilities{Config: true, SandboxFlag: true},
+				Resume: codexCommandCapabilities{Config: true},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			command, err := buildCodexExecCommand(tt.req, tt.caps)
+			if err != nil {
+				t.Fatalf("buildCodexExecCommand failed: %v", err)
+			}
+			if command.Input != longPrompt {
+				t.Fatalf("expected stdin input to carry full prompt")
+			}
+			for _, arg := range command.Args {
+				if arg == longPrompt || strings.Contains(arg, "argv bloat") {
+					t.Fatalf("prompt leaked into argv: %v", command.Args)
+				}
+			}
+			if command.Args[len(command.Args)-1] != "-" {
+				t.Fatalf("expected stdin prompt marker, got %v", command.Args)
+			}
+			if got := len(strings.Join(command.Args, " ")); got > 32767 {
+				t.Fatalf("argv exceeds Windows command-line limit simulation: %d", got)
 			}
 		})
 	}
@@ -556,9 +612,6 @@ func TestRunExecutesExplicitSubagentModes(t *testing.T) {
 			app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 				switch {
 				case isCodexExec(name, args):
-					if promptArg == "" && strings.Contains(args[len(args)-1], "- Mode: ") {
-						promptArg = args[len(args)-1]
-					}
 					return "runner output", nil
 				case isShellCommand(name):
 					return "validation ok", nil
@@ -566,6 +619,13 @@ func TestRunExecutesExplicitSubagentModes(t *testing.T) {
 					t.Fatalf("unexpected command: %s %v", name, args)
 					return "", nil
 				}
+			}
+			app.runCodexCmdWithInput = func(ctx context.Context, name string, args []string, dir, input string) (string, string, error) {
+				if isCodexExec(name, args) && promptArg == "" {
+					promptArg = input
+				}
+				out, err := app.runCmd(ctx, name, args, dir)
+				return out, "", err
 			}
 
 			if err := app.Run(context.Background(), []string{"run", "SPEC-001", tt.flag}); err != nil {
@@ -1034,7 +1094,6 @@ func TestRunAllowsFrontendMinorExecutionAndEmbedsFrontendBriefInPrompt(t *testin
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 		switch {
 		case isCodexExec(name, args):
-			promptArg = args[len(args)-1]
 			return "runner output", nil
 		case isShellCommand(name):
 			return "validation ok", nil
@@ -1042,6 +1101,13 @@ func TestRunAllowsFrontendMinorExecutionAndEmbedsFrontendBriefInPrompt(t *testin
 			t.Fatalf("unexpected command: %s %v", name, args)
 			return "", nil
 		}
+	}
+	app.runCodexCmdWithInput = func(ctx context.Context, name string, args []string, dir, input string) (string, string, error) {
+		if isCodexExec(name, args) {
+			promptArg = input
+		}
+		out, err := app.runCmd(ctx, name, args, dir)
+		return out, "", err
 	}
 
 	if err := app.Run(context.Background(), []string{"run", "SPEC-001"}); err != nil {
@@ -1281,7 +1347,6 @@ func TestRunAllowsFrontendMajorWhenViolationCheckCitesExceptionPath(t *testing.T
 	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
 		switch {
 		case isCodexExec(name, args):
-			promptArg = args[len(args)-1]
 			return strings.Join([]string{
 				"Implementation complete.",
 				"",
@@ -1306,6 +1371,13 @@ func TestRunAllowsFrontendMajorWhenViolationCheckCitesExceptionPath(t *testing.T
 			t.Fatalf("unexpected command: %s %v", name, args)
 			return "", nil
 		}
+	}
+	app.runCodexCmdWithInput = func(ctx context.Context, name string, args []string, dir, input string) (string, string, error) {
+		if isCodexExec(name, args) {
+			promptArg = input
+		}
+		out, err := app.runCmd(ctx, name, args, dir)
+		return out, "", err
 	}
 
 	if err := app.Run(context.Background(), []string{"run", "SPEC-001"}); err != nil {
@@ -1762,6 +1834,10 @@ func prepareExecutionProject(t *testing.T) (string, *App, func()) {
 	t.Helper()
 	tmp := canonicalTempDir(t)
 	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.runCodexCmdWithInput = func(ctx context.Context, name string, args []string, dir, input string) (string, string, error) {
+		out, err := app.runCmd(ctx, name, args, dir)
+		return out, "", err
+	}
 	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
 		return testCodexCapabilities(), nil
 	}

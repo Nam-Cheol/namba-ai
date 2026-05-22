@@ -251,7 +251,7 @@ func resolveSingleExecInvocation(invocation resolvedCodexInvocation, req executi
 		invocation.Args = append(invocation.Args, "--json")
 		invocation.DirectFlags = append(invocation.DirectFlags, "json_output")
 	}
-	invocation.Args = append(invocation.Args, req.Prompt)
+	invocation.Args = append(invocation.Args, "-")
 	return invocation, nil
 }
 
@@ -358,7 +358,7 @@ func resolveResumeInvocation(invocation resolvedCodexInvocation, req executionRe
 	}
 
 	invocation.Args = append(prefix, suffix...)
-	invocation.Args = append(invocation.Args, req.Prompt)
+	invocation.Args = append(invocation.Args, "-")
 	return invocation, nil
 }
 
