@@ -79,6 +79,33 @@ func TestNambaCLIVerificationGuideIsSyncManagedAndLinked(t *testing.T) {
 	}
 }
 
+func TestManagedProjectVerificationGuideUsesProjectContext(t *testing.T) {
+	outputs := buildReadmeOutputs(projectConfig{
+		Name:        "customer-portal",
+		ProjectType: "new",
+	}, initProfile{}, docsConfig{
+		ManageReadme:        true,
+		ReadmeProfile:       readmeProfileManagedProject,
+		DefaultLanguage:     "en",
+		AdditionalLanguages: []string{"ko"},
+	})
+
+	guide := outputs[guidePath("verification-guide", "en")]
+	for _, want := range []string{"# Verification Guide", "`customer-portal`", "inside this repository", "`namba eval`", "`namba report`", "`scripts/quality.sh`", ".namba evidence"} {
+		if !strings.Contains(guide, want) {
+			t.Fatalf("managed-project verification guide missing %q: %q", want, guide)
+		}
+	}
+	for _, notWant := range []string{nambaRepositoryURL + "/releases/latest", nambaRepositoryURL + "/actions/workflows/ci.yml", "Latest Release"} {
+		if strings.Contains(guide, notWant) {
+			t.Fatalf("managed-project verification guide should not contain upstream NambaAI link/status %q: %q", notWant, guide)
+		}
+	}
+	if _, ok := outputs[guidePath("verification-guide", "ko")]; !ok {
+		t.Fatalf("expected localized managed-project verification guide output, got %+v", outputs)
+	}
+}
+
 func TestRenderNambaCLIWorkflowGuideIncludesRoleRouting(t *testing.T) {
 	guide := renderReadmeGuide("en", "workflow-guide", projectConfig{}, initProfile{}, docsConfig{ReadmeProfile: readmeProfileNambaCLI})
 	for _, want := range []string{"## Role routing", "## SPEC queue conveyor", "## Planning commands", "## PR and merge flow", "`$namba-help`", "`namba codex access`", "`namba harness \"description\"`: create the next harness-oriented SPEC package", "`namba run SPEC-XXX --team`: same-workspace multi-agent execution.", "`namba run SPEC-XXX --solo`: a single runner in one workspace.", "`namba queue start SPEC-001..SPEC-003`", "`namba fix --command plan \"issue description\"`: create a bugfix SPEC package plus review artifacts.", "`namba-mobile-engineer`", "`namba-security-engineer`", "`namba-reviewer`", "`$namba-plan-review`", "fresh Codex session"} {

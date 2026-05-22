@@ -2918,7 +2918,7 @@ func renderManagedProjectGuide(lang, guide string, projectCfg projectConfig, pro
 	case "workflow-guide":
 		return renderManagedProjectWorkflowGuide(lang, projectCfg, profile)
 	case "verification-guide":
-		return renderNambaCLIVerificationGuide(lang)
+		return renderManagedProjectVerificationGuide(lang, projectCfg)
 	default:
 		return renderManagedProjectGettingStarted(lang, projectCfg)
 	}
@@ -3014,6 +3014,82 @@ func renderNambaCLIVerificationGuide(lang string) string {
 		"",
 	)
 	lines = append(lines, renderAdvancedReferenceDetails(lang, "docs")...)
+	return strings.Join(lines, "\n")
+}
+
+func renderManagedProjectVerificationGuide(lang string, projectCfg projectConfig) string {
+	projectName := projectCfg.Name
+	if projectName == "" {
+		projectName = "this repository"
+	}
+	lines := renderReadmeGuidePrelude(lang, "verification-guide")
+	lines = append(lines,
+		fmt.Sprintf("Use this guide to verify `%s` with the local NambaAI evidence generated inside this repository, not the upstream NambaAI release pipeline.", projectName),
+		"",
+		"## Contents",
+		"",
+		"- [`namba eval`](#namba-eval)",
+		"- [`namba report`](#namba-report)",
+		"- [`scripts/quality.sh`](#scriptsqualitysh)",
+		"- [.namba evidence](#namba-evidence)",
+		"- [CI consumption](#ci-consumption)",
+		"- [Failure interpretation](#failure-interpretation)",
+		"",
+		"## `namba eval`",
+		"",
+		"`namba eval` validates the repository's Namba harness behavior against the checked-in evaluation corpus and baseline. Run it when workflow routing, hooks, review behavior, evidence schemas, or prompt guidance changes.",
+		"",
+		"- Regression failures mean the local observed behavior changed from the baseline. Inspect the failing case before deciding whether to fix behavior or intentionally refresh the baseline.",
+		"- Keep eval scorecards and summaries with the quality artifacts or `.namba` evidence referenced by the run.",
+		"",
+		"## `namba report`",
+		"",
+		"`namba report` turns recent local run, queue, diagnostics, and validation evidence into a compact handoff artifact. Use it before PR handoff or when a blocked run needs a precise status summary.",
+		"",
+		"- JSON output is the stable artifact for automation and CI follow-up.",
+		"- Summary output is for operators: check status, missing evidence, failing validation, and the freshest artifact path.",
+		"",
+		"## `scripts/quality.sh`",
+		"",
+		"`scripts/quality.sh` is this repository's local quality gate. Run it before `namba pr` when code, docs generation, schemas, eval behavior, or hook contracts changed.",
+		"",
+		"- Main checks include Python unittest discovery, `gofmt`, `go vet`, Go tests, harness eval, schema/report validation, race tests, static analysis, vulnerability checks, and coverage threshold enforcement.",
+		"- Default artifacts include coverage profile/text, eval scorecard/summary, report JSON, and schema-validation output under the configured quality artifact directory.",
+		"",
+		"## .namba evidence",
+		"",
+		"Read `.namba` evidence from newest and most specific to broadest:",
+		"",
+		"| Evidence | Use it for |",
+		"| --- | --- |",
+		"| `.namba/project/*` | Current project inventory, codemap, generated project docs, and handoff checklists. |",
+		"| `.namba/logs/runs/*` | Per-run request, validation, finalization, and SPEC execution evidence. |",
+		"| `.namba/logs/queue/*` | Active queue state, blocked reason, resume/stop status, and one-SPEC-at-a-time progress. |",
+		"| `.namba/logs/hooks/*` | Hook stdout, stderr, blocking/advisory outcomes, and phase timing when hooks are enabled. |",
+		"| `.namba/specs/<SPEC>/reviews/*` | Product, engineering, design, and readiness review context before execution or PR handoff. |",
+		"| Report artifacts | Aggregated local status for CI, PR summaries, and operator handoff notes. |",
+		"",
+		"## CI consumption",
+		"",
+		"CI should mirror the local verification story for this repository: run the same quality commands, retain comparable report/eval/schema artifacts, and expose the first failing command clearly.",
+		"",
+		"- When CI reports generated-doc drift, run `namba sync`, inspect the generated diff, and commit durable source plus outputs.",
+		"- When schema/report validation fails, inspect the JSON artifact before changing code.",
+		"- When static analysis, vulnerability checks, or coverage fail, fix locally and rerun `scripts/quality.sh` before pushing again.",
+		"",
+		"## Failure interpretation",
+		"",
+		"| Failure class | Next action |",
+		"| --- | --- |",
+		"| Command exits non-zero | Read the first failing command and rerun only that command after the fix. |",
+		"| Generated docs drift | Run `namba sync`, confirm generated warnings are present, then check links point to existing repository files. |",
+		"| Eval regression | Compare failing case output against baseline and choose behavior fix or intentional baseline refresh. |",
+		"| Report/schema failure | Open the JSON artifact, fix missing or renamed fields, and rerun report validation. |",
+		"| Missing tool | Install the exact tool/version requested by the failing command, then rerun the same quality command. |",
+		"| Coverage drop | Add focused tests or remove dead code; do not lower the threshold without SPEC-level justification. |",
+		"| Hook/output-contract failure | Preserve the detailed answer, then map file paths, commands, validation results, blockers, risks, and next steps into the Namba report frame. |",
+		"",
+	)
 	return strings.Join(lines, "\n")
 }
 
