@@ -235,6 +235,7 @@ continue_on_failure = false
 
 - [快速开始](docs/getting-started.zh.md): 安装、更新、卸载、init 和首次运行流程
 - [工作流指南](docs/workflow-guide.zh.md): update / regen / sync / pr / land 的区别、run 模式、生成产物和协作默认值
+- [验证指南](docs/verification-guide.zh.md): local quality, eval/report artifacts, CI, evidence, and failure interpretation
 - [Codex Upstream Reference](docs/codex-upstream-reference.md): 本仓库遵循的 upstream 基线
 - [SECURITY.md](SECURITY.md): 安全策略
 

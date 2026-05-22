@@ -4,7 +4,7 @@
 
 [English](../README.md) | [한국어](../README.ko.md) | [日本語](../README.ja.md) | [中文](../README.zh.md)
 
-[Getting Started](./getting-started.md) | [Workflow Guide](./workflow-guide.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
+[Getting Started](./getting-started.md) | [Workflow Guide](./workflow-guide.md) | [Verification Guide](./verification-guide.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
 [Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](../SECURITY.md)
 
@@ -166,6 +166,7 @@ flowchart LR
 ## Reference shelf
 
 - [Getting Started](./getting-started.md): install and first-run flow
+- [Verification Guide](./verification-guide.md): local quality, eval/report artifacts, CI, evidence, failure interpretation
 - [Codex Upstream Reference](./codex-upstream-reference.md): Codex baseline this repository follows
 - [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider-migration background and design context
 

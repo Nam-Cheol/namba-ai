@@ -152,6 +152,35 @@ func TestNambaCodexGuardSixHookEventsEmitValidJSON(t *testing.T) {
 	}
 }
 
+func TestNambaCodexGuardFinalReportRewritePreservesDetailsInstruction(t *testing.T) {
+	t.Parallel()
+
+	detailed := strings.Join([]string{
+		"SPEC-063 namba implementation summary.",
+		"Changed files: internal/namba/readme.go, docs/verification-guide.md, .namba/codex/output-contract.md.",
+		"Validation: go test ./internal/namba -run TestNambaCLIVerificationGuideIsSyncManagedAndLinked passed.",
+		"Artifact path: .namba/logs/runs/spec-063-evidence.json.",
+		"Blocker: scripts/quality.sh failed because staticcheck is missing.",
+		"Next command: go install honnef.co/go/tools/cmd/staticcheck@latest.",
+		strings.Repeat("namba codex detail preservation ", 40),
+	}, "\n")
+	output := runNambaCodexGuard(t, map[string]any{
+		"hook_event_name":        "Stop",
+		"last_assistant_message": detailed,
+		"cwd":                    repoRootForHookTest(t),
+	})
+	parsed := parseGuardJSON(t, output)
+	reason, ok := parsed["reason"].(string)
+	if !ok {
+		t.Fatalf("expected blocking reason, got %q", output)
+	}
+	for _, want := range []string{"Preserve", "file paths", "commands", "validation results", "artifact paths", "blockers", "risks", "next steps"} {
+		if !strings.Contains(reason, want) {
+			t.Fatalf("expected rewrite reason to preserve %q, got %q", want, reason)
+		}
+	}
+}
+
 func TestNambaCodexGuardMalformedPayloadEmitsValidJSON(t *testing.T) {
 	t.Parallel()
 

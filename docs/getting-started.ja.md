@@ -4,7 +4,7 @@
 
 [English](../README.md) | [한국어](../README.ko.md) | [日本語](../README.ja.md) | [中文](../README.zh.md)
 
-[スタートガイド](./getting-started.ja.md) | [ワークフローガイド](./workflow-guide.ja.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
+[スタートガイド](./getting-started.ja.md) | [ワークフローガイド](./workflow-guide.ja.md) | [検証ガイド](./verification-guide.ja.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
 [Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](../SECURITY.md)
 

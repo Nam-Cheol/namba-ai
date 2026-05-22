@@ -4,7 +4,7 @@
 
 [English](../README.md) | [한국어](../README.ko.md) | [日本語](../README.ja.md) | [中文](../README.zh.md)
 
-[スタートガイド](./getting-started.ja.md) | [ワークフローガイド](./workflow-guide.ja.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
+[スタートガイド](./getting-started.ja.md) | [ワークフローガイド](./workflow-guide.ja.md) | [検証ガイド](./verification-guide.ja.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
 [Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](../SECURITY.md)
 
@@ -158,6 +158,7 @@ flowchart LR
 ## 参考文書
 
 - [スタートガイド](./getting-started.ja.md): インストールと初回フロー
+- [検証ガイド](./verification-guide.ja.md): local quality, eval/report artifacts, CI, evidence, failure interpretation
 - [Codex Upstream Reference](./codex-upstream-reference.md): このリポジトリが従う Codex 基準
 - [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration の背景と設計文脈
 

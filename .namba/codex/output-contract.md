@@ -18,6 +18,7 @@ This repository uses a NambaAI-specific output contract for substantial task res
 - The header and label palette should follow the init-selected language: Korean.
 - The semantic order is fixed, but the exact labels may vary within the selected language palette.
 - The final next-work section should name the concrete command, review, validation, or handoff the operator should do next.
+- When a hook asks for a rewrite into this frame, preserve substantive details from the prior answer inside the sections, including changed files, file paths, commands, validation results, artifact paths, blockers, risks, and next steps.
 - Light visual styling such as simple emoji section markers is encouraged when it improves scanability.
 - Recommended label palette:
   - `🧭 작업 정의`: `작업 정의`, `정의`, `정의한 범위`, `문제 정의`

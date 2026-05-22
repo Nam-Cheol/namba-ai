@@ -909,6 +909,7 @@ func renderCodexUsageOutputContractSection(profile initProfile) []string {
 		fmt.Sprintf("- The report sections follow this semantic order: %s.", outputContractSequence(profile)),
 		"- The semantic order stays fixed, but the exact labels can vary within the selected language palette so the writing does not become robotic.",
 		"- The final next-work section should name the concrete command, review, validation, or handoff the operator should do next.",
+		"- Hook-triggered rewrites should preserve concrete details from the prior answer, including changed files, file paths, commands, validation results, artifact paths, blockers, risks, and next steps.",
 		"- `.namba/codex/validate-output-contract.py` checks this contract from a saved response file or stdin.",
 		"- Namba keeps the validator script as the explicit repository enforcement path even as Codex's documented config and hook surface evolves.",
 	}
@@ -1088,6 +1089,7 @@ func renderOutputContractDocLocalized(profile initProfile) string {
 		fmt.Sprintf("- The header and label palette should follow the init-selected language: %s.", humanLanguageName(outputContractLanguage(profile))),
 		"- The semantic order is fixed, but the exact labels may vary within the selected language palette.",
 		"- The final next-work section should name the concrete command, review, validation, or handoff the operator should do next.",
+		"- When a hook asks for a rewrite into this frame, preserve substantive details from the prior answer inside the sections, including changed files, file paths, commands, validation results, artifact paths, blockers, risks, and next steps.",
 		"- Light visual styling such as simple emoji section markers is encouraged when it improves scanability.",
 		"- Recommended label palette:",
 	)
@@ -2154,6 +2156,8 @@ def handle_stop(payload):
             "Before ending, rewrite the final response using the Namba report frame: "
             "# NAMBA-AI 작업 결과 보고, then 🧭 작업 정의, 🧠 판단, 🛠 수행한 작업, "
             "🚧 현재 이슈, ⚠ 잠재 문제, ➡ 다음에 해야 할 작업. "
+            "Preserve substantive details from the prior answer inside that frame, including changed files, "
+            "file paths, commands, validation results, artifact paths, blockers, risks, and next steps. "
             "In the final section, name the concrete command, review, validation, or handoff to do next. "
             "Keep it concise and high-signal."
         ),

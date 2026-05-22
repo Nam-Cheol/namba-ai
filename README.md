@@ -237,6 +237,7 @@ This is a quick translation table: the `$...` names are what you ask Codex for, 
 
 - [Getting Started](docs/getting-started.md): installation, updates, uninstall, init, and first-run flow
 - [Workflow Guide](docs/workflow-guide.md): update vs regen vs sync vs pr vs land, run modes, generated assets, and collaboration defaults
+- [Verification Guide](docs/verification-guide.md): local quality, eval/report artifacts, CI, evidence, and failure interpretation
 - [Codex Upstream Reference](docs/codex-upstream-reference.md): upstream baseline this repository follows
 - [SECURITY.md](SECURITY.md): security policy
 

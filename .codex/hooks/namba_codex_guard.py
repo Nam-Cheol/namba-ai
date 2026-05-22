@@ -580,6 +580,8 @@ def handle_stop(payload):
             "Before ending, rewrite the final response using the Namba report frame: "
             "# NAMBA-AI 작업 결과 보고, then 🧭 작업 정의, 🧠 판단, 🛠 수행한 작업, "
             "🚧 현재 이슈, ⚠ 잠재 문제, ➡ 다음에 해야 할 작업. "
+            "Preserve substantive details from the prior answer inside that frame, including changed files, "
+            "file paths, commands, validation results, artifact paths, blockers, risks, and next steps. "
             "In the final section, name the concrete command, review, validation, or handoff to do next. "
             "Keep it concise and high-signal."
         ),

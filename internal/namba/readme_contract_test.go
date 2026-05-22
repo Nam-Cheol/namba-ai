@@ -16,7 +16,7 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 	projectCfg, docsCfg, profile := loadRepoDocsConfig(t, root)
 
 	outputs := buildReadmeOutputs(projectCfg, profile, docsCfg)
-	if got, want := len(outputs), 12; got != want {
+	if got, want := len(outputs), 16; got != want {
 		t.Fatalf("buildReadmeOutputs() produced %d outputs, want %d", got, want)
 	}
 

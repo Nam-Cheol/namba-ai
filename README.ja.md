@@ -235,6 +235,7 @@ Codex で `$...` と呼ぶ skill が、実際にはどの Namba command の流�
 
 - [スタートガイド](docs/getting-started.ja.md): インストール、更新、アンインストール、init、初回フロー
 - [ワークフローガイド](docs/workflow-guide.ja.md): update / regen / sync / pr / land の違い、run mode、生成物、協業ルール
+- [検証ガイド](docs/verification-guide.ja.md): local quality, eval/report artifacts, CI, evidence, and failure interpretation
 - [Codex Upstream Reference](docs/codex-upstream-reference.md): このリポジトリが従う upstream 基準
 - [SECURITY.md](SECURITY.md): セキュリティポリシー
 
