@@ -192,6 +192,9 @@ func TestHumanMaintenanceCommandsAppendBehindAdvisoryOnlyFromFreshCache(t *testi
 		if !strings.Contains(out, "Ask the user before running `namba update`") || !strings.Contains(out, "not upstream Codex") {
 			t.Fatalf("%s missing behind advisory:\n%s", command, out)
 		}
+		if count := strings.Count(out, "NambaAI version advisory:"); count != 1 {
+			t.Fatalf("%s emitted advisory %d times, want exactly once:\n%s", command, count, out)
+		}
 	}
 }
 
