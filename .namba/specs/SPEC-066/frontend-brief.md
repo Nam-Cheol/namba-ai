@@ -1,9 +1,15 @@
 # Generated Instruction Contract Brief
 
-Task Classification: core-scaffold-generator-contract
-Classification Rationale: This SPEC does not implement a browser, app, or visual product surface. It hardens Namba core managed generator/source-of-truth behavior for init/regen generated instruction surfaces.
-Gate Status: not-applicable-to-visual-product-surface
+Task Classification: frontend-minor
+Classification Rationale: Validator-readable non-visual classification: this SPEC does not implement a browser, app, or visual product surface. It hardens Namba core managed generator/source-of-truth behavior for init/regen generated instruction surfaces.
+Frontend Gate Status: not-applicable
+Problem Gate: not-applicable
+Reference Gate: not-applicable
+Critique Gate: not-applicable
+Decision Gate: not-applicable
+Prototype Gate: not-applicable
 Prototype Evidence: n/a
+Frontend implementation phase: not-applicable
 Asset mode: not-applicable
 Imagegen requirement: not-applicable
 Asset decision proof: Generated bitmap assets are not relevant because this SPEC changes CLI-managed text templates and agent/skill contracts.

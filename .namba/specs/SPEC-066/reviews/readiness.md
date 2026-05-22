@@ -25,26 +25,44 @@ Advisory only: use this summary to decide whether the SPEC has enough pre-implem
   Skill: `$namba-plan-design-review`
   Artifact: `.namba/specs/SPEC-066/reviews/design.md`
 
-## Generated Instruction Contract Gate
+## Frontend Gate
 
 - Classification source: `.namba/specs/SPEC-066/frontend-brief.md`
-- Task Classification: `core-scaffold-generator-contract`
-- Classification Rationale: Namba core managed generator/source-of-truth improvement for init/regen generated instruction surfaces.
-- Gate Status: `not-applicable-to-visual-product-surface`
-- Evidence Status: `sufficient-for-pre-implementation`
-- Product interpretation: future `namba init` users receive clearer generated skill/agent guidance; non-goals and downstream backfill exclusions are explicit.
-- Engineering interpretation: generator source changes, init/regen parity, manifest ownership, golden/snapshot/unit/integration tests, and validation commands are required.
-- Design interpretation: This SPEC does not implement a frontend surface; design review is instruction/contract design review.
-- Security advisory: read-only versus mutating boundary, secrets prohibition, destructive command/escalation policy, and non-project-specific guidance are required generated-contract concerns.
-- Frontend-major correction: Frontend-major gates are not applicable unless actual UI/frontend files are introduced.
+- Task Classification: `frontend-minor`
+- Classification Rationale: Validator-readable non-visual classification: this SPEC does not implement a browser, app, or visual product surface. It hardens Namba core managed generator/source-of-truth behavior for init/regen generated instruction surfaces.
+- Frontend Gate Status: `not-applicable`
+- Evidence Status: `not-applicable`
+- Gate mode: advisory passthrough for `frontend-minor`.
+- Cross-artifact mismatches: none.
 
 ## Summary
 
 - Cleared reviews: 3/3
-- Advisory status: cleared for `namba run SPEC-066` when the user is ready to implement.
+- Advisory status: all current review tracks are marked clear.
+
+## Harness Advisory
+
+- Route: `namba plan`
+- Request kind: `core_harness_change`
+- Delivery mode: `spec`
+- Adaptation mode: `modify_core`
+- Base contract ref: `namba-core-harness`
+- Touches Namba core: `true`
+- Required evidence: `contract, baseline, eval-plan, harness-map`
+- Evidence status: complete
+- Required reviews: `product, engineering, design`
+- Review artifact status: complete
+
+## Phase-1 Evidence
+
+- Runtime contract anchor: `.namba/specs/SPEC-066/contract.md`
+- Baseline evidence: `.namba/specs/SPEC-066/baseline.md`
+- Harness request: `.namba/specs/SPEC-066/harness-request.json`
+- Eval plan: `.namba/specs/SPEC-066/eval-plan.md`
+- Harness map: `.namba/specs/SPEC-066/harness-map.md`
 
 ## Suggested Order
 
-1. Implement generator/source-of-truth changes first.
-2. Prove fresh temporary repo `namba init` and existing repo `namba regen` parity.
-3. Run `gofmt`, `go test ./...`, and `go vet ./...`, reporting exact cause and impact for any failure.
+1. Run product review when the user/problem framing or scope is still moving.
+2. Run engineering review before implementation starts on anything with architecture or failure-mode risk.
+3. Run design review when UX, interaction quality, or visual direction matters to acceptance.

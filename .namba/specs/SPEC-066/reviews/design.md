@@ -10,8 +10,8 @@
 
 - Review generated instruction contract clarity, role boundary clarity, evidence readability, and output-contract structure before implementation starts.
 
-- Evidence Status: sufficient for pre-implementation contract design
-- Gate Decision: cleared
+- Evidence Status: not-applicable
+- Gate Decision: not-applicable
 - Approved Direction: core scaffold generator contract hardening
 - Instruction Contract: role purpose, boundaries, required outputs, pass/fail criteria, evidence expectations, security responsibilities, and fallback implementer limits
 - Open Questions: none blocking

@@ -919,10 +919,15 @@ func TestRenderUserAgentTOMLEscapesUserFields(t *testing.T) {
 		}
 	}
 
-	wantInstructions := strings.Join(splitCreateInstructions(withCreateAgentPreamble("insight-builder", instructions)), "\n")
+	wantInstructions := strings.Join(userAgentInstructionLines("insight-builder", instructions), "\n")
 	wantInstructionLine := "developer_instructions = " + strconv.Quote(wantInstructions)
 	if !strings.Contains(got, wantInstructionLine) {
 		t.Fatalf("expected escaped developer instructions line %q in %q", wantInstructionLine, got)
+	}
+	for _, snippet := range generatedInstructionContractTestSnippets() {
+		if !strings.Contains(got, snippet) {
+			t.Fatalf("expected user agent TOML to include generated instruction contract snippet %q in %q", snippet, got)
+		}
 	}
 	if strings.Contains(got, `developer_instructions = """`) {
 		t.Fatalf("expected developer instructions to avoid multiline basic TOML strings, got %q", got)

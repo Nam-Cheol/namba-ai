@@ -93,6 +93,28 @@ func TestInitCreatesScaffold(t *testing.T) {
 	if !strings.Contains(plannerAgent, `name = "namba-planner"`) || !strings.Contains(plannerAgent, `developer_instructions = """`) {
 		t.Fatalf("unexpected planner custom agent: %s", plannerAgent)
 	}
+	for _, surface := range []struct {
+		label   string
+		content string
+	}{
+		{label: "namba-run skill", content: mustRead(t, filepath.Join(tmp, ".agents", "skills", "namba-run", "SKILL.md"))},
+		{label: "planner role card", content: mustRead(t, filepath.Join(tmp, ".codex", "agents", "namba-planner.md"))},
+		{label: "planner custom agent", content: plannerAgent},
+	} {
+		for _, want := range []string{
+			"Generated instruction contract",
+			"read-only versus mutating state effects",
+			"validation evidence, and pass/fail status",
+			"never expose or commit secrets",
+			"destructive commands",
+			"Fallback implementer boundary",
+			"non-project-specific",
+		} {
+			if !strings.Contains(surface.content, want) {
+				t.Fatalf("expected %s to include generated contract snippet %q, got: %s", surface.label, want, surface.content)
+			}
+		}
+	}
 	if strings.Contains(plannerAgent, `prompt = "`) {
 		t.Fatalf("expected planner custom agent to use developer_instructions, got: %s", plannerAgent)
 	}

@@ -69,6 +69,8 @@ func renderNambaSkill(profile initProfile) string {
 		"Use this skill whenever the user mentions `namba`, `namba help`, `namba project`, `namba regen`, `namba update`, `namba codex access`, `namba plan`, `namba harness`, `namba fix`, `namba run`, `namba queue`, `namba sync`, `namba pr`, `namba land`, `namba release`, `$namba-help`, `$namba-coach`, `$namba-create`, `$namba-queue`, `$namba-plan-review`, `$namba-review-resolve`, `$namba-release`, or asks to use the Namba workflow.",
 		"",
 	}
+	lines = append(lines, generatedInstructionContractSection("repo skill")...)
+	lines = append(lines, "")
 	lines = append(lines, renderNambaSkillCommandMappingSection()...)
 	lines = append(lines, renderNambaSkillExecutionRulesSection(profile)...)
 	return strings.Join(lines, "\n") + "\n"
@@ -129,6 +131,8 @@ func renderCommandSkill(name, description string, body []string) string {
 		stateEffectForCommandSkill(name),
 		"",
 	}
+	lines = append(lines, generatedInstructionContractSection("command skill")...)
+	lines = append(lines, "")
 	lines = append(lines, body...)
 	return strings.Join(lines, "\n") + "\n"
 }
@@ -630,6 +634,10 @@ func renderFoundationSkill() string {
 		"",
 		"State effect: guidance plus execution support. Read-only when used for orientation; mutating only when the active Namba workflow is already executing.",
 		"",
+	}
+	lines = append(lines, generatedInstructionContractSection("repo skill")...)
+	lines = append(lines,
+		"",
 		"Key ideas:",
 		"- SPEC-first execution",
 		"- Codex-native implementation for `namba run` requests inside an interactive session",
@@ -638,7 +646,7 @@ func renderFoundationSkill() string {
 		"- TRUST gates after each execution phase",
 		"- Worktree-based isolation for parallel work",
 		"- Namba report frame for substantial user-facing responses: scoped definition, judgment, work completed, current issues, potential risks, next steps",
-	}
+	)
 	return strings.Join(lines, "\n") + "\n"
 }
 
@@ -652,6 +660,10 @@ func renderInitSkill() string {
 		"Use this skill when the user asks about `namba init`, project bootstrap, or Claude-to-Codex migration.",
 		"",
 		"State effect: mutating scaffold workflow when applied. Read-only when used only to explain migration or init behavior.",
+		"",
+	}
+	lines = append(lines, generatedInstructionContractSection("repo skill")...)
+	lines = append(lines,
 		"",
 		"Core mapping:",
 		"- `CLAUDE.md` -> `AGENTS.md`",
@@ -667,7 +679,7 @@ func renderInitSkill() string {
 		"3. Prefer repo-local skills and `.toml` custom agents while keeping `.md` files as readable mirrors.",
 		"4. Keep one selected human language aligned across Codex conversation, docs, PR content, and code comments unless the user explicitly overrides it.",
 		"5. Keep generated assets readable so users can understand what `namba init .` changed.",
-	}
+	)
 	return strings.Join(lines, "\n") + "\n"
 }
 
@@ -680,13 +692,17 @@ func renderProjectSkill() string {
 		"",
 		"State effect: mutating project documentation workflow. Read-only only when explaining current project-analysis behavior.",
 		"",
+	}
+	lines = append(lines, generatedInstructionContractSection("repo skill")...)
+	lines = append(lines,
+		"",
 		"Use this skill to:",
 		"- refresh project docs",
 		"- summarize structure and entry points",
 		"- rebuild codemap artifacts under `.namba/project/codemaps`",
 		"- explain how the repository is organized before planning or execution",
 		"- implement the `namba project` command inside Codex when the CLI is not used directly",
-	}
+	)
 	return strings.Join(lines, "\n") + "\n"
 }
 
@@ -700,6 +716,10 @@ func renderExecutionSkill(profile initProfile) string {
 		"Use this skill when implementing a SPEC package.",
 		"",
 		"State effect: mutating SPEC execution workflow. Read-only only while inspecting the SPEC package before implementation.",
+		"",
+	}
+	lines = append(lines, generatedInstructionContractSection("repo skill")...)
+	lines = append(lines,
 		"",
 		"Execution pattern:",
 		"1. Read `.namba/specs/<SPEC>/spec.md`",
@@ -716,7 +736,7 @@ func renderExecutionSkill(profile initProfile) string {
 		fmt.Sprintf("Collaboration defaults: use a dedicated branch from `%s` for the SPEC, open the PR into `%s`, write the PR in %s, and request Codex review only when `namba pr --review` or queue `--review` is explicit; use `%s` as the request command.", branchBase(profile), prBaseBranch(profile), humanLanguageName(profile.PRLanguage), codexReviewComment(profile)),
 		"",
 		"Do not call `namba run` from inside Codex unless the user explicitly requests the non-interactive CLI runner.",
-	}
+	)
 	return strings.Join(lines, "\n") + "\n"
 }
 
@@ -2215,12 +2235,31 @@ func renderRoleCard(title, useWhen string, responsibilities []string) string {
 		"",
 		useWhen,
 		"",
-		"Responsibilities:",
 	}
+	lines = append(lines, generatedInstructionContractSection("role card")...)
+	lines = append(lines,
+		"",
+		"Responsibilities:",
+	)
 	for _, responsibility := range responsibilities {
 		lines = append(lines, "- "+responsibility)
 	}
 	return strings.Join(lines, "\n") + "\n"
+}
+
+func generatedInstructionContractSection(surface string) []string {
+	return []string{
+		fmt.Sprintf("Generated instruction contract for this %s:", surface),
+		"- Purpose: keep the role or command scope explicit, bounded, and testable.",
+		"- Boundary: honor read-only versus mutating state effects, configured sandbox mode, and assigned file or workflow ownership.",
+		"- Required output: report concrete actions, changed paths or artifacts, validation evidence, and pass/fail status or blockers.",
+		"- Pass/fail criteria: claim success only when acceptance criteria and configured validation are satisfied; otherwise name the exact blocker and impact.",
+		"- Evidence expectations: cite source artifacts such as SPEC files, `.namba/` configs, diffs, test output, PR/check links, or generated manifests instead of relying on unsupported assertions.",
+		"- Security responsibilities: never expose or commit secrets; treat auth, privacy, destructive commands, permission changes, and external network or credential use as security-sensitive.",
+		"- Destructive command and escalation policy: do not run destructive commands unless explicitly requested, and request approval for privileged, networked, or sandbox-blocked actions.",
+		"- Fallback implementer boundary: if a specialist path is unavailable and the main/default implementer takes over, stay within the assigned scope and preserve the same evidence and validation duties.",
+		"- Portability: keep durable guidance non-project-specific unless the current repository config or SPEC explicitly provides the project detail.",
+	}
 }
 
 type codexAgentTemplate struct {
@@ -2244,8 +2283,12 @@ func renderTemplatedCustomAgent(template codexAgentTemplate) string {
 		"",
 		template.customAgentUseWhen,
 		"",
-		"Responsibilities:",
 	}
+	lines = append(lines, generatedInstructionContractSection("custom agent")...)
+	lines = append(lines,
+		"",
+		"Responsibilities:",
+	)
 	for _, responsibility := range template.customAgentResponsibilities {
 		lines = append(lines, "- "+responsibility)
 	}
@@ -2399,24 +2442,29 @@ func renderFrontendImplementerRoleCard() string {
 }
 
 func renderFrontendImplementerCustomAgent() string {
+	instructions := []string{
+		"You are Namba Frontend Implementer.",
+		"",
+		"Use this custom agent when implementing approved UI work after frontend synthesis is cleared.",
+		"",
+	}
+	instructions = append(instructions, generatedInstructionContractSection("custom agent")...)
+	instructions = append(instructions,
+		"",
+		"Responsibilities:",
+		"- Change only the frontend files assigned by the main session.",
+		"- Preserve design-system conventions, accessibility, and responsive behavior.",
+		"- Keep loading, empty, and error states coherent with the surrounding UI.",
+		"- Run or report the relevant UI validation steps when feasible.",
+		"- Do not start `frontend-major` implementation until `frontend-brief.md` and design review agree on an approved direction.",
+		"- Implement within the approved visual grammar and include Do-Not Design Violation Check evidence before claiming completion.",
+		"- When the frontend brief says `Imagegen requirement: required`, generate the required bitmap assets before final layout, save them under the planned project asset paths, wire them into their intended UI elements, and report per-asset Generated Asset Evidence.",
+	)
 	return renderCustomAgentWithOptions(
 		"namba-frontend-implementer",
 		"Implement approved frontend work with design-system, accessibility, and responsive discipline.",
 		"workspace-write",
-		[]string{
-			"You are Namba Frontend Implementer.",
-			"",
-			"Use this custom agent when implementing approved UI work after frontend synthesis is cleared.",
-			"",
-			"Responsibilities:",
-			"- Change only the frontend files assigned by the main session.",
-			"- Preserve design-system conventions, accessibility, and responsive behavior.",
-			"- Keep loading, empty, and error states coherent with the surrounding UI.",
-			"- Run or report the relevant UI validation steps when feasible.",
-			"- Do not start `frontend-major` implementation until `frontend-brief.md` and design review agree on an approved direction.",
-			"- Implement within the approved visual grammar and include Do-Not Design Violation Check evidence before claiming completion.",
-			"- When the frontend brief says `Imagegen requirement: required`, generate the required bitmap assets before final layout, save them under the planned project asset paths, wire them into their intended UI elements, and report per-asset Generated Asset Evidence.",
-		},
+		instructions,
 	)
 }
 

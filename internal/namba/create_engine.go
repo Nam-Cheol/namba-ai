@@ -557,7 +557,7 @@ func renderUserAgentTOML(slug, description, instructions, sandboxMode, model, re
 	model = firstNonBlank(strings.TrimSpace(model), strings.TrimSpace(profile.Model), "gpt-5.4-mini")
 	reasoning = firstNonBlank(strings.TrimSpace(reasoning), strings.TrimSpace(profile.ModelReasoningEffort), "medium")
 	sandboxMode = firstNonBlank(strings.TrimSpace(sandboxMode), "workspace-write")
-	agentInstructions := strings.Join(splitCreateInstructions(withCreateAgentPreamble(slug, instructions)), "\n")
+	agentInstructions := strings.Join(userAgentInstructionLines(slug, instructions), "\n")
 	lines := []string{
 		"name = " + tomlString(slug),
 		"description = " + tomlString(description),
@@ -576,8 +576,15 @@ func renderUserAgentMarkdown(slug, description, instructions string) string {
 		description,
 		"",
 	}
-	lines = append(lines, splitCreateInstructions(withCreateAgentPreamble(slug, instructions))...)
+	lines = append(lines, userAgentInstructionLines(slug, instructions)...)
 	return strings.Join(lines, "\n") + "\n"
+}
+
+func userAgentInstructionLines(slug, instructions string) []string {
+	lines := splitCreateInstructions(withCreateAgentPreamble(slug, instructions))
+	lines = append(lines, "")
+	lines = append(lines, generatedInstructionContractSection("custom agent")...)
+	return lines
 }
 
 func withCreateAgentPreamble(slug, instructions string) string {
