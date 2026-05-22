@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "namba-eval-scorecard/v1",
+  "title": "Namba eval scorecard v1",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "const": "namba-eval-scorecard/v1" },
+    "suite": { "type": "string" },
+    "corpus_version": { "type": "string" },
+    "metrics": { "type": "array" },
+    "scenarios": { "type": "array" }
+  },
+  "required": ["schema_version", "suite", "corpus_version", "generated_at", "summary", "metrics", "required_coverage", "scenarios", "baseline", "regressions", "schema_validation"]
+}

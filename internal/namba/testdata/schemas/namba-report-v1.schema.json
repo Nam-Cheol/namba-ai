@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "namba-report/v1",
+  "title": "Namba report v1",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "const": "namba-report/v1" },
+    "generated_at": { "type": "string" },
+    "project": { "type": "object" },
+    "summary": { "type": "object" },
+    "issues": { "type": "array" },
+    "warnings": { "type": "array" }
+  },
+  "required": ["schema_version", "generated_at", "project", "summary", "runs", "queue", "specs", "release", "diagnostics", "issues", "warnings"]
+}

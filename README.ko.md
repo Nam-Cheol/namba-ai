@@ -121,7 +121,8 @@ namba land
 
 - PR 전에 `scripts/quality.sh`로 CI의 핵심 품질 바를 로컬에서 실행할 수 있습니다.
 - `go.mod`의 `toolchain go1.26.3` 기준을 사용하므로 CI와 `GOTOOLCHAIN=auto` 로컬 실행이 알려진 Go 1.26.2 표준 라이브러리 취약점을 피합니다.
-- 이 게이트는 Python unittest, Go unit/race tests, harness eval regression, gofmt, go vet, staticcheck, govulncheck, Go coverage report를 실행합니다.
+- 이 게이트는 Python unittest, Go unit/race tests, harness eval regression, evidence schema validation, report JSON validation, gofmt, go vet, staticcheck, govulncheck, Go coverage report를 실행합니다.
+- 기본 artifact는 coverage profile/text, `eval-scorecard.json`, `eval-summary.md`, `report.json`, `schema-validation.txt`입니다.
 - aggregate Go coverage threshold는 73.0%입니다. 계획 중 측정한 73.7% baseline보다 약간 낮게 잡아 Go version/reporting noise는 흡수하고 의미 있는 회귀는 막습니다.
 - `staticcheck` 또는 `govulncheck`가 없으면 스크립트가 정확한 `go install` 명령을 출력하고 중단합니다.
 

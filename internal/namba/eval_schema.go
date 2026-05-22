@@ -8,13 +8,14 @@ import (
 )
 
 const (
-	evalSchemaVersion         = "namba-eval-scenarios/v1"
-	evalResultSchemaVersion   = "namba-eval-results/v1"
-	evalBaselineSchemaVersion = "namba-eval-baseline/v1"
-	defaultEvalSuite          = "harness"
-	defaultEvalFormat         = "markdown"
-	defaultHarnessEvalFixture = "internal/namba/testdata/evals/harness/scenarios.json"
-	defaultHarnessEvalBase    = "internal/namba/testdata/evals/harness/baseline.json"
+	evalSchemaVersion          = "namba-eval-scenarios/v1"
+	evalResultSchemaVersion    = "namba-eval-results/v1"
+	evalBaselineSchemaVersion  = "namba-eval-baseline/v1"
+	evalScorecardSchemaVersion = "namba-eval-scorecard/v1"
+	defaultEvalSuite           = "harness"
+	defaultEvalFormat          = "markdown"
+	defaultHarnessEvalFixture  = "internal/namba/testdata/evals/harness/scenarios.json"
+	defaultHarnessEvalBase     = "internal/namba/testdata/evals/harness/baseline.json"
 )
 
 type evalExitError struct {
@@ -79,9 +80,11 @@ type evalBaseline struct {
 type evalRunResult struct {
 	SchemaVersion string               `json:"schema_version"`
 	Suite         string               `json:"suite"`
+	CorpusVersion string               `json:"corpus_version,omitempty"`
 	GeneratedAt   string               `json:"generated_at"`
 	Summary       evalSummary          `json:"summary"`
 	Metrics       []evalMetric         `json:"metrics"`
+	Scorecard     *evalScorecard       `json:"scorecard,omitempty"`
 	Scenarios     []evalScenarioResult `json:"scenarios"`
 	Baseline      evalBaselineResult   `json:"baseline"`
 	Regressions   []string             `json:"regressions"`
@@ -119,6 +122,41 @@ type evalBaselineResult struct {
 	Path          string `json:"path,omitempty"`
 	Passed        bool   `json:"passed"`
 	CorpusVersion string `json:"corpus_version,omitempty"`
+}
+
+type evalScorecard struct {
+	SchemaVersion    string                    `json:"schema_version"`
+	Suite            string                    `json:"suite"`
+	CorpusVersion    string                    `json:"corpus_version"`
+	GeneratedAt      string                    `json:"generated_at"`
+	Summary          evalSummary               `json:"summary"`
+	Metrics          []evalScorecardMetric     `json:"metrics"`
+	RequiredCoverage []string                  `json:"required_coverage"`
+	Scenarios        []evalScorecardScenario   `json:"scenarios"`
+	Baseline         evalBaselineResult        `json:"baseline"`
+	Regressions      []string                  `json:"regressions"`
+	SchemaValidation evalScorecardSchemaStatus `json:"schema_validation"`
+}
+
+type evalScorecardMetric struct {
+	Name        string   `json:"name"`
+	LegacyNames []string `json:"legacy_names,omitempty"`
+	Passed      int      `json:"passed"`
+	Total       int      `json:"total"`
+	PassRate    float64  `json:"pass_rate"`
+	ScenarioIDs []string `json:"scenario_ids"`
+}
+
+type evalScorecardScenario struct {
+	ID          string `json:"id"`
+	Type        string `json:"type"`
+	Passed      bool   `json:"passed"`
+	Fingerprint string `json:"fingerprint"`
+}
+
+type evalScorecardSchemaStatus struct {
+	Status  string   `json:"status"`
+	Schemas []string `json:"schemas"`
 }
 
 func normalizeEvalStringSlice(value any) []string {
