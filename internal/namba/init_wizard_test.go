@@ -94,7 +94,7 @@ func TestPromptProjectScaffoldUsesDetectedStackForExistingCode(t *testing.T) {
 		t.Fatalf("expected detected stack to be kept, got %+v", profile)
 	}
 	got := stdout.String()
-	for _, want := range []string{"감지된 코드베이스", "감지값을 사용"} {
+	for _, want := range []string{"Detected codebase", "detected values are used"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected existing-code scaffold prompt to include %q, got %q", want, got)
 		}
@@ -125,7 +125,7 @@ func TestPromptProjectScaffoldNewProjectSkipsStarterStack(t *testing.T) {
 		t.Fatalf("expected empty repository to keep stack unselected, got %+v", profile)
 	}
 	got := stdout.String()
-	for _, want := range []string{"앱 스택을 묻지 않습니다", "첫 `namba plan`"} {
+	for _, want := range []string{"do not choose an app stack", "first `namba plan`"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected new-project scaffold prompt to include %q, got %q", want, got)
 		}
@@ -152,7 +152,7 @@ func TestPromptProjectScaffoldSupportsBackFromProjectName(t *testing.T) {
 	if !back {
 		t.Fatal("expected back navigation from project name")
 	}
-	if got := stdout.String(); !strings.Contains(got, "이전 단계") {
+	if got := stdout.String(); !strings.Contains(got, "previous step") {
 		t.Fatalf("expected back hint in output, got %q", got)
 	}
 }
@@ -194,6 +194,131 @@ func TestApplyHumanLanguageSyncsAllHumanFacingOutputs(t *testing.T) {
 
 	if profile.ConversationLanguage != "ko" || profile.DocumentationLanguage != "ko" || profile.CommentLanguage != "ko" || profile.PRLanguage != "ko" {
 		t.Fatalf("expected human language sync, got %+v", profile)
+	}
+}
+
+func TestDetectLocalePriorityForInitLanguageDefault(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		env  map[string]string
+		want string
+	}{
+		{name: "NAMBA_LANG wins", env: map[string]string{"NAMBA_LANG": "ja", "LC_ALL": "ko_KR.UTF-8", "LANG": "en_US.UTF-8"}, want: "ja"},
+		{name: "LC_ALL wins over LANG", env: map[string]string{"LC_ALL": "zh_CN.UTF-8", "LANG": "ko_KR.UTF-8"}, want: "zh"},
+		{name: "LANG fallback", env: map[string]string{"LANG": "ko_KR.UTF-8"}, want: "ko"},
+		{name: "unknown fallback en", env: map[string]string{"LANG": "fr_FR.UTF-8"}, want: "en"},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := detectLocale(func(key string) string { return tt.env[key] })
+			if got != tt.want {
+				t.Fatalf("detectLocale() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestLanguageOptionsUseStableTextLabelsWithoutFlags(t *testing.T) {
+	t.Parallel()
+
+	got := strings.TrimSpace(func() string {
+		var labels []string
+		for _, option := range languageOptions() {
+			labels = append(labels, option.Label)
+		}
+		return strings.Join(labels, "\n")
+	}())
+
+	for _, want := range []string{"[ko] Korean", "[en] English", "[ja] Japanese", "[zh] Simplified Chinese"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("language labels missing %q: %q", want, got)
+		}
+	}
+	for _, flag := range []string{"🇰🇷", "🇺🇸", "🇯🇵", "🇨🇳"} {
+		if strings.Contains(got, flag) {
+			t.Fatalf("language labels must not contain country flags: %q", got)
+		}
+	}
+}
+
+func TestRunInitWizardStartsWithLanguageBeforeRepositoryState(t *testing.T) {
+	t.Parallel()
+
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+	app.stdin = strings.NewReader(strings.Repeat("\n", 16))
+
+	defaults := initProfile{
+		ProjectName:           "demo",
+		ProjectType:           "existing",
+		Language:              "go",
+		Framework:             "cobra",
+		DevelopmentMode:       "tdd",
+		ConversationLanguage:  "ja",
+		DocumentationLanguage: "ja",
+		CommentLanguage:       "ja",
+		ApprovalPolicy:        "on-request",
+		SandboxMode:           "workspace-write",
+		GitMode:               "manual",
+		GitProvider:           "github",
+		GitLabInstanceURL:     "https://gitlab.com",
+		BranchPerWork:         true,
+		BranchBase:            "main",
+		SpecBranchPrefix:      "spec/",
+		TaskBranchPrefix:      "task/",
+		PRBaseBranch:          "main",
+		PRLanguage:            "ja",
+		CodexReviewComment:    "@codex review",
+		AgentMode:             "single",
+		StatusLinePreset:      "namba",
+		UserName:              "Developer",
+		CreatedAt:             "2026-04-23T10:00:00Z",
+	}
+
+	if _, err := app.runInitWizard(defaults); err != nil {
+		t.Fatalf("runInitWizard failed: %v", err)
+	}
+
+	got := stdout.String()
+	languageIndex := strings.Index(got, "Step 01 ·")
+	repoIndex := strings.Index(got, "Repository intelligence")
+	if languageIndex < 0 || repoIndex < 0 || languageIndex > repoIndex {
+		t.Fatalf("expected language step before repository intelligence, got %q", got)
+	}
+	for _, want := range []string{"[default] [ja] Japanese", "Language / 언어 / 言語 / 语言", "[current]", "[next]", "Target: demo", "Detected stack: go / cobra"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("wizard output missing %q: %q", want, got)
+		}
+	}
+	for _, marker := range []string{"🇰🇷", "🇺🇸", "🇯🇵", "🇨🇳", "✅", "🧪", "🔐", "🙋", "🧭"} {
+		if strings.Contains(got, marker) {
+			t.Fatalf("plain wizard output must not contain fragile emoji marker %q: %q", marker, got)
+		}
+	}
+}
+
+func TestInitHelpAndGeneratedGettingStartedMentionLanguageFirstPlainFallback(t *testing.T) {
+	t.Parallel()
+
+	help := initUsageText()
+	for _, want := range []string{"language-first screen", "Plain terminals", "[default]", "[recommended]"} {
+		if !strings.Contains(help, want) {
+			t.Fatalf("init help missing %q: %q", want, help)
+		}
+	}
+
+	for _, lang := range []string{"en", "ko", "ja", "zh"} {
+		doc := strings.Join(renderNambaCLIGettingStartedBootstrapSection(lang), "\n")
+		for _, want := range []string{"[ko] Korean", "[en] English", "[ja] Japanese", "[zh] Simplified Chinese", "[default]", "[recommended]", "[current]", "[next]"} {
+			if !strings.Contains(doc, want) {
+				t.Fatalf("%s getting-started bootstrap section missing %q: %q", lang, want, doc)
+			}
+		}
 	}
 }
 
@@ -288,7 +413,7 @@ func TestPromptSelectWizardResultEchoesSelectionAndSupportsBack(t *testing.T) {
 	if back || value != "en" {
 		t.Fatalf("promptSelectWizardResult() = (%q, %v), want en,false", value, back)
 	}
-	if got := selectedOut.String(); !strings.Contains(got, "✅") || !strings.Contains(got, "\U0001f1fa\U0001f1f8 \uc601\uc5b4") || !strings.Contains(got, "b. \uc774\uc804") {
+	if got := selectedOut.String(); !strings.Contains(got, "[en] English") || !strings.Contains(got, "b. back") {
 		t.Fatalf("expected echoed selection and back option, got %q", got)
 	}
 
@@ -298,7 +423,7 @@ func TestPromptSelectWizardResultEchoesSelectionAndSupportsBack(t *testing.T) {
 	if !back || value != "ko" {
 		t.Fatalf("promptSelectWizardResult(back) = (%q, %v), want ko,true", value, back)
 	}
-	if got := backOut.String(); !strings.Contains(got, "\uc774\uc804 \ub2e8\uacc4") {
+	if got := backOut.String(); !strings.Contains(got, "previous step") {
 		t.Fatalf("expected back navigation output, got %q", got)
 	}
 }
@@ -349,16 +474,16 @@ func TestRenderInteractiveSelectUsesShortLocalizedHint(t *testing.T) {
 		t.Fatalf("renderInteractiveSelect lines = %d, want %d", lines, 4)
 	}
 	output := out.String()
-	if !strings.Contains(output, "\u2191/\u2193 \uc774\ub3d9 \u00b7 Enter \uc120\ud0dd") {
-		t.Fatalf("expected localized interactive hint, got %q", output)
+	if !strings.Contains(output, "\u2191/\u2193 move \u00b7 Enter select") {
+		t.Fatalf("expected concise interactive hint, got %q", output)
 	}
-	if !strings.Contains(output, "b \uc774\uc804") {
+	if !strings.Contains(output, "b back") {
 		t.Fatalf("expected back navigation hint, got %q", output)
 	}
 	if strings.Contains(output, "Use arrow keys") {
 		t.Fatalf("expected long English hint to be removed, got %q", output)
 	}
-	if !strings.Contains(output, "\U0001f449 2. DDD - \uae30\uc874 \ucf54\ub4dc \ubd84\uc11d/\uac1c\uc120") {
+	if !strings.Contains(output, "2. DDD - \uae30\uc874 \ucf54\ub4dc \ubd84\uc11d/\uac1c\uc120") {
 		t.Fatalf("expected selected marker output, got %q", output)
 	}
 }

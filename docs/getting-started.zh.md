@@ -73,7 +73,7 @@ cd my-project
 namba init .
 ```
 
-wizard 会先确认是否已有代码。已有 repo 使用检测到的 stack；空 repo 不选择 app stack，只准备 Namba/Codex 环境。步骤和选项会用 🧭/📦/🌐/🔐 等 emoji 区分，每个选择会以 ✅ 显示后再进入下一步，也可以用 `b` 或 `back` 回到上一步修改。它不会询问 GitHub 用户名，Codex access preset 会预览结果中的 approval_policy / sandbox_mode。
+wizard 会先显示语言选择界面。可以用数字或代码选择 `[ko] Korean`、`[en] English`、`[ja] Japanese`、`[zh] Simplified Chinese` 这些不含 flag emoji 的标签；之后会用所选语言说明 repository state 和 defaults。已有 repo 使用检测到的 stack；空 repo 不选择 app stack，只准备 Namba/Codex 环境。plain terminal 会用 `[default]`、`[recommended]`、`[current]`、`[next]` marker 展示进度、默认值、推荐选项和下一步。也可以用 `b` 或 `back` 回到上一步修改。它不会询问 GitHub 用户名，Codex access preset 会预览结果中的 approval_policy / sandbox_mode。
 - 第一次 interactive Codex session 看到 `6 hooks need review` 时，打开 `/hooks`，确认 `.codex/hooks/namba_codex_guard.sh` 或 Windows `.codex/hooks/namba_codex_guard.ps1` launcher 会执行 `.codex/hooks/namba_codex_guard.py` 后再批准。批准完成前，用问题先拦截模糊 prompt 的 hook 不会运行。
 - 初始化之后，可以用 `namba codex access` 查看或修改 Namba runner 的 `codex exec` access 默认值。Interactive Codex approval mode 和 sandbox mode 不会写入 repo `.codex/config.toml`。
 
