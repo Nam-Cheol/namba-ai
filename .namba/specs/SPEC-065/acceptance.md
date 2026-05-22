@@ -1,0 +1,24 @@
+# Acceptance
+
+- [ ] A cached latest-release resolver exists for official GitHub Release metadata for `Nam-Cheol/namba-ai`.
+- [ ] The resolver cache is stored in a user-local cache location, not the repository `.namba` directory.
+- [ ] The cache record stores `source`, `repo`, `checked_at`, `latest_version`, and `status`.
+- [ ] The cache uses a bounded TTL and treats stale data as non-authoritative for default behind prompts.
+- [ ] Release lookup, cache read, cache write, metadata parse, version parse, and network failures never fail `doctor`, `status`, `regen`, `project`, or `sync` when the advisory check is the only failing operation.
+- [ ] `namba doctor --check-update` or an equivalent explicit refresh surface performs an update metadata refresh and reports advisory state without running `namba update`.
+- [ ] Default `namba doctor` surfaces advisory version state only from safe cached data and does not perform an unsafe live network lookup in CI, non-TTY, piped, JSON, or automation-oriented flows.
+- [ ] Human-readable `namba status` surfaces trustworthy cached behind state when available.
+- [ ] `namba status --json` remains stable, compact, and free of version advisory chatter or live lookup side effects.
+- [ ] Behind state with valid cached or explicitly refreshed latest data shows a clear advisory recommending `namba update` only after asking the user.
+- [ ] Up-to-date state does not emit update prompts in `doctor`, `status`, `regen`, `project`, or `sync`.
+- [ ] Dev-build, blank-version, unparsable-version, prerelease or otherwise unsupported version states do not emit update prompts.
+- [ ] Offline, cache-miss, stale-cache, release-lookup-failure, metadata parse-failure, and version parse-failure states stay quiet or advisory-only and do not block commands.
+- [ ] Human-readable `namba regen`, `namba project`, and `namba sync` append next-step advisory text only when the installed CLI is proven behind.
+- [ ] The regen/project/sync next-step text says to ask the user before running `namba update`.
+- [ ] Advisory text keeps `namba update` distinct from upstream `codex update`.
+- [ ] No telemetry or external calls beyond the official GitHub release metadata lookup are added.
+- [ ] Tests cover behind, up-to-date, dev, offline, cache hit, cache stale, cache miss, lookup failure, parse failure, doctor text, explicit refresh, status text, `status --json`, and regen/project/sync next-action cases.
+- [ ] Docs and Codex-facing guidance recommend asking the user before `namba update`.
+- [ ] `go test ./...` passes.
+- [ ] `go vet ./...` passes.
+- [ ] `scripts/quality.sh` passes.
