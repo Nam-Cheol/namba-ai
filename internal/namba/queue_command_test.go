@@ -662,6 +662,73 @@ func TestPrepareQueuePullRequestReviewFlagAddsReviewComment(t *testing.T) {
 	}
 }
 
+func TestPrepareQueuePullRequestValidatesBeforeRemoteHandoffFallback(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "quality.yaml"), "development_mode: tdd\ntest_command: validate-queue\nlint_command: none\ntypecheck_command: none\nbuild_command: none\nmigration_dry_run_command: none\nsmoke_start_command: none\noutput_contract_command: none\n")
+
+	branch := "spec/SPEC-001-queue-fixture"
+	var commands []string
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		command := name + " " + strings.Join(args, " ")
+		commands = append(commands, command)
+		switch {
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return branch, nil
+		case name == "sh" && strings.Join(args, " ") == "-lc validate-queue":
+			return "", nil
+		case name == "git" && strings.Join(args, " ") == "status --porcelain":
+			return "", nil
+		case name == "gh" && strings.Join(args, " ") == "auth status":
+			return "", errors.New("authentication required")
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	_, err := app.prepareQueuePullRequest(context.Background(), tmp, queueState{Options: queueOptions{Remote: defaultGitRemote}}, specPackage{ID: "SPEC-001", Description: "Queue fixture for SPEC-001.", Path: filepath.Join(tmp, ".namba", "specs", "SPEC-001")}, branch)
+	if !isRemoteHandoffUnavailable(err) {
+		t.Fatalf("expected remote handoff fallback error after validation, got %v", err)
+	}
+	validateIndex := indexOfCommand(commands, "sh -lc validate-queue")
+	authIndex := indexOfCommand(commands, "gh auth status")
+	if validateIndex < 0 || authIndex < 0 || validateIndex > authIndex {
+		t.Fatalf("expected validation before gh auth status, got %v", commands)
+	}
+}
+
+func TestPrepareQueuePullRequestValidationFailureDoesNotEnableRemoteFallback(t *testing.T) {
+	tmp, _, app, restore := prepareQueueProject(t)
+	defer restore()
+	writeQueueSpecFixture(t, tmp, "SPEC-001")
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "quality.yaml"), "development_mode: tdd\ntest_command: validate-queue\nlint_command: none\ntypecheck_command: none\nbuild_command: none\nmigration_dry_run_command: none\nsmoke_start_command: none\noutput_contract_command: none\n")
+
+	branch := "spec/SPEC-001-queue-fixture"
+	var commands []string
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		commands = append(commands, name+" "+strings.Join(args, " "))
+		switch {
+		case name == "git" && strings.Join(args, " ") == "branch --show-current":
+			return branch, nil
+		case name == "sh" && strings.Join(args, " ") == "-lc validate-queue":
+			return "", errors.New("validation failed")
+		default:
+			t.Fatalf("unexpected command: %s %v in %s", name, args, dir)
+			return "", nil
+		}
+	}
+
+	_, err := app.prepareQueuePullRequest(context.Background(), tmp, queueState{Options: queueOptions{Remote: defaultGitRemote}}, specPackage{ID: "SPEC-001", Description: "Queue fixture for SPEC-001.", Path: filepath.Join(tmp, ".namba", "specs", "SPEC-001")}, branch)
+	if err == nil || isRemoteHandoffUnavailable(err) {
+		t.Fatalf("expected validation error without remote fallback classification, got %v", err)
+	}
+	if indexOfCommand(commands, "gh auth status") >= 0 {
+		t.Fatalf("validation failure must stop before remote handoff, got %v", commands)
+	}
+}
+
 func TestQueueStartDesktopRunnerWritesHandoffWithoutCodexExec(t *testing.T) {
 	tmp, _, app, restore := prepareQueueProject(t)
 	defer restore()
@@ -1230,8 +1297,11 @@ func TestQueueLocalFallbackMergesBranchWhenRemoteHandoffUnavailable(t *testing.T
 	if err != nil {
 		t.Fatalf("applyQueueLocalFallback failed: %v", err)
 	}
-	if done || !got.LocalFallbackUsed || got.Status != queueStateStopped || got.Detail != "local_fallback_remote_parity_required" {
+	if !done || !got.LocalFallbackUsed || got.Status != queueStateActive || got.Detail != "local_fallback_continuing" {
 		t.Fatalf("unexpected fallback state: done=%v state=%+v", done, got)
+	}
+	if got.LastBlocker != "" || !strings.Contains(got.LastRecoveryAction, "continue remaining SPECs locally") {
+		t.Fatalf("expected continuation recovery guidance, got blocker=%q next=%q", got.LastBlocker, got.LastRecoveryAction)
 	}
 	if spec := got.Specs["SPEC-001"]; !spec.LocalFallback || spec.Phase != queuePhaseLanded || !strings.Contains(spec.LandEvidence, "local fallback merged") {
 		t.Fatalf("expected landed local fallback evidence, got %+v", spec)

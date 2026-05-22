@@ -724,6 +724,19 @@ func (a *App) advanceQueueSpec(ctx context.Context, root string, state queueStat
 		if err := a.runActiveSpecSync(ctx, root, specID); err != nil {
 			return blockQueueSpec(a, root, state, specID, "sync_failed", "", "fix active-SPEC sync and run `namba queue resume`", err.Error())
 		}
+		if state.LocalFallbackUsed {
+			if !state.Options.AutoLand {
+				return blockQueueSpec(a, root, state, specID, "local_fallback_requires_auto_land", "", "rerun queue with `--auto-land` or restore remote parity before resuming", "prior local fallback requires --auto-land to continue locally")
+			}
+			if err := a.prepareQueueBranchForHandoff(ctx, root, specPkg, branch); err != nil {
+				return blockQueueSpec(a, root, state, specID, "validation_failed", "", "fix validation or branch state and run `namba queue resume`", err.Error())
+			}
+			fallbackState, fallbackDone, fallbackErr := a.applyQueueLocalFallback(ctx, root, state, specID, specState, specPkg, branch, validationEvidence, errQueueRemoteHandoffUnavailable)
+			if fallbackErr != nil {
+				return blockQueueSpec(a, root, fallbackState, specID, "local_fallback_failed", "", "resolve local fallback merge state and run `namba queue resume`", fallbackErr.Error())
+			}
+			return fallbackState, fallbackDone, nil
+		}
 		pr, err = a.prepareQueuePullRequest(ctx, root, state, specPkg, branch)
 		if err != nil {
 			if isRemoteHandoffUnavailable(err) {
@@ -1350,35 +1363,11 @@ func (a *App) prepareQueuePullRequest(ctx context.Context, root string, state qu
 	if !strings.EqualFold(strings.TrimSpace(profile.GitProvider), "github") {
 		return githubPullRequest{}, fmt.Errorf("queue PR currently supports only the GitHub provider, got %q", profile.GitProvider)
 	}
+	if err := a.prepareQueueBranchForHandoff(ctx, root, specPkg, branch); err != nil {
+		return githubPullRequest{}, err
+	}
 	if err := a.requireGitHubCLI(ctx, root); err != nil {
 		return githubPullRequest{}, fmt.Errorf("%w: %w", errQueueRemoteHandoffUnavailable, err)
-	}
-	currentBranch, err := a.currentBranch(ctx, root)
-	if err != nil {
-		return githubPullRequest{}, err
-	}
-	if currentBranch != branch {
-		return githubPullRequest{}, fmt.Errorf("current branch is %q, expected queue branch %q", currentBranch, branch)
-	}
-	qualityCfg, err := a.loadQualityConfig(root)
-	if err != nil {
-		return githubPullRequest{}, err
-	}
-	if err := a.runValidators(ctx, root, qualityCfg); err != nil {
-		return githubPullRequest{}, err
-	}
-	changes, err := a.queueWorkingTreeChanges(ctx, root, specPkg.ID)
-	if err != nil {
-		return githubPullRequest{}, err
-	}
-	title := queuePullRequestTitle(specPkg)
-	if len(changes.UserPaths) > 0 {
-		if _, err := a.runBinary(ctx, "git", queueGitAddArgs(), root); err != nil {
-			return githubPullRequest{}, fmt.Errorf("stage changes: %w", err)
-		}
-		if _, err := a.runBinary(ctx, "git", []string{"commit", "-m", title}, root); err != nil {
-			return githubPullRequest{}, fmt.Errorf("create commit: %w", err)
-		}
 	}
 	if _, err := a.runBinary(ctx, "git", []string{"push", "--set-upstream", state.Options.Remote, branch}, root); err != nil {
 		wrapped := fmt.Errorf("push branch %s: %w", branch, err)
@@ -1388,6 +1377,7 @@ func (a *App) prepareQueuePullRequest(ctx context.Context, root string, state qu
 		return githubPullRequest{}, wrapped
 	}
 	baseBranch := prBaseBranch(profile)
+	title := queuePullRequestTitle(specPkg)
 	pr, _, err := a.findOrCreatePullRequest(ctx, root, branch, baseBranch, title, buildPullRequestBodyForSpec(root, profile, specPkg.ID))
 	if err != nil {
 		if isRemoteHandoffTransportError(err) {
@@ -1401,6 +1391,37 @@ func (a *App) prepareQueuePullRequest(ctx context.Context, root string, state qu
 		}
 	}
 	return pr, nil
+}
+
+func (a *App) prepareQueueBranchForHandoff(ctx context.Context, root string, specPkg specPackage, branch string) error {
+	currentBranch, err := a.currentBranch(ctx, root)
+	if err != nil {
+		return err
+	}
+	if currentBranch != branch {
+		return fmt.Errorf("current branch is %q, expected queue branch %q", currentBranch, branch)
+	}
+	qualityCfg, err := a.loadQualityConfig(root)
+	if err != nil {
+		return err
+	}
+	if err := a.runValidators(ctx, root, qualityCfg); err != nil {
+		return err
+	}
+	changes, err := a.queueWorkingTreeChanges(ctx, root, specPkg.ID)
+	if err != nil {
+		return err
+	}
+	title := queuePullRequestTitle(specPkg)
+	if len(changes.UserPaths) > 0 {
+		if _, err := a.runBinary(ctx, "git", queueGitAddArgs(), root); err != nil {
+			return fmt.Errorf("stage changes: %w", err)
+		}
+		if _, err := a.runBinary(ctx, "git", []string{"commit", "-m", title}, root); err != nil {
+			return fmt.Errorf("create commit: %w", err)
+		}
+	}
+	return nil
 }
 
 func (a *App) applyQueueLocalFallback(ctx context.Context, root string, state queueState, specID string, specState queueSpec, specPkg specPackage, branch, validationEvidence string, handoffErr error) (queueState, bool, error) {
@@ -1442,17 +1463,17 @@ func (a *App) applyQueueLocalFallback(ctx context.Context, root string, state qu
 	state.LocalFallbackUsed = true
 	state.LastEvidencePath = validationEvidence
 	state.LastSafeCheckpoint = specID + ":local_fallback_landed"
-	state.Status = queueStateStopped
-	state.OperatorState = queueOperatorBlocked
-	state.Detail = "local_fallback_remote_parity_required"
-	state.LastBlocker = "local fallback merged only into the local base branch"
-	state.LastRecoveryAction = "restore remote parity for the local fallback merge, then start a new queue for remaining SPECs"
+	state.Status = queueStateActive
+	state.OperatorState = queueOperatorRunning
+	state.Detail = "local_fallback_continuing"
+	state.LastBlocker = ""
+	state.LastRecoveryAction = "continue remaining SPECs locally; restore remote parity after the queue completes"
 	state = markQueueSpecDone(state, specID, specState)
 	state.UpdatedAt = a.now().Format(time.RFC3339)
 	if err := a.writeQueueState(root, state); err != nil {
 		return state, false, err
 	}
-	return state, false, nil
+	return state, true, nil
 }
 
 func queueGitAddArgs() []string {
