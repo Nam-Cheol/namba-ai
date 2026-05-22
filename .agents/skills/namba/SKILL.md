@@ -5,6 +5,17 @@ description: Codex-native Namba command surface for SPEC orchestration inside a 
 
 Use this skill whenever the user mentions `namba`, `namba help`, `namba project`, `namba regen`, `namba update`, `namba codex access`, `namba plan`, `namba harness`, `namba fix`, `namba run`, `namba queue`, `namba sync`, `namba pr`, `namba land`, `namba release`, `$namba-help`, `$namba-coach`, `$namba-create`, `$namba-queue`, `$namba-plan-review`, `$namba-review-resolve`, `$namba-release`, or asks to use the Namba workflow.
 
+Generated instruction contract for this repo skill:
+- Purpose: keep the role or command scope explicit, bounded, and testable.
+- Boundary: honor read-only versus mutating state effects, configured sandbox mode, and assigned file or workflow ownership.
+- Required output: report concrete actions, changed paths or artifacts, validation evidence, and pass/fail status or blockers.
+- Pass/fail criteria: claim success only when acceptance criteria and configured validation are satisfied; otherwise name the exact blocker and impact.
+- Evidence expectations: cite source artifacts such as SPEC files, `.namba/` configs, diffs, test output, PR/check links, or generated manifests instead of relying on unsupported assertions.
+- Security responsibilities: never expose or commit secrets; treat auth, privacy, destructive commands, permission changes, and external network or credential use as security-sensitive.
+- Destructive command and escalation policy: do not run destructive commands unless explicitly requested; request approval for privileged, networked, or sandbox-blocked actions only when the active approval mode allows it, and otherwise report the blocker or use a safe non-escalating path.
+- Fallback implementer boundary: if a specialist path is unavailable and the main/default implementer takes over, stay within the assigned scope and preserve the same evidence and validation duties.
+- Portability: keep durable guidance non-project-specific unless the current repository config or SPEC explicitly provides the project detail.
+
 Command mapping:
 - `$namba-help`: explain how to use NambaAI in this repository, which command or skill to use next, and where the authoritative docs live, without mutating repository state.
 - `$namba-coach`: restate the user's current goal, ask only essential routing questions when needed, correct clearly wrong command choices, and hand off to exactly one primary Namba workflow invocation without mutating repository state.

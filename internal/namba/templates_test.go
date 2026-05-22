@@ -302,6 +302,11 @@ func TestReadOnlyArchitectureAndReviewTemplatesPreserveRoleCardAndCustomAgentCon
 			if !strings.Contains(tc.roleCard, "Responsibilities:") {
 				t.Fatalf("role card missing responsibilities header: %q", tc.roleCard)
 			}
+			for _, snippet := range generatedInstructionContractTestSnippets() {
+				if !strings.Contains(tc.roleCard, snippet) {
+					t.Fatalf("role card missing generated instruction contract snippet %q: %q", snippet, tc.roleCard)
+				}
+			}
 			for _, responsibility := range tc.roleResponsibilities {
 				if !strings.Contains(tc.roleCard, "- "+responsibility) {
 					t.Fatalf("role card missing responsibility %q: %q", responsibility, tc.roleCard)
@@ -309,6 +314,11 @@ func TestReadOnlyArchitectureAndReviewTemplatesPreserveRoleCardAndCustomAgentCon
 			}
 			if !strings.Contains(tc.customAgent, "Responsibilities:") {
 				t.Fatalf("custom agent missing responsibilities header: %q", tc.customAgent)
+			}
+			for _, snippet := range generatedInstructionContractTestSnippets() {
+				if !strings.Contains(tc.customAgent, snippet) {
+					t.Fatalf("custom agent missing generated instruction contract snippet %q: %q", snippet, tc.customAgent)
+				}
 			}
 			for _, responsibility := range tc.customResponsibilities {
 				if !strings.Contains(tc.customAgent, "- "+responsibility) {
@@ -520,6 +530,36 @@ func TestWorkspaceWriteRoleTemplatesPreserveRoleCardAndCustomAgentContracts(t *t
 				}
 			}
 		})
+	}
+}
+
+func generatedInstructionContractTestSnippets() []string {
+	return []string{
+		"Generated instruction contract",
+		"role or command scope explicit, bounded, and testable",
+		"read-only versus mutating state effects",
+		"changed paths or artifacts, validation evidence, and pass/fail status",
+		"acceptance criteria and configured validation",
+		"cite source artifacts such as SPEC files",
+		"never expose or commit secrets",
+		"destructive commands",
+		"request approval for privileged, networked, or sandbox-blocked actions only when the active approval mode allows it",
+		"report the blocker or use a safe non-escalating path",
+		"Fallback implementer boundary",
+		"non-project-specific",
+	}
+}
+
+func TestManagedCommandSkillsIncludeGeneratedInstructionContract(t *testing.T) {
+	t.Parallel()
+
+	templates := codexSkillTemplates(initProfile{})
+	for rel, content := range templates {
+		for _, snippet := range generatedInstructionContractTestSnippets() {
+			if !strings.Contains(content, snippet) {
+				t.Fatalf("managed command skill %s missing generated instruction contract snippet %q: %q", rel, snippet, content)
+			}
+		}
 	}
 }
 

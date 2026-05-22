@@ -69,6 +69,11 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	if !strings.Contains(runSkill, "$namba-run") || !strings.Contains(runSkill, "namba run SPEC-XXX") {
 		t.Fatalf("expected command-entry run skill, got %q", runSkill)
 	}
+	for _, snippet := range generatedInstructionContractTestSnippets() {
+		if !strings.Contains(runSkill, snippet) {
+			t.Fatalf("expected regenerated run skill to contain generated instruction contract snippet %q, got %q", snippet, runSkill)
+		}
+	}
 	if !strings.Contains(runSkill, "`--solo`, `--team`, `--parallel`, `--dry-run`") {
 		t.Fatalf("expected run skill to describe standalone run modes, got %q", runSkill)
 	}
@@ -307,6 +312,11 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 	}
 	for _, tc := range agentFiles {
 		content := mustReadFile(t, tc.path)
+		for _, snippet := range generatedInstructionContractTestSnippets() {
+			if !strings.Contains(content, snippet) {
+				t.Fatalf("expected regenerated custom agent %s to contain generated instruction contract snippet %q, got %q", tc.path, snippet, content)
+			}
+		}
 		for _, snippet := range tc.snippets {
 			if !strings.Contains(content, snippet) {
 				t.Fatalf("expected %s to contain %q, got %q", tc.path, snippet, content)
@@ -338,6 +348,11 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 		content := mustReadFile(t, tc.path)
 		if !strings.Contains(content, tc.heading) {
 			t.Fatalf("expected readable role-card mirror %s to contain %q, got %q", tc.path, tc.heading, content)
+		}
+		for _, snippet := range generatedInstructionContractTestSnippets() {
+			if !strings.Contains(content, snippet) {
+				t.Fatalf("expected regenerated role-card mirror %s to contain generated instruction contract snippet %q, got %q", tc.path, snippet, content)
+			}
 		}
 	}
 }
