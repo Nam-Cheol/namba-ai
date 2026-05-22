@@ -41,7 +41,7 @@ NambaAI's differentiator is prompt refinement before execution: ambiguous ideas 
 - Generated Codex lifecycle hooks are repo-local guardrails, not a complete security boundary: they add Namba context, guide ambiguous Namba prompts toward clarification questions without blocking submission, add approval-risk notes, check final-report format, deny destructive shell commands, and remind Codex about managed-surface changes.
 - Codex requires repo-local hooks to be reviewed before they run. In the first interactive session after init or regen, open `/hooks`, inspect the generated commands, and approve them only if they resolve to the current repository's `.codex/hooks/namba_codex_guard.sh` or Windows `.codex/hooks/namba_codex_guard.ps1` launcher for `.codex/hooks/namba_codex_guard.py`.
 - `namba regen` regenerates `AGENTS.md`, repo skills under `.agents/skills/`, `.codex/agents/*.toml` custom agents, readable `.md` role-card mirrors, `.namba/codex/*`, and `.codex/config.toml` from `.namba/config/sections/*.yaml`.
-- `namba update` self-updates the installed `namba` binary from GitHub Release assets. Use `--version vX.Y.Z` for a specific release.
+- `namba update` self-updates the installed `namba` binary from GitHub Release assets after explicit user approval. Use `--version vX.Y.Z` for a specific release.
 - `namba update` may print Codex 0.131 baseline advice, but it never installs, updates, or manages Codex.
 - `codex update` updates the upstream Codex CLI itself. Keep it separate from `namba update`.
 - `namba plan "<description>"` creates the next feature SPEC package plus review scaffolds.

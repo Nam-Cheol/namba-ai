@@ -9,5 +9,6 @@ Use this skill when the user explicitly says `$namba-update`, `namba update`, or
 
 Behavior:
 - Treat `namba update` as CLI self-update from GitHub Release assets.
+- Ask the user before running `namba update`; version advisory messages are not consent to update.
 - Use `namba update --version vX.Y.Z` when the user requests a specific version.
 - Do not confuse this command with scaffold regeneration; that belongs to `namba regen`.

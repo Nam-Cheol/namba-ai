@@ -25,16 +25,6 @@ Advisory only: use this summary to decide whether the SPEC has enough pre-implem
   Skill: `$namba-plan-design-review`
   Artifact: `.namba/specs/SPEC-065/reviews/design.md`
 
-## Frontend Gate
-
-- Classification source: review artifacts
-- Task Classification: `frontend-minor`
-- Classification Rationale: This is CLI text and command-output UX, not a browser or app frontend. Design review focuses on terminal advisory hierarchy, consent language, and automation-safe quiet behavior.
-- Frontend Gate Status: `not-applicable`
-- Evidence Status: `not-applicable`
-- Gate mode: advisory passthrough for `frontend-minor`.
-- Cross-artifact mismatches: none.
-
 ## Summary
 
 - Cleared reviews: 3/3
@@ -42,6 +32,6 @@ Advisory only: use this summary to decide whether the SPEC has enough pre-implem
 
 ## Suggested Order
 
-1. Run implementation from the revised `spec.md`, `plan.md`, and `acceptance.md`.
-2. Preserve the explicit user-consent boundary before any `namba update`.
-3. Validate JSON and automation-safe output before broadening human-readable advisory text.
+1. Run product review when the user/problem framing or scope is still moving.
+2. Run engineering review before implementation starts on anything with architecture or failure-mode risk.
+3. Run design review when UX, interaction quality, or visual direction matters to acceptance.

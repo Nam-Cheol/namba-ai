@@ -465,7 +465,7 @@ func TestSingleUsageLineCommandUsageTextPreservesSimpleCommandShapes(t *testing.
 		{
 			name:         "doctor",
 			got:          doctorUsageText(),
-			usageLine:    "  namba doctor",
+			usageLine:    "  namba doctor [--check-update]",
 			behaviorLine: "  Inspect the current repository and local toolchain readiness without mutating project files.",
 		},
 		{

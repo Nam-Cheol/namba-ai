@@ -42,6 +42,7 @@ func (a *App) runRegen(_ context.Context, args []string) error {
 	if len(report.InstructionSurfacePaths) > 0 {
 		fmt.Fprintf(a.stdout, "Session refresh required: start a fresh Codex session before continuing long team or repair runs (%s)\n", strings.Join(report.InstructionSurfacePaths, ", "))
 	}
+	a.printCachedVersionAdvisory()
 	return nil
 }
 

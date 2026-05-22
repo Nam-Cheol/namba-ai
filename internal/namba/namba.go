@@ -55,6 +55,7 @@ type App struct {
 	startCmd                func(string, []string, string) error
 	downloadURL             func(context.Context, string) ([]byte, error)
 	executablePath          func() (string, error)
+	userCacheDir            func() (string, error)
 	writeManifestOverride   func(string, Manifest) error
 	newParallelProgressSink func(parallelProgressSinkConfig) (parallelProgressSink, error)
 	goos                    string
@@ -141,16 +142,17 @@ type topLevelInvocation struct {
 
 func NewApp(stdout, stderr io.Writer) *App {
 	return &App{
-		stdin:     os.Stdin,
-		stdout:    stdout,
-		stderr:    stderr,
-		now:       time.Now,
-		getenv:    os.Getenv,
-		getwd:     os.Getwd,
-		readFile:  os.ReadFile,
-		writeFile: os.WriteFile,
-		mkdirAll:  os.MkdirAll,
-		lookPath:  exec.LookPath,
+		stdin:        os.Stdin,
+		stdout:       stdout,
+		stderr:       stderr,
+		now:          time.Now,
+		getenv:       os.Getenv,
+		getwd:        os.Getwd,
+		readFile:     os.ReadFile,
+		writeFile:    os.WriteFile,
+		mkdirAll:     os.MkdirAll,
+		lookPath:     exec.LookPath,
+		userCacheDir: os.UserCacheDir,
 		newParallelProgressSink: func(cfg parallelProgressSinkConfig) (parallelProgressSink, error) {
 			return newJSONLParallelProgressSink(cfg)
 		},
@@ -423,11 +425,17 @@ func initUsageText() string {
 }
 
 func doctorUsageText() string {
-	return singleUsageLineCommandUsageText(
-		"doctor",
-		"  namba doctor",
+	return strings.Join([]string{
+		"namba doctor",
+		"",
+		"Usage:",
+		"  namba doctor [--check-update]",
+		"",
+		"Behavior:",
 		"  Inspect the current repository and local toolchain readiness without mutating project files.",
-	)
+		"  Use --check-update to explicitly refresh official GitHub Release metadata for an advisory-only NambaAI CLI version check.",
+		"  The check never runs `namba update`; ask the user before running `namba update`.",
+	}, "\n") + "\n"
 }
 
 func statusUsageText() string {
@@ -560,8 +568,20 @@ func (a *App) runInit(_ context.Context, args []string) error {
 }
 
 func (a *App) runDoctor(ctx context.Context, args []string) error {
-	if handled, err := a.handleNoArgTopLevelCommand("doctor", args); handled {
-		return err
+	checkUpdate := false
+	if wantsCommandHelp(args) {
+		return a.printCommandUsage("doctor")
+	}
+	for _, arg := range args {
+		switch arg {
+		case "--check-update":
+			checkUpdate = true
+		default:
+			if strings.HasPrefix(arg, "--") {
+				return commandUsageError("doctor", fmt.Errorf("unknown flag %q", arg))
+			}
+			return commandUsageError("doctor", errors.New("doctor does not accept arguments"))
+		}
 	}
 
 	root, err := a.requireProjectRoot()
@@ -601,6 +621,11 @@ func (a *App) runDoctor(ctx context.Context, args []string) error {
 		if err == nil && out != "" {
 			fmt.Fprintf(a.stdout, "Codex version: %s\n", out)
 		}
+	}
+	if checkUpdate {
+		fmt.Fprint(a.stdout, formatVersionAdvisory(a.refreshVersionAdvisory(ctx), true))
+	} else {
+		a.printCachedVersionAdvisory()
 	}
 	return nil
 }
@@ -647,6 +672,7 @@ func (a *App) runStatus(_ context.Context, args []string) error {
 	fmt.Fprintf(a.stdout, "Development mode: %s\n", qualityCfg.DevelopmentMode)
 	fmt.Fprintf(a.stdout, "SPEC packages: %d\n", specCount)
 	fmt.Fprintf(a.stdout, "State dir: %s\n", filepath.Join(root, nambaDir))
+	a.printCachedVersionAdvisory()
 	return nil
 }
 
@@ -705,6 +731,7 @@ func (a *App) runProject(ctx context.Context, args []string) error {
 		return errors.New("project analysis quality gate failed")
 	}
 	fmt.Fprintln(a.stdout, "Refreshed NambaAI project docs and codemaps.")
+	a.printCachedVersionAdvisory()
 	return nil
 }
 
@@ -2426,6 +2453,7 @@ func (a *App) runSync(_ context.Context, args []string) error {
 		return err
 	}
 	fmt.Fprintln(a.stdout, "Synced NambaAI artifacts.")
+	a.printCachedVersionAdvisory()
 	return nil
 }
 

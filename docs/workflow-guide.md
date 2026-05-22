@@ -70,6 +70,7 @@ flowchart LR
 ## `update`, `regen`, `sync`, `pr`, and `land` are different commands
 
 - `namba update`: self-update the installed CLI from GitHub Release assets
+- Codex must ask the user before running `namba update`
 - `codex update`: update the upstream Codex CLI; this is separate from `namba update`
 - `namba update` may print Codex 0.131 baseline advice, but it never installs or updates Codex
 - Inspect Codex diagnostics evidence at `.namba/logs/project/codex-diagnostics-evidence.json`, `.namba/logs/runs/<log-id>-evidence.json`, and `.namba/logs/runs/<spec-id-lower>-queue-evidence.json`. `codex doctor` logs are saved as redacted text beside the artifact that triggered them

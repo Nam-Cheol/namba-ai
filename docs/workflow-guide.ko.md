@@ -70,6 +70,7 @@ flowchart LR
 ## `update`, `regen`, `sync`, `pr`, `land`는 서로 다른 명령입니다
 
 - `namba update`: 설치된 CLI를 GitHub Release 자산 기준으로 self-update 합니다.
+- Codex는 `namba update`를 실행하기 전에 사용자에게 먼저 물어봐야 합니다.
 - `codex update`: upstream Codex CLI를 업데이트합니다. `namba update`와 별개의 명령입니다.
 - `namba update`는 Codex 0.131 baseline advice를 출력할 수 있지만 Codex 설치나 업데이트는 관리하지 않습니다.
 - Codex diagnostics evidence는 `.namba/logs/project/codex-diagnostics-evidence.json`, `.namba/logs/runs/<log-id>-evidence.json`, `.namba/logs/runs/<spec-id-lower>-queue-evidence.json`에서 확인합니다. `codex doctor` 로그는 evidence를 만든 artifact 옆에 redacted text로 저장됩니다.
