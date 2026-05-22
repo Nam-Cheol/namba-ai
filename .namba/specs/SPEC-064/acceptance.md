@@ -1,0 +1,22 @@
+# Acceptance
+
+- [ ] Interactive `namba init` shows a language-first entry screen before repository-state or project-default prompts.
+- [ ] The language selector default follows the existing locale priority: `NAMBA_LANG`, `LC_ALL`, `LANG`, then `en`.
+- [ ] The pre-language screen can be understood without Korean knowledge: it shows supported language codes, the current default, and how to continue with number/code input.
+- [ ] Users can override the locale default with numeric, code, or label input in plain line mode and with raw-key selection where available.
+- [ ] Language options do not use country flag emoji and remain readable in localized terminals.
+- [ ] Language labels are text-first and stable, including `[ko] Korean`, `[en] English`, `[ja] Japanese`, and `[zh] Simplified Chinese`.
+- [ ] After language selection, wizard copy is available consistently for `ko`, `en`, `ja`, and `zh` (Simplified Chinese).
+- [ ] `b` and `back` navigation still work after the language step, including conditional Git provider steps.
+- [ ] Existing repo-state-first defaults are preserved: existing repos keep detected stack values, empty repos leave app stack unset.
+- [ ] `--yes` and non-interactive init flows keep current behavior and do not require any wizard input.
+- [ ] ASCII/plain-terminal output remains usable without ANSI styling, fragile emoji, raw-key movement, full-screen rendering, box drawing, or color-only meaning.
+- [ ] ASCII/plain-terminal output preserves progress, defaults, recommended choices, repo intelligence, Codex access preview, Git guidance, and ready handoff using text markers such as `[default]`, `[recommended]`, `[current]`, and `[next]`.
+- [ ] A stage progress rail, repo-intelligence header, recommended setup badges, Git guidance, Codex access preview, and final ready handoff card are present in the interactive flow.
+- [ ] Codex access preview semantics remain compatible with `namba codex access`: preset choices still map to the same `approval_policy` and `sandbox_mode` pairs.
+- [ ] `namba init --help` describes the new language-first and plain fallback behavior without changing supported flags.
+- [ ] Generated getting-started docs are updated consistently for `docs/getting-started.md`, `docs/getting-started.ko.md`, `docs/getting-started.ja.md`, and `docs/getting-started.zh.md`.
+- [ ] Targeted tests cover the new wizard behavior and preserve existing init compatibility.
+- [ ] `go test ./...` passes.
+- [ ] `go vet ./...` passes.
+- [ ] `scripts/quality.sh` passes.

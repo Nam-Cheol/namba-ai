@@ -336,7 +336,7 @@ func TestRunInitWizardIncludesGuidedCodexAccessStep(t *testing.T) {
 	}
 
 	got := stdout.String()
-	for _, want := range []string{"🧭 Step 01", "저장소 상태", "🌱 새 프로젝트", "앱 스택을 묻지 않습니다", "🧪 기본 작업 방식", "🔐 Codex access preset", "⚖️ Balanced workspace", "approval_policy=on-request", "sandbox_mode=workspace-write", "🙋 Step 10", "📋 초기화 요약", "✅"} {
+	for _, want := range []string{"Step 01", "Working language", "[en] English", "Repository intelligence", "Step 02", "Setup path", "[recommended]", "do not choose an app stack", "Default work mode", "Codex access preset", "Balanced workspace", "approval_policy=on-request", "sandbox_mode=workspace-write", "Step 10", "Ready handoff"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected wizard output to contain %q, got %q", want, got)
 		}

@@ -232,7 +232,7 @@ func codexAccessPresets() []codexAccessPreset {
 		{
 			ID:                "cautious-read-only",
 			Label:             "🛡️ Cautious read-only",
-			WizardDescription: "승인을 묻고 파일 쓰기는 막습니다",
+			WizardDescription: "ask for approval and block file writes",
 			Consequence:       "Codex asks before risky actions and cannot write files.",
 			ApprovalPolicy:    "on-request",
 			SandboxMode:       "read-only",
@@ -240,7 +240,7 @@ func codexAccessPresets() []codexAccessPreset {
 		{
 			ID:                "balanced",
 			Label:             "⚖️ Balanced workspace",
-			WizardDescription: "필요할 때만 승인하고 저장소 파일은 수정할 수 있습니다",
+			WizardDescription: "ask only when needed and allow repository edits",
 			Consequence:       "Codex asks when needed and can edit files in the repo workspace.",
 			ApprovalPolicy:    "on-request",
 			SandboxMode:       "workspace-write",
@@ -248,7 +248,7 @@ func codexAccessPresets() []codexAccessPreset {
 		{
 			ID:                "full-access",
 			Label:             "🔥 Full access",
-			WizardDescription: "승인 없이 진행하고 전체 파일시스템에 접근합니다",
+			WizardDescription: "continue without approval prompts and allow full filesystem access",
 			Consequence:       "Codex keeps moving without approval prompts and can access the full filesystem.",
 			ApprovalPolicy:    "never",
 			SandboxMode:       "danger-full-access",
@@ -334,7 +334,7 @@ func codexAccessPresetOptions() []option {
 	options = append(options, option{
 		Value:       codexAccessPresetCustom,
 		Label:       "🧩 Custom access",
-		Description: "approval_policy와 sandbox_mode를 직접 조합합니다",
+		Description: "combine approval_policy and sandbox_mode manually",
 	})
 	return options
 }

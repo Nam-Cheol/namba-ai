@@ -411,8 +411,10 @@ func initUsageText() string {
 		"",
 		"Behavior:",
 		"  Initialize the NambaAI scaffold, config, and repo-local Codex assets in the target directory.",
-		"  The wizard starts from repository state: existing code keeps detected stack defaults, while empty repositories leave the app stack unset until the first planned request.",
+		"  The interactive wizard starts with a language-first screen, then explains repository-state defaults in the selected language.",
+		"  Existing code keeps detected stack defaults, while empty repositories leave the app stack unset until the first planned request.",
 		"  Selections are echoed before moving on, `b`/`back` returns to the previous step, and the wizard does not ask for a GitHub username.",
+		"  Plain terminals use numeric/code choices and text markers such as [default], [recommended], [current], and [next] without relying on emoji, ANSI styling, or raw-key movement.",
 		"  Codex access presets preview the resulting approval_policy / sandbox_mode pair.",
 		"  The scaffold includes Codex lifecycle hooks; first interactive Codex use must review them with `/hooks` before prompt-refinement guardrails run.",
 		"  After bootstrap, use `namba codex access` from the project root to inspect or change Namba runner Codex access defaults.",
@@ -4578,17 +4580,25 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 	profile := defaults
 
 	renderInitBanner(a.stdout)
-	fmt.Fprintln(a.stdout, wizardHeading(a.stdout, "\U0001f680 NambaAI \ucd08\uae30\ud654 \ub9c8\ubc95\uc0ac"))
-	fmt.Fprintln(a.stdout, wizardHint(a.stdout, "\U0001f9ed \uba3c\uc800 \ucf54\ub4dc\uac00 \uc788\ub294\uc9c0\ub97c \ud655\uc778\ud558\uace0, \uc2a4\ud0dd\uc740 \uac10\uc9c0\ud558\uac70\ub098 \ub098\uc911\uc5d0 \uc694\uad6c\uc0ac\ud56d\uc73c\ub85c \uc815\ud569\ub2c8\ub2e4."))
-	fmt.Fprintln(a.stdout, wizardHint(a.stdout, "\U0001f4a1 \uc120\ud0dd \ud6c4\uc5d0\ub294 \uacb0\uacfc\ub97c \ud45c\uc2dc\ud558\uace0, \u21a9\ufe0f `b` \ub610\ub294 `back`\uc73c\ub85c \uc774\uc804 \ub2e8\uacc4\ub97c \uc218\uc815\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4."))
-	fmt.Fprintln(a.stdout)
+	renderLanguageFirstIntro(a.stdout, profile.ConversationLanguage)
 
-	for step := wizardStepProjectType; step < wizardStepDone; {
-		allowBack := step != wizardStepProjectType
+	for step := wizardStepHumanLanguage; step < wizardStepDone; {
+		allowBack := step != wizardStepHumanLanguage
 		switch step {
+		case wizardStepHumanLanguage:
+			renderWizardStepHeader(a.stdout, step, profile, wizardMessage(profile.ConversationLanguage, "languageStep"))
+			value, back := promptSelectWizardResult(a.stdin, reader, a.stdout, "Language / \uc5b8\uc5b4 / \u8a00\u8a9e / \u8bed\u8a00", languageOptions(), profile.ConversationLanguage, allowBack)
+			if back {
+				step = previousWizardStep(step, profile)
+				continue
+			}
+			applyHumanLanguage(&profile, value)
+			renderWizardWelcome(a.stdout, profile)
+			renderRepoIntelligenceHeader(a.stdout, profile)
+			step = nextWizardStep(step, profile)
 		case wizardStepProjectType:
-			renderWizardStepHeader(a.stdout, step, profile, "\uc800\uc7a5\uc18c \uc0c1\ud0dc")
-			value, back := promptSelectWizardResult(a.stdin, reader, a.stdout, "\U0001f4e6 \uc800\uc7a5\uc18c \uc0c1\ud0dc", projectTypeOptions(), profile.ProjectType, allowBack)
+			renderWizardStepHeader(a.stdout, step, profile, wizardMessage(profile.ConversationLanguage, "repoState"))
+			value, back := promptSelectWizardResult(a.stdin, reader, a.stdout, wizardMessage(profile.ConversationLanguage, "setupPathPrompt"), projectTypeOptionsForLanguage(profile.ConversationLanguage, profile.ProjectType), profile.ProjectType, allowBack)
 			if back {
 				step = previousWizardStep(step, profile)
 				continue
@@ -4596,7 +4606,7 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 			profile.ProjectType = value
 			step = nextWizardStep(step, profile)
 		case wizardStepProjectDetails:
-			renderWizardStepHeader(a.stdout, step, profile, "\ud504\ub85c\uc81d\ud2b8 \uae30\ubcf8\uac12")
+			renderWizardStepHeader(a.stdout, step, profile, wizardMessage(profile.ConversationLanguage, "projectDefaults"))
 			next, back := a.promptProjectScaffold(reader, profile, allowBack)
 			if back {
 				step = previousWizardStep(step, profile)
@@ -4604,26 +4614,14 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 			}
 			profile = next
 			step = nextWizardStep(step, profile)
-		case wizardStepHumanLanguage:
-			renderWizardStepHeader(a.stdout, step, profile, "\uc0ac\uc6a9 \uc5b8\uc5b4")
-			value, back := promptSelectWizardResult(a.stdin, reader, a.stdout, "\U0001f310 \uc791\uc5c5 \uc5b8\uc5b4", languageOptions(), profile.ConversationLanguage, allowBack)
-			if back {
-				step = previousWizardStep(step, profile)
-				continue
-			}
-			applyHumanLanguage(&profile, value)
-			step = nextWizardStep(step, profile)
 		case wizardStepDevelopmentMode:
-			renderWizardStepHeader(a.stdout, step, profile, "\uc791\uc5c5 \ubc29\uc2dd")
+			renderWizardStepHeader(a.stdout, step, profile, wizardMessage(profile.ConversationLanguage, "workMode"))
 			value, back := promptSelectWizardResult(
 				a.stdin,
 				reader,
 				a.stdout,
-				"\U0001f9ea \uae30\ubcf8 \uc791\uc5c5 \ubc29\uc2dd",
-				[]option{
-					{Value: "tdd", Label: "\U0001f9ea TDD", Description: "\uc0c8 \uae30\ub2a5\uc744 \uc791\uc740 \uac80\uc99d \ub2e8\uc704\ub85c \uc9c4\ud589"},
-					{Value: "ddd", Label: "\U0001f9ed DDD", Description: "\uae30\uc874 \ub3c4\uba54\uc778/\ucf54\ub4dc \ubd84\uc11d\uc744 \uba3c\uc800 \uc815\ub82c"},
-				},
+				wizardMessage(profile.ConversationLanguage, "workModePrompt"),
+				developmentModeOptionsForLanguage(profile.ConversationLanguage),
 				profile.DevelopmentMode,
 				allowBack,
 			)
@@ -4634,16 +4632,13 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 			profile.DevelopmentMode = value
 			step = nextWizardStep(step, profile)
 		case wizardStepAgentMode:
-			renderWizardStepHeader(a.stdout, step, profile, "Codex \uc5d0\uc774\uc804\ud2b8")
+			renderWizardStepHeader(a.stdout, step, profile, wizardMessage(profile.ConversationLanguage, "agentStep"))
 			value, back := promptSelectWizardResult(
 				a.stdin,
 				reader,
 				a.stdout,
-				"\U0001f916 Codex \uc5d0\uc774\uc804\ud2b8 \ubaa8\ub4dc",
-				[]option{
-					{Value: "single", Label: "\U0001f464 \uc2f1\uae00", Description: "\uc548\uc815\uc801\uc778 \ub2e8\uc77c \ud750\ub984"},
-					{Value: "multi", Label: "\U0001f465 \uba40\ud2f0", Description: "\ubcd1\ub82c \uc791\uc5c5 \uc900\ube44"},
-				},
+				wizardMessage(profile.ConversationLanguage, "agentPrompt"),
+				agentModeOptionsForLanguage(profile.ConversationLanguage),
 				profile.AgentMode,
 				allowBack,
 			)
@@ -4654,16 +4649,13 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 			profile.AgentMode = value
 			step = nextWizardStep(step, profile)
 		case wizardStepStatusLine:
-			renderWizardStepHeader(a.stdout, step, profile, "\uc0c1\ud0dc\uc904")
+			renderWizardStepHeader(a.stdout, step, profile, wizardMessage(profile.ConversationLanguage, "statusStep"))
 			value, back := promptSelectWizardResult(
 				a.stdin,
 				reader,
 				a.stdout,
-				"\U0001f39b\ufe0f \uc0c1\ud0dc\uc904 \ud504\ub9ac\uc14b",
-				[]option{
-					{Value: "namba", Label: "\U0001f39b\ufe0f Namba", Description: "\ud504\ub85c\uc81d\ud2b8 \uc911\uc2ec \ud45c\uc2dc"},
-					{Value: "off", Label: "\U0001f515 \ub044\uae30", Description: "\ucd94\ucc9c \uc124\uc815 \uc0dd\uc131 \uc548 \ud568"},
-				},
+				wizardMessage(profile.ConversationLanguage, "statusPrompt"),
+				statusLineOptionsForLanguage(profile.ConversationLanguage),
 				profile.StatusLinePreset,
 				allowBack,
 			)
@@ -4675,6 +4667,7 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 			step = nextWizardStep(step, profile)
 		case wizardStepCodexAccess:
 			renderWizardStepHeader(a.stdout, step, profile, "Codex access")
+			fmt.Fprintln(a.stdout, wizardHint(a.stdout, "[next] "+wizardMessage(profile.ConversationLanguage, "codexAccessGuide")))
 			next, back, err := a.promptCodexAccessStep(reader, profile, allowBack)
 			if err != nil {
 				return initProfile{}, err
@@ -4687,16 +4680,13 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 			step = nextWizardStep(step, profile)
 		case wizardStepGitMode:
 			renderWizardStepHeader(a.stdout, step, profile, "Git")
+			fmt.Fprintln(a.stdout, wizardHint(a.stdout, "[next] "+wizardMessage(profile.ConversationLanguage, "gitGuide")))
 			value, back := promptSelectWizardResult(
 				a.stdin,
 				reader,
 				a.stdout,
-				"\U0001f33f Git \uc790\ub3d9\ud654 \ubaa8\ub4dc",
-				[]option{
-					{Value: "manual", Label: "\u270b \uc218\ub3d9", Description: "push/PR \uc790\ub3d9\ud654 \uc5c6\uc74c"},
-					{Value: "personal", Label: "\U0001f464 \uac1c\uc778", Description: "\ube0c\ub79c\uce58/\ucee4\ubc0b \ud5c8\uc6a9"},
-					{Value: "team", Label: "\U0001f465 \ud300", Description: "PR \uc900\ube44 \uc0b0\ucd9c\ubb3c \uc0dd\uc131"},
-				},
+				wizardMessage(profile.ConversationLanguage, "gitModePrompt"),
+				gitModeOptionsForLanguage(profile.ConversationLanguage),
 				profile.GitMode,
 				allowBack,
 			)
@@ -4712,11 +4702,8 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 				a.stdin,
 				reader,
 				a.stdout,
-				"\u2601\ufe0f Git \uc81c\uacf5\uc790",
-				[]option{
-					{Value: "github", Label: "\U0001f419 GitHub", Description: "gh CLI \ub610\ub294 \uae30\uc874 \uc778\uc99d"},
-					{Value: "gitlab", Label: "\U0001f98a GitLab", Description: "glab CLI \ub610\ub294 \uae30\uc874 \uc778\uc99d"},
-				},
+				wizardMessage(profile.ConversationLanguage, "gitProviderPrompt"),
+				gitProviderOptionsForLanguage(profile.ConversationLanguage),
 				profile.GitProvider,
 				allowBack,
 			)
@@ -4728,7 +4715,7 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 			step = nextWizardStep(step, profile)
 		case wizardStepGitLabURL:
 			renderWizardStepHeader(a.stdout, step, profile, "GitLab URL")
-			value, back := promptInputResult(reader, a.stdout, "\U0001f517 GitLab \uc778\uc2a4\ud134\uc2a4 URL", profile.GitLabInstanceURL, allowBack)
+			value, back := promptInputResult(reader, a.stdout, wizardMessage(profile.ConversationLanguage, "gitLabURL"), profile.GitLabInstanceURL, allowBack)
 			if back {
 				step = previousWizardStep(step, profile)
 				continue
@@ -4736,8 +4723,8 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 			profile.GitLabInstanceURL = value
 			step = nextWizardStep(step, profile)
 		case wizardStepDisplayName:
-			renderWizardStepHeader(a.stdout, step, profile, "\ud45c\uc2dc \uc774\ub984")
-			value, back := promptInputResult(reader, a.stdout, "\U0001f64b \ud45c\uc2dc \uc774\ub984", profile.UserName, allowBack)
+			renderWizardStepHeader(a.stdout, step, profile, wizardMessage(profile.ConversationLanguage, "displayName"))
+			value, back := promptInputResult(reader, a.stdout, wizardMessage(profile.ConversationLanguage, "displayName"), profile.UserName, allowBack)
 			if back {
 				step = previousWizardStep(step, profile)
 				continue
@@ -4750,14 +4737,14 @@ func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
 	fmt.Fprintln(a.stdout)
 	renderInitWizardSummary(a.stdout, profile)
 	fmt.Fprintln(a.stdout)
-	fmt.Fprintln(a.stdout, wizardHint(a.stdout, "\U0001f510 \ud1a0\ud070\uacfc \ube44\ubc00\uac12\uc740 \uc124\uc815 \ud30c\uc77c\uc5d0 \uc800\uc7a5\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4. gh/glab login\uc744 \uc0ac\uc6a9\ud558\uc138\uc694."))
+	fmt.Fprintln(a.stdout, wizardHint(a.stdout, "[next] "+wizardMessage(profile.ConversationLanguage, "secretHint")))
 	return profile, nil
 }
 
 const (
-	wizardStepProjectType = iota
+	wizardStepHumanLanguage = iota
+	wizardStepProjectType
 	wizardStepProjectDetails
-	wizardStepHumanLanguage
 	wizardStepDevelopmentMode
 	wizardStepAgentMode
 	wizardStepStatusLine
@@ -4805,8 +4792,8 @@ func previousWizardStep(step int, profile initProfile) int {
 	case wizardStepGitProvider:
 		return wizardStepGitMode
 	default:
-		if step <= wizardStepProjectType {
-			return wizardStepProjectType
+		if step <= wizardStepHumanLanguage {
+			return wizardStepHumanLanguage
 		}
 		return step - 1
 	}
@@ -4814,14 +4801,15 @@ func previousWizardStep(step int, profile initProfile) int {
 
 func renderWizardStepHeader(out io.Writer, step int, profile initProfile, title string) {
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, wizardHeading(out, fmt.Sprintf("%s Step %02d · %s", wizardStepEmoji(step), wizardVisibleStepNumber(step, profile), title)))
+	fmt.Fprintln(out, wizardHint(out, wizardProgressRail(step, profile)))
+	fmt.Fprintln(out, wizardHeading(out, fmt.Sprintf("%s Step %02d · %s", wizardStepMarker(out, step), wizardVisibleStepNumber(step, profile), title)))
 }
 
 func wizardVisibleStepNumber(target int, profile initProfile) int {
-	if target <= wizardStepProjectType {
+	if target <= wizardStepHumanLanguage {
 		return 1
 	}
-	step := wizardStepProjectType
+	step := wizardStepHumanLanguage
 	visible := 1
 	for guard := 0; step < wizardStepDone && guard < wizardStepDone+1; guard++ {
 		if step == target {
@@ -4834,6 +4822,39 @@ func wizardVisibleStepNumber(target int, profile initProfile) int {
 		return visible
 	}
 	return target + 1
+}
+
+func wizardProgressRail(step int, profile initProfile) string {
+	total := wizardVisibleStepNumber(wizardStepDone, profile) - 1
+	current := wizardVisibleStepNumber(step, profile)
+	return fmt.Sprintf("[current] Step %02d/%02d [next] %s", current, total, wizardNextStepLabel(step, profile))
+}
+
+func wizardNextStepLabel(step int, profile initProfile) string {
+	next := nextWizardStep(step, profile)
+	if next == wizardStepDone {
+		return "ready handoff"
+	}
+	switch next {
+	case wizardStepHumanLanguage:
+		return "language"
+	case wizardStepProjectType:
+		return "repository state"
+	case wizardStepProjectDetails:
+		return "project defaults"
+	case wizardStepDevelopmentMode:
+		return "work mode"
+	case wizardStepAgentMode:
+		return "agent mode"
+	case wizardStepStatusLine:
+		return "status line"
+	case wizardStepCodexAccess:
+		return "codex access"
+	case wizardStepGitMode, wizardStepGitProvider, wizardStepGitLabURL:
+		return "git setup"
+	default:
+		return "display name"
+	}
 }
 
 func wizardStepEmoji(step int) string {
@@ -4861,8 +4882,153 @@ func wizardStepEmoji(step int) string {
 	}
 }
 
+func wizardStepMarker(out io.Writer, step int) string {
+	if !isTerminalWriter(out) {
+		return ""
+	}
+	return wizardStepEmoji(step)
+}
+
+func renderLanguageFirstIntro(out io.Writer, defaultLanguage string) {
+	fmt.Fprintln(out, wizardHeading(out, "NambaAI init language setup"))
+	fmt.Fprintln(out, wizardHint(out, "Choose setup language first. Supported: [ko] Korean, [en] English, [ja] Japanese, [zh] Simplified Chinese."))
+	fmt.Fprintf(out, "%s\n", wizardHint(out, fmt.Sprintf("[default] %s. Continue with number or code input.", humanLanguageLabel(defaultLanguage))))
+	fmt.Fprintln(out)
+}
+
+func renderWizardWelcome(out io.Writer, profile initProfile) {
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, wizardHeading(out, wizardMessage(profile.ConversationLanguage, "welcomeTitle")))
+	fmt.Fprintln(out, wizardHint(out, wizardMessage(profile.ConversationLanguage, "welcomeHint")))
+	fmt.Fprintln(out, wizardHint(out, wizardMessage(profile.ConversationLanguage, "backHint")))
+}
+
+func renderRepoIntelligenceHeader(out io.Writer, profile initProfile) {
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, wizardHeading(out, wizardMessage(profile.ConversationLanguage, "repoIntelTitle")))
+	fmt.Fprintf(out, "  [current] Target: %s\n", profile.ProjectName)
+	fmt.Fprintf(out, "  [current] Repository state: %s\n", profile.ProjectType)
+	fmt.Fprintf(out, "  [current] Detected stack: %s\n", formatInitStack(profile))
+	fmt.Fprintf(out, "  [current] Methodology: %s\n", strings.ToUpper(firstNonBlank(profile.DevelopmentMode, "tdd")))
+	fmt.Fprintf(out, "  [default] %s\n", wizardMessage(profile.ConversationLanguage, "repoIntelDefault"))
+}
+
+func wizardMessage(language, key string) string {
+	lang := normalizeReadmeLanguage(language)
+	messages := map[string]map[string]string{
+		"ko": {
+			"languageStep":      "사용 언어",
+			"welcomeTitle":      "NambaAI 초기화 마법사",
+			"welcomeHint":       "먼저 언어를 고른 뒤 저장소 상태를 확인하고, 스택은 감지값이나 첫 계획 요청으로 정합니다.",
+			"backHint":          "선택 후에는 결과를 표시하고 `b` 또는 `back`으로 이전 단계를 수정할 수 있습니다.",
+			"repoIntelTitle":    "저장소 인텔리전스",
+			"repoIntelDefault":  "기존 repo는 감지된 stack을 유지하고, 빈 repo는 app stack을 비워 둡니다.",
+			"repoState":         "저장소 상태",
+			"setupPathPrompt":   "설정 경로",
+			"projectDefaults":   "프로젝트 기본값",
+			"projectName":       "프로젝트 이름",
+			"workMode":          "작업 방식",
+			"workModePrompt":    "기본 작업 방식",
+			"agentStep":         "Codex 에이전트",
+			"agentPrompt":       "Codex 에이전트 모드",
+			"statusStep":        "상태줄",
+			"statusPrompt":      "상태줄 프리셋",
+			"gitModePrompt":     "Git 자동화 모드",
+			"gitProviderPrompt": "Git 제공자",
+			"gitLabURL":         "GitLab 인스턴스 URL",
+			"displayName":       "표시 이름",
+			"codexAccessGuide":  "Codex access preset은 Namba runner의 approval_policy / sandbox_mode 결과를 먼저 보여줍니다.",
+			"gitGuide":          "Git은 manual, personal, team 중 고릅니다. GitHub 사용자명은 묻지 않고 기존 gh/glab 인증을 사용합니다.",
+			"secretHint":        "토큰과 비밀값은 설정 파일에 저장하지 않습니다. gh/glab login을 사용하세요.",
+			"summaryTitle":      "준비 완료 핸드오프",
+		},
+		"ja": {
+			"languageStep":      "使用言語",
+			"welcomeTitle":      "NambaAI 初期化ウィザード",
+			"welcomeHint":       "言語を先に選び、その後で repository state を確認し、stack は検出値または最初の計画依頼で決めます。",
+			"backHint":          "選択後は結果を表示し、`b` または `back` で前の step に戻れます。",
+			"repoIntelTitle":    "Repository intelligence",
+			"repoIntelDefault":  "既存 repo は検出 stack を維持し、空 repo は app stack を未設定のままにします。",
+			"repoState":         "Repository state",
+			"setupPathPrompt":   "Setup path",
+			"projectDefaults":   "Project defaults",
+			"projectName":       "Project name",
+			"workMode":          "Work mode",
+			"workModePrompt":    "Default work mode",
+			"agentStep":         "Codex agent",
+			"agentPrompt":       "Codex agent mode",
+			"statusStep":        "Status line",
+			"statusPrompt":      "Status line preset",
+			"gitModePrompt":     "Git automation mode",
+			"gitProviderPrompt": "Git provider",
+			"gitLabURL":         "GitLab instance URL",
+			"displayName":       "Display name",
+			"codexAccessGuide":  "Codex access preset は Namba runner の approval_policy / sandbox_mode を事前表示します。",
+			"gitGuide":          "Git は manual、personal、team から選びます。GitHub username は尋ねず既存の gh/glab 認証を使います。",
+			"secretHint":        "Token と secret は設定ファイルに保存しません。gh/glab login を使ってください。",
+			"summaryTitle":      "Ready handoff",
+		},
+		"zh": {
+			"languageStep":      "使用语言",
+			"welcomeTitle":      "NambaAI 初始化向导",
+			"welcomeHint":       "先选择语言，然后确认仓库状态；stack 使用检测值，或在第一次计划请求中确定。",
+			"backHint":          "选择后会显示结果，也可以用 `b` 或 `back` 回到上一步修改。",
+			"repoIntelTitle":    "Repository intelligence",
+			"repoIntelDefault":  "已有 repo 保留检测到的 stack；空 repo 保持 app stack 未设置。",
+			"repoState":         "Repository state",
+			"setupPathPrompt":   "Setup path",
+			"projectDefaults":   "Project defaults",
+			"projectName":       "Project name",
+			"workMode":          "Work mode",
+			"workModePrompt":    "Default work mode",
+			"agentStep":         "Codex agent",
+			"agentPrompt":       "Codex agent mode",
+			"statusStep":        "Status line",
+			"statusPrompt":      "Status line preset",
+			"gitModePrompt":     "Git automation mode",
+			"gitProviderPrompt": "Git provider",
+			"gitLabURL":         "GitLab instance URL",
+			"displayName":       "Display name",
+			"codexAccessGuide":  "Codex access preset 会预览 Namba runner 的 approval_policy / sandbox_mode。",
+			"gitGuide":          "Git 可选择 manual、personal 或 team。不会询问 GitHub 用户名，会使用已有 gh/glab 认证。",
+			"secretHint":        "Token 和 secret 不会保存到配置文件。请使用 gh/glab login。",
+			"summaryTitle":      "Ready handoff",
+		},
+		"en": {
+			"languageStep":      "Working language",
+			"welcomeTitle":      "NambaAI init wizard",
+			"welcomeHint":       "Choose language first, then review repository state. Existing stacks come from detection; empty repos decide stack in the first plan.",
+			"backHint":          "Each answer is echoed before moving on, and `b` or `back` returns to the previous step.",
+			"repoIntelTitle":    "Repository intelligence",
+			"repoIntelDefault":  "Existing repos keep detected stack values; empty repos leave the app stack unset.",
+			"repoState":         "Repository state",
+			"setupPathPrompt":   "Setup path",
+			"projectDefaults":   "Project defaults",
+			"projectName":       "Project name",
+			"workMode":          "Work mode",
+			"workModePrompt":    "Default work mode",
+			"agentStep":         "Codex agent",
+			"agentPrompt":       "Codex agent mode",
+			"statusStep":        "Status line",
+			"statusPrompt":      "Status line preset",
+			"gitModePrompt":     "Git automation mode",
+			"gitProviderPrompt": "Git provider",
+			"gitLabURL":         "GitLab instance URL",
+			"displayName":       "Display name",
+			"codexAccessGuide":  "Codex access presets preview the resulting Namba runner approval_policy / sandbox_mode pair.",
+			"gitGuide":          "Git setup uses manual, personal, or team mode. It does not ask for a GitHub username and relies on existing gh/glab auth.",
+			"secretHint":        "Tokens and secrets are not stored in config files. Use gh/glab login.",
+			"summaryTitle":      "Ready handoff",
+		},
+	}
+	if value := messages[lang][key]; value != "" {
+		return value
+	}
+	return messages["en"][key]
+}
+
 func (a *App) promptProjectScaffold(reader *bufio.Reader, profile initProfile, allowBack bool) (initProfile, bool) {
-	projectName, back := promptInputResult(reader, a.stdout, "\U0001f4db \ud504\ub85c\uc81d\ud2b8 \uc774\ub984", profile.ProjectName, allowBack)
+	projectName, back := promptInputResult(reader, a.stdout, wizardMessage(profile.ConversationLanguage, "projectName"), profile.ProjectName, allowBack)
 	if back {
 		return profile, true
 	}
@@ -4870,15 +5036,45 @@ func (a *App) promptProjectScaffold(reader *bufio.Reader, profile initProfile, a
 
 	if profile.ProjectType == "existing" {
 		profile.Framework = normalizeFramework(profile.Framework)
-		fmt.Fprintln(a.stdout, wizardHint(a.stdout, fmt.Sprintf("\U0001f50e \uac10\uc9c0\ub41c \ucf54\ub4dc\ubca0\uc774\uc2a4: %s", formatInitStack(profile))))
-		fmt.Fprintln(a.stdout, wizardHint(a.stdout, "\U0001f6e0\ufe0f \uae30\uc874 \ucf54\ub4dc\uc758 \uc5b8\uc5b4/\ud504\ub808\uc784\uc6cc\ud06c\ub294 \ubb3b\uc9c0 \uc54a\uace0 \uac10\uc9c0\uac12\uc744 \uc0ac\uc6a9\ud569\ub2c8\ub2e4. \ud544\uc694\ud558\uba74 init flag\ub85c override\ud558\uc138\uc694."))
+		fmt.Fprintln(a.stdout, wizardHint(a.stdout, fmt.Sprintf("%s: %s", wizardProjectScaffoldMessage(profile.ConversationLanguage, "detectedCodebase"), formatInitStack(profile))))
+		fmt.Fprintln(a.stdout, wizardHint(a.stdout, wizardProjectScaffoldMessage(profile.ConversationLanguage, "existingHint")))
 		return profile, false
 	}
 
 	profile.Language = firstNonBlank(profile.Language, "unknown")
 	profile.Framework = normalizeFramework(profile.Framework)
-	fmt.Fprintln(a.stdout, wizardHint(a.stdout, "\U0001f331 \ube48 \uc800\uc7a5\uc18c\uc5d0\uc11c\ub294 \uc571 \uc2a4\ud0dd\uc744 \ubb3b\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4. NambaAI\ub9cc \uc900\ube44\ud558\uace0, \uccab `namba plan`\uc5d0\uc11c \ubaa9\ud45c/\uc81c\uc57d\uc5d0 \ub9de\uac8c \uc2a4\ud0dd\uc744 \uc815\ud569\ub2c8\ub2e4."))
+	fmt.Fprintln(a.stdout, wizardHint(a.stdout, wizardProjectScaffoldMessage(profile.ConversationLanguage, "newHint")))
 	return profile, false
+}
+
+func wizardProjectScaffoldMessage(language, key string) string {
+	lang := normalizeReadmeLanguage(language)
+	messages := map[string]map[string]string{
+		"ko": {
+			"detectedCodebase": "감지된 코드베이스",
+			"existingHint":     "기존 코드의 언어/프레임워크는 묻지 않고 감지값을 사용합니다. 필요하면 init flag로 override하세요.",
+			"newHint":          "빈 저장소에서는 앱 스택을 묻지 않습니다. NambaAI만 준비하고, 첫 `namba plan`에서 목표/제약에 맞게 스택을 정합니다.",
+		},
+		"ja": {
+			"detectedCodebase": "Detected codebase",
+			"existingHint":     "The existing code language/framework is not asked again; detected values are used unless init flags override them.",
+			"newHint":          "Empty repositories do not choose an app stack here. NambaAI is prepared now, and the first `namba plan` decides the stack from the goal and constraints.",
+		},
+		"zh": {
+			"detectedCodebase": "Detected codebase",
+			"existingHint":     "已有代码的 language/framework 不会再次询问；默认使用检测值，除非用 init flag 覆盖。",
+			"newHint":          "空仓库不会在这里选择 app stack。现在只准备 NambaAI，第一次 `namba plan` 会根据目标和约束确定 stack。",
+		},
+		"en": {
+			"detectedCodebase": "Detected codebase",
+			"existingHint":     "The existing code language/framework is not asked again; detected values are used unless init flags override them.",
+			"newHint":          "Empty repositories do not choose an app stack here. NambaAI is prepared now, and the first `namba plan` decides the stack from the goal and constraints.",
+		},
+	}
+	if value := messages[lang][key]; value != "" {
+		return value
+	}
+	return messages["en"][key]
 }
 
 func formatInitStack(profile initProfile) string {
@@ -4894,16 +5090,17 @@ func formatInitStack(profile initProfile) string {
 }
 
 func renderInitWizardSummary(out io.Writer, profile initProfile) {
-	fmt.Fprintln(out, wizardHeading(out, "\U0001f4cb \ucd08\uae30\ud654 \uc694\uc57d"))
-	fmt.Fprintf(out, "  \U0001f4e6 Project: %s (%s)\n", profile.ProjectName, profile.ProjectType)
-	fmt.Fprintf(out, "  \U0001f9f1 Stack: %s\n", formatInitStack(profile))
-	fmt.Fprintf(out, "  \U0001f310 Working language: %s\n", humanLanguageName(profile.ConversationLanguage))
-	fmt.Fprintf(out, "  \U0001f510 Codex access: approval_policy=%s, sandbox_mode=%s\n", profile.ApprovalPolicy, profile.SandboxMode)
-	fmt.Fprintf(out, "  \U0001f33f Git automation: %s", profile.GitMode)
+	fmt.Fprintln(out, wizardHeading(out, wizardMessage(profile.ConversationLanguage, "summaryTitle")))
+	fmt.Fprintf(out, "  [current] Project: %s (%s)\n", profile.ProjectName, profile.ProjectType)
+	fmt.Fprintf(out, "  [current] Stack: %s\n", formatInitStack(profile))
+	fmt.Fprintf(out, "  [current] Working language: %s\n", humanLanguageLabel(profile.ConversationLanguage))
+	fmt.Fprintf(out, "  [current] Codex access: approval_policy=%s, sandbox_mode=%s\n", profile.ApprovalPolicy, profile.SandboxMode)
+	fmt.Fprintf(out, "  [current] Git automation: %s", profile.GitMode)
 	if profile.GitMode != "manual" {
 		fmt.Fprintf(out, " via %s", profile.GitProvider)
 	}
 	fmt.Fprintln(out)
+	fmt.Fprintln(out, "  [next] Run `namba project`, then plan or execute SPEC work from this repository.")
 }
 
 func promptInput(reader *bufio.Reader, out io.Writer, label, defaultValue string) string {
@@ -4919,7 +5116,7 @@ func promptInputResult(reader *bufio.Reader, out io.Writer, label, defaultValue 
 		fmt.Fprintf(out, "%s [%s]: ", prompt, defaultValue)
 	}
 	if allowBack {
-		fmt.Fprintf(out, "%s ", wizardHint(out, "(\u21a9\ufe0f b/back: \uc774\uc804)"))
+		fmt.Fprintf(out, "%s ", wizardHint(out, "(\u21a9\ufe0f b/back: back)"))
 	}
 	line, err := reader.ReadString('\n')
 	if err != nil {
@@ -4969,25 +5166,50 @@ func wizardSelected(out io.Writer, text string) string {
 
 func styleWizardText(out io.Writer, code, text string) string {
 	if !isTerminalWriter(out) {
-		return text
+		return stripWizardDecorations(text)
 	}
 	return "\x1b[" + code + "m" + text + "\x1b[0m"
 }
 
 func formatWizardChoice(choice option) string {
-	if strings.TrimSpace(choice.Description) == "" {
-		return choice.Label
+	return formatWizardChoiceFor(nil, choice)
+}
+
+func formatWizardChoiceFor(out io.Writer, choice option) string {
+	label := choice.Label
+	description := choice.Description
+	if out != nil && !isTerminalWriter(out) {
+		label = stripWizardDecorations(label)
+		description = stripWizardDecorations(description)
 	}
-	return fmt.Sprintf("%s - %s", choice.Label, choice.Description)
+	if strings.TrimSpace(choice.Description) == "" {
+		return label
+	}
+	return fmt.Sprintf("%s - %s", label, description)
 }
 
 func choiceLabel(choices []option, value string) string {
+	return choiceLabelFor(nil, choices, value)
+}
+
+func choiceLabelFor(out io.Writer, choices []option, value string) string {
 	for _, choice := range choices {
 		if choice.Value == value {
+			if out != nil && !isTerminalWriter(out) {
+				return stripWizardDecorations(choice.Label)
+			}
 			return choice.Label
 		}
 	}
 	return value
+}
+
+func stripWizardDecorations(text string) string {
+	replacer := strings.NewReplacer(
+		"✨ ", "", "🚀 ", "", "🧭 ", "", "💡 ", "", "📦 ", "", "🌱 ", "", "🔎 ", "", "🛠️ ", "", "🧪 ", "", "🤖 ", "", "👤 ", "", "👥 ", "", "🎛️ ", "", "🔕 ", "", "🔐 ", "", "🛡️ ", "", "⚖️ ", "", "🔥 ", "", "🧩 ", "", "✅ ", "", "🔒 ", "", "🛎️ ", "", "🧱 ", "", "🌿 ", "", "✋ ", "", "☁️ ", "", "🐙 ", "", "🦊 ", "", "🔗 ", "", "🙋 ", "", "📋 ", "", "📛 ", "", "🌐 ", "", "👉 ", "", "↩️ ", "", "💬 ", "",
+		"🇰🇷 ", "", "🇺🇸 ", "", "🇯🇵 ", "", "🇨🇳 ", "",
+	)
+	return strings.TrimSpace(replacer.Replace(text))
 }
 
 func isWizardBackInput(value string) bool {
@@ -5007,7 +5229,7 @@ func printWizardSelection(out io.Writer, label, value string) {
 }
 
 func printWizardBack(out io.Writer) {
-	fmt.Fprintln(out, wizardHint(out, "\u21a9\ufe0f \uc774\uc804 \ub2e8\uacc4\ub85c \ub3cc\uc544\uac11\ub2c8\ub2e4."))
+	fmt.Fprintln(out, wizardHint(out, "\u21a9\ufe0f Back to the previous step."))
 }
 
 func promptSelect(in io.Reader, out io.Writer, label string, choices []option, defaultValue string) string {
@@ -5026,7 +5248,7 @@ func promptSelectWizardResult(in io.Reader, reader *bufio.Reader, out io.Writer,
 				printWizardBack(out)
 				return defaultValue, true
 			}
-			printWizardSelection(out, label, choiceLabel(choices, value))
+			printWizardSelection(out, label, choiceLabelFor(out, choices, value))
 			return value, false
 		}
 	}
@@ -5035,7 +5257,7 @@ func promptSelectWizardResult(in io.Reader, reader *bufio.Reader, out io.Writer,
 		printWizardBack(out)
 		return defaultValue, true
 	}
-	printWizardSelection(out, label, choiceLabel(choices, value))
+	printWizardSelection(out, label, choiceLabelFor(out, choices, value))
 	return value, false
 }
 
@@ -5051,10 +5273,14 @@ func promptSelectLineResult(reader *bufio.Reader, out io.Writer, label string, c
 		if choice.Value == defaultValue {
 			defaultIndex = i
 		}
-		fmt.Fprintf(out, "  %d. %s\n", i+1, formatWizardChoice(choice))
+		fmt.Fprintf(out, "  %d. %s\n", i+1, formatWizardChoiceFor(out, choice))
 	}
 	if allowBack {
-		fmt.Fprintln(out, "  \u21a9\ufe0f b. \uc774\uc804 \ub2e8\uacc4\ub85c")
+		if isTerminalWriter(out) {
+			fmt.Fprintln(out, "  \u21a9\ufe0f b. back")
+		} else {
+			fmt.Fprintln(out, "  b. back")
+		}
 	}
 	fmt.Fprintf(out, "%s [%d]: ", wizardPrompt(out, "\uc120\ud0dd"), defaultIndex+1)
 
@@ -5147,14 +5373,14 @@ func renderInteractiveSelect(out io.Writer, label string, choices []option, sele
 	lines := 0
 	fmt.Fprintf(out, "\r\x1b[2K%s\n", wizardHeading(out, label))
 	lines++
-	hint := "\u2191/\u2193 \uc774\ub3d9 \u00b7 Enter \uc120\ud0dd"
+	hint := "\u2191/\u2193 move \u00b7 Enter select"
 	if allowBack {
-		hint += " \u00b7 \u21a9\ufe0f b \uc774\uc804"
+		hint += " \u00b7 \u21a9\ufe0f b back"
 	}
 	fmt.Fprintf(out, "\r\x1b[2K%s\n", wizardHint(out, hint))
 	lines++
 	for i, choice := range choices {
-		line := fmt.Sprintf("%d. %s", i+1, formatWizardChoice(choice))
+		line := fmt.Sprintf("%d. %s", i+1, formatWizardChoiceFor(out, choice))
 		if i == selected {
 			fmt.Fprintf(out, "\r\x1b[2K%s\n", wizardSelected(out, "\U0001f449 "+line))
 		} else {
@@ -5215,9 +5441,98 @@ func readMenuAction(reader *bufio.Reader) (menuAction, error) {
 }
 
 func projectTypeOptions() []option {
+	return projectTypeOptionsFor("")
+}
+
+func projectTypeOptionsFor(defaultValue string) []option {
+	return projectTypeOptionsForLanguage("ko", defaultValue)
+}
+
+func projectTypeOptionsForLanguage(language, defaultValue string) []option {
+	newMarker := ""
+	existingMarker := ""
+	switch defaultValue {
+	case "new":
+		newMarker = " [recommended]"
+	case "existing":
+		existingMarker = " [recommended]"
+	}
+	if normalizeReadmeLanguage(language) == "ko" {
+		return []option{
+			{Value: "new", Label: "\uc0c8 \ud504\ub85c\uc81d\ud2b8" + newMarker, Description: "\ube48 \uc800\uc7a5\uc18c/\uc0c8 \ud3f4\ub354"},
+			{Value: "existing", Label: "\uae30\uc874 \ud504\ub85c\uc81d\ud2b8" + existingMarker, Description: "\ucf54\ub4dc\uac00 \uc788\ub294 \uc800\uc7a5\uc18c"},
+		}
+	}
 	return []option{
-		{Value: "new", Label: "\U0001f331 \uc0c8 \ud504\ub85c\uc81d\ud2b8", Description: "\ube48 \uc800\uc7a5\uc18c/\uc0c8 \ud3f4\ub354"},
-		{Value: "existing", Label: "\U0001f4e6 \uae30\uc874 \ud504\ub85c\uc81d\ud2b8", Description: "\ucf54\ub4dc\uac00 \uc788\ub294 \uc800\uc7a5\uc18c"},
+		{Value: "new", Label: "New project" + newMarker, Description: "empty repository/new folder"},
+		{Value: "existing", Label: "Existing project" + existingMarker, Description: "repository with code"},
+	}
+}
+
+func developmentModeOptionsForLanguage(language string) []option {
+	if normalizeReadmeLanguage(language) == "ko" {
+		return []option{
+			{Value: "tdd", Label: "\U0001f9ea TDD", Description: "\uc0c8 \uae30\ub2a5\uc744 \uc791\uc740 \uac80\uc99d \ub2e8\uc704\ub85c \uc9c4\ud589"},
+			{Value: "ddd", Label: "\U0001f9ed DDD", Description: "\uae30\uc874 \ub3c4\uba54\uc778/\ucf54\ub4dc \ubd84\uc11d\uc744 \uba3c\uc800 \uc815\ub82c"},
+		}
+	}
+	return []option{
+		{Value: "tdd", Label: "\U0001f9ea TDD", Description: "ship new work through small verification steps"},
+		{Value: "ddd", Label: "\U0001f9ed DDD", Description: "align domain and code understanding before changing behavior"},
+	}
+}
+
+func agentModeOptionsForLanguage(language string) []option {
+	if normalizeReadmeLanguage(language) == "ko" {
+		return []option{
+			{Value: "single", Label: "\U0001f464 \uc2f1\uae00", Description: "\uc548\uc815\uc801\uc778 \ub2e8\uc77c \ud750\ub984"},
+			{Value: "multi", Label: "\U0001f465 \uba40\ud2f0", Description: "\ubcd1\ub82c \uc791\uc5c5 \uc900\ube44"},
+		}
+	}
+	return []option{
+		{Value: "single", Label: "\U0001f464 Single", Description: "stable single-workspace flow"},
+		{Value: "multi", Label: "\U0001f465 Multi", Description: "prepare for parallel work"},
+	}
+}
+
+func statusLineOptionsForLanguage(language string) []option {
+	if normalizeReadmeLanguage(language) == "ko" {
+		return []option{
+			{Value: "namba", Label: "\U0001f39b\ufe0f Namba", Description: "\ud504\ub85c\uc81d\ud2b8 \uc911\uc2ec \ud45c\uc2dc"},
+			{Value: "off", Label: "\U0001f515 \ub044\uae30", Description: "\ucd94\ucc9c \uc124\uc815 \uc0dd\uc131 \uc548 \ud568"},
+		}
+	}
+	return []option{
+		{Value: "namba", Label: "\U0001f39b\ufe0f Namba", Description: "project-centered status display"},
+		{Value: "off", Label: "\U0001f515 Off", Description: "do not generate the recommended setting"},
+	}
+}
+
+func gitModeOptionsForLanguage(language string) []option {
+	if normalizeReadmeLanguage(language) == "ko" {
+		return []option{
+			{Value: "manual", Label: "\u270b \uc218\ub3d9", Description: "push/PR \uc790\ub3d9\ud654 \uc5c6\uc74c"},
+			{Value: "personal", Label: "\U0001f464 \uac1c\uc778", Description: "\ube0c\ub79c\uce58/\ucee4\ubc0b \ud5c8\uc6a9"},
+			{Value: "team", Label: "\U0001f465 \ud300", Description: "PR \uc900\ube44 \uc0b0\ucd9c\ubb3c \uc0dd\uc131"},
+		}
+	}
+	return []option{
+		{Value: "manual", Label: "\u270b Manual", Description: "no push/PR automation"},
+		{Value: "personal", Label: "\U0001f464 Personal", Description: "allow branch and commit helpers"},
+		{Value: "team", Label: "\U0001f465 Team", Description: "prepare PR handoff artifacts"},
+	}
+}
+
+func gitProviderOptionsForLanguage(language string) []option {
+	if normalizeReadmeLanguage(language) == "ko" {
+		return []option{
+			{Value: "github", Label: "\U0001f419 GitHub", Description: "gh CLI \ub610\ub294 \uae30\uc874 \uc778\uc99d"},
+			{Value: "gitlab", Label: "\U0001f98a GitLab", Description: "glab CLI \ub610\ub294 \uae30\uc874 \uc778\uc99d"},
+		}
+	}
+	return []option{
+		{Value: "github", Label: "\U0001f419 GitHub", Description: "gh CLI or existing authentication"},
+		{Value: "gitlab", Label: "\U0001f98a GitLab", Description: "glab CLI or existing authentication"},
 	}
 }
 
@@ -5259,26 +5574,35 @@ func frameworkOptions(language string) []option {
 
 func languageOptions() []option {
 	return []option{
-		{Value: "ko", Label: "\U0001f1f0\U0001f1f7 \ud55c\uad6d\uc5b4", Description: "ko"},
-		{Value: "en", Label: "\U0001f1fa\U0001f1f8 \uc601\uc5b4", Description: "en"},
-		{Value: "ja", Label: "\U0001f1ef\U0001f1f5 \uc77c\ubcf8\uc5b4", Description: "ja"},
-		{Value: "zh", Label: "\U0001f1e8\U0001f1f3 \uc911\uad6d\uc5b4", Description: "zh"},
+		{Value: "ko", Label: "[ko] Korean", Description: "\ud55c\uad6d\uc5b4"},
+		{Value: "en", Label: "[en] English", Description: "English"},
+		{Value: "ja", Label: "[ja] Japanese", Description: "\u65e5\u672c\u8a9e"},
+		{Value: "zh", Label: "[zh] Simplified Chinese", Description: "\u7b80\u4f53\u4e2d\u6587"},
 	}
+}
+
+func humanLanguageLabel(value string) string {
+	for _, choice := range languageOptions() {
+		if choice.Value == normalizeReadmeLanguage(value) {
+			return choice.Label
+		}
+	}
+	return "[en] English"
 }
 
 func approvalPolicyOptions() []option {
 	return []option{
-		{Value: "on-request", Label: "\U0001f6ce\ufe0f on-request", Description: "\ud544\uc694\ud560 \ub54c Codex\uac00 \uc2b9\uc778 \uc694\uccad"},
-		{Value: "untrusted", Label: "\U0001f6a7 untrusted", Description: "\ubbff\uc744 \uc218 \uc5c6\ub294 \uc791\uc5c5\ub9cc \uc2b9\uc778 \ud655\uc778"},
-		{Value: "never", Label: "\u26a1 never", Description: "\uc2b9\uc778 \uc5c6\uc774 \uacc4\uc18d \uc9c4\ud589"},
+		{Value: "on-request", Label: "\U0001f6ce\ufe0f on-request", Description: "Codex asks for approval when needed"},
+		{Value: "untrusted", Label: "\U0001f6a7 untrusted", Description: "Codex asks only for untrusted work"},
+		{Value: "never", Label: "\u26a1 never", Description: "Codex continues without approval prompts"},
 	}
 }
 
 func sandboxModeOptions() []option {
 	return []option{
-		{Value: "workspace-write", Label: "\U0001f4dd workspace-write", Description: "\ud604\uc7ac \uc791\uc5c5 \uacf5\uac04\ub9cc \uc4f0\uae30 \ud5c8\uc6a9"},
-		{Value: "read-only", Label: "\U0001f441\ufe0f read-only", Description: "\ud30c\uc77c \uc4f0\uae30 \uc5c6\uc774 \uc77d\uae30 \uc804\uc6a9"},
-		{Value: "danger-full-access", Label: "\U0001f525 danger-full-access", Description: "\uc0cc\ub4dc\ubc15\uc2a4 \uc81c\ud55c \uc5c6\uc774 \uc804\uccb4 \uc811\uadfc"},
+		{Value: "workspace-write", Label: "\U0001f4dd workspace-write", Description: "allow writes only in the current workspace"},
+		{Value: "read-only", Label: "\U0001f441\ufe0f read-only", Description: "read files without write access"},
+		{Value: "danger-full-access", Label: "\U0001f525 danger-full-access", Description: "allow full access without sandbox restrictions"},
 	}
 }
 

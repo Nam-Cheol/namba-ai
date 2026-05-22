@@ -73,7 +73,7 @@ cd my-project
 namba init .
 ```
 
-wizard はまず既存コードがあるかを確認します。既存 repo では検出した stack をそのまま使い、空の repo では app stack を選ばず Namba/Codex 環境だけを準備します。step と選択肢は 🧭/📦/🌐/🔐 などの emoji で区別され、各選択は ✅ で表示されてから次へ進みます。`b` または `back` で前の step に戻って修正できます。GitHub username は尋ねず、Codex access preset は結果の approval_policy / sandbox_mode を事前表示します。
+wizard は language selection screen から始まります。`[ko] Korean`、`[en] English`、`[ja] Japanese`、`[zh] Simplified Chinese` のように flag emoji を使わない label を、数字または code で選べます。その後は選択した言語で repository state と defaults を説明します。既存 repo では検出した stack をそのまま使い、空の repo では app stack を選ばず Namba/Codex 環境だけを準備します。plain terminal では `[default]`、`[recommended]`、`[current]`、`[next]` marker で progress、default、recommended choice、next step を示します。`b` または `back` で前の step に戻って修正できます。GitHub username は尋ねず、Codex access preset は結果の approval_policy / sandbox_mode を事前表示します。
 - 最初の interactive Codex session で `6 hooks need review` が表示されたら `/hooks` を開き、`.codex/hooks/namba_codex_guard.sh` または Windows `.codex/hooks/namba_codex_guard.ps1` launcher が `.codex/hooks/namba_codex_guard.py` を実行することを確認してから承認してください。この承認が終わるまで、曖昧な prompt を先に質問で止める hook は実行されません。
 - 初期化後は `namba codex access` で Namba runner の `codex exec` access default を確認または変更できます。Interactive Codex approval mode と sandbox mode は repo `.codex/config.toml` に保存しません。
 
