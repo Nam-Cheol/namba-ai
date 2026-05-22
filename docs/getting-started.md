@@ -53,7 +53,7 @@ flowchart LR
 
 ## 2. Update
 
-- Latest release: `namba update`
+- Latest release after explicit user approval: `namba update`
 - Specific release: `namba update --version vX.Y.Z`
 - Use `codex update` for the upstream Codex CLI itself.
 - `namba update` may print Codex 0.131 baseline advice, but it never installs or updates Codex.

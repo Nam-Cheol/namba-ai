@@ -70,6 +70,7 @@ flowchart LR
 ## `update`、`regen`、`sync`、`pr`、`land` 是不同的命令
 
 - `namba update`: 从 GitHub Release 资产对已安装的 CLI 做 self-update。
+- Codex 运行 `namba update` 前必须先询问用户。
 - `codex update`: 更新 upstream Codex CLI。这和 `namba update` 是不同命令。
 - `namba regen`: 重新生成 AGENTS、skills、custom agents、repo Codex config 等 template-generated asset。
 - `namba sync`: 刷新 README、project docs、codemap、advisory review readiness、PR checklist 和 release notes。

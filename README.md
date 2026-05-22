@@ -165,7 +165,7 @@ continue_on_failure = false
 - Install on Windows: `irm https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.ps1 | iex`
 - Install on macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/Nam-Cheol/namba-ai/main/install.sh | sh`
 - Installers verify release checksums before installing and fail closed on missing or mismatched checksum data. To verify manually, download the release asset and `checksums.txt`, then compare the asset's SHA-256 digest with the exact asset-name entry.
-- Update to the latest release: `namba update`
+- Update to the latest release after explicit user approval: `namba update`
 - Pin a specific release: `namba update --version vX.Y.Z`
 - `namba update` updates only the NambaAI CLI. Use upstream `codex update` for the Codex CLI.
 - `namba update` may print Codex 0.131 baseline advice, but it never installs or updates Codex.

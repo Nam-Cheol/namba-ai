@@ -571,6 +571,13 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-064/reviews/product.md
 .namba/specs/SPEC-064/reviews/readiness.md
 .namba/specs/SPEC-064/spec.md
+.namba/specs/SPEC-065/acceptance.md
+.namba/specs/SPEC-065/plan.md
+.namba/specs/SPEC-065/reviews/design.md
+.namba/specs/SPEC-065/reviews/engineering.md
+.namba/specs/SPEC-065/reviews/product.md
+.namba/specs/SPEC-065/reviews/readiness.md
+.namba/specs/SPEC-065/spec.md
 AGENTS.md
 LICENSE
 README.ja.md
@@ -706,6 +713,8 @@ internal/namba/testdata/schemas/queue-runner-evidence-v1.schema.json
 internal/namba/update_command.go
 internal/namba/update_command_test.go
 internal/namba/version.go
+internal/namba/version_advisory.go
+internal/namba/version_advisory_test.go
 internal/namba/version_test.go
 internal/namba/worktree_command_test.go
 internal/namba/write_outputs.go
