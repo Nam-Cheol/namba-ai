@@ -4,7 +4,7 @@
 
 [English](../README.md) | [한국어](../README.ko.md) | [日本語](../README.ja.md) | [中文](../README.zh.md)
 
-[快速开始](./getting-started.zh.md) | [工作流指南](./workflow-guide.zh.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
+[快速开始](./getting-started.zh.md) | [工作流指南](./workflow-guide.zh.md) | [验证指南](./verification-guide.zh.md) | [Codex Upstream Reference](./codex-upstream-reference.md)
 
 [Latest Release](https://github.com/Nam-Cheol/namba-ai/releases/latest) | [CI](https://github.com/Nam-Cheol/namba-ai/actions/workflows/ci.yml) | [Security](../SECURITY.md)
 
@@ -158,6 +158,7 @@ flowchart LR
 ## 参考文档
 
 - [快速开始](./getting-started.zh.md): 安装和首次运行流程
+- [验证指南](./verification-guide.zh.md): local quality, eval/report artifacts, CI, evidence, failure interpretation
 - [Codex Upstream Reference](./codex-upstream-reference.md): 本仓库遵循的 Codex 基线
 - [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration 背景和设计上下文
 

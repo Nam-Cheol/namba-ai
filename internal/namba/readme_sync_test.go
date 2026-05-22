@@ -35,6 +35,75 @@ func TestRunSyncWritesRunModeDocs(t *testing.T) {
 			t.Fatalf("expected workflow guide to contain %q, got %q", want, workflowGuide)
 		}
 	}
+
+	verificationGuide := mustReadFile(t, filepath.Join(tmp, "docs", "verification-guide.md"))
+	for _, want := range []string{renderGeneratedDocHeader(), "# Verification Guide", "`namba eval`", "`namba report`", "`scripts/quality.sh`", ".namba evidence", "CI consumption", "Failure interpretation"} {
+		if !strings.Contains(verificationGuide, want) {
+			t.Fatalf("expected verification guide to contain %q, got %q", want, verificationGuide)
+		}
+	}
+}
+
+func TestNambaCLIVerificationGuideIsSyncManagedAndLinked(t *testing.T) {
+	outputs := buildReadmeOutputs(projectConfig{}, initProfile{}, docsConfig{
+		ManageReadme:        true,
+		ReadmeProfile:       readmeProfileNambaCLI,
+		DefaultLanguage:     "en",
+		AdditionalLanguages: []string{"ko", "ja", "zh"},
+	})
+
+	if got, want := len(outputs), 16; got != want {
+		t.Fatalf("buildReadmeOutputs() produced %d outputs, want %d", got, want)
+	}
+
+	for _, lang := range []string{"en", "ko", "ja", "zh"} {
+		verificationPath := guidePath("verification-guide", lang)
+		guide := outputs[verificationPath]
+		for _, want := range []string{renderGeneratedDocHeader(), localizeGuideLabel(lang, "verification-guide"), "`namba eval`", "`namba report`", "`scripts/quality.sh`", ".namba"} {
+			if !strings.Contains(guide, want) {
+				t.Fatalf("%s verification guide missing %q: %q", lang, want, guide)
+			}
+		}
+		for _, source := range []struct {
+			name string
+			body string
+			link string
+		}{
+			{name: readmePath(lang), body: outputs[readmePath(lang)], link: verificationPath},
+			{name: guidePath("workflow-guide", lang), body: outputs[guidePath("workflow-guide", lang)], link: "./" + guideFilename("verification-guide", lang)},
+		} {
+			if !strings.Contains(source.body, source.link) {
+				t.Fatalf("%s missing verification guide link %q in %s: %q", lang, source.link, source.name, source.body)
+			}
+		}
+	}
+}
+
+func TestManagedProjectVerificationGuideUsesProjectContext(t *testing.T) {
+	outputs := buildReadmeOutputs(projectConfig{
+		Name:        "customer-portal",
+		ProjectType: "new",
+	}, initProfile{}, docsConfig{
+		ManageReadme:        true,
+		ReadmeProfile:       readmeProfileManagedProject,
+		DefaultLanguage:     "en",
+		AdditionalLanguages: []string{"ko"},
+	})
+
+	guide := outputs[guidePath("verification-guide", "en")]
+	for _, want := range []string{"# Verification Guide", "`customer-portal`", "inside this repository", "`namba eval`", "`namba report`", "`scripts/quality.sh`", ".namba evidence"} {
+		if !strings.Contains(guide, want) {
+			t.Fatalf("managed-project verification guide missing %q: %q", want, guide)
+		}
+	}
+	for _, notWant := range []string{nambaRepositoryURL + "/releases/latest", nambaRepositoryURL + "/actions/workflows/ci.yml", "Latest Release"} {
+		if strings.Contains(guide, notWant) {
+			t.Fatalf("managed-project verification guide should not contain upstream NambaAI link/status %q: %q", notWant, guide)
+		}
+	}
+	if _, ok := outputs[guidePath("verification-guide", "ko")]; !ok {
+		t.Fatalf("expected localized managed-project verification guide output, got %+v", outputs)
+	}
 }
 
 func TestRenderNambaCLIWorkflowGuideIncludesRoleRouting(t *testing.T) {
@@ -105,7 +174,7 @@ func TestBuildReadmeOutputsForNambaCLIIncludesLocalizedLifecycleDocs(t *testing.
 		AdditionalLanguages: []string{"ko", "ja", "zh"},
 	})
 
-	if got, want := len(outputs), 12; got != want {
+	if got, want := len(outputs), 16; got != want {
 		t.Fatalf("buildReadmeOutputs() produced %d outputs, want %d", got, want)
 	}
 

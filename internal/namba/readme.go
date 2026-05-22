@@ -69,6 +69,7 @@ func buildReadmeOutputs(projectCfg projectConfig, profile initProfile, cfg docsC
 		outputs[readmePath(lang)] = renderReadmeRoot(lang, projectCfg, profile, cfg)
 		outputs[guidePath("getting-started", lang)] = renderReadmeGuide(lang, "getting-started", projectCfg, profile, cfg)
 		outputs[guidePath("workflow-guide", lang)] = renderReadmeGuide(lang, "workflow-guide", projectCfg, profile, cfg)
+		outputs[guidePath("verification-guide", lang)] = renderReadmeGuide(lang, "verification-guide", projectCfg, profile, cfg)
 	}
 	return outputs
 }
@@ -130,6 +131,8 @@ func isReadmeManagedPath(rel string) bool {
 	case isGeneratedGuidePath(rel, "getting-started"):
 		return true
 	case isGeneratedGuidePath(rel, "workflow-guide"):
+		return true
+	case isGeneratedGuidePath(rel, "verification-guide"):
 		return true
 	default:
 		return false
@@ -340,6 +343,17 @@ func guideFilename(base, lang string) string {
 func localizeGuideLabel(lang, guide string) string {
 	lang = normalizeReadmeLanguage(lang)
 	switch guide {
+	case "verification-guide":
+		switch lang {
+		case "ko":
+			return "검증 가이드"
+		case "ja":
+			return "検証ガイド"
+		case "zh":
+			return "验证指南"
+		default:
+			return "Verification Guide"
+		}
 	case "workflow-guide":
 		switch lang {
 		case "ko":
@@ -369,6 +383,7 @@ func renderDocLinkBar(lang string) string {
 	return strings.Join([]string{
 		fmt.Sprintf("[%s](./%s)", localizeGuideLabel(lang, "getting-started"), guideFilename("getting-started", lang)),
 		fmt.Sprintf("[%s](./%s)", localizeGuideLabel(lang, "workflow-guide"), guideFilename("workflow-guide", lang)),
+		fmt.Sprintf("[%s](./%s)", localizeGuideLabel(lang, "verification-guide"), guideFilename("verification-guide", lang)),
 		"[Codex Upstream Reference](./codex-upstream-reference.md)",
 	}, " | ")
 }
@@ -1747,6 +1762,7 @@ func renderNambaCLIRootReadMoreSection(lang string) []string {
 			"",
 			fmt.Sprintf("- [%s](%s): 설치, 업데이트, 제거, init, 첫 실행 흐름", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
 			fmt.Sprintf("- [%s](%s): update / regen / sync / pr / land 차이, run 모드, 생성 산출물, 협업 기본값", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			fmt.Sprintf("- [%s](%s): local quality, eval/report artifacts, CI, evidence, and failure interpretation", localizeGuideLabel(lang, "verification-guide"), guidePath("verification-guide", lang)),
 			"- [Codex Upstream Reference](docs/codex-upstream-reference.md): 이 저장소가 따르는 upstream 기준",
 			"- [SECURITY.md](SECURITY.md): 보안 정책",
 			"",
@@ -1757,6 +1773,7 @@ func renderNambaCLIRootReadMoreSection(lang string) []string {
 			"",
 			fmt.Sprintf("- [%s](%s): インストール、更新、アンインストール、init、初回フロー", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
 			fmt.Sprintf("- [%s](%s): update / regen / sync / pr / land の違い、run mode、生成物、協業ルール", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			fmt.Sprintf("- [%s](%s): local quality, eval/report artifacts, CI, evidence, and failure interpretation", localizeGuideLabel(lang, "verification-guide"), guidePath("verification-guide", lang)),
 			"- [Codex Upstream Reference](docs/codex-upstream-reference.md): このリポジトリが従う upstream 基準",
 			"- [SECURITY.md](SECURITY.md): セキュリティポリシー",
 			"",
@@ -1767,6 +1784,7 @@ func renderNambaCLIRootReadMoreSection(lang string) []string {
 			"",
 			fmt.Sprintf("- [%s](%s): 安装、更新、卸载、init 和首次运行流程", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
 			fmt.Sprintf("- [%s](%s): update / regen / sync / pr / land 的区别、run 模式、生成产物和协作默认值", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			fmt.Sprintf("- [%s](%s): local quality, eval/report artifacts, CI, evidence, and failure interpretation", localizeGuideLabel(lang, "verification-guide"), guidePath("verification-guide", lang)),
 			"- [Codex Upstream Reference](docs/codex-upstream-reference.md): 本仓库遵循的 upstream 基线",
 			"- [SECURITY.md](SECURITY.md): 安全策略",
 			"",
@@ -1777,6 +1795,7 @@ func renderNambaCLIRootReadMoreSection(lang string) []string {
 			"",
 			fmt.Sprintf("- [%s](%s): installation, updates, uninstall, init, and first-run flow", localizeGuideLabel(lang, "getting-started"), guidePath("getting-started", lang)),
 			fmt.Sprintf("- [%s](%s): update vs regen vs sync vs pr vs land, run modes, generated assets, and collaboration defaults", localizeGuideLabel(lang, "workflow-guide"), guidePath("workflow-guide", lang)),
+			fmt.Sprintf("- [%s](%s): local quality, eval/report artifacts, CI, evidence, and failure interpretation", localizeGuideLabel(lang, "verification-guide"), guidePath("verification-guide", lang)),
 			"- [Codex Upstream Reference](docs/codex-upstream-reference.md): upstream baseline this repository follows",
 			"- [SECURITY.md](SECURITY.md): security policy",
 			"",
@@ -2129,6 +2148,7 @@ func renderNambaCLIWorkflowGuideReferenceSection(lang string) []string {
 			"## 참고 문서",
 			"",
 			fmt.Sprintf("- [%s](./%s): 설치와 첫 실행 흐름", localizeGuideLabel(lang, "getting-started"), guideFilename("getting-started", lang)),
+			fmt.Sprintf("- [%s](./%s): local quality, eval/report artifacts, CI, evidence, failure interpretation", localizeGuideLabel(lang, "verification-guide"), guideFilename("verification-guide", lang)),
 			"- [Codex Upstream Reference](./codex-upstream-reference.md): 이 저장소가 따르는 Codex 기준",
 			"- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration 배경과 설계 맥락",
 			"",
@@ -2138,6 +2158,7 @@ func renderNambaCLIWorkflowGuideReferenceSection(lang string) []string {
 			"## 参考文書",
 			"",
 			fmt.Sprintf("- [%s](./%s): インストールと初回フロー", localizeGuideLabel(lang, "getting-started"), guideFilename("getting-started", lang)),
+			fmt.Sprintf("- [%s](./%s): local quality, eval/report artifacts, CI, evidence, failure interpretation", localizeGuideLabel(lang, "verification-guide"), guideFilename("verification-guide", lang)),
 			"- [Codex Upstream Reference](./codex-upstream-reference.md): このリポジトリが従う Codex 基準",
 			"- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration の背景と設計文脈",
 			"",
@@ -2147,6 +2168,7 @@ func renderNambaCLIWorkflowGuideReferenceSection(lang string) []string {
 			"## 参考文档",
 			"",
 			fmt.Sprintf("- [%s](./%s): 安装和首次运行流程", localizeGuideLabel(lang, "getting-started"), guideFilename("getting-started", lang)),
+			fmt.Sprintf("- [%s](./%s): local quality, eval/report artifacts, CI, evidence, failure interpretation", localizeGuideLabel(lang, "verification-guide"), guideFilename("verification-guide", lang)),
 			"- [Codex Upstream Reference](./codex-upstream-reference.md): 本仓库遵循的 Codex 基线",
 			"- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider migration 背景和设计上下文",
 			"",
@@ -2156,6 +2178,7 @@ func renderNambaCLIWorkflowGuideReferenceSection(lang string) []string {
 			"## Reference shelf",
 			"",
 			fmt.Sprintf("- [%s](./%s): install and first-run flow", localizeGuideLabel(lang, "getting-started"), guideFilename("getting-started", lang)),
+			fmt.Sprintf("- [%s](./%s): local quality, eval/report artifacts, CI, evidence, failure interpretation", localizeGuideLabel(lang, "verification-guide"), guideFilename("verification-guide", lang)),
 			"- [Codex Upstream Reference](./codex-upstream-reference.md): Codex baseline this repository follows",
 			"- [MoAI-ADK -> Codex Migration Analysis](./moai-adk-codex-migration-analysis.md): provider-migration background and design context",
 			"",
@@ -2883,6 +2906,8 @@ func renderNambaCLIGuide(lang, guide string) string {
 	switch guide {
 	case "workflow-guide":
 		return renderNambaCLIWorkflowGuide(lang)
+	case "verification-guide":
+		return renderNambaCLIVerificationGuide(lang)
 	default:
 		return renderNambaCLIGettingStarted(lang)
 	}
@@ -2892,6 +2917,8 @@ func renderManagedProjectGuide(lang, guide string, projectCfg projectConfig, pro
 	switch guide {
 	case "workflow-guide":
 		return renderManagedProjectWorkflowGuide(lang, projectCfg, profile)
+	case "verification-guide":
+		return renderManagedProjectVerificationGuide(lang, projectCfg)
 	default:
 		return renderManagedProjectGettingStarted(lang, projectCfg)
 	}
@@ -2910,6 +2937,159 @@ func renderNambaCLIGettingStarted(lang string) string {
 	lines = append(lines, renderNambaCLIGettingStartedBasicFlowSection(lang)...)
 	lines = append(lines, renderNambaCLIGettingStartedNextDocsSection(lang)...)
 	lines = append(lines, renderAdvancedReferenceDetails(lang, "docs")...)
+	return strings.Join(lines, "\n")
+}
+
+func renderNambaCLIVerificationGuide(lang string) string {
+	lines := renderReadmeGuidePrelude(lang, "verification-guide")
+	lines = append(lines, renderNambaCLIGuideStatusSection()...)
+	lines = append(lines,
+		"Use this guide when a local run, CI job, hook, or PR handoff needs evidence you can interpret instead of a raw pass/fail signal.",
+		"",
+		"## Contents",
+		"",
+		"- [`namba eval`](#namba-eval)",
+		"- [`namba report`](#namba-report)",
+		"- [`scripts/quality.sh`](#scriptsqualitysh)",
+		"- [.namba evidence](#namba-evidence)",
+		"- [CI consumption](#ci-consumption)",
+		"- [Failure interpretation](#failure-interpretation)",
+		"",
+		"## `namba eval`",
+		"",
+		"`namba eval` runs the harness regression pack and writes machine-readable results plus a scorecard. Use it when a workflow, prompt-routing, hook, review, or evidence-contract change could alter Namba behavior without showing up as a normal Go test failure.",
+		"",
+		"- Regression failures mean the observed route, guardrail, schema, or score changed from the baseline. Read the failing case first, then decide whether to fix the behavior or intentionally refresh the baseline.",
+		"- Expected artifacts include eval result JSON, scorecard JSON, and summary Markdown under the configured `.namba` evidence paths or the quality artifact directory used by `scripts/quality.sh`.",
+		"- Treat a missing eval toolchain or unreadable fixture as an environment/setup failure, not a product pass.",
+		"",
+		"## `namba report`",
+		"",
+		"`namba report` collects recent execution, queue, diagnostics, and validation evidence into an operator-facing report. Use it before PR handoff, after a blocked queue run, or when CI needs a compact artifact instead of reading every raw log.",
+		"",
+		"- JSON output is the stable integration surface for CI and follow-up automation.",
+		"- Summary output is for humans: check status, run IDs, missing evidence, failed validations, and the freshest artifact path before deciding the next command.",
+		"- If the report is empty or stale, rerun the command that should have produced evidence, then rerun `namba report` with the same scope.",
+		"",
+		"## `scripts/quality.sh`",
+		"",
+		"`scripts/quality.sh` is the local parity gate for the repository CI bar. Run it before `namba pr` when the change touches Go code, generated docs, schemas, eval behavior, or hook/runtime contracts.",
+		"",
+		"- Main checks: Python unittest for Codex helpers, Go unit tests, Go race-sensitive checks where configured, harness eval regression, evidence schema validation, report JSON validation, `gofmt`, `go vet`, `staticcheck`, `govulncheck`, and aggregate Go coverage.",
+		"- Default artifacts include coverage profile/text, `eval-scorecard.json`, `eval-summary.md`, `report.json`, and `schema-validation.txt` in the quality artifact directory.",
+		"- Missing `staticcheck` or `govulncheck` is a setup blocker; install the exact tool named by the script and rerun the same command.",
+		"",
+		"## .namba evidence",
+		"",
+		"Read `.namba` evidence from newest and most specific to broadest:",
+		"",
+		"| Evidence | Use it for |",
+		"| --- | --- |",
+		"| `.namba/project/*` | Current repository inventory, codemap, and generated project docs. |",
+		"| `.namba/logs/runs/*` | `namba run` request, validation, finalization, and per-SPEC evidence. |",
+		"| `.namba/logs/queue/*` | Active queue state, blocked reason, resume/stop status, and one-SPEC-at-a-time progress. |",
+		"| `.namba/logs/hooks/*` | Hook stdout, stderr, blocking/advisory outcomes, and phase timing when hooks are enabled. |",
+		"| `.namba/specs/<SPEC>/reviews/*` | Product, engineering, design, and readiness review context before execution or PR handoff. |",
+		"| `.namba/reports/*` or report artifacts | Aggregated status for CI, PR summaries, and handoff notes. |",
+		"",
+		"## CI consumption",
+		"",
+		"CI mirrors the local verification story: it should run the same quality commands, publish or retain the same report/eval/schema artifacts, and make failure classes visible without requiring a local reproduction first.",
+		"",
+		"- When CI fails on generated-doc drift, run `namba sync`, inspect the diff, and commit the durable source plus regenerated outputs.",
+		"- When CI fails on schema/report validation, inspect the JSON artifact before changing code; the schema usually tells you which field, version, or evidence path drifted.",
+		"- When CI fails on coverage or static analysis, fix the code and rerun `scripts/quality.sh` locally before re-pushing.",
+		"",
+		"## Failure interpretation",
+		"",
+		"| Failure class | Next action |",
+		"| --- | --- |",
+		"| Command exits non-zero | Read the first failing command and rerun only that command after the fix. |",
+		"| Generated docs drift | Run `namba sync`, confirm generated warnings are present, then check that README and guide links point to existing files. |",
+		"| Eval regression | Compare failing case output against baseline and choose behavior fix or intentional baseline refresh. |",
+		"| Report/schema failure | Open the JSON artifact, fix missing or renamed fields, and rerun report validation. |",
+		"| Missing tool | Install the exact tool/version requested by the failing command, then rerun the same quality command. |",
+		"| Coverage drop | Add focused tests or remove dead code; do not lower the threshold without SPEC-level justification. |",
+		"| Hook/output-contract failure | Preserve the detailed answer, then map file paths, commands, validation results, blockers, risks, and next steps into the Namba report frame. |",
+		"",
+	)
+	lines = append(lines, renderAdvancedReferenceDetails(lang, "docs")...)
+	return strings.Join(lines, "\n")
+}
+
+func renderManagedProjectVerificationGuide(lang string, projectCfg projectConfig) string {
+	projectName := projectCfg.Name
+	if projectName == "" {
+		projectName = "this repository"
+	}
+	lines := renderReadmeGuidePrelude(lang, "verification-guide")
+	lines = append(lines,
+		fmt.Sprintf("Use this guide to verify `%s` with the local NambaAI evidence generated inside this repository, not the upstream NambaAI release pipeline.", projectName),
+		"",
+		"## Contents",
+		"",
+		"- [`namba eval`](#namba-eval)",
+		"- [`namba report`](#namba-report)",
+		"- [`scripts/quality.sh`](#scriptsqualitysh)",
+		"- [.namba evidence](#namba-evidence)",
+		"- [CI consumption](#ci-consumption)",
+		"- [Failure interpretation](#failure-interpretation)",
+		"",
+		"## `namba eval`",
+		"",
+		"`namba eval` validates the repository's Namba harness behavior against the checked-in evaluation corpus and baseline. Run it when workflow routing, hooks, review behavior, evidence schemas, or prompt guidance changes.",
+		"",
+		"- Regression failures mean the local observed behavior changed from the baseline. Inspect the failing case before deciding whether to fix behavior or intentionally refresh the baseline.",
+		"- Keep eval scorecards and summaries with the quality artifacts or `.namba` evidence referenced by the run.",
+		"",
+		"## `namba report`",
+		"",
+		"`namba report` turns recent local run, queue, diagnostics, and validation evidence into a compact handoff artifact. Use it before PR handoff or when a blocked run needs a precise status summary.",
+		"",
+		"- JSON output is the stable artifact for automation and CI follow-up.",
+		"- Summary output is for operators: check status, missing evidence, failing validation, and the freshest artifact path.",
+		"",
+		"## `scripts/quality.sh`",
+		"",
+		"`scripts/quality.sh` is this repository's local quality gate. Run it before `namba pr` when code, docs generation, schemas, eval behavior, or hook contracts changed.",
+		"",
+		"- Main checks include Python unittest discovery, `gofmt`, `go vet`, Go tests, harness eval, schema/report validation, race tests, static analysis, vulnerability checks, and coverage threshold enforcement.",
+		"- Default artifacts include coverage profile/text, eval scorecard/summary, report JSON, and schema-validation output under the configured quality artifact directory.",
+		"",
+		"## .namba evidence",
+		"",
+		"Read `.namba` evidence from newest and most specific to broadest:",
+		"",
+		"| Evidence | Use it for |",
+		"| --- | --- |",
+		"| `.namba/project/*` | Current project inventory, codemap, generated project docs, and handoff checklists. |",
+		"| `.namba/logs/runs/*` | Per-run request, validation, finalization, and SPEC execution evidence. |",
+		"| `.namba/logs/queue/*` | Active queue state, blocked reason, resume/stop status, and one-SPEC-at-a-time progress. |",
+		"| `.namba/logs/hooks/*` | Hook stdout, stderr, blocking/advisory outcomes, and phase timing when hooks are enabled. |",
+		"| `.namba/specs/<SPEC>/reviews/*` | Product, engineering, design, and readiness review context before execution or PR handoff. |",
+		"| Report artifacts | Aggregated local status for CI, PR summaries, and operator handoff notes. |",
+		"",
+		"## CI consumption",
+		"",
+		"CI should mirror the local verification story for this repository: run the same quality commands, retain comparable report/eval/schema artifacts, and expose the first failing command clearly.",
+		"",
+		"- When CI reports generated-doc drift, run `namba sync`, inspect the generated diff, and commit durable source plus outputs.",
+		"- When schema/report validation fails, inspect the JSON artifact before changing code.",
+		"- When static analysis, vulnerability checks, or coverage fail, fix locally and rerun `scripts/quality.sh` before pushing again.",
+		"",
+		"## Failure interpretation",
+		"",
+		"| Failure class | Next action |",
+		"| --- | --- |",
+		"| Command exits non-zero | Read the first failing command and rerun only that command after the fix. |",
+		"| Generated docs drift | Run `namba sync`, confirm generated warnings are present, then check links point to existing repository files. |",
+		"| Eval regression | Compare failing case output against baseline and choose behavior fix or intentional baseline refresh. |",
+		"| Report/schema failure | Open the JSON artifact, fix missing or renamed fields, and rerun report validation. |",
+		"| Missing tool | Install the exact tool/version requested by the failing command, then rerun the same quality command. |",
+		"| Coverage drop | Add focused tests or remove dead code; do not lower the threshold without SPEC-level justification. |",
+		"| Hook/output-contract failure | Preserve the detailed answer, then map file paths, commands, validation results, blockers, risks, and next steps into the Namba report frame. |",
+		"",
+	)
 	return strings.Join(lines, "\n")
 }
 

@@ -237,6 +237,7 @@ Codex에서 `$...` 형태로 부르는 skill이 실제로는 어떤 Namba 명령
 
 - [시작 가이드](docs/getting-started.ko.md): 설치, 업데이트, 제거, init, 첫 실행 흐름
 - [워크플로 가이드](docs/workflow-guide.ko.md): update / regen / sync / pr / land 차이, run 모드, 생성 산출물, 협업 기본값
+- [검증 가이드](docs/verification-guide.ko.md): local quality, eval/report artifacts, CI, evidence, and failure interpretation
 - [Codex Upstream Reference](docs/codex-upstream-reference.md): 이 저장소가 따르는 upstream 기준
 - [SECURITY.md](SECURITY.md): 보안 정책
 

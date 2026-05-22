@@ -128,6 +128,7 @@ Read this boundary in order: Codex displays runtime state, Namba generates repo 
 - The report sections follow this semantic order: `🧭 작업 정의` -> `🧠 판단` -> `🛠 수행한 작업` -> `🚧 현재 이슈` -> `⚠ 잠재 문제` -> `➡ 다음에 해야 할 작업`.
 - The semantic order stays fixed, but the exact labels can vary within the selected language palette so the writing does not become robotic.
 - The final next-work section should name the concrete command, review, validation, or handoff the operator should do next.
+- Hook-triggered rewrites should preserve concrete details from the prior answer, including changed files, file paths, commands, validation results, artifact paths, blockers, risks, and next steps.
 - `.namba/codex/validate-output-contract.py` checks this contract from a saved response file or stdin.
 - Namba keeps the validator script as the explicit repository enforcement path even as Codex's documented config and hook surface evolves.
 
