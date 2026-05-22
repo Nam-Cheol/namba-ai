@@ -1,23 +1,23 @@
 # Acceptance
 
-- [ ] Phase 0 writes the public behavior preservation checklist before any production logic movement.
-- [ ] Phase 0 captures current behavior for command routing, argument parsing, exit codes, output contracts, file side effects, SPEC creation, run/evidence, queue, eval/report, guardrails, PR/land/release, idempotency, and cross-platform assumptions.
-- [ ] Command regression coverage includes `namba init`, `doctor`, `status`, `project`, `plan`, `harness`, `fix`, `run`, `queue`, `sync`, `pr`, `land`, `release`, `regen`, `update`, `eval`, `report`, `worktree`, and each command help output.
-- [ ] Characterization tests or golden/fixture assertions are added before the risky refactor phases.
-- [ ] Tests use temp repos, fake adapters, fixtures, schema assertions, and contract-focused output checks, not live GitHub, live Codex, external APIs, or network-dependent tests.
-- [ ] Full-string snapshots are avoided except for small stable fragments; stdout/stderr checks focus on public contract phrases.
-- [ ] JSON checks validate schemas and required fields rather than incidental formatting.
-- [ ] Generated artifact checks validate file existence, schema, key fields, layout, and idempotency.
-- [ ] Phase 1 extracts pure helper/output/SPEC report formatting logic without changing help or report semantics.
-- [ ] Phase 2 separates SPEC creation responsibilities without changing scaffold layout, SPEC ID allocation, clarification gates, current-workspace behavior, or auto review copy.
-- [ ] Phase 3 separates command handlers and routing without changing command names, aliases, help topic behavior, or unknown-command errors.
-- [ ] Phase 4 separates evidence/report/diagnostics/config/project responsibilities without changing schemas or `.namba` output layout.
-- [ ] Phase 5 separates queue/runtime/harness/run/worktree responsibilities without changing evidence files, queue ordering, queue state, blocked reasons, or resume behavior.
-- [ ] Phase 6 separates release/pr/land/security/init/update responsibilities without changing clean-tree requirements, release evidence, guardrail blocking, or generated hook behavior.
-- [ ] Phase 7 verifies no dependency cycles, removes dead duplicate code, and confirms `internal/namba/namba.go` line count and responsibility count are reduced.
-- [ ] Existing tests are not deleted, weakened, or changed to hide failures.
-- [ ] Coverage threshold is not relaxed.
-- [ ] `scripts/quality.sh` is not bypassed and is a final required gate.
-- [ ] Pre-refactor and post-refactor validation both include `scripts/quality.sh`, `go test ./...`, `go test -race ./...`, harness eval regression, report JSON validation, and the E2E fixture test where possible.
-- [ ] Post-refactor verification re-runs the Phase 0 checklist and finds no public behavior regression.
-- [ ] Public command names, flag/argument meaning, help output meaning, stdout/stderr contract, exit code contract, generated file layout, `.namba` layout, JSON schema, evidence schema, queue semantics, SPEC semantics, and PR/land/release semantics are unchanged.
+- [x] Phase 0 writes the public behavior preservation checklist before any production logic movement.
+- [x] Phase 0 captures current behavior for command routing, argument parsing, exit codes, output contracts, file side effects, SPEC creation, run/evidence, queue, eval/report, guardrails, PR/land/release, idempotency, and cross-platform assumptions.
+- [x] Command regression coverage includes `namba init`, `doctor`, `status`, `project`, `plan`, `harness`, `fix`, `run`, `queue`, `sync`, `pr`, `land`, `release`, `regen`, `update`, `eval`, `report`, `worktree`, and each command help output.
+- [x] Characterization tests or golden/fixture assertions are added before the risky refactor phases.
+- [x] Tests use temp repos, fake adapters, fixtures, schema assertions, and contract-focused output checks, not live GitHub, live Codex, external APIs, or network-dependent tests.
+- [x] Full-string snapshots are avoided except for small stable fragments; stdout/stderr checks focus on public contract phrases.
+- [x] JSON checks validate schemas and required fields rather than incidental formatting.
+- [x] Generated artifact checks validate file existence, schema, key fields, layout, and idempotency.
+- [x] Phase 1 extracts pure helper/output/SPEC report formatting logic without changing help or report semantics.
+- [x] Phase 2 separates SPEC creation responsibilities without changing scaffold layout, SPEC ID allocation, clarification gates, current-workspace behavior, or auto review copy.
+- [x] Phase 3 separates command handlers and routing without changing command names, aliases, help topic behavior, or unknown-command errors.
+- [x] Phase 4 separates evidence/report/diagnostics/config/project responsibilities without changing schemas or `.namba` output layout.
+- [x] Phase 5 separates queue/runtime/harness/run/worktree responsibilities without changing evidence files, queue ordering, queue state, blocked reasons, or resume behavior.
+- [x] Phase 6 separates release/pr/land/security/init/update responsibilities without changing clean-tree requirements, release evidence, guardrail blocking, or generated hook behavior.
+- [x] Phase 7 verifies no dependency cycles, removes dead duplicate code, and confirms `internal/namba/namba.go` line count and responsibility count are reduced.
+- [x] Existing tests are not deleted, weakened, or changed to hide failures.
+- [x] Coverage threshold is not relaxed.
+- [x] `scripts/quality.sh` is not bypassed and is a final required gate.
+- [x] Pre-refactor and post-refactor validation both include `scripts/quality.sh`, `go test ./...`, `go test -race ./...`, harness eval regression, report JSON validation, and the E2E fixture test where possible.
+- [x] Post-refactor verification re-runs the Phase 0 checklist and finds no public behavior regression.
+- [x] Public command names, flag/argument meaning, help output meaning, stdout/stderr contract, exit code contract, generated file layout, `.namba` layout, JSON schema, evidence schema, queue semantics, SPEC semantics, and PR/land/release semantics are unchanged.

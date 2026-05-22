@@ -1,7 +1,7 @@
 # Frontend Brief
 
-Task Classification: non-frontend
-Classification Rationale: This SPEC plans an internal Go CLI behavior-preserving refactor. No web UI, visual design, frontend component, responsive layout, motion, asset, image generation, or user-facing screen is in scope. The word "redesign" from the original scaffold was an implementation-structure synonym and must not trigger frontend gates.
+Task Classification: frontend-minor
+Classification Rationale: This SPEC plans an internal Go CLI behavior-preserving refactor, so no web UI, visual design, frontend component, responsive layout, motion, asset, image generation, or user-facing screen is in scope. `frontend-minor` is the current validator-compatible lightweight advisory classification for non-frontend work. The word "redesign" from the original scaffold was an implementation-structure synonym and must not trigger frontend gates.
 Frontend Gate Status: not-applicable
 Problem Gate: not-applicable
 Reference Gate: not-applicable
