@@ -71,11 +71,11 @@ func evidenceRequiredFields(contract string) []evidenceRequiredField {
 	case projectCodexDiagnosticsSchemaVersion:
 		return []evidenceRequiredField{{"schema_version", "string"}, {"generated_at", "string"}, {"project_root", "string"}, {"codex_diagnostics.schema_version", "string"}}
 	case evalResultSchemaVersion:
-		return []evidenceRequiredField{{"schema_version", "string"}, {"suite", "string"}, {"generated_at", "string"}, {"summary.total", "number"}, {"metrics", "array"}, {"scenarios", "array"}, {"regressions", "array"}}
+		return []evidenceRequiredField{{"schema_version", "string"}, {"suite", "string"}, {"generated_at", "string"}, {"summary.total", "number"}, {"metrics", "array"}, {"scenarios", "array"}, {"baseline", "object"}, {"regressions", "array"}}
 	case evalBaselineSchemaVersion:
 		return []evidenceRequiredField{{"schema_version", "string"}, {"result_schema_version", "string"}, {"suite", "string"}, {"corpus_version", "string"}, {"scenario_fingerprints", "object"}, {"metric_pass_counts", "object"}, {"required_coverage", "array"}}
 	case evalScorecardSchemaVersion:
-		return []evidenceRequiredField{{"schema_version", "string"}, {"suite", "string"}, {"corpus_version", "string"}, {"generated_at", "string"}, {"summary.total", "number"}, {"metrics", "array"}, {"required_coverage", "array"}, {"scenarios", "array"}, {"schema_validation.status", "string"}}
+		return []evidenceRequiredField{{"schema_version", "string"}, {"suite", "string"}, {"corpus_version", "string"}, {"generated_at", "string"}, {"summary.total", "number"}, {"metrics", "array"}, {"required_coverage", "array"}, {"scenarios", "array"}, {"baseline", "object"}, {"regressions", "array"}, {"schema_validation.status", "string"}}
 	case reportSchemaVersion:
 		return []evidenceRequiredField{{"schema_version", "string"}, {"generated_at", "string"}, {"project.name", "string"}, {"summary.health", "string"}, {"runs.state", "string"}, {"queue.state", "string"}, {"specs.state", "string"}, {"release.state", "string"}, {"diagnostics.state", "string"}, {"issues", "array"}, {"warnings", "array"}}
 	default:

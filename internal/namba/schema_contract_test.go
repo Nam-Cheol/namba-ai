@@ -124,6 +124,24 @@ func TestEvidenceContractValidationRejectsBreakingChanges(t *testing.T) {
 			body:     `{"schema_version":"execution-evidence/v1","log_id":"x","run_id":"x","generated_at":"2026-05-22T00:00:00Z","status":"completed","finalization":{"finalized_at":"2026-05-22T00:00:00Z"},"request":{"state":"present"},"preflight":{"state":"invalid"},"execution":{"state":"present"},"validation":{"state":"present"},"progress":{"state":"not_applicable"},"extensions":{"browser":{"state":"not_applicable"},"runtime":{"state":"not_applicable"}},"hooks":[]}`,
 			want:     "unsupported state",
 		},
+		{
+			name:     "eval result missing baseline",
+			contract: evalResultSchemaVersion,
+			body:     `{"schema_version":"namba-eval-results/v1","suite":"harness","generated_at":"2026-05-22T00:00:00Z","summary":{"total":0},"metrics":[],"scenarios":[],"regressions":[]}`,
+			want:     "baseline",
+		},
+		{
+			name:     "eval scorecard missing baseline",
+			contract: evalScorecardSchemaVersion,
+			body:     `{"schema_version":"namba-eval-scorecard/v1","suite":"harness","corpus_version":"test","generated_at":"2026-05-22T00:00:00Z","summary":{"total":0},"metrics":[],"required_coverage":[],"scenarios":[],"regressions":[],"schema_validation":{"status":"covered_by_contract_tests"}}`,
+			want:     "baseline",
+		},
+		{
+			name:     "eval scorecard missing regressions",
+			contract: evalScorecardSchemaVersion,
+			body:     `{"schema_version":"namba-eval-scorecard/v1","suite":"harness","corpus_version":"test","generated_at":"2026-05-22T00:00:00Z","summary":{"total":0},"metrics":[],"required_coverage":[],"scenarios":[],"baseline":{},"schema_validation":{"status":"covered_by_contract_tests"}}`,
+			want:     "regressions",
+		},
 	}
 	for _, tc := range cases {
 		tc := tc
