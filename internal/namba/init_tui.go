@@ -91,9 +91,16 @@ func (m initTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch key.String() {
-	case "ctrl+c", "q":
+	case "ctrl+c":
 		m.canceled = true
 		return m, tea.Quit
+	case "q":
+		if m.currentStep().Kind != initTUIStepText {
+			m.canceled = true
+			return m, tea.Quit
+		}
+		m.input += key.Key().Text
+		return m, nil
 	case "esc", "left":
 		m.back()
 		return m, nil
@@ -114,7 +121,7 @@ func (m initTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "backspace":
 		if m.currentStep().Kind == initTUIStepText && len(m.input) > 0 {
-			m.input = m.input[:len(m.input)-1]
+			m.input = trimLastRune(m.input)
 		}
 		return m, nil
 	default:
@@ -123,6 +130,14 @@ func (m initTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
+}
+
+func trimLastRune(value string) string {
+	runes := []rune(value)
+	if len(runes) == 0 {
+		return value
+	}
+	return string(runes[:len(runes)-1])
 }
 
 func (m initTUIModel) View() tea.View {

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -58,6 +59,39 @@ func TestInitTUIModelHandlesTextInputAndAltScreenView(t *testing.T) {
 	view := model.View()
 	if !view.AltScreen {
 		t.Fatal("init TUI view must request AltScreen")
+	}
+}
+
+func TestInitTUIModelAllowsQInTextInput(t *testing.T) {
+	t.Parallel()
+
+	model := newInitTUIModel(testInitTUIProfile())
+	model.step = wizardStepProjectDetails
+	model.resetInput()
+	model = updateInitTUIModel(t, model, tea.KeyPressMsg(tea.Key{Code: 'q', Text: "q"}))
+
+	if model.canceled {
+		t.Fatal("q should be text input on text steps, not a quit shortcut")
+	}
+	if model.input != "demoq" {
+		t.Fatalf("input = %q, want demoq", model.input)
+	}
+}
+
+func TestInitTUIModelBackspaceRemovesLastRune(t *testing.T) {
+	t.Parallel()
+
+	model := newInitTUIModel(testInitTUIProfile())
+	model.step = wizardStepProjectDetails
+	model.resetInput()
+	model.input = "프로젝트"
+	model = updateInitTUIModel(t, model, tea.KeyPressMsg(tea.Key{Code: tea.KeyBackspace}))
+
+	if model.input != "프로젝" {
+		t.Fatalf("input = %q, want 프로젝", model.input)
+	}
+	if !utf8.ValidString(model.input) {
+		t.Fatalf("input should remain valid UTF-8 after backspace: %q", model.input)
 	}
 }
 

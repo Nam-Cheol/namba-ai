@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-04T15:07:02+09:00",
+  "generated_at": "2026-06-04T15:14:55+09:00",
   "entries": [
     {
       "path": ".agents/skills/namba-coach/SKILL.md",
@@ -3460,28 +3460,28 @@
       "kind": "asset",
       "owner": "namba-managed",
       "checksum": "3354739832cef6760600543f23ede33ddb1e324b3e6f79d2b1958830033adc8a",
-      "updated_at": "2026-06-04T15:07:02+09:00"
+      "updated_at": "2026-06-04T15:14:55+09:00"
     },
     {
       "path": "README.ko.md",
       "kind": "asset",
       "owner": "namba-managed",
       "checksum": "04c6424f22cc1acfb8c24da3eda9889d3b0c2bf765daa226db3aa4569a9dd169",
-      "updated_at": "2026-06-04T15:07:02+09:00"
+      "updated_at": "2026-06-04T15:14:55+09:00"
     },
     {
       "path": "README.md",
       "kind": "asset",
       "owner": "namba-managed",
       "checksum": "91b63d8c88ea0b85c7a9a32b45eed7c59d0026899bb8a06cbcc4c53e7bc794a1",
-      "updated_at": "2026-06-04T15:07:02+09:00"
+      "updated_at": "2026-06-04T15:14:55+09:00"
     },
     {
       "path": "README.zh.md",
       "kind": "asset",
       "owner": "namba-managed",
       "checksum": "990d49ae37b6beefcadcced7d1beea51127df1fa3181ccb0273f9eda8aec8e58",
-      "updated_at": "2026-06-04T15:07:02+09:00"
+      "updated_at": "2026-06-04T15:14:55+09:00"
     },
     {
       "path": "docs/getting-started.ja.md",
