@@ -103,6 +103,7 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/releases/v0.5.7.md
 .namba/releases/v0.5.8.md
 .namba/releases/v0.5.9.md
+.namba/releases/v1.0.0.md
 .namba/specs/.gitkeep
 .namba/specs/SPEC-001/acceptance.md
 .namba/specs/SPEC-001/plan.md
@@ -605,6 +606,14 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-067/reviews/product.md
 .namba/specs/SPEC-067/reviews/readiness.md
 .namba/specs/SPEC-067/spec.md
+.namba/specs/SPEC-068/acceptance.md
+.namba/specs/SPEC-068/frontend-brief.md
+.namba/specs/SPEC-068/plan.md
+.namba/specs/SPEC-068/reviews/design.md
+.namba/specs/SPEC-068/reviews/engineering.md
+.namba/specs/SPEC-068/reviews/product.md
+.namba/specs/SPEC-068/reviews/readiness.md
+.namba/specs/SPEC-068/spec.md
 AGENTS.md
 LICENSE
 README.ja.md
@@ -636,6 +645,7 @@ docs/workflow-guide.md
 docs/workflow-guide.zh.md
 dump.rdb
 go.mod
+go.sum
 install.ps1
 install.sh
 internal/namba/agent_runtime.go
@@ -681,6 +691,8 @@ internal/namba/hook_runtime_test.go
 internal/namba/init_command.go
 internal/namba/init_scan.go
 internal/namba/init_scan_test.go
+internal/namba/init_tui.go
+internal/namba/init_tui_test.go
 internal/namba/init_wizard.go
 internal/namba/init_wizard_test.go
 internal/namba/manifest.go
@@ -755,6 +767,7 @@ internal/namba/testdata/schemas/namba-report-v1.schema.json
 internal/namba/testdata/schemas/project-codex-diagnostics-evidence-v1.schema.json
 internal/namba/testdata/schemas/queue-runner-evidence-v1.schema.json
 internal/namba/text_helpers.go
+internal/namba/tui_status.go
 internal/namba/update_command.go
 internal/namba/update_command_test.go
 internal/namba/usage.go

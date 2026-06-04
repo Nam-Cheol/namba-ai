@@ -10,6 +10,13 @@ import (
 )
 
 func (a *App) runInitWizard(defaults initProfile) (initProfile, error) {
+	if a.isInteractiveTerminal() {
+		return a.runInitTUIWizard(defaults)
+	}
+	return a.runInitLineWizard(defaults)
+}
+
+func (a *App) runInitLineWizard(defaults initProfile) (initProfile, error) {
 	reader := bufio.NewReader(a.stdin)
 	profile := defaults
 

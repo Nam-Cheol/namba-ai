@@ -30,6 +30,12 @@ func (a *App) runRegen(_ context.Context, args []string) error {
 	for rel, body := range codexScaffoldFilesForOS(profile, a.goos) {
 		outputs[rel] = body
 	}
+	a.printCommandTUIState(commandTUIState{
+		Command: "regen",
+		Title:   "NambaAI regen",
+		Status:  "running",
+		Detail:  "Refreshing managed AGENTS, skills, Codex agents, hooks, and Codex config",
+	})
 	if err := removeLegacyCodexSkillMirror(root); err != nil {
 		return err
 	}
@@ -38,7 +44,15 @@ func (a *App) runRegen(_ context.Context, args []string) error {
 		return err
 	}
 
-	fmt.Fprintln(a.stdout, "Regenerated NambaAI AGENTS, repo skills, command-entry skills, Codex agents, and Codex config.")
+	regenMessage := "Regenerated NambaAI AGENTS, repo skills, command-entry skills, Codex agents, and Codex config."
+	if !a.printCommandTUIState(commandTUIState{
+		Command: "regen",
+		Title:   "NambaAI regen",
+		Status:  "done",
+		Detail:  regenMessage,
+	}) {
+		fmt.Fprintln(a.stdout, regenMessage)
+	}
 	if len(report.InstructionSurfacePaths) > 0 {
 		fmt.Fprintf(a.stdout, "Session refresh required: start a fresh Codex session before continuing long team or repair runs (%s)\n", strings.Join(report.InstructionSurfacePaths, ", "))
 	}
