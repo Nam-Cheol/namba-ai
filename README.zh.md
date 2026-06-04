@@ -120,7 +120,7 @@ namba land
 ## ✅ 本地质量门禁
 
 - PR 前可以运行 `scripts/quality.sh`，在本地执行 CI 的核心质量标准。
-- 该仓库使用 `go.mod` 中的 `toolchain go1.26.3`，因此 CI 和 `GOTOOLCHAIN=auto` 的本地运行会避开已知的 Go 1.26.2 标准库漏洞。
+- 该仓库使用 `go.mod` 中的 `toolchain go1.26.4`，因此 CI 和 `GOTOOLCHAIN=auto` 的本地运行会避开已知的 Go 1.26.3 标准库漏洞。
 - 该门禁会运行 Python unittest、Go unit/race tests、harness eval regression、evidence schema validation、report JSON validation、gofmt、go vet、staticcheck、govulncheck 和 Go coverage report。
 - 默认 artifact 包括 coverage profile/text、`eval-scorecard.json`、`eval-summary.md`、`report.json` 和 `schema-validation.txt`。
 - aggregate Go coverage threshold 为 73.0%。它略低于规划时测得的 73.7% baseline，用来吸收 Go version/reporting noise，同时阻止有意义的覆盖率回退。

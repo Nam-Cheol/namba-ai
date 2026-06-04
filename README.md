@@ -120,7 +120,7 @@ namba land
 ## ✅ Local Quality Gates
 
 - Run `scripts/quality.sh` before PR handoff to mirror the core CI quality bar locally.
-- `go.mod` pins `toolchain go1.26.3`, so CI and local `GOTOOLCHAIN=auto` runs avoid the known Go 1.26.2 standard-library vulnerabilities.
+- `go.mod` pins `toolchain go1.26.4`, so CI and local `GOTOOLCHAIN=auto` runs avoid the known Go 1.26.3 standard-library vulnerabilities.
 - The gate runs Python unittest, Go unit/race tests, harness eval regression, evidence schema validation, report JSON validation, gofmt, go vet, staticcheck, govulncheck, and the Go coverage report.
 - Default artifacts are coverage profile/text, `eval-scorecard.json`, `eval-summary.md`, `report.json`, and `schema-validation.txt`.
 - The aggregate Go coverage threshold is 73.0%. It sits just below the 73.7% planning baseline to absorb Go version/reporting noise while still blocking meaningful regressions.
