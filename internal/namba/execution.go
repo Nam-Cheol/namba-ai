@@ -125,7 +125,7 @@ func (r codexRunner) Execute(ctx context.Context, req executionRequest, capabili
 	if _, err := r.lookPath("codex"); err != nil {
 		result.FinishedAt = r.now().Format(time.RFC3339)
 		result.Error = fmt.Sprintf("runner codex is not available: %v", err)
-		return result, fmt.Errorf(result.Error)
+		return result, fmt.Errorf("%s", result.Error)
 	}
 
 	result.CommandArgs = append([]string{"codex"}, command.Args...)
@@ -826,10 +826,10 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	)
 	if publishErr != nil {
 		if err := writeRunEvidenceWithProgressFailure("validation_failed", result.ValidationAttempts, result.Error); err != nil {
-			return result, finalReport, errors.Join(fmt.Errorf(result.Error), publishErr, err)
+			return result, finalReport, errors.Join(fmt.Errorf("%s", result.Error), publishErr, err)
 		}
 	}
-	return result, finalReport, errors.Join(fmt.Errorf(result.Error), publishErr)
+	return result, finalReport, errors.Join(fmt.Errorf("%s", result.Error), publishErr)
 }
 
 func (a *App) writeExecutionArtifacts(projectRoot, logID string, result executionResult) error {

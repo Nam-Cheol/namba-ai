@@ -52,7 +52,14 @@ func (a *App) runUpdate(ctx context.Context, args []string) error {
 		return fmt.Errorf("resolve current executable: %w", err)
 	}
 
-	fmt.Fprintf(a.stdout, "Downloading %s using %s for %s...\n", target.TargetVersion, target.AssetName, target.Platform)
+	if !a.printCommandTUIState(commandTUIState{
+		Command: "update",
+		Title:   "NambaAI update",
+		Status:  "running",
+		Detail:  fmt.Sprintf("Downloading %s using %s for %s", target.TargetVersion, target.AssetName, target.Platform),
+	}) {
+		fmt.Fprintf(a.stdout, "Downloading %s using %s for %s...\n", target.TargetVersion, target.AssetName, target.Platform)
+	}
 	a.printCodexBaselineAdvice(ctx)
 
 	url := releaseDownloadURL(opts.Version, assetName)
@@ -79,7 +86,10 @@ func (a *App) runUpdate(ctx context.Context, args []string) error {
 		if err := a.scheduleWindowsUpdate(execPath, binary); err != nil {
 			return fmt.Errorf("schedule %s using %s for %s: %w", target.TargetVersion, target.AssetName, target.Platform, err)
 		}
-		fmt.Fprintf(a.stdout, "Scheduled NambaAI update from %s to %s using %s for %s. After this command exits, close this terminal, open a new terminal, and run 'namba --version'.\n", target.CurrentVersion, target.TargetVersion, target.AssetName, target.Platform)
+		message := fmt.Sprintf("Scheduled NambaAI update from %s to %s using %s for %s. After this command exits, close this terminal, open a new terminal, and run 'namba --version'.", target.CurrentVersion, target.TargetVersion, target.AssetName, target.Platform)
+		if !a.printCommandTUIState(commandTUIState{Command: "update", Title: "NambaAI update", Status: "done", Detail: message}) {
+			fmt.Fprintln(a.stdout, message)
+		}
 		return nil
 	}
 
@@ -87,7 +97,10 @@ func (a *App) runUpdate(ctx context.Context, args []string) error {
 		return fmt.Errorf("replace current executable with %s using %s for %s: %w", target.TargetVersion, target.AssetName, target.Platform, err)
 	}
 
-	fmt.Fprintf(a.stdout, "Updated NambaAI from %s to %s using %s for %s at %s. Open a new terminal and run 'namba --version' to confirm.\n", target.CurrentVersion, target.TargetVersion, target.AssetName, target.Platform, execPath)
+	message := fmt.Sprintf("Updated NambaAI from %s to %s using %s for %s at %s. Open a new terminal and run 'namba --version' to confirm.", target.CurrentVersion, target.TargetVersion, target.AssetName, target.Platform, execPath)
+	if !a.printCommandTUIState(commandTUIState{Command: "update", Title: "NambaAI update", Status: "updated", Detail: message}) {
+		fmt.Fprintln(a.stdout, message)
+	}
 	return nil
 }
 

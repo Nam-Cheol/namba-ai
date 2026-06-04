@@ -3,6 +3,7 @@ package namba
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -33,6 +34,33 @@ func (a *App) runInit(_ context.Context, args []string) error {
 		return err
 	}
 
+	result, err := a.executeInit(root, profile, scan)
+	if err != nil {
+		return err
+	}
+	a.printInitResult(result)
+	return nil
+}
+
+type initExecutionResult struct {
+	Root     string
+	Profile  initProfile
+	Manifest Manifest
+	Files    []initFileResult
+}
+
+type initFileResult struct {
+	Path   string
+	Status string
+}
+
+const (
+	initFileCreated = "created"
+	initFileUpdated = "updated"
+	initFileSkipped = "skipped"
+)
+
+func (a *App) executeInit(root string, profile initProfile, scan initRepositoryScan) (initExecutionResult, error) {
 	testCmd, lintCmd, typecheckCmd := defaultQualityCommandsWithScan(root, profile.Language, profile.Framework, scan)
 	files := map[string]string{
 		"AGENTS.md": renderAgents(profile),
@@ -71,13 +99,30 @@ func (a *App) runInit(_ context.Context, args []string) error {
 	}
 
 	manifest := Manifest{GeneratedAt: a.now().Format(time.RFC3339)}
-	for rel, body := range files {
+	result := initExecutionResult{
+		Root:    root,
+		Profile: profile,
+	}
+	for _, rel := range sortedOutputPaths(files) {
+		body := files[rel]
 		absPath := filepath.Join(root, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
-			return fmt.Errorf("create parent for %s: %w", rel, err)
+			return initExecutionResult{}, fmt.Errorf("create parent for %s: %w", rel, err)
 		}
-		if err := os.WriteFile(absPath, []byte(body), 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", rel, err)
+		status := initFileCreated
+		if existing, err := os.ReadFile(absPath); err == nil {
+			if string(existing) == body {
+				status = initFileSkipped
+			} else {
+				status = initFileUpdated
+			}
+		} else if !os.IsNotExist(err) {
+			return initExecutionResult{}, fmt.Errorf("read existing %s: %w", rel, err)
+		}
+		if status != initFileSkipped {
+			if err := os.WriteFile(absPath, []byte(body), 0o644); err != nil {
+				return initExecutionResult{}, fmt.Errorf("write %s: %w", rel, err)
+			}
 		}
 		manifest.Entries = append(manifest.Entries, ManifestEntry{
 			Path:      rel,
@@ -85,22 +130,42 @@ func (a *App) runInit(_ context.Context, args []string) error {
 			Checksum:  checksum(body),
 			UpdatedAt: manifest.GeneratedAt,
 		})
+		result.Files = append(result.Files, initFileResult{Path: rel, Status: status})
 	}
 
 	sort.Slice(manifest.Entries, func(i, j int) bool { return manifest.Entries[i].Path < manifest.Entries[j].Path })
 	if err := a.writeManifest(root, manifest); err != nil {
-		return err
+		return initExecutionResult{}, err
 	}
+	result.Manifest = manifest
+	return result, nil
+}
 
-	fmt.Fprintf(a.stdout, "Initialized NambaAI in %s\n", root)
+func (a *App) printInitResult(result initExecutionResult) {
+	profile := result.Profile
+	fmt.Fprintf(a.stdout, "Initialized NambaAI in %s\n", result.Root)
 	fmt.Fprintf(a.stdout, "Project: %s | Type: %s | Mode: %s | Agent mode: %s\n", profile.ProjectName, profile.ProjectType, profile.DevelopmentMode, profile.AgentMode)
+	printInitFileSummary(a.stdout, result.Files)
 	fmt.Fprintln(a.stdout, "Codex-native mode is ready. Open Codex in this directory and invoke `$namba`, `$namba-run`, or ask to use the Namba workflow.")
 	fmt.Fprintln(a.stdout, "Codex hook review:")
 	fmt.Fprintln(a.stdout, "  1. Open an interactive Codex session in this directory.")
 	fmt.Fprintln(a.stdout, "  2. If Codex shows `6 hooks need review`, run `/hooks`.")
 	fmt.Fprintln(a.stdout, "  3. Approve only after confirming every command points to this repository's `.codex/hooks/namba_codex_guard.sh` or Windows `.codex/hooks/namba_codex_guard.ps1` launcher.")
 	fmt.Fprintln(a.stdout, "  4. Re-run an ambiguous Namba prompt to confirm Codex asks clarification questions before planning.")
-	return nil
+}
+
+func printInitFileSummary(out io.Writer, files []initFileResult) {
+	counts := map[string]int{}
+	for _, file := range files {
+		counts[file.Status]++
+	}
+	fmt.Fprintf(out, "Files: %d created, %d updated, %d skipped\n", counts[initFileCreated], counts[initFileUpdated], counts[initFileSkipped])
+	for _, file := range files {
+		if file.Status != initFileCreated && file.Status != initFileSkipped {
+			continue
+		}
+		fmt.Fprintf(out, "  %s: %s\n", file.Status, file.Path)
+	}
 }
 
 func (a *App) resolveInitProfile(root string, opts initOptions) (initProfile, error) {
