@@ -49,6 +49,8 @@ type modelRoutingInput struct {
 	RepairCount             int
 	RemainingSolTurns       int
 	SolBudgetActive         bool
+	RemainingSolHighTurns   int
+	SolHighBudgetActive     bool
 	SimpleImplementation    bool
 	SingleSubsystem         bool
 	ExplicitTransformation  bool
@@ -60,28 +62,30 @@ type modelRoutingInput struct {
 }
 
 type modelRoutingDecisionResult struct {
-	Phase             routingPhase `json:"phase"`
-	Tier              string       `json:"tier"`
-	Model             string       `json:"model"`
-	ReasoningEffort   string       `json:"reasoning_effort"`
-	RuleID            string       `json:"rule_id"`
-	ReasonCodes       []string     `json:"reason_codes,omitempty"`
-	Status            string       `json:"status"`
-	FallbackReason    string       `json:"fallback_reason,omitempty"`
-	RequiredSol       bool         `json:"required_sol"`
-	RemainingSolTurns int          `json:"remaining_sol_turns,omitempty"`
-	ReadOnly          bool         `json:"read_only"`
+	Phase                 routingPhase `json:"phase"`
+	Tier                  string       `json:"tier"`
+	Model                 string       `json:"model"`
+	ReasoningEffort       string       `json:"reasoning_effort"`
+	RuleID                string       `json:"rule_id"`
+	ReasonCodes           []string     `json:"reason_codes,omitempty"`
+	Status                string       `json:"status"`
+	FallbackReason        string       `json:"fallback_reason,omitempty"`
+	RequiredSol           bool         `json:"required_sol"`
+	RemainingSolTurns     int          `json:"remaining_sol_turns,omitempty"`
+	RemainingSolHighTurns int          `json:"remaining_sol_high_turns,omitempty"`
+	ReadOnly              bool         `json:"read_only"`
 }
 
 func modelRoutingDecision(input modelRoutingInput) modelRoutingDecisionResult {
 	decision := modelRoutingDecisionResult{
-		Phase:             input.Phase,
-		Tier:              "standard",
-		Model:             modelRoutingModelTerra,
-		ReasoningEffort:   "medium",
-		RuleID:            "standard-default-v1",
-		Status:            modelRoutingStatusPlanned,
-		RemainingSolTurns: maxInt(input.RemainingSolTurns, 0),
+		Phase:                 input.Phase,
+		Tier:                  "standard",
+		Model:                 modelRoutingModelTerra,
+		ReasoningEffort:       "medium",
+		RuleID:                "standard-default-v1",
+		Status:                modelRoutingStatusPlanned,
+		RemainingSolTurns:     maxInt(input.RemainingSolTurns, 0),
+		RemainingSolHighTurns: maxInt(input.RemainingSolHighTurns, 0),
 	}
 
 	if isSimpleLunaImplementation(input) {
@@ -134,16 +138,17 @@ func shouldUseSolMedium(input modelRoutingInput) bool {
 
 func resolveSolDecision(input modelRoutingInput, rule, effort string, required bool, reasons []string) modelRoutingDecisionResult {
 	decision := modelRoutingDecisionResult{
-		Phase:             input.Phase,
-		Tier:              "deep",
-		Model:             modelRoutingModelSol,
-		ReasoningEffort:   effort,
-		RuleID:            rule,
-		ReasonCodes:       reasons,
-		Status:            modelRoutingStatusPlanned,
-		RequiredSol:       required,
-		RemainingSolTurns: maxInt(input.RemainingSolTurns, 0),
-		ReadOnly:          true,
+		Phase:                 input.Phase,
+		Tier:                  "deep",
+		Model:                 modelRoutingModelSol,
+		ReasoningEffort:       effort,
+		RuleID:                rule,
+		ReasonCodes:           reasons,
+		Status:                modelRoutingStatusPlanned,
+		RequiredSol:           required,
+		RemainingSolTurns:     maxInt(input.RemainingSolTurns, 0),
+		RemainingSolHighTurns: maxInt(input.RemainingSolHighTurns, 0),
+		ReadOnly:              true,
 	}
 	if input.SolBudgetActive && input.RemainingSolTurns <= 0 {
 		return fallbackOrBlockSol(decision, required, "sol_turn_budget_exhausted")
@@ -151,8 +156,14 @@ func resolveSolDecision(input modelRoutingInput, rule, effort string, required b
 	if input.SolAvailable != nil && !*input.SolAvailable {
 		return fallbackOrBlockSol(decision, required, "model_unavailable")
 	}
+	if effort == "high" && input.SolHighBudgetActive && input.RemainingSolHighTurns <= 0 {
+		return fallbackOrBlockSol(decision, required, "sol_high_turn_budget_exhausted")
+	}
 	if input.SolBudgetActive {
 		decision.RemainingSolTurns = input.RemainingSolTurns - 1
+	}
+	if effort == "high" && input.SolHighBudgetActive {
+		decision.RemainingSolHighTurns = input.RemainingSolHighTurns - 1
 	}
 	return decision
 }

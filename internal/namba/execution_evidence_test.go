@@ -82,6 +82,39 @@ func TestRunWritesExecutionEvidenceManifestOnSuccess(t *testing.T) {
 	}
 }
 
+func TestRunEvidenceRecordsActualRoutedTurnsForReportAggregation(t *testing.T) {
+	tmp := t.TempDir()
+	app := NewApp(nil, nil)
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Cross-system security architecture design with acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "security"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-backend-architect"),
+			},
+		},
+	}
+	lifecycle := newHookLifecycle(app, tmp, "spec-069", req, "")
+	lifecycle.recordModelRoutingTurns(buildExecutionTurnRequests(req))
+	if err := lifecycle.writeRunEvidence(context.Background(), "completed", 0, false, ""); err != nil {
+		t.Fatalf("write evidence: %v", err)
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
+	if len(manifest.ModelRoutingTurns) != 2 || manifest.ModelRoutingTurns[0].RequestedModel != modelRoutingModelTerra || manifest.ModelRoutingTurns[1].RequestedModel != modelRoutingModelSol || manifest.ModelRoutingTurns[1].RemainingSolHighTurns != 0 {
+		t.Fatalf("expected actual Terra and Sol routed turns, got %+v", manifest.ModelRoutingTurns)
+	}
+	report := collectNambaReport(tmp, time.Now(), reportOptions{})
+	if report.Runs.ModelRouting == nil || report.Runs.ModelRouting.TurnsByModel[modelRoutingModelTerra] != 1 || report.Runs.ModelRouting.TurnsByModel[modelRoutingModelSol] != 1 {
+		t.Fatalf("expected report to aggregate routed turn models, got %+v", report.Runs.ModelRouting)
+	}
+}
+
 func TestCodexDiagnosticsEvidenceCoversVersionDoctorRedactionAndMismatch(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

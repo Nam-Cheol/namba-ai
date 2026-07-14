@@ -321,8 +321,10 @@ func (a *App) newExecutionRequest(specID, workDir, prompt string, mode execution
 	runtimeCfg := resolveCodexRuntimeForMode(codexCfg, mode)
 	model := runtimeCfg.Model
 	decision := modelRoutingDecision(modelRoutingInput{Phase: routingPhaseImplement, Role: plan.IntegratorRole})
+	reasoningEffort := ""
 	if runtimeCfg.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
 		model = decision.Model
+		reasoningEffort = decision.ReasoningEffort
 	}
 	return executionRequest{
 		SpecID:                   specID,
@@ -344,6 +346,6 @@ func (a *App) newExecutionRequest(specID, workDir, prompt string, mode execution
 		RequiredEnv:              append([]string(nil), runtimeCfg.RequiredEnv...),
 		RequiresNetwork:          runtimeCfg.RequiresNetwork,
 		DelegationPlan:           plan,
-		RequestedReasoningEffort: "medium",
+		RequestedReasoningEffort: reasoningEffort,
 	}
 }

@@ -549,6 +549,26 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	}
 
 	turnRequests := buildExecutionTurnRequests(req)
+	hooks.recordModelRoutingTurns(turnRequests)
+	if routingErr := validateModelRoutingTurnPlan(turnRequests); routingErr != nil {
+		result.FinishedAt = a.now().Format(time.RFC3339)
+		result.Error = routingErr.Error()
+		if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
+			return result, validationReport{}, writeErr
+		}
+		afterExecutionErr := hooks.Trigger(ctx, hookTrigger{
+			Event:        hookEventAfterExecution,
+			StageStatus:  "failed",
+			ErrorSummary: routingErr.Error(),
+			EventData: map[string]any{
+				"execution_path": filepath.ToSlash(filepath.Join(logsDir, "runs", logID+"-execution.json")),
+			},
+		})
+		if writeErr := writeRunEvidence("execution_failed", 0, result.Error); writeErr != nil {
+			return result, validationReport{}, errors.Join(routingErr, afterExecutionErr, writeErr)
+		}
+		return result, validationReport{}, errors.Join(routingErr, afterExecutionErr)
+	}
 	teamContinuationMode := "degraded-fresh-exec"
 	if codexSessionStateful(req.SessionMode) {
 		teamContinuationMode = "explicit-thread-resume"
@@ -842,6 +862,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		repairReq.TurnRole = req.DelegationPlan.IntegratorRole
 		repairReq.Prompt = buildRepairPrompt(req, finalReport, attempt, !repairReq.ResumeSession)
 		repairReq.RequestedReasoningEffort = "high"
+		hooks.recordModelRoutingTurn(repairReq)
 
 		repairResult, repairErr := selectedRunner.Execute(ctx, repairReq, capabilities)
 		result.Turns = append(result.Turns, repairResult)
@@ -964,14 +985,13 @@ func validationPipelineSteps(cfg qualityConfig) []validationStep {
 
 func buildExecutionTurnRequests(req executionRequest) []executionRequest {
 	solRemaining := solTurnBudgetForMode(req.Mode)
+	solHighRemaining := solHighTurnBudgetForMode(req.Mode)
 	base := req
 	base.TurnName = "implement"
 	base.TurnRole = req.DelegationPlan.IntegratorRole
 	base.Phase = routingPhaseImplement
-	base.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(base, base.Phase, base.TurnRole, solRemaining, true))
-	if base.RoutingDecision.Model == modelRoutingModelSol && base.RoutingDecision.Status == modelRoutingStatusPlanned {
-		solRemaining = base.RoutingDecision.RemainingSolTurns
-	}
+	base.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(base, base.Phase, base.TurnRole, solRemaining, solHighRemaining, true))
+	solRemaining, solHighRemaining = updatedSolTurnBudgets(base.RoutingDecision, solRemaining, solHighRemaining)
 	if base.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
 		base.Model = base.RoutingDecision.Model
 		base.RequestedReasoningEffort = base.RoutingDecision.ReasoningEffort
@@ -987,10 +1007,8 @@ func buildExecutionTurnRequests(req executionRequest) []executionRequest {
 		turn.TurnName = roleTurnName(profile.Role)
 		turn.TurnRole = profile.Role
 		turn.Phase = routingPhaseForRole(profile.Role)
-		turn.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(turn, turn.Phase, profile.Role, solRemaining, true))
-		if turn.RoutingDecision.Model == modelRoutingModelSol && turn.RoutingDecision.Status == modelRoutingStatusPlanned {
-			solRemaining = turn.RoutingDecision.RemainingSolTurns
-		}
+		turn.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(turn, turn.Phase, profile.Role, solRemaining, solHighRemaining, true))
+		solRemaining, solHighRemaining = updatedSolTurnBudgets(turn.RoutingDecision, solRemaining, solHighRemaining)
 		// A continuation is legal only after an explicit UUID is observed from
 		// the immediately preceding same-model turn.
 		turn.ResumeSession = false
@@ -1019,7 +1037,32 @@ func solTurnBudgetForMode(mode executionMode) int {
 	return 1
 }
 
-func modelRoutingInputForRequest(req executionRequest, phase routingPhase, role string, solRemaining int, budgetActive bool) modelRoutingInput {
+func solHighTurnBudgetForMode(executionMode) int {
+	return 1
+}
+
+func updatedSolTurnBudgets(decision modelRoutingDecisionResult, solRemaining, solHighRemaining int) (int, int) {
+	if decision.Model != modelRoutingModelSol || decision.Status != modelRoutingStatusPlanned {
+		return solRemaining, solHighRemaining
+	}
+	solRemaining = decision.RemainingSolTurns
+	if decision.ReasoningEffort == "high" {
+		solHighRemaining = decision.RemainingSolHighTurns
+	}
+	return solRemaining, solHighRemaining
+}
+
+func validateModelRoutingTurnPlan(turns []executionRequest) error {
+	for _, turn := range turns {
+		if turn.ModelRoutingPolicy != modelRoutingPolicyCostBalancedV1 || turn.RoutingDecision.Status != modelRoutingStatusBlocked {
+			continue
+		}
+		return fmt.Errorf("model routing blocked for phase %q role %q: %s", turn.RoutingDecision.Phase, firstNonBlank(turn.TurnRole, "integrator"), firstNonBlank(turn.RoutingDecision.FallbackReason, "blocked_model_unavailable"))
+	}
+	return nil
+}
+
+func modelRoutingInputForRequest(req executionRequest, phase routingPhase, role string, solRemaining, solHighRemaining int, budgetActive bool) modelRoutingInput {
 	text := strings.ToLower(strings.Join(append([]string{req.Prompt}, req.DelegationPlan.DominantDomains...), "\n"))
 	containsAny := func(words ...string) bool {
 		for _, word := range words {
@@ -1039,6 +1082,7 @@ func modelRoutingInputForRequest(req executionRequest, phase routingPhase, role 
 		Phase: phase, Role: role, Domain: strings.Join(req.DelegationPlan.DominantDomains, ","),
 		CriticalRisk: criticalRisk, HighAmbiguity: highAmbiguity, CrossSystem: crossSystem, Irreversible: irreversible,
 		RepairCount: req.RepairAttempts, RemainingSolTurns: solRemaining, SolBudgetActive: budgetActive,
+		RemainingSolHighTurns: solHighRemaining, SolHighBudgetActive: budgetActive,
 		SimpleImplementation: simple, SingleSubsystem: len(req.DelegationPlan.DominantDomains) <= 1,
 		ExplicitTransformation: containsAny("rename", "format", "replace", "mechanical"), Reversible: !irreversible,
 		DeterministicAcceptance: containsAny("test", "acceptance", "format", "rename"), PublicContractChange: publicContract,

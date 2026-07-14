@@ -108,19 +108,34 @@ type hookRegistration struct {
 }
 
 type hookLifecycle struct {
-	app          *App
-	artifactRoot string
-	configRoot   string
-	logID        string
-	req          executionRequest
-	progressPath string
-	scope        string
-	config       hookConfig
-	configErr    error
-	results      []hookResult
-	outputCounts map[string]int
-	failureSent  bool
-	blockingHook *hookResult
+	app               *App
+	artifactRoot      string
+	configRoot        string
+	logID             string
+	req               executionRequest
+	progressPath      string
+	scope             string
+	config            hookConfig
+	configErr         error
+	results           []hookResult
+	modelRoutingTurns []executionRequest
+	outputCounts      map[string]int
+	failureSent       bool
+	blockingHook      *hookResult
+}
+
+func (l *hookLifecycle) recordModelRoutingTurns(turns []executionRequest) {
+	if l == nil {
+		return
+	}
+	l.modelRoutingTurns = append(l.modelRoutingTurns[:0], turns...)
+}
+
+func (l *hookLifecycle) recordModelRoutingTurn(turn executionRequest) {
+	if l == nil {
+		return
+	}
+	l.modelRoutingTurns = append(l.modelRoutingTurns, turn)
 }
 
 type hookTrigger struct {
@@ -305,6 +320,11 @@ func (l *hookLifecycle) writeRunEvidence(ctx context.Context, status string, val
 		Request:               &l.req,
 		IncludeDoctorLogFiles: false,
 	})
+	routingTurns := modelRoutingEvidenceForRequests(l.modelRoutingTurns)
+	routing := modelRoutingEvidenceForRequest(l.req)
+	if len(routingTurns) > 0 {
+		routing = &routingTurns[0]
+	}
 
 	return l.app.writeExecutionEvidenceManifest(l.artifactRoot, executionEvidenceOptions{
 		ProjectRoot:        l.artifactRoot,
@@ -318,7 +338,8 @@ func (l *hookLifecycle) writeRunEvidence(ctx context.Context, status string, val
 		FinalizedBy:        "executeRun",
 		Progress:           progress,
 		CodexDiagnostics:   &diagnostics,
-		ModelRouting:       modelRoutingEvidenceForRequest(l.req),
+		ModelRouting:       routing,
+		ModelRoutingTurns:  routingTurns,
 		Hooks:              l.results,
 	})
 }

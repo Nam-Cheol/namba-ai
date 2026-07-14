@@ -255,9 +255,36 @@ func TestBuildExecutionTurnRequestsUsesPredicatesAndKeepsFreshTurnContext(t *tes
 		t.Fatalf("fresh Sol turn lost base context: %q", architect.Prompt)
 	}
 
-	simple := modelRoutingInputForRequest(executionRequest{Prompt: "Simple mechanical rename with format test acceptance."}, routingPhaseImplement, "namba-implementer", 1, true)
+	simple := modelRoutingInputForRequest(executionRequest{Prompt: "Simple mechanical rename with format test acceptance."}, routingPhaseImplement, "namba-implementer", 1, 1, true)
 	if got := modelRoutingDecision(simple); got.Model != modelRoutingModelLuna {
 		t.Fatalf("simple execution decision = %+v, want Luna", got)
+	}
+}
+
+func TestBuildExecutionTurnRequestsCapsSolHighAtOne(t *testing.T) {
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Cross-system security architecture design with irreversible risk and acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "security"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-backend-architect"),
+				runtimeProfileForAgent("namba-reviewer"),
+			},
+		},
+	}
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 3 || turns[1].RoutingDecision.ReasoningEffort != "high" || turns[1].RoutingDecision.Status != modelRoutingStatusPlanned {
+		t.Fatalf("expected the first high-risk checkpoint to use Sol high, got %+v", turns)
+	}
+	if turns[2].RoutingDecision.Status != modelRoutingStatusBlocked || turns[2].RoutingDecision.FallbackReason != "sol_high_turn_budget_exhausted" {
+		t.Fatalf("expected second Sol high decision to be blocked, got %+v", turns[2].RoutingDecision)
+	}
+	if err := validateModelRoutingTurnPlan(turns); err == nil || !strings.Contains(err.Error(), "sol_high_turn_budget_exhausted") {
+		t.Fatalf("expected blocked high-risk turn to stop execution, got %v", err)
 	}
 }
 

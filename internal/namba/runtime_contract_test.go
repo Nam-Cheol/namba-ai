@@ -57,6 +57,31 @@ func TestNewExecutionRequestAppliesModeRuntimeContract(t *testing.T) {
 	}
 }
 
+func TestLegacyStaticRequestOmitsReasoningOverride(t *testing.T) {
+	app := NewApp(nil, nil)
+	req := app.newExecutionRequest(
+		"SPEC-069",
+		"/tmp/work",
+		"preserve legacy runtime behavior",
+		executionModeDefault,
+		delegationPlan{IntegratorRole: "standalone-runner"},
+		systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"},
+		codexConfig{ModelRoutingPolicy: modelRoutingPolicyLegacyStaticV1, Model: "gpt-5.4"},
+	)
+	if req.RequestedReasoningEffort != "" {
+		t.Fatalf("legacy request must not force reasoning effort, got %+v", req)
+	}
+
+	_, err := resolveCodexInvocation(req, codexCapabilityMatrix{Exec: codexCommandCapabilities{
+		ApprovalFlag: true,
+		SandboxFlag:  true,
+		ModelFlag:    true,
+	}})
+	if err != nil {
+		t.Fatalf("legacy request must run without config overrides: %v", err)
+	}
+}
+
 func TestResolveRuntimeAddDirsNormalizesAndDeduplicates(t *testing.T) {
 	t.Parallel()
 

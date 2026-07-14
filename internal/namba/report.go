@@ -404,7 +404,11 @@ func collectReportRuns(root string, report *nambaReport, sinceCutoff time.Time, 
 						report.Summary.BlockedReasons[reason]++
 					}
 				}
-				if routing := evidence.ModelRouting; routing != nil {
+				routings := evidence.ModelRoutingTurns
+				if len(routings) == 0 && evidence.ModelRouting != nil {
+					routings = []modelRoutingEvidence{*evidence.ModelRouting}
+				}
+				for _, routing := range routings {
 					if runs.ModelRouting == nil {
 						runs.ModelRouting = &reportModelRouting{Version: routing.Version, TurnsByModel: map[string]int{}}
 					}
