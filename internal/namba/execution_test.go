@@ -280,11 +280,11 @@ func TestBuildExecutionTurnRequestsCapsSolHighAtOne(t *testing.T) {
 	if len(turns) != 3 || turns[1].RoutingDecision.ReasoningEffort != "high" || turns[1].RoutingDecision.Status != modelRoutingStatusPlanned {
 		t.Fatalf("expected the first high-risk checkpoint to use Sol high, got %+v", turns)
 	}
-	if turns[2].RoutingDecision.Status != modelRoutingStatusBlocked || turns[2].RoutingDecision.FallbackReason != "sol_high_turn_budget_exhausted" {
-		t.Fatalf("expected second Sol high decision to be blocked, got %+v", turns[2].RoutingDecision)
+	if turns[2].Model != modelRoutingModelTerra || turns[2].RoutingDecision.Status != modelRoutingStatusFallback || turns[2].RoutingDecision.FallbackReason != "sol_high_turn_budget_exhausted" {
+		t.Fatalf("expected second Sol high decision to fall back to Terra, got %+v", turns[2].RoutingDecision)
 	}
-	if err := validateModelRoutingTurnPlan(turns); err == nil || !strings.Contains(err.Error(), "sol_high_turn_budget_exhausted") {
-		t.Fatalf("expected blocked high-risk turn to stop execution, got %v", err)
+	if err := validateModelRoutingTurnPlan(turns); err != nil {
+		t.Fatalf("Terra fallback must remain executable, got %v", err)
 	}
 }
 

@@ -157,7 +157,9 @@ func resolveSolDecision(input modelRoutingInput, rule, effort string, required b
 		return fallbackOrBlockSol(decision, required, "model_unavailable")
 	}
 	if effort == "high" && input.SolHighBudgetActive && input.RemainingSolHighTurns <= 0 {
-		return fallbackOrBlockSol(decision, required, "sol_high_turn_budget_exhausted")
+		// A prior Sol high checkpoint already covered the required risk review.
+		// Keep the one-turn high cap without preventing the writer/reviewer flow.
+		return fallbackOrBlockSol(decision, false, "sol_high_turn_budget_exhausted")
 	}
 	if input.SolBudgetActive {
 		decision.RemainingSolTurns = input.RemainingSolTurns - 1
