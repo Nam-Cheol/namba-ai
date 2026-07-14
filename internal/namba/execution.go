@@ -177,12 +177,12 @@ func threadIDFromJSONValue(value any) string {
 	switch typed := value.(type) {
 	case map[string]any:
 		for _, key := range []string{"thread_id", "threadId", "session_id", "sessionId"} {
-			if id, ok := typed[key].(string); ok && strings.TrimSpace(id) != "" {
+			if id, ok := typed[key].(string); ok && isCodexThreadUUID(id) {
 				return strings.TrimSpace(id)
 			}
 		}
 		if thread, ok := typed["thread"].(map[string]any); ok {
-			if id, ok := thread["id"].(string); ok && strings.TrimSpace(id) != "" {
+			if id, ok := thread["id"].(string); ok && isCodexThreadUUID(id) {
 				return strings.TrimSpace(id)
 			}
 		}
@@ -199,6 +199,26 @@ func threadIDFromJSONValue(value any) string {
 		}
 	}
 	return ""
+}
+
+func isCodexThreadUUID(value string) bool {
+	id := strings.TrimSpace(value)
+	if len(id) != 36 {
+		return false
+	}
+	for index, char := range id {
+		switch index {
+		case 8, 13, 18, 23:
+			if char != '-' {
+				return false
+			}
+		default:
+			if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F')) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func buildCodexExecArgs(req executionRequest, capabilities codexCapabilityMatrix) ([]string, error) {

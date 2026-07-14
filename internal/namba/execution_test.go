@@ -261,6 +261,22 @@ func TestBuildExecutionTurnRequestsUsesPredicatesAndKeepsFreshTurnContext(t *tes
 	}
 }
 
+func TestFirstCodexThreadIDAcceptsOnlyCanonicalUUIDs(t *testing.T) {
+	const validThreadID = "019f5f13-3132-76c3-b9c7-ac521e89355e"
+	output := strings.Join([]string{
+		`{"session_id":"nested-tool-status"}`,
+		`{"thread":{"id":"not-a-uuid"}}`,
+		`{"event":{"thread_id":"` + validThreadID + `"}}`,
+	}, "\n")
+
+	if got := firstCodexThreadID(output); got != validThreadID {
+		t.Fatalf("thread id = %q, want %q", got, validThreadID)
+	}
+	if got := firstCodexThreadID(`{"thread_id":"nested-tool-status"}`); got != "" {
+		t.Fatalf("non-UUID thread id must not become resume authority: %q", got)
+	}
+}
+
 func TestParseCodexCommandCapabilitiesTargetVersionFixtures(t *testing.T) {
 	execFixtures := map[string]string{
 		"0.124.0": strings.Join([]string{
@@ -1855,7 +1871,7 @@ func TestRunAllowsResumeProfileViaExecLevelFlags(t *testing.T) {
 			if resumeIndex != -1 && profileIndex != -1 && profileIndex < resumeIndex && profileIndex+1 < len(args) && args[profileIndex+1] == "namba" {
 				sawResumeWithExecProfile = true
 			}
-			return `{"thread_id":"thread-team-001"}`, nil
+			return `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, nil
 		}
 		if isShellCommand(name) {
 			return "validation ok", nil

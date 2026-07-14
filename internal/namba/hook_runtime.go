@@ -318,6 +318,7 @@ func (l *hookLifecycle) writeRunEvidence(ctx context.Context, status string, val
 		FinalizedBy:        "executeRun",
 		Progress:           progress,
 		CodexDiagnostics:   &diagnostics,
+		ModelRouting:       modelRoutingEvidenceForRequest(l.req),
 		Hooks:              l.results,
 	})
 }

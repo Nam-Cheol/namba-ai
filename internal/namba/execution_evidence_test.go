@@ -71,6 +71,9 @@ func TestRunWritesExecutionEvidenceManifestOnSuccess(t *testing.T) {
 	if manifest.CodexDiagnostics.Doctor.Status != "unavailable" {
 		t.Fatalf("run evidence should avoid blocking doctor execution, got %+v", manifest.CodexDiagnostics.Doctor)
 	}
+	if manifest.ModelRouting == nil || manifest.ModelRouting.Version != "model-routing/v1" || manifest.ModelRouting.RequestedModel == "" {
+		t.Fatalf("expected cost-balanced run evidence to include model routing, got %+v", manifest.ModelRouting)
+	}
 	if len(manifest.Extensions.Runtime.SignalBundles) != 1 || manifest.Extensions.Runtime.SignalBundles[0].Kind != "validation_attempts" {
 		t.Fatalf("expected validation-attempt runtime bundle, got %+v", manifest.Extensions.Runtime.SignalBundles)
 	}
