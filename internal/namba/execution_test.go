@@ -227,6 +227,40 @@ func TestBuildCodexExecCommandTransportsPromptOverStdin(t *testing.T) {
 	}
 }
 
+func TestBuildExecutionTurnRequestsUsesPredicatesAndKeepsFreshTurnContext(t *testing.T) {
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Cross-system architecture design with security risk and acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "same-workspace-integrator",
+			DominantDomains: []string{"backend", "security"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-backend-architect"),
+			},
+		},
+	}
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 2 {
+		t.Fatalf("turns = %+v", turns)
+	}
+	architect := turns[1]
+	if architect.Model != modelRoutingModelSol || !architect.RoutingDecision.ReadOnly || architect.ResumeSession {
+		t.Fatalf("architect turn did not use fresh read-only Sol checkpoint: %+v", architect)
+	}
+	if !strings.Contains(architect.Prompt, "## Base execution context") || !strings.Contains(architect.Prompt, req.Prompt) {
+		t.Fatalf("fresh Sol turn lost base context: %q", architect.Prompt)
+	}
+
+	simple := modelRoutingInputForRequest(executionRequest{Prompt: "Simple mechanical rename with format test acceptance."}, routingPhaseImplement, "namba-implementer", 1, true)
+	if got := modelRoutingDecision(simple); got.Model != modelRoutingModelLuna {
+		t.Fatalf("simple execution decision = %+v, want Luna", got)
+	}
+}
+
 func TestParseCodexCommandCapabilitiesTargetVersionFixtures(t *testing.T) {
 	execFixtures := map[string]string{
 		"0.124.0": strings.Join([]string{

@@ -52,6 +52,16 @@ func TestModelRoutingDecisionPolicyTable(t *testing.T) {
 			input: modelRoutingInput{Phase: routingPhaseDesign, Role: "namba-designer", SolAvailable: boolPtr(false)},
 			model: modelRoutingModelTerra, effort: "high", tier: "standard", status: modelRoutingStatusFallback,
 		},
+		{
+			name:  "active zero Sol budget blocks required architecture decision",
+			input: modelRoutingInput{Phase: routingPhaseArchitecture, Role: "namba-backend-architect", CrossSystem: true, RemainingSolTurns: 0, SolBudgetActive: true},
+			model: modelRoutingModelSol, effort: "medium", tier: "deep", readOnly: true, status: modelRoutingStatusBlocked,
+		},
+		{
+			name:  "active Sol budget decrements before planned decision returns",
+			input: modelRoutingInput{Phase: routingPhaseArchitecture, Role: "namba-backend-architect", CrossSystem: true, RemainingSolTurns: 2, SolBudgetActive: true},
+			model: modelRoutingModelSol, effort: "medium", tier: "deep", readOnly: true, status: modelRoutingStatusPlanned,
+		},
 	}
 
 	for _, tt := range tests {
@@ -62,6 +72,9 @@ func TestModelRoutingDecisionPolicyTable(t *testing.T) {
 			}
 			if got.ReasoningEffort == "xhigh" || got.ReasoningEffort == "max" {
 				t.Fatalf("forbidden effort: %+v", got)
+			}
+			if tt.name == "active Sol budget decrements before planned decision returns" && got.RemainingSolTurns != 1 {
+				t.Fatalf("remaining Sol turns = %d, want 1", got.RemainingSolTurns)
 			}
 		})
 	}

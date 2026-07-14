@@ -943,11 +943,15 @@ func validationPipelineSteps(cfg qualityConfig) []validationStep {
 }
 
 func buildExecutionTurnRequests(req executionRequest) []executionRequest {
+	solRemaining := solTurnBudgetForMode(req.Mode)
 	base := req
 	base.TurnName = "implement"
 	base.TurnRole = req.DelegationPlan.IntegratorRole
 	base.Phase = routingPhaseImplement
-	base.RoutingDecision = modelRoutingDecision(modelRoutingInput{Phase: base.Phase, Role: base.TurnRole, RepairCount: base.RepairAttempts})
+	base.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(base, base.Phase, base.TurnRole, solRemaining, true))
+	if base.RoutingDecision.Model == modelRoutingModelSol && base.RoutingDecision.Status == modelRoutingStatusPlanned {
+		solRemaining = base.RoutingDecision.RemainingSolTurns
+	}
 	if base.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
 		base.Model = base.RoutingDecision.Model
 		base.RequestedReasoningEffort = base.RoutingDecision.ReasoningEffort
@@ -958,13 +962,15 @@ func buildExecutionTurnRequests(req executionRequest) []executionRequest {
 		return turns
 	}
 
-	stateful := codexSessionStateful(req.SessionMode)
 	for _, profile := range req.DelegationPlan.SelectedRoleProfiles {
 		turn := req
 		turn.TurnName = roleTurnName(profile.Role)
 		turn.TurnRole = profile.Role
 		turn.Phase = routingPhaseForRole(profile.Role)
-		turn.RoutingDecision = modelRoutingDecision(modelRoutingInput{Phase: turn.Phase, Role: profile.Role})
+		turn.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(turn, turn.Phase, profile.Role, solRemaining, true))
+		if turn.RoutingDecision.Model == modelRoutingModelSol && turn.RoutingDecision.Status == modelRoutingStatusPlanned {
+			solRemaining = turn.RoutingDecision.RemainingSolTurns
+		}
 		// A continuation is legal only after an explicit UUID is observed from
 		// the immediately preceding same-model turn.
 		turn.ResumeSession = false
@@ -980,10 +986,44 @@ func buildExecutionTurnRequests(req executionRequest) []executionRequest {
 		if turn.RequestedReasoningEffort == "" {
 			turn.RequestedReasoningEffort = profile.ModelReasoningEffort
 		}
-		turn.Prompt = buildDelegationTurnPrompt(turn, profile, !stateful)
+		turn.Prompt = buildDelegationTurnPrompt(turn, profile, true)
 		turns = append(turns, turn)
 	}
 	return turns
+}
+
+func solTurnBudgetForMode(mode executionMode) int {
+	if normalizeExecutionMode(mode) == executionModeTeam {
+		return 2
+	}
+	return 1
+}
+
+func modelRoutingInputForRequest(req executionRequest, phase routingPhase, role string, solRemaining int, budgetActive bool) modelRoutingInput {
+	text := strings.ToLower(strings.Join(append([]string{req.Prompt}, req.DelegationPlan.DominantDomains...), "\n"))
+	containsAny := func(words ...string) bool {
+		for _, word := range words {
+			if strings.Contains(text, word) {
+				return true
+			}
+		}
+		return false
+	}
+	publicContract := containsAny("api", "schema", "migration", "auth", "permission", "deploy", "dependency")
+	crossSystem := len(req.DelegationPlan.DominantDomains) > 1 || containsAny("cross-system", "cross system", "integration")
+	criticalRisk := containsAny("security", "auth", "permission", "secret", "privacy", "irreversible")
+	irreversible := containsAny("migration", "schema", "deploy", "irreversible")
+	highAmbiguity := containsAny("architecture", "ambiguous", "tradeoff", "design")
+	simple := phase == routingPhaseImplement && containsAny("simple", "mechanical", "rename", "format")
+	return modelRoutingInput{
+		Phase: phase, Role: role, Domain: strings.Join(req.DelegationPlan.DominantDomains, ","),
+		CriticalRisk: criticalRisk, HighAmbiguity: highAmbiguity, CrossSystem: crossSystem, Irreversible: irreversible,
+		RepairCount: req.RepairAttempts, RemainingSolTurns: solRemaining, SolBudgetActive: budgetActive,
+		SimpleImplementation: simple, SingleSubsystem: len(req.DelegationPlan.DominantDomains) <= 1,
+		ExplicitTransformation: containsAny("rename", "format", "replace", "mechanical"), Reversible: !irreversible,
+		DeterministicAcceptance: containsAny("test", "acceptance", "format", "rename"), PublicContractChange: publicContract,
+		UnresolvedReview: containsAny("open risk", "unresolved", "ambiguous"),
+	}
 }
 
 func routingPhaseForRole(role string) routingPhase {
@@ -1015,11 +1055,15 @@ func roleTurnName(role string) string {
 
 func buildDelegationTurnPrompt(req executionRequest, profile agentRuntimeProfile, includeBasePrompt bool) string {
 	if req.RoutingDecision.ReadOnly {
-		return strings.Join([]string{
+		lines := []string{
 			fmt.Sprintf("Act as the read-only `%s` checkpoint for `%s`.", profile.Role, req.SpecID),
 			"Do not edit files or run mutating commands.",
 			"Return the decision, evidence, risks, open questions, and a Terra/Luna writer handoff.",
-		}, "\n")
+		}
+		if includeBasePrompt {
+			lines = append(lines, "", "## Base execution context", req.Prompt)
+		}
+		return strings.Join(lines, "\n")
 	}
 	lines := []string{
 		fmt.Sprintf("Continue the current `%s` execution as `%s` in the same workspace.", req.SpecID, profile.Role),

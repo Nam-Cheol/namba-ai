@@ -48,6 +48,7 @@ type modelRoutingInput struct {
 	Irreversible            bool
 	RepairCount             int
 	RemainingSolTurns       int
+	SolBudgetActive         bool
 	SimpleImplementation    bool
 	SingleSubsystem         bool
 	ExplicitTransformation  bool
@@ -144,14 +145,14 @@ func resolveSolDecision(input modelRoutingInput, rule, effort string, required b
 		RemainingSolTurns: maxInt(input.RemainingSolTurns, 0),
 		ReadOnly:          true,
 	}
-	if input.RemainingSolTurns < 0 {
-		// Keep the decision pure; callers that do not model a budget use zero as
-		// an unlimited/unknown value. A negative value is the explicit exhausted
-		// sentinel used by tests and turn planners.
+	if input.SolBudgetActive && input.RemainingSolTurns <= 0 {
 		return fallbackOrBlockSol(decision, required, "sol_turn_budget_exhausted")
 	}
 	if input.SolAvailable != nil && !*input.SolAvailable {
 		return fallbackOrBlockSol(decision, required, "model_unavailable")
+	}
+	if input.SolBudgetActive {
+		decision.RemainingSolTurns = input.RemainingSolTurns - 1
 	}
 	return decision
 }
