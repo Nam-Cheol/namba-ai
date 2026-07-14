@@ -2,4 +2,5 @@ agent_mode: multi
 status_line_preset: namba
 repo_skills_path: .agents/skills
 repo_agents_path: .codex/agents
+model_routing_policy: gpt-5.6-cost-balanced-v1
 default_mcp_servers: context7,sequential-thinking,playwright

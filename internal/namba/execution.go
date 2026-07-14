@@ -21,6 +21,7 @@ type executionTurnResult struct {
 	AddDirs         []string `json:"add_dirs,omitempty"`
 	SessionMode     string   `json:"session_mode,omitempty"`
 	SessionAction   string   `json:"session_action,omitempty"`
+	ThreadID        string   `json:"thread_id,omitempty"`
 	ReasoningEffort string   `json:"reasoning_effort,omitempty"`
 	Output          string   `json:"output,omitempty"`
 	CommandArgs     []string `json:"command_args,omitempty"`
@@ -146,6 +147,7 @@ func (r codexRunner) Execute(ctx context.Context, req executionRequest, capabili
 		}
 	}
 	result.FinishedAt = r.now().Format(time.RFC3339)
+	result.ThreadID = firstCodexThreadID(result.Output)
 	if err != nil {
 		result.ExitCode = commandExitCode(err)
 		result.Error = err.Error()
@@ -154,6 +156,49 @@ func (r codexRunner) Execute(ctx context.Context, req executionRequest, capabili
 
 	result.Succeeded = true
 	return result, nil
+}
+
+// firstCodexThreadID intentionally accepts only structured JSONL evidence. A
+// human-readable UUID in an agent response is not safe resume authority.
+func firstCodexThreadID(output string) string {
+	for _, line := range strings.Split(output, "\n") {
+		var event any
+		if err := json.Unmarshal([]byte(strings.TrimSpace(line)), &event); err != nil {
+			continue
+		}
+		if id := threadIDFromJSONValue(event); id != "" {
+			return id
+		}
+	}
+	return ""
+}
+
+func threadIDFromJSONValue(value any) string {
+	switch typed := value.(type) {
+	case map[string]any:
+		for _, key := range []string{"thread_id", "threadId", "session_id", "sessionId"} {
+			if id, ok := typed[key].(string); ok && strings.TrimSpace(id) != "" {
+				return strings.TrimSpace(id)
+			}
+		}
+		if thread, ok := typed["thread"].(map[string]any); ok {
+			if id, ok := thread["id"].(string); ok && strings.TrimSpace(id) != "" {
+				return strings.TrimSpace(id)
+			}
+		}
+		for _, child := range typed {
+			if id := threadIDFromJSONValue(child); id != "" {
+				return id
+			}
+		}
+	case []any:
+		for _, child := range typed {
+			if id := threadIDFromJSONValue(child); id != "" {
+				return id
+			}
+		}
+	}
+	return ""
 }
 
 func buildCodexExecArgs(req executionRequest, capabilities codexCapabilityMatrix) ([]string, error) {
@@ -486,7 +531,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	turnRequests := buildExecutionTurnRequests(req)
 	teamContinuationMode := "degraded-fresh-exec"
 	if codexSessionStateful(req.SessionMode) {
-		teamContinuationMode = "codex-exec-resume-last"
+		teamContinuationMode = "explicit-thread-resume"
 	}
 
 	if err := publishProgress(
@@ -507,9 +552,18 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		return result, validationReport{}, err
 	}
 
-	for _, turnReq := range turnRequests {
+	var observedThreadID string
+	for index, turnReq := range turnRequests {
+		if index > 0 && observedThreadID != "" && turnReq.Model == req.Model {
+			turnReq.ResumeSession = true
+			turnReq.ThreadID = observedThreadID
+		}
 		turnResult, err := selectedRunner.Execute(ctx, turnReq, capabilities)
 		result.Turns = append(result.Turns, turnResult)
+		if observedThreadID == "" && turnResult.ThreadID != "" {
+			observedThreadID = turnResult.ThreadID
+			result.SessionID = observedThreadID
+		}
 		if turnReq.ResumeSession {
 			result.SessionContinuity = teamContinuationMode
 		}
@@ -762,17 +816,18 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		}
 
 		repairReq := req
-		repairReq.ResumeSession = codexSessionStateful(req.SessionMode)
+		repairReq.ResumeSession = codexSessionStateful(req.SessionMode) && result.SessionID != "" && result.SessionID != logID
+		repairReq.ThreadID = result.SessionID
 		repairReq.TurnName = fmt.Sprintf("repair-%d", attempt)
 		repairReq.TurnRole = req.DelegationPlan.IntegratorRole
 		repairReq.Prompt = buildRepairPrompt(req, finalReport, attempt, !repairReq.ResumeSession)
-		repairReq.RequestedReasoningEffort = ""
+		repairReq.RequestedReasoningEffort = "high"
 
 		repairResult, repairErr := selectedRunner.Execute(ctx, repairReq, capabilities)
 		result.Turns = append(result.Turns, repairResult)
 		result.RetryCount++
 		if repairReq.ResumeSession {
-			result.SessionContinuity = "codex-exec-resume-last"
+			result.SessionContinuity = "explicit-thread-resume"
 		} else {
 			result.SessionContinuity = "degraded-fresh-exec"
 		}
@@ -891,6 +946,12 @@ func buildExecutionTurnRequests(req executionRequest) []executionRequest {
 	base := req
 	base.TurnName = "implement"
 	base.TurnRole = req.DelegationPlan.IntegratorRole
+	base.Phase = routingPhaseImplement
+	base.RoutingDecision = modelRoutingDecision(modelRoutingInput{Phase: base.Phase, Role: base.TurnRole, RepairCount: base.RepairAttempts})
+	if base.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
+		base.Model = base.RoutingDecision.Model
+		base.RequestedReasoningEffort = base.RoutingDecision.ReasoningEffort
+	}
 
 	turns := []executionRequest{base}
 	if normalizeExecutionMode(req.Mode) != executionModeTeam {
@@ -902,14 +963,45 @@ func buildExecutionTurnRequests(req executionRequest) []executionRequest {
 		turn := req
 		turn.TurnName = roleTurnName(profile.Role)
 		turn.TurnRole = profile.Role
-		turn.ResumeSession = stateful
+		turn.Phase = routingPhaseForRole(profile.Role)
+		turn.RoutingDecision = modelRoutingDecision(modelRoutingInput{Phase: turn.Phase, Role: profile.Role})
+		// A continuation is legal only after an explicit UUID is observed from
+		// the immediately preceding same-model turn.
+		turn.ResumeSession = false
 		turn.Model = firstNonBlank(profile.Model, req.Model)
+		if turn.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
+			turn.Model = turn.RoutingDecision.Model
+			turn.RequestedReasoningEffort = turn.RoutingDecision.ReasoningEffort
+			if turn.RoutingDecision.ReadOnly {
+				turn.SandboxMode = "read-only"
+			}
+		}
 		turn.Profile = req.Profile
-		turn.RequestedReasoningEffort = profile.ModelReasoningEffort
-		turn.Prompt = buildDelegationTurnPrompt(req, profile, !stateful)
+		if turn.RequestedReasoningEffort == "" {
+			turn.RequestedReasoningEffort = profile.ModelReasoningEffort
+		}
+		turn.Prompt = buildDelegationTurnPrompt(turn, profile, !stateful)
 		turns = append(turns, turn)
 	}
 	return turns
+}
+
+func routingPhaseForRole(role string) routingPhase {
+	role = strings.TrimSpace(strings.ToLower(role))
+	switch {
+	case strings.Contains(role, "planner"):
+		return routingPhasePlan
+	case strings.Contains(role, "architect"):
+		return routingPhaseArchitecture
+	case strings.Contains(role, "designer"):
+		return routingPhaseDesign
+	case strings.Contains(role, "reviewer"):
+		return routingPhaseReview
+	case strings.Contains(role, "test"):
+		return routingPhaseTest
+	default:
+		return routingPhaseImplement
+	}
 }
 
 func roleTurnName(role string) string {
@@ -922,6 +1014,13 @@ func roleTurnName(role string) string {
 }
 
 func buildDelegationTurnPrompt(req executionRequest, profile agentRuntimeProfile, includeBasePrompt bool) string {
+	if req.RoutingDecision.ReadOnly {
+		return strings.Join([]string{
+			fmt.Sprintf("Act as the read-only `%s` checkpoint for `%s`.", profile.Role, req.SpecID),
+			"Do not edit files or run mutating commands.",
+			"Return the decision, evidence, risks, open questions, and a Terra/Luna writer handoff.",
+		}, "\n")
+	}
 	lines := []string{
 		fmt.Sprintf("Continue the current `%s` execution as `%s` in the same workspace.", req.SpecID, profile.Role),
 		"Make direct repository changes for your specialty, then stop so the next turn or validator can continue.",

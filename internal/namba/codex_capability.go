@@ -136,7 +136,7 @@ func resolvePlannedCodexInvocations(req executionRequest, capabilities codexCapa
 
 func plannedCodexRequests(req executionRequest) []executionRequest {
 	planned := buildExecutionTurnRequests(req)
-	if req.RepairAttempts > 0 && codexSessionStateful(req.SessionMode) {
+	if req.RepairAttempts > 0 && codexSessionStateful(req.SessionMode) && strings.TrimSpace(req.ThreadID) != "" {
 		repairReq := req
 		repairReq.ResumeSession = true
 		repairReq.TurnName = "repair-preview"
@@ -163,6 +163,9 @@ func resolveCodexInvocation(req executionRequest, capabilities codexCapabilityMa
 	}
 	if req.ResumeSession && !codexSessionStateful(sessionMode) {
 		return resolvedCodexInvocation{}, fmt.Errorf("session_mode %q does not support resume", sessionMode)
+	}
+	if req.ResumeSession && strings.TrimSpace(req.ThreadID) == "" {
+		return resolvedCodexInvocation{}, fmt.Errorf("resume requires an explicit Codex thread UUID")
 	}
 
 	invocation := resolvedCodexInvocation{
@@ -207,6 +210,13 @@ func resolveSingleExecInvocation(invocation resolvedCodexInvocation, req executi
 		} else {
 			invocation.ConfigOverrides = append(invocation.ConfigOverrides, "model")
 		}
+	}
+	if effort := strings.TrimSpace(req.RequestedReasoningEffort); effort != "" {
+		if !surface.Config {
+			return resolvedCodexInvocation{}, fmt.Errorf("%s: model_reasoning_effort cannot be represented by the installed Codex CLI", invocation.CommandShape)
+		}
+		invocation.Args = appendConfigOverride(invocation.Args, "model_reasoning_effort", tomlString(effort))
+		invocation.ConfigOverrides = append(invocation.ConfigOverrides, "model_reasoning_effort")
 	}
 
 	if profile := strings.TrimSpace(req.Profile); profile != "" {
@@ -258,7 +268,7 @@ func resolveSingleExecInvocation(invocation resolvedCodexInvocation, req executi
 func resolveResumeInvocation(invocation resolvedCodexInvocation, req executionRequest, capabilities codexCapabilityMatrix, sandbox string) (resolvedCodexInvocation, error) {
 	invocation.CommandShape = "codex exec resume"
 	prefix := append([]string{}, invocation.Args...)
-	suffix := []string{"resume", "--last"}
+	suffix := []string{"resume", strings.TrimSpace(req.ThreadID)}
 	approval := normalizeApprovalPolicy(req.ApprovalPolicy)
 
 	var err error
@@ -292,6 +302,17 @@ func resolveResumeInvocation(invocation resolvedCodexInvocation, req executionRe
 		} else {
 			invocation.ConfigOverrides = append(invocation.ConfigOverrides, "model")
 		}
+	}
+	if effort := strings.TrimSpace(req.RequestedReasoningEffort); effort != "" {
+		switch {
+		case capabilities.Resume.Config:
+			suffix = appendConfigOverride(suffix, "model_reasoning_effort", tomlString(effort))
+		case capabilities.Exec.Config:
+			prefix = appendConfigOverride(prefix, "model_reasoning_effort", tomlString(effort))
+		default:
+			return resolvedCodexInvocation{}, fmt.Errorf("%s: model_reasoning_effort cannot be represented by the installed Codex CLI", invocation.CommandShape)
+		}
+		invocation.ConfigOverrides = append(invocation.ConfigOverrides, "model_reasoning_effort")
 	}
 
 	if profile := strings.TrimSpace(req.Profile); profile != "" {

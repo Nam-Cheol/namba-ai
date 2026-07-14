@@ -981,6 +981,24 @@ func renderCodexStatusLineExample() string {
 	return "[tui]\nstatus_line = [\"project-root\", \"git-branch\", \"current-dir\", \"model-with-reasoning\", \"context-remaining\", \"context-used\", \"used-tokens\", \"session-id\"]\n"
 }
 
+func renderModelRoutingDoc() string {
+	return strings.Join([]string{
+		"# Model Routing",
+		"",
+		"Policy: `gpt-5.6-cost-balanced-v1`.",
+		"",
+		"- `efficient` → `gpt-5.6-luna`",
+		"- `standard` → `gpt-5.6-terra`",
+		"- `deep` → `gpt-5.6-sol`",
+		"",
+		"Namba does not provide per-turn model or reasoning overrides. `requested` is the deterministic policy choice; `effective` is recorded only when Codex reports it; `external_unobserved` means that observation was unavailable and was not inferred.",
+		"",
+		"`namba run --dry-run` reports planned turns. A non-required Sol decision can fall back to Terra high with evidence. Required Sol failure is `blocked_model_unavailable`; install or authorize the exact model and rerun the command after the capability probe succeeds.",
+		"",
+		"Sol is read-only for design, architecture, or high-risk checkpoints. Terra or Luna receives its checkpoint and performs implementation.",
+	}, "\n") + "\n"
+}
+
 func renderClaudeCodexMapping() string {
 	lines := []string{
 		"# Claude Code to Codex Mapping",
@@ -2327,6 +2345,24 @@ func renderPlannerCustomAgent() string {
 	return renderTemplatedCustomAgent(plannerAgentTemplate())
 }
 
+func renderHighRiskAdvisorRoleCard() string {
+	return renderRoleCard("Namba High-Risk Advisor", "Use this role only for a critical, ambiguous, cross-system or irreversible decision checkpoint.", []string{
+		"Read the relevant contract and source evidence.",
+		"Report decision, risks, evidence, and the next Terra/Luna implementation handoff.",
+		"Do not edit files, run mutating commands, or implement the change.",
+	})
+}
+
+func renderHighRiskAdvisorCustomAgent() string {
+	return renderCustomAgentWithOptions("namba-high-risk-advisor", "Read-only advisor for one high-risk Namba model-routing checkpoint.", "read-only", []string{
+		"You are Namba High-Risk Advisor.",
+		"Use this role only for a critical, ambiguous, cross-system or irreversible decision checkpoint.",
+		"Read the relevant contract and source evidence.",
+		"Do not edit files or run mutating commands. Do not implement the change.",
+		"Return only the decision, risks, evidence, open questions, and an explicit Terra/Luna implementation handoff.",
+	})
+}
+
 func planReviewerAgentTemplate() codexAgentTemplate {
 	return codexAgentTemplate{
 		roleTitle:   "Namba Plan Reviewer",
@@ -2908,8 +2944,8 @@ func renderCodexProfileConfig(profile initProfile) string {
 		fmt.Sprintf("status_line_preset: %s", profile.StatusLinePreset),
 		fmt.Sprintf("repo_skills_path: %s", repoSkillsDir),
 		fmt.Sprintf("repo_agents_path: %s", repoCodexAgentsDir),
-		"# Optional: per-run Codex overrides resolved by `namba run`.",
-		"# model:",
+		"# Namba-managed per-turn model routing. Do not combine this with legacy `model:`.",
+		"model_routing_policy: gpt-5.6-cost-balanced-v1",
 		"# profile:",
 		"web_search: false",
 		"add_dirs:",

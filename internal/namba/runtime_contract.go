@@ -36,37 +36,42 @@ type delegationPlan struct {
 }
 
 type executionRequest struct {
-	SpecID                   string         `json:"spec_id"`
-	WorkDir                  string         `json:"work_dir"`
-	Prompt                   string         `json:"prompt"`
-	Mode                     executionMode  `json:"mode"`
-	Runner                   string         `json:"runner"`
-	ApprovalPolicy           string         `json:"approval_policy"`
-	SandboxMode              string         `json:"sandbox_mode"`
-	Model                    string         `json:"model,omitempty"`
-	Profile                  string         `json:"profile,omitempty"`
-	WebSearch                bool           `json:"web_search,omitempty"`
-	AddDirs                  []string       `json:"add_dirs,omitempty"`
-	SessionMode              string         `json:"session_mode,omitempty"`
-	RepairAttempts           int            `json:"repair_attempts,omitempty"`
-	RequiredEnv              []string       `json:"required_env,omitempty"`
-	RequiresNetwork          bool           `json:"requires_network,omitempty"`
-	DelegationPlan           delegationPlan `json:"delegation_plan,omitempty"`
-	TurnName                 string         `json:"turn_name,omitempty"`
-	TurnRole                 string         `json:"turn_role,omitempty"`
-	RequestedReasoningEffort string         `json:"requested_reasoning_effort,omitempty"`
-	ResumeSession            bool           `json:"resume_session,omitempty"`
+	SpecID                   string                     `json:"spec_id"`
+	WorkDir                  string                     `json:"work_dir"`
+	Prompt                   string                     `json:"prompt"`
+	Mode                     executionMode              `json:"mode"`
+	Runner                   string                     `json:"runner"`
+	ApprovalPolicy           string                     `json:"approval_policy"`
+	SandboxMode              string                     `json:"sandbox_mode"`
+	ModelRoutingPolicy       string                     `json:"model_routing_policy,omitempty"`
+	Phase                    routingPhase               `json:"phase,omitempty"`
+	RoutingDecision          modelRoutingDecisionResult `json:"model_routing,omitempty"`
+	Model                    string                     `json:"model,omitempty"`
+	Profile                  string                     `json:"profile,omitempty"`
+	WebSearch                bool                       `json:"web_search,omitempty"`
+	AddDirs                  []string                   `json:"add_dirs,omitempty"`
+	SessionMode              string                     `json:"session_mode,omitempty"`
+	RepairAttempts           int                        `json:"repair_attempts,omitempty"`
+	RequiredEnv              []string                   `json:"required_env,omitempty"`
+	RequiresNetwork          bool                       `json:"requires_network,omitempty"`
+	DelegationPlan           delegationPlan             `json:"delegation_plan,omitempty"`
+	TurnName                 string                     `json:"turn_name,omitempty"`
+	TurnRole                 string                     `json:"turn_role,omitempty"`
+	RequestedReasoningEffort string                     `json:"requested_reasoning_effort,omitempty"`
+	ResumeSession            bool                       `json:"resume_session,omitempty"`
+	ThreadID                 string                     `json:"thread_id,omitempty"`
 }
 
 type codexConfig struct {
-	Model           string
-	Profile         string
-	WebSearch       bool
-	AddDirs         []string
-	SessionMode     string
-	RepairAttempts  int
-	RequiredEnv     []string
-	RequiresNetwork bool
+	ModelRoutingPolicy string
+	Model              string
+	Profile            string
+	WebSearch          bool
+	AddDirs            []string
+	SessionMode        string
+	RepairAttempts     int
+	RequiredEnv        []string
+	RequiresNetwork    bool
 }
 
 type workflowConfig struct {
@@ -109,14 +114,24 @@ func (a *App) loadCodexConfig(root string) (codexConfig, error) {
 	}
 
 	cfg := codexConfig{
-		Model:           strings.TrimSpace(values["model"]),
-		Profile:         strings.TrimSpace(values["profile"]),
-		WebSearch:       parseBoolValue(values["web_search"], false),
-		AddDirs:         parseCommaSeparatedList(values["add_dirs"]),
-		SessionMode:     normalizeSessionMode(values["session_mode"]),
-		RepairAttempts:  maxInt(parseIntValue(values["repair_attempts"], 1), 0),
-		RequiredEnv:     parseCommaSeparatedList(values["required_env"]),
-		RequiresNetwork: parseBoolValue(values["requires_network"], false),
+		ModelRoutingPolicy: strings.TrimSpace(values["model_routing_policy"]),
+		Model:              strings.TrimSpace(values["model"]),
+		Profile:            strings.TrimSpace(values["profile"]),
+		WebSearch:          parseBoolValue(values["web_search"], false),
+		AddDirs:            parseCommaSeparatedList(values["add_dirs"]),
+		SessionMode:        normalizeSessionMode(values["session_mode"]),
+		RepairAttempts:     maxInt(parseIntValue(values["repair_attempts"], 1), 0),
+		RequiredEnv:        parseCommaSeparatedList(values["required_env"]),
+		RequiresNetwork:    parseBoolValue(values["requires_network"], false),
+	}
+	if cfg.ModelRoutingPolicy == "" {
+		cfg.ModelRoutingPolicy = modelRoutingPolicyLegacyStaticV1
+	}
+	if cfg.ModelRoutingPolicy != modelRoutingPolicyLegacyStaticV1 && cfg.ModelRoutingPolicy != modelRoutingPolicyCostBalancedV1 {
+		return codexConfig{}, fmt.Errorf("model_routing_policy %q is not supported", cfg.ModelRoutingPolicy)
+	}
+	if cfg.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 && cfg.Model != "" {
+		return codexConfig{}, fmt.Errorf("model_routing_policy %q cannot be combined with legacy global model", cfg.ModelRoutingPolicy)
 	}
 	if cfg.SessionMode == "" {
 		cfg.SessionMode = "stateful"
@@ -304,22 +319,31 @@ func resolveRuntimeAddDirs(base string, dirs []string) ([]string, error) {
 
 func (a *App) newExecutionRequest(specID, workDir, prompt string, mode executionMode, plan delegationPlan, systemCfg systemConfig, codexCfg codexConfig) executionRequest {
 	runtimeCfg := resolveCodexRuntimeForMode(codexCfg, mode)
+	model := runtimeCfg.Model
+	decision := modelRoutingDecision(modelRoutingInput{Phase: routingPhaseImplement, Role: plan.IntegratorRole})
+	if runtimeCfg.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
+		model = decision.Model
+	}
 	return executionRequest{
-		SpecID:          specID,
-		WorkDir:         workDir,
-		Prompt:          prompt,
-		Mode:            normalizeExecutionMode(mode),
-		Runner:          normalizeRunner(systemCfg.Runner),
-		ApprovalPolicy:  normalizeApprovalPolicy(systemCfg.ApprovalPolicy),
-		SandboxMode:     normalizeSandboxMode(systemCfg.SandboxMode),
-		Model:           runtimeCfg.Model,
-		Profile:         runtimeCfg.Profile,
-		WebSearch:       runtimeCfg.WebSearch,
-		AddDirs:         append([]string(nil), runtimeCfg.AddDirs...),
-		SessionMode:     runtimeCfg.SessionMode,
-		RepairAttempts:  runtimeCfg.RepairAttempts,
-		RequiredEnv:     append([]string(nil), runtimeCfg.RequiredEnv...),
-		RequiresNetwork: runtimeCfg.RequiresNetwork,
-		DelegationPlan:  plan,
+		SpecID:                   specID,
+		WorkDir:                  workDir,
+		Prompt:                   prompt,
+		Mode:                     normalizeExecutionMode(mode),
+		Runner:                   normalizeRunner(systemCfg.Runner),
+		ApprovalPolicy:           normalizeApprovalPolicy(systemCfg.ApprovalPolicy),
+		SandboxMode:              normalizeSandboxMode(systemCfg.SandboxMode),
+		ModelRoutingPolicy:       runtimeCfg.ModelRoutingPolicy,
+		Phase:                    routingPhaseImplement,
+		RoutingDecision:          decision,
+		Model:                    model,
+		Profile:                  runtimeCfg.Profile,
+		WebSearch:                runtimeCfg.WebSearch,
+		AddDirs:                  append([]string(nil), runtimeCfg.AddDirs...),
+		SessionMode:              runtimeCfg.SessionMode,
+		RepairAttempts:           runtimeCfg.RepairAttempts,
+		RequiredEnv:              append([]string(nil), runtimeCfg.RequiredEnv...),
+		RequiresNetwork:          runtimeCfg.RequiresNetwork,
+		DelegationPlan:           plan,
+		RequestedReasoningEffort: "medium",
 	}
 }

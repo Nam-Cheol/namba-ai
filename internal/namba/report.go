@@ -71,18 +71,27 @@ type reportSummary struct {
 }
 
 type reportRuns struct {
-	State                     string             `json:"state"`
-	EvidenceCount             int                `json:"evidence_count"`
-	ExecutionCount            int                `json:"execution_count"`
-	ValidationCount           int                `json:"validation_count"`
-	ValidationAttemptCount    int                `json:"validation_attempt_count"`
-	ParallelCount             int                `json:"parallel_count"`
-	ParallelProgressLineCount int                `json:"parallel_progress_line_count"`
-	QueueEvidenceCount        int                `json:"queue_evidence_count"`
-	HeartbeatCount            int                `json:"heartbeat_count"`
-	SuccessCount              int                `json:"success_count"`
-	FailureCount              int                `json:"failure_count"`
-	Latest                    *reportRunEvidence `json:"latest,omitempty"`
+	State                     string              `json:"state"`
+	EvidenceCount             int                 `json:"evidence_count"`
+	ExecutionCount            int                 `json:"execution_count"`
+	ValidationCount           int                 `json:"validation_count"`
+	ValidationAttemptCount    int                 `json:"validation_attempt_count"`
+	ParallelCount             int                 `json:"parallel_count"`
+	ParallelProgressLineCount int                 `json:"parallel_progress_line_count"`
+	QueueEvidenceCount        int                 `json:"queue_evidence_count"`
+	HeartbeatCount            int                 `json:"heartbeat_count"`
+	SuccessCount              int                 `json:"success_count"`
+	FailureCount              int                 `json:"failure_count"`
+	Latest                    *reportRunEvidence  `json:"latest,omitempty"`
+	ModelRouting              *reportModelRouting `json:"model_routing,omitempty"`
+}
+
+type reportModelRouting struct {
+	Version               string         `json:"version"`
+	TurnsByModel          map[string]int `json:"turns_by_model"`
+	FallbackCount         int            `json:"fallback_count"`
+	BlockedCount          int            `json:"blocked_count"`
+	UnavailableUsageCount int            `json:"unavailable_usage_count"`
 }
 
 type reportRunEvidence struct {
@@ -393,6 +402,21 @@ func collectReportRuns(root string, report *nambaReport, sinceCutoff time.Time, 
 						report.Summary.BlockedCommandCount++
 						reason := firstNonBlank(hook.FailureAction, hook.ErrorSummary, hook.HookName, "hook_blocked")
 						report.Summary.BlockedReasons[reason]++
+					}
+				}
+				if routing := evidence.ModelRouting; routing != nil {
+					if runs.ModelRouting == nil {
+						runs.ModelRouting = &reportModelRouting{Version: routing.Version, TurnsByModel: map[string]int{}}
+					}
+					runs.ModelRouting.TurnsByModel[routing.RequestedModel]++
+					if routing.State == modelRoutingStatusFallback {
+						runs.ModelRouting.FallbackCount++
+					}
+					if routing.State == modelRoutingStatusBlocked {
+						runs.ModelRouting.BlockedCount++
+					}
+					if routing.UsageState == "unavailable" {
+						runs.ModelRouting.UnavailableUsageCount++
 					}
 				}
 				candidate := reportRunEvidence{Path: rel, SpecID: evidence.SpecID, Status: evidence.Status, GeneratedAt: evidence.GeneratedAt, ExecutionMode: evidence.ExecutionMode, MissingEvidence: missing}

@@ -14,23 +14,20 @@ type agentRuntimeProfile struct {
 func runtimeProfileForAgent(role string) agentRuntimeProfile {
 	profile := agentRuntimeProfile{Role: strings.TrimSpace(role)}
 	switch profile.Role {
-	case "namba-planner":
-		profile.Model = "gpt-5.4"
-		profile.ModelReasoningEffort = "high"
-	case "namba-plan-reviewer":
-		profile.Model = "gpt-5.4"
-		profile.ModelReasoningEffort = "high"
+	case "namba-explorer", "namba-simple-implementer":
+		profile.Model = modelRoutingModelLuna
+		profile.ModelReasoningEffort = "low"
 	case "namba-product-manager":
-		profile.Model = "gpt-5.4"
+		profile.Model = modelRoutingModelTerra
 		profile.ModelReasoningEffort = "medium"
-	case "namba-frontend-architect", "namba-mobile-engineer", "namba-designer", "namba-backend-architect":
-		profile.Model = "gpt-5.4"
+	case "namba-planner", "namba-frontend-architect", "namba-designer", "namba-backend-architect":
+		profile.Model = modelRoutingModelSol
 		profile.ModelReasoningEffort = "medium"
-	case "namba-security-engineer", "namba-reviewer":
-		profile.Model = "gpt-5.4"
+	case "namba-high-risk-advisor":
+		profile.Model = modelRoutingModelSol
 		profile.ModelReasoningEffort = "high"
-	case "namba-frontend-implementer", "namba-backend-implementer", "namba-data-engineer", "namba-test-engineer", "namba-devops-engineer", "namba-implementer":
-		profile.Model = "gpt-5.4-mini"
+	case "namba-plan-reviewer", "namba-mobile-engineer", "namba-security-engineer", "namba-reviewer", "namba-frontend-implementer", "namba-backend-implementer", "namba-data-engineer", "namba-test-engineer", "namba-devops-engineer", "namba-implementer":
+		profile.Model = modelRoutingModelTerra
 		profile.ModelReasoningEffort = "medium"
 	}
 	return profile

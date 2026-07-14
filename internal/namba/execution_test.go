@@ -100,55 +100,60 @@ func TestBuildCodexExecArgsSupportsFallbacksAndResumeSurface(t *testing.T) {
 		{
 			name: "exec falls back to config overrides",
 			req: executionRequest{
-				ApprovalPolicy: "on-request",
-				SandboxMode:    "workspace-write",
-				Model:          "gpt-5.4",
-				Profile:        "namba",
-				WebSearch:      true,
-				AddDirs:        []string{"extra"},
-				SessionMode:    "stateful",
-				Prompt:         "ship it",
+				ApprovalPolicy:           "on-request",
+				SandboxMode:              "workspace-write",
+				Model:                    "gpt-5.4",
+				RequestedReasoningEffort: "medium",
+				Profile:                  "namba",
+				WebSearch:                true,
+				AddDirs:                  []string{"extra"},
+				SessionMode:              "stateful",
+				Prompt:                   "ship it",
 			},
 			caps: codexCapabilityMatrix{
 				Exec: codexCommandCapabilities{Config: true, SandboxFlag: true, ModelFlag: true, ProfileFlag: true, AddDirFlag: true},
 			},
-			want: []string{"exec", "-c", `approval_policy="on-request"`, "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "-c", `web_search="live"`, "--add-dir", "extra", "-"},
+			want: []string{"exec", "-c", `approval_policy="on-request"`, "-s", "workspace-write", "-m", "gpt-5.4", "-c", `model_reasoning_effort="medium"`, "-p", "namba", "-c", `web_search="live"`, "--add-dir", "extra", "-"},
 		},
 		{
 			name: "resume allows exec-level flags before resume",
 			req: executionRequest{
-				ApprovalPolicy: "never",
-				SandboxMode:    "workspace-write",
-				Model:          "gpt-5.4",
-				Profile:        "namba",
-				WebSearch:      true,
-				AddDirs:        []string{`C:\extra`},
-				SessionMode:    "stateful",
-				ResumeSession:  true,
-				Prompt:         "continue",
+				ApprovalPolicy:           "never",
+				SandboxMode:              "workspace-write",
+				Model:                    "gpt-5.4",
+				Profile:                  "namba",
+				WebSearch:                true,
+				AddDirs:                  []string{`C:\extra`},
+				SessionMode:              "stateful",
+				ResumeSession:            true,
+				ThreadID:                 "thread-123",
+				RequestedReasoningEffort: "high",
+				Prompt:                   "continue",
 			},
 			caps: codexCapabilityMatrix{
 				Exec:   codexCommandCapabilities{Config: true, SandboxFlag: true, ModelFlag: true, ProfileFlag: true, AddDirFlag: true},
 				Resume: codexCommandCapabilities{Config: true, ModelFlag: true},
 			},
-			want: []string{"exec", "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "--add-dir", `C:\extra`, "resume", "--last", "-c", `approval_policy="never"`, "-c", `web_search="live"`, "-"},
+			want: []string{"exec", "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "--add-dir", `C:\extra`, "resume", "thread-123", "-c", `approval_policy="never"`, "-c", `model_reasoning_effort="high"`, "-c", `web_search="live"`, "-"},
 		},
 		{
 			name: "resume uses resume-specific config fallbacks",
 			req: executionRequest{
-				ApprovalPolicy: "never",
-				SandboxMode:    "workspace-write",
-				Model:          "gpt-5.4",
-				WebSearch:      true,
-				AddDirs:        []string{`C:\extra`},
-				SessionMode:    "stateful",
-				ResumeSession:  true,
-				Prompt:         "continue",
+				ApprovalPolicy:           "never",
+				SandboxMode:              "workspace-write",
+				Model:                    "gpt-5.4",
+				WebSearch:                true,
+				AddDirs:                  []string{`C:\extra`},
+				SessionMode:              "stateful",
+				ResumeSession:            true,
+				ThreadID:                 "thread-456",
+				RequestedReasoningEffort: "medium",
+				Prompt:                   "continue",
 			},
 			caps: codexCapabilityMatrix{
 				Resume: codexCommandCapabilities{Config: true, ModelFlag: true},
 			},
-			want: []string{"exec", "resume", "--last", "-c", `approval_policy="never"`, "-c", `sandbox_mode="workspace-write"`, "-m", "gpt-5.4", "-c", `web_search="live"`, "-c", `sandbox_workspace_write.writable_roots=["C:\\extra"]`, "-"},
+			want: []string{"exec", "resume", "thread-456", "-c", `approval_policy="never"`, "-c", `sandbox_mode="workspace-write"`, "-m", "gpt-5.4", "-c", `model_reasoning_effort="medium"`, "-c", `web_search="live"`, "-c", `sandbox_workspace_write.writable_roots=["C:\\extra"]`, "-"},
 		},
 	}
 
@@ -190,6 +195,7 @@ func TestBuildCodexExecCommandTransportsPromptOverStdin(t *testing.T) {
 				Prompt:         longPrompt,
 				SessionMode:    "stateful",
 				ResumeSession:  true,
+				ThreadID:       "thread-stdin",
 			},
 			caps: codexCapabilityMatrix{
 				Exec:   codexCommandCapabilities{Config: true, SandboxFlag: true},
@@ -399,6 +405,7 @@ func TestProbeCodexCapabilitiesIncludesResumeHelpWhenResumeIsPlanned(t *testing.
 		SandboxMode:    "workspace-write",
 		SessionMode:    "stateful",
 		RepairAttempts: 1,
+		ThreadID:       "thread-probe",
 		Mode:           executionModeDefault,
 	})
 	if err != nil {
@@ -493,9 +500,9 @@ func TestSuggestDelegationPlanRoutesSpecialists(t *testing.T) {
 		}
 	}
 	for role, want := range map[string]agentRuntimeProfile{
-		"namba-mobile-engineer":   {Role: "namba-mobile-engineer", Model: "gpt-5.4", ModelReasoningEffort: "medium"},
-		"namba-security-engineer": {Role: "namba-security-engineer", Model: "gpt-5.4", ModelReasoningEffort: "high"},
-		"namba-reviewer":          {Role: "namba-reviewer", Model: "gpt-5.4", ModelReasoningEffort: "high"},
+		"namba-mobile-engineer":   {Role: "namba-mobile-engineer", Model: modelRoutingModelTerra, ModelReasoningEffort: "medium"},
+		"namba-security-engineer": {Role: "namba-security-engineer", Model: modelRoutingModelTerra, ModelReasoningEffort: "medium"},
+		"namba-reviewer":          {Role: "namba-reviewer", Model: modelRoutingModelTerra, ModelReasoningEffort: "medium"},
 	} {
 		found := false
 		for _, profile := range teamPlan.SelectedRoleProfiles {
@@ -510,7 +517,7 @@ func TestSuggestDelegationPlanRoutesSpecialists(t *testing.T) {
 			t.Fatalf("expected runtime profile for %s, got %+v", role, teamPlan.SelectedRoleProfiles)
 		}
 	}
-	if prompt := strings.Join(formatDelegationPlanPrompt(teamPlan), "\n"); !strings.Contains(prompt, "model_reasoning_effort `high`") || !strings.Contains(prompt, "`namba-mobile-engineer` -> model `gpt-5.4`") {
+	if prompt := strings.Join(formatDelegationPlanPrompt(teamPlan), "\n"); !strings.Contains(prompt, "model_reasoning_effort `medium`") || !strings.Contains(prompt, "`namba-mobile-engineer` -> model `gpt-5.6-terra`") {
 		t.Fatalf("expected team prompt to include role runtime metadata, got %q", prompt)
 	}
 	if teamPlan.DelegationBudget < 2 {
@@ -1798,7 +1805,7 @@ func TestRunAllowsResumeProfileViaExecLevelFlags(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
 
-	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"), "agent_mode: multi\nstatus_line_preset: namba\nrepo_skills_path: .agents/skills\nrepo_agents_path: .codex/agents\nprofile: namba\nsession_mode: stateful\nrepair_attempts: 1\n")
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"), "agent_mode: multi\nstatus_line_preset: namba\nrepo_skills_path: .agents/skills\nrepo_agents_path: .codex/agents\nmodel_routing_policy: gpt-5.6-cost-balanced-v1\nprofile: namba\nsession_mode: stateful\nrepair_attempts: 1\n")
 
 	var sawResumeWithExecProfile bool
 	app.lookPath = func(name string) (string, error) {
@@ -1814,7 +1821,7 @@ func TestRunAllowsResumeProfileViaExecLevelFlags(t *testing.T) {
 			if resumeIndex != -1 && profileIndex != -1 && profileIndex < resumeIndex && profileIndex+1 < len(args) && args[profileIndex+1] == "namba" {
 				sawResumeWithExecProfile = true
 			}
-			return "runner output", nil
+			return `{"thread_id":"thread-team-001"}`, nil
 		}
 		if isShellCommand(name) {
 			return "validation ok", nil
@@ -1826,7 +1833,7 @@ func TestRunAllowsResumeProfileViaExecLevelFlags(t *testing.T) {
 		t.Fatalf("expected team run to succeed, got %v", err)
 	}
 	if !sawResumeWithExecProfile {
-		t.Fatal("expected resume turns to carry profile via exec-level flags before resume")
+		t.Fatal("expected same-model turns to carry profile via explicit-thread resume")
 	}
 }
 
