@@ -1205,6 +1205,59 @@ func TestRunWritesExecutionEvidenceManifestOnPreflightFailure(t *testing.T) {
 	}
 }
 
+func TestPreflightFailureEvidenceUsesFullPlannedRoute(t *testing.T) {
+	tmp := t.TempDir()
+	app := NewApp(nil, nil)
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
+		return testCodexCapabilities(), nil
+	}
+
+	req := app.newExecutionRequest(
+		"SPEC-069",
+		tmp,
+		"simple mechanical rename with deterministic acceptance tests",
+		executionModeDefault,
+		delegationPlan{IntegratorRole: "namba-implementer", DominantDomains: []string{"core"}},
+		systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"},
+		codexConfig{ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1, AddDirs: []string{"missing-dir"}},
+	)
+
+	_, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{}, nil, "")
+	if err == nil || !strings.Contains(err.Error(), "add_dir") {
+		t.Fatalf("expected add_dir preflight failure, got %v", err)
+	}
+
+	var requestArtifact executionRequest
+	requestData, readErr := os.ReadFile(filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-request.json"))
+	if readErr != nil {
+		t.Fatalf("read request artifact: %v", readErr)
+	}
+	if unmarshalErr := json.Unmarshal(requestData, &requestArtifact); unmarshalErr != nil {
+		t.Fatalf("unmarshal request artifact: %v", unmarshalErr)
+	}
+	if requestArtifact.RoutingDecision.Model != "" || requestArtifact.Model != "" {
+		t.Fatalf("request artifact must not claim a route before planning, got %+v", requestArtifact)
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
+	if manifest.ModelRouting == nil || manifest.ModelRouting.RequestedModel != modelRoutingModelLuna || manifest.ModelRouting.RequestedReasoningEffort != "medium" || manifest.ModelRouting.RuleID != "luna-simple-implementation-v1" {
+		t.Fatalf("preflight failure must retain the full-input planned route, got %+v", manifest.ModelRouting)
+	}
+	if len(manifest.ModelRoutingTurns) != 0 {
+		t.Fatalf("preflight failure must not report planned turns as executed, got %+v", manifest.ModelRoutingTurns)
+	}
+	report := collectNambaReport(tmp, time.Now(), reportOptions{})
+	if report.Runs.ModelRouting == nil || report.Runs.ModelRouting.TurnsByModel[modelRoutingModelLuna] != 1 || report.Runs.ModelRouting.TurnsByModel[modelRoutingModelTerra] != 0 {
+		t.Fatalf("report must aggregate the planned preflight route, got %+v", report.Runs.ModelRouting)
+	}
+}
+
 func TestRunWritesExecutionEvidenceManifestOnExecutionFailure(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

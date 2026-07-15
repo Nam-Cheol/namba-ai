@@ -237,7 +237,7 @@ func modelRoutingEvidenceForRequest(req executionRequest) *modelRoutingEvidence 
 	}
 	decision := req.RoutingDecision
 	if decision.Model == "" {
-		decision = modelRoutingDecision(modelRoutingInput{Phase: req.Phase, Role: req.TurnRole, RepairCount: req.RepairAttempts})
+		return nil
 	}
 	strategy := "fresh_session"
 	if req.ResumeSession && strings.TrimSpace(req.ThreadID) != "" {

@@ -321,33 +321,31 @@ func resolveRuntimeAddDirs(base string, dirs []string) ([]string, error) {
 func (a *App) newExecutionRequest(specID, workDir, prompt string, mode executionMode, plan delegationPlan, systemCfg systemConfig, codexCfg codexConfig) executionRequest {
 	runtimeCfg := resolveCodexRuntimeForMode(codexCfg, mode)
 	model := runtimeCfg.Model
-	decision := modelRoutingDecisionResult{}
-	reasoningEffort := ""
+	// An adaptive request is only the execution envelope. The route depends on
+	// the full prompt, delegation domains, phase, role, budgets, and observed
+	// model availability, so it must be assigned by the turn planner rather
+	// than seeded here from an incomplete implementation-only input.
 	if runtimeCfg.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
-		decision = modelRoutingDecision(modelRoutingInput{Phase: routingPhaseImplement, Role: plan.IntegratorRole})
-		model = decision.Model
-		reasoningEffort = decision.ReasoningEffort
+		model = ""
 	}
 	return executionRequest{
-		SpecID:                   specID,
-		WorkDir:                  workDir,
-		Prompt:                   prompt,
-		Mode:                     normalizeExecutionMode(mode),
-		Runner:                   normalizeRunner(systemCfg.Runner),
-		ApprovalPolicy:           normalizeApprovalPolicy(systemCfg.ApprovalPolicy),
-		SandboxMode:              normalizeSandboxMode(systemCfg.SandboxMode),
-		ModelRoutingPolicy:       runtimeCfg.ModelRoutingPolicy,
-		Phase:                    routingPhaseImplement,
-		RoutingDecision:          decision,
-		Model:                    model,
-		Profile:                  runtimeCfg.Profile,
-		WebSearch:                runtimeCfg.WebSearch,
-		AddDirs:                  append([]string(nil), runtimeCfg.AddDirs...),
-		SessionMode:              runtimeCfg.SessionMode,
-		RepairAttempts:           runtimeCfg.RepairAttempts,
-		RequiredEnv:              append([]string(nil), runtimeCfg.RequiredEnv...),
-		RequiresNetwork:          runtimeCfg.RequiresNetwork,
-		DelegationPlan:           plan,
-		RequestedReasoningEffort: reasoningEffort,
+		SpecID:             specID,
+		WorkDir:            workDir,
+		Prompt:             prompt,
+		Mode:               normalizeExecutionMode(mode),
+		Runner:             normalizeRunner(systemCfg.Runner),
+		ApprovalPolicy:     normalizeApprovalPolicy(systemCfg.ApprovalPolicy),
+		SandboxMode:        normalizeSandboxMode(systemCfg.SandboxMode),
+		ModelRoutingPolicy: runtimeCfg.ModelRoutingPolicy,
+		Phase:              routingPhaseImplement,
+		Model:              model,
+		Profile:            runtimeCfg.Profile,
+		WebSearch:          runtimeCfg.WebSearch,
+		AddDirs:            append([]string(nil), runtimeCfg.AddDirs...),
+		SessionMode:        runtimeCfg.SessionMode,
+		RepairAttempts:     runtimeCfg.RepairAttempts,
+		RequiredEnv:        append([]string(nil), runtimeCfg.RequiredEnv...),
+		RequiresNetwork:    runtimeCfg.RequiresNetwork,
+		DelegationPlan:     plan,
 	}
 }

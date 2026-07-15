@@ -118,10 +118,18 @@ type hookLifecycle struct {
 	config            hookConfig
 	configErr         error
 	results           []hookResult
+	modelRoutingPlan  []executionRequest
 	modelRoutingTurns []executionRequest
 	outputCounts      map[string]int
 	failureSent       bool
 	blockingHook      *hookResult
+}
+
+func (l *hookLifecycle) recordModelRoutingPlan(turns []executionRequest) {
+	if l == nil {
+		return
+	}
+	l.modelRoutingPlan = append(l.modelRoutingPlan[:0], turns...)
 }
 
 func (l *hookLifecycle) recordModelRoutingTurns(turns []executionRequest) {
@@ -322,6 +330,9 @@ func (l *hookLifecycle) writeRunEvidence(ctx context.Context, status string, val
 	})
 	routingTurns := modelRoutingEvidenceForRequests(l.modelRoutingTurns)
 	routing := modelRoutingEvidenceForRequest(l.req)
+	if plannedRouting := modelRoutingEvidenceForRequests(l.modelRoutingPlan); len(plannedRouting) > 0 {
+		routing = &plannedRouting[0]
+	}
 	if len(routingTurns) > 0 {
 		routing = &routingTurns[0]
 	}

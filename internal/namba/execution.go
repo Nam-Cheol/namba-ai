@@ -491,6 +491,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	}
 
 	preflight, capabilities, preflightErr := a.runPreflight(ctx, req)
+	plannedReq := req
+	plannedReq.SolAvailable = capabilities.SolAvailable
+	hooks.recordModelRoutingPlan(plannedExecutionTurnRequests(plannedReq))
 	if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-preflight.json"), preflight); err != nil {
 		return result, validationReport{}, err
 	}
