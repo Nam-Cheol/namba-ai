@@ -406,7 +406,7 @@ func TestExecuteRunBlocksRequiredSolWhenCapabilityProbeMarksItUnavailable(t *tes
 		t.Fatalf("routing block must take precedence over generic invocation errors: %v", err)
 	}
 	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
-	if len(manifest.ModelRoutingTurns) == 0 || manifest.ModelRoutingTurns[0].State != modelRoutingStatusBlocked || manifest.ModelRoutingTurns[0].FallbackReason != "model_unavailable" {
+	if len(manifest.ModelRoutingTurns) != 1 || manifest.ModelRoutingTurns[0].State != modelRoutingStatusBlocked || manifest.ModelRoutingTurns[0].FallbackReason != "model_unavailable" || manifest.ModelRoutingTurns[0].RequestedModel != modelRoutingModelSol {
 		t.Fatalf("expected blocked model-unavailable routing evidence, got %+v", manifest.ModelRoutingTurns)
 	}
 }

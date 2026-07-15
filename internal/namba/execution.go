@@ -552,8 +552,10 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 
 	req.SolAvailable = capabilities.SolAvailable
 	turnRequests := buildExecutionTurnRequests(req)
-	hooks.recordModelRoutingTurns(turnRequests)
 	if routingErr := validateModelRoutingTurnPlan(turnRequests); routingErr != nil {
+		if blockedTurn, ok := firstBlockedModelRoutingTurn(turnRequests); ok {
+			hooks.recordModelRoutingTurns([]executionRequest{blockedTurn})
+		}
 		result.FinishedAt = a.now().Format(time.RFC3339)
 		result.Error = routingErr.Error()
 		if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
@@ -1285,13 +1287,20 @@ func updatedSolTurnBudgets(decision modelRoutingDecisionResult, solRemaining, so
 }
 
 func validateModelRoutingTurnPlan(turns []executionRequest) error {
-	for _, turn := range turns {
-		if turn.ModelRoutingPolicy != modelRoutingPolicyCostBalancedV1 || turn.RoutingDecision.Status != modelRoutingStatusBlocked {
-			continue
-		}
-		return fmt.Errorf("model routing blocked for phase %q role %q: %s", turn.RoutingDecision.Phase, firstNonBlank(turn.TurnRole, "integrator"), firstNonBlank(turn.RoutingDecision.FallbackReason, "blocked_model_unavailable"))
+	turn, ok := firstBlockedModelRoutingTurn(turns)
+	if !ok {
+		return nil
 	}
-	return nil
+	return fmt.Errorf("model routing blocked for phase %q role %q: %s", turn.RoutingDecision.Phase, firstNonBlank(turn.TurnRole, "integrator"), firstNonBlank(turn.RoutingDecision.FallbackReason, "blocked_model_unavailable"))
+}
+
+func firstBlockedModelRoutingTurn(turns []executionRequest) (executionRequest, bool) {
+	for _, turn := range turns {
+		if turn.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 && turn.RoutingDecision.Status == modelRoutingStatusBlocked {
+			return turn, true
+		}
+	}
+	return executionRequest{}, false
 }
 
 func modelRoutingInputForRequest(req executionRequest, phase routingPhase, role string, repairCount, solRemaining, solHighRemaining int, budgetActive bool) modelRoutingInput {
