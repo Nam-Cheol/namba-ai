@@ -43,7 +43,9 @@ func (a *App) runPreflight(ctx context.Context, req executionRequest) (preflight
 		} else {
 			capabilities = detected
 			addStep(preflightStep{Name: "codex_cli_capabilities", Passed: true, Detail: firstNonBlank(capabilities.Version, "capabilities detected")})
-			detail, contractErr := validateCodexExecutionContract(req, capabilities)
+			contractReq := req
+			contractReq.SolAvailable = capabilities.SolAvailable
+			detail, contractErr := validateCodexExecutionContract(contractReq, capabilities)
 			if contractErr != nil {
 				addStep(preflightStep{Name: "codex_cli_contract", Error: contractErr.Error()})
 			} else {

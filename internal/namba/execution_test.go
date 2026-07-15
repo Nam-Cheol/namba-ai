@@ -646,6 +646,70 @@ func TestProbeCodexCapabilitiesChecksExactSolAvailability(t *testing.T) {
 	}
 }
 
+func TestProbeCodexCapabilitiesStopsInvocationPlanningForBlockedSol(t *testing.T) {
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+
+	resumeHelpCalls := 0
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if dir != tmp {
+			t.Fatalf("expected capability probe workdir %s, got %s", tmp, dir)
+		}
+		switch {
+		case isCodexVersionCommand(name, args):
+			return "codex-cli test", nil
+		case isCodexHelpCommand(name, args, false):
+			return "-a, --ask-for-approval\n-s, --sandbox\n--json", nil
+		case isCodexHelpCommand(name, args, true):
+			resumeHelpCalls++
+			return "", errors.New("resume surface unavailable")
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+	app.runCodexCmdWithInput = func(context.Context, string, []string, string, string) (string, string, error) {
+		t.Fatal("blocked Sol plan must not run an exact-model probe")
+		return "", "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Cross-system architecture with acceptance tests.",
+		Mode:               executionModeTeam,
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		RepairAttempts:     1,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "frontend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-backend-architect"),
+			},
+		},
+	}
+	caps, err := app.probeCodexCapabilities(context.Background(), tmp, req)
+	if err != nil {
+		t.Fatalf("probeCodexCapabilities failed: %v", err)
+	}
+	if caps.SolAvailable == nil || *caps.SolAvailable || resumeHelpCalls != 0 {
+		t.Fatalf("expected blocked Sol availability without resume probing, calls=%d capabilities=%+v", resumeHelpCalls, caps)
+	}
+	req.SolAvailable = caps.SolAvailable
+	if _, err := validateCodexExecutionContract(req, caps); err != nil {
+		t.Fatalf("blocked routing must take precedence over invocation resolution: %v", err)
+	}
+}
+
 func TestBuildExecutionPromptIncludesModeGuidance(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

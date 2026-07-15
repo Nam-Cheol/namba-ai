@@ -66,7 +66,10 @@ func (a *App) probeCodexCapabilities(ctx context.Context, dir string, req execut
 		available := a.probeSolModelAvailability(ctx, dir, matrix)
 		matrix.SolAvailable = &available
 	}
-	if !plannedInvocationsNeedResume(plannedCodexRequests(req)) {
+	planningReq := req
+	planningReq.SolAvailable = matrix.SolAvailable
+	planned := plannedCodexRequests(planningReq)
+	if plannedRequestsContainRoutingBlock(planned) || !plannedInvocationsNeedResume(planned) {
 		return matrix, nil
 	}
 
@@ -170,6 +173,9 @@ func validateCodexExecutionContract(req executionRequest, capabilities codexCapa
 
 func resolvePlannedCodexInvocations(req executionRequest, capabilities codexCapabilityMatrix) ([]resolvedCodexInvocation, error) {
 	planned := plannedCodexRequests(req)
+	if plannedRequestsContainRoutingBlock(planned) {
+		return nil, nil
+	}
 	invocations := make([]resolvedCodexInvocation, 0, len(planned))
 	for _, plannedReq := range planned {
 		invocation, err := resolveCodexInvocation(plannedReq, capabilities)
@@ -179,6 +185,15 @@ func resolvePlannedCodexInvocations(req executionRequest, capabilities codexCapa
 		invocations = append(invocations, invocation)
 	}
 	return invocations, nil
+}
+
+func plannedRequestsContainRoutingBlock(planned []executionRequest) bool {
+	for _, req := range planned {
+		if req.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 && req.RoutingDecision.Status == modelRoutingStatusBlocked {
+			return true
+		}
+	}
+	return false
 }
 
 func plannedCodexRequests(req executionRequest) []executionRequest {

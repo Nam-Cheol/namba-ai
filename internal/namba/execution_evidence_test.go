@@ -362,7 +362,13 @@ func TestExecuteRunBlocksRequiredSolWhenCapabilityProbeMarksItUnavailable(t *tes
 		return "", errors.New("missing dependency")
 	}
 	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
-		capabilities := testCodexCapabilities()
+		capabilities := codexCapabilityMatrix{
+			Version: "codex-cli without model surface",
+			Exec: codexCommandCapabilities{
+				ApprovalFlag: true,
+				SandboxFlag:  true,
+			},
+		}
 		capabilities.SolAvailable = boolPtr(false)
 		return capabilities, nil
 	}
@@ -395,6 +401,13 @@ func TestExecuteRunBlocksRequiredSolWhenCapabilityProbeMarksItUnavailable(t *tes
 	_, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "none", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
 	if err == nil || !strings.Contains(err.Error(), "model_unavailable") {
 		t.Fatalf("expected required Sol to block before execution, got %v", err)
+	}
+	if strings.Contains(err.Error(), "cannot be represented") {
+		t.Fatalf("routing block must take precedence over generic invocation errors: %v", err)
+	}
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
+	if len(manifest.ModelRoutingTurns) == 0 || manifest.ModelRoutingTurns[0].State != modelRoutingStatusBlocked || manifest.ModelRoutingTurns[0].FallbackReason != "model_unavailable" {
+		t.Fatalf("expected blocked model-unavailable routing evidence, got %+v", manifest.ModelRoutingTurns)
 	}
 }
 
