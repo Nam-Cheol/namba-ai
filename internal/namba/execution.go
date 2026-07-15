@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 )
 
 type executionTurnResult struct {
@@ -1264,7 +1265,21 @@ func modelRoutingInputForRequest(req executionRequest, phase routingPhase, role 
 		}
 		return false
 	}
+	tokens := strings.FieldsFunc(text, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	containsToken := func(words ...string) bool {
+		for _, token := range tokens {
+			for _, word := range words {
+				if token == word {
+					return true
+				}
+			}
+		}
+		return false
+	}
 	publicContract := containsAny("api", "schema", "migration", "auth", "permission", "deploy", "dependency")
+	buildSystemChange := containsAny("build", "github actions", "continuous integration", "workflow", "pipeline", "makefile", "dockerfile") || containsToken("ci")
 	crossSystem := len(req.DelegationPlan.DominantDomains) > 1 || containsAny("cross-system", "cross system", "integration")
 	criticalRisk := containsAny("security", "auth", "permission", "secret", "privacy", "irreversible")
 	irreversible := containsAny("migration", "schema", "deploy", "irreversible")
@@ -1278,8 +1293,8 @@ func modelRoutingInputForRequest(req executionRequest, phase routingPhase, role 
 		SimpleImplementation: simple, SingleSubsystem: len(req.DelegationPlan.DominantDomains) <= 1,
 		ExplicitTransformation: containsAny("rename", "format", "replace", "mechanical"), Reversible: !irreversible,
 		DeterministicAcceptance: containsAny("test", "acceptance", "format", "rename"), PublicContractChange: publicContract,
-		UnresolvedReview: containsAny("open risk", "unresolved", "ambiguous"),
-		SolAvailable:     req.SolAvailable,
+		BuildSystemChange: buildSystemChange, UnresolvedReview: containsAny("open risk", "unresolved", "ambiguous"),
+		SolAvailable: req.SolAvailable,
 	}
 }
 

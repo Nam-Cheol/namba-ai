@@ -258,9 +258,16 @@ func TestBuildExecutionTurnRequestsUsesPredicatesAndKeepsFreshTurnContext(t *tes
 		t.Fatalf("implementation must follow the architecture checkpoint, got %+v", turns)
 	}
 
-	simple := modelRoutingInputForRequest(executionRequest{Prompt: "Simple mechanical rename with format test acceptance."}, routingPhaseImplement, "namba-implementer", 0, 1, 1, true)
+	simple := modelRoutingInputForRequest(executionRequest{Prompt: "Simple explicit mechanical rename with format test acceptance."}, routingPhaseImplement, "namba-implementer", 0, 1, 1, true)
 	if got := modelRoutingDecision(simple); got.Model != modelRoutingModelLuna {
 		t.Fatalf("simple execution decision = %+v, want Luna", got)
+	}
+	buildCI := modelRoutingInputForRequest(executionRequest{Prompt: "Simple mechanical rename in CI workflow with test acceptance."}, routingPhaseImplement, "namba-implementer", 0, 1, 1, true)
+	if !buildCI.BuildSystemChange {
+		t.Fatalf("CI workflow change must set the build-system guard: %+v", buildCI)
+	}
+	if got := modelRoutingDecision(buildCI); got.Model != modelRoutingModelTerra {
+		t.Fatalf("build/CI execution decision = %+v, want Terra", got)
 	}
 }
 

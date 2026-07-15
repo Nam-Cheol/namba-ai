@@ -57,6 +57,7 @@ type modelRoutingInput struct {
 	Reversible              bool
 	DeterministicAcceptance bool
 	PublicContractChange    bool
+	BuildSystemChange       bool
 	UnresolvedReview        bool
 	SolAvailable            *bool // nil means capability has not ruled Sol out.
 }
@@ -125,7 +126,7 @@ func modelRoutingDecision(input modelRoutingInput) modelRoutingDecisionResult {
 }
 
 func isSimpleLunaImplementation(input modelRoutingInput) bool {
-	return input.Phase == routingPhaseImplement && input.SimpleImplementation && input.SingleSubsystem && input.ExplicitTransformation && input.Reversible && input.DeterministicAcceptance && !input.PublicContractChange && !input.UnresolvedReview
+	return input.Phase == routingPhaseImplement && input.SimpleImplementation && input.SingleSubsystem && input.ExplicitTransformation && input.Reversible && input.DeterministicAcceptance && !input.PublicContractChange && !input.BuildSystemChange && !input.UnresolvedReview
 }
 
 func shouldUseSolMedium(input modelRoutingInput) bool {

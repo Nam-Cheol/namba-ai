@@ -23,6 +23,11 @@ func TestModelRoutingDecisionPolicyTable(t *testing.T) {
 			model: modelRoutingModelTerra, effort: "medium", tier: "standard", status: modelRoutingStatusPlanned,
 		},
 		{
+			name:  "build system changes stay on Terra",
+			input: modelRoutingInput{Phase: routingPhaseImplement, Role: "namba-implementer", SimpleImplementation: true, SingleSubsystem: true, ExplicitTransformation: true, Reversible: true, DeterministicAcceptance: true, BuildSystemChange: true},
+			model: modelRoutingModelTerra, effort: "medium", tier: "standard", status: modelRoutingStatusPlanned,
+		},
+		{
 			name:  "cross system architecture uses Sol medium read only",
 			input: modelRoutingInput{Phase: routingPhaseArchitecture, Role: "namba-backend-architect", CrossSystem: true},
 			model: modelRoutingModelSol, effort: "medium", tier: "deep", readOnly: true, status: modelRoutingStatusPlanned,
