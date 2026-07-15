@@ -247,12 +247,15 @@ func TestBuildExecutionTurnRequestsUsesPredicatesAndKeepsFreshTurnContext(t *tes
 	if len(turns) != 2 {
 		t.Fatalf("turns = %+v", turns)
 	}
-	architect := turns[1]
+	architect := turns[0]
 	if architect.Model != modelRoutingModelSol || !architect.RoutingDecision.ReadOnly || architect.ResumeSession {
 		t.Fatalf("architect turn did not use fresh read-only Sol checkpoint: %+v", architect)
 	}
 	if !strings.Contains(architect.Prompt, "## Base execution context") || !strings.Contains(architect.Prompt, req.Prompt) {
 		t.Fatalf("fresh Sol turn lost base context: %q", architect.Prompt)
+	}
+	if turns[1].Phase != routingPhaseImplement {
+		t.Fatalf("implementation must follow the architecture checkpoint, got %+v", turns)
 	}
 
 	simple := modelRoutingInputForRequest(executionRequest{Prompt: "Simple mechanical rename with format test acceptance."}, routingPhaseImplement, "namba-implementer", 0, 1, 1, true)
@@ -277,7 +280,7 @@ func TestBuildExecutionTurnRequestsCapsSolHighAtOne(t *testing.T) {
 		},
 	}
 	turns := buildExecutionTurnRequests(req)
-	if len(turns) != 3 || turns[1].RoutingDecision.ReasoningEffort != "high" || turns[1].RoutingDecision.Status != modelRoutingStatusPlanned {
+	if len(turns) != 3 || turns[0].RoutingDecision.ReasoningEffort != "high" || turns[0].RoutingDecision.Status != modelRoutingStatusPlanned {
 		t.Fatalf("expected the first high-risk checkpoint to use Sol high, got %+v", turns)
 	}
 	if turns[2].Model != modelRoutingModelTerra || turns[2].RoutingDecision.Status != modelRoutingStatusFallback || turns[2].RoutingDecision.FallbackReason != "sol_high_turn_budget_exhausted" {
@@ -285,6 +288,26 @@ func TestBuildExecutionTurnRequestsCapsSolHighAtOne(t *testing.T) {
 	}
 	if err := validateModelRoutingTurnPlan(turns); err != nil {
 		t.Fatalf("Terra fallback must remain executable, got %v", err)
+	}
+}
+
+func TestBuildExecutionTurnRequestsBlocksRequiredSolWhenCapabilityIsUnavailable(t *testing.T) {
+	req := executionRequest{
+		Prompt:             "Cross-system architecture with acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SolAvailable:       boolPtr(false),
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "frontend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-backend-architect"),
+			},
+		},
+	}
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 2 || turns[0].RoutingDecision.Status != modelRoutingStatusBlocked || turns[0].RoutingDecision.FallbackReason != "model_unavailable" {
+		t.Fatalf("expected unavailable required Sol checkpoint to block before implementation, got %+v", turns)
 	}
 }
 

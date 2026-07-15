@@ -60,6 +60,7 @@ type executionRequest struct {
 	RequestedReasoningEffort string                     `json:"requested_reasoning_effort,omitempty"`
 	ResumeSession            bool                       `json:"resume_session,omitempty"`
 	ThreadID                 string                     `json:"thread_id,omitempty"`
+	SolAvailable             *bool                      `json:"-"`
 }
 
 type codexConfig struct {

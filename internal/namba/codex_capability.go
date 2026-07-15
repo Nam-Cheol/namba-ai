@@ -20,9 +20,10 @@ type codexCommandCapabilities struct {
 }
 
 type codexCapabilityMatrix struct {
-	Version string                   `json:"version,omitempty"`
-	Exec    codexCommandCapabilities `json:"exec"`
-	Resume  codexCommandCapabilities `json:"resume"`
+	Version      string                   `json:"version,omitempty"`
+	Exec         codexCommandCapabilities `json:"exec"`
+	Resume       codexCommandCapabilities `json:"resume"`
+	SolAvailable *bool                    `json:"sol_available,omitempty"`
 }
 
 type resolvedCodexInvocation struct {
@@ -57,6 +58,10 @@ func (a *App) probeCodexCapabilities(ctx context.Context, dir string, req execut
 	matrix := codexCapabilityMatrix{
 		Version: strings.TrimSpace(version),
 		Exec:    parseCodexCommandCapabilities(execHelp),
+	}
+	if !matrix.Exec.ModelFlag && !matrix.Exec.Config {
+		unavailable := false
+		matrix.SolAvailable = &unavailable
 	}
 	if !plannedInvocationsNeedResume(plannedCodexRequests(req)) {
 		return matrix, nil

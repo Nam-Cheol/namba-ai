@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -548,6 +549,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		return result, validationReport{}, err
 	}
 
+	req.SolAvailable = capabilities.SolAvailable
 	turnRequests := buildExecutionTurnRequests(req)
 	hooks.recordModelRoutingTurns(turnRequests)
 	if routingErr := validateModelRoutingTurnPlan(turnRequests); routingErr != nil {
@@ -594,6 +596,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	}
 
 	var observedThreadID string
+	latestWritableThreadIDs := make(map[string]string)
 	executedTurnRequests := make([]executionRequest, 0, len(turnRequests))
 	for index, turnReq := range turnRequests {
 		if index > 0 && observedThreadID != "" && turnReq.Model == turnRequests[index-1].Model {
@@ -606,7 +609,8 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		turnResult, err := selectedRunner.Execute(ctx, turnReq, capabilities)
 		result.Turns = append(result.Turns, turnResult)
 		observedThreadID = turnResult.ThreadID
-		if result.SessionID == logID && observedThreadID != "" {
+		if observedThreadID != "" && !turnReq.RoutingDecision.ReadOnly {
+			latestWritableThreadIDs[turnReq.Model] = observedThreadID
 			result.SessionID = observedThreadID
 		}
 		if turnReq.ResumeSession {
@@ -860,7 +864,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			return result, finalReport, err
 		}
 
-		repairReq, nextSolRemaining, nextSolHighRemaining := buildRepairExecutionTurnRequest(req, finalReport, attempt, result.SessionID, logID, solRemaining, solHighRemaining)
+		repairPreview, _, _ := buildRepairExecutionTurnRequest(req, finalReport, attempt, "", logID, solRemaining, solHighRemaining)
+		repairSessionID := latestWritableThreadIDs[repairPreview.Model]
+		repairReq, nextSolRemaining, nextSolHighRemaining := buildRepairExecutionTurnRequest(req, finalReport, attempt, repairSessionID, logID, solRemaining, solHighRemaining)
 		solRemaining, solHighRemaining = nextSolRemaining, nextSolHighRemaining
 		hooks.recordModelRoutingTurn(repairReq)
 
@@ -990,44 +996,82 @@ func buildExecutionTurnRequests(req executionRequest) []executionRequest {
 	base.TurnName = "implement"
 	base.TurnRole = req.DelegationPlan.IntegratorRole
 	base.Phase = routingPhaseImplement
-	base.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(base, base.Phase, base.TurnRole, 0, solRemaining, solHighRemaining, true))
-	solRemaining, solHighRemaining = updatedSolTurnBudgets(base.RoutingDecision, solRemaining, solHighRemaining)
-	if base.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
-		base.Model = base.RoutingDecision.Model
-		base.RequestedReasoningEffort = base.RoutingDecision.ReasoningEffort
-	}
-
-	turns := []executionRequest{base}
 	if normalizeExecutionMode(req.Mode) != executionModeTeam {
-		return turns
+		return []executionRequest{routeExecutionTurn(base, 0, &solRemaining, &solHighRemaining)}
 	}
 
-	for _, profile := range req.DelegationPlan.SelectedRoleProfiles {
+	profiles := append([]agentRuntimeProfile(nil), req.DelegationPlan.SelectedRoleProfiles...)
+	sort.SliceStable(profiles, func(left, right int) bool {
+		return routingPhaseOrder(routingPhaseForRole(profiles[left].Role)) < routingPhaseOrder(routingPhaseForRole(profiles[right].Role))
+	})
+	turns := make([]executionRequest, 0, len(profiles)+1)
+	appendProfile := func(profile agentRuntimeProfile) {
 		turn := req
 		turn.TurnName = roleTurnName(profile.Role)
 		turn.TurnRole = profile.Role
 		turn.Phase = routingPhaseForRole(profile.Role)
-		turn.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(turn, turn.Phase, profile.Role, 0, solRemaining, solHighRemaining, true))
-		solRemaining, solHighRemaining = updatedSolTurnBudgets(turn.RoutingDecision, solRemaining, solHighRemaining)
 		// A continuation is legal only after an explicit UUID is observed from
 		// the immediately preceding same-model turn.
 		turn.ResumeSession = false
 		turn.Model = firstNonBlank(profile.Model, req.Model)
-		if turn.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
-			turn.Model = turn.RoutingDecision.Model
-			turn.RequestedReasoningEffort = turn.RoutingDecision.ReasoningEffort
-			if turn.RoutingDecision.ReadOnly {
-				turn.SandboxMode = "read-only"
-			}
-		}
 		turn.Profile = req.Profile
+		turn = routeExecutionTurn(turn, 0, &solRemaining, &solHighRemaining)
 		if turn.RequestedReasoningEffort == "" {
 			turn.RequestedReasoningEffort = profile.ModelReasoningEffort
 		}
 		turn.Prompt = buildDelegationTurnPrompt(turn, profile, true)
 		turns = append(turns, turn)
 	}
+	for _, profile := range profiles {
+		if routingPhaseOrder(routingPhaseForRole(profile.Role)) < routingPhaseOrder(routingPhaseImplement) {
+			appendProfile(profile)
+		}
+	}
+	turns = append(turns, routeExecutionTurn(base, 0, &solRemaining, &solHighRemaining))
+	for _, profile := range profiles {
+		if routingPhaseOrder(routingPhaseForRole(profile.Role)) >= routingPhaseOrder(routingPhaseImplement) {
+			appendProfile(profile)
+		}
+	}
 	return turns
+}
+
+func routeExecutionTurn(turn executionRequest, repairCount int, solRemaining, solHighRemaining *int) executionRequest {
+	turn.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(turn, turn.Phase, turn.TurnRole, repairCount, *solRemaining, *solHighRemaining, true))
+	*solRemaining, *solHighRemaining = updatedSolTurnBudgets(turn.RoutingDecision, *solRemaining, *solHighRemaining)
+	if turn.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
+		turn.Model = turn.RoutingDecision.Model
+		turn.RequestedReasoningEffort = turn.RoutingDecision.ReasoningEffort
+		if turn.RoutingDecision.ReadOnly {
+			turn.SandboxMode = "read-only"
+		}
+	}
+	return turn
+}
+
+func routingPhaseOrder(phase routingPhase) int {
+	switch phase {
+	case routingPhaseIntake:
+		return 0
+	case routingPhasePlan:
+		return 1
+	case routingPhaseDesign:
+		return 2
+	case routingPhaseArchitecture:
+		return 3
+	case routingPhaseImplement:
+		return 4
+	case routingPhaseTest:
+		return 5
+	case routingPhaseIntegration:
+		return 6
+	case routingPhaseReview:
+		return 7
+	case routingPhaseRepair:
+		return 8
+	default:
+		return 9
+	}
 }
 
 func remainingSolTurnBudgets(req executionRequest, turns []executionRequest) (int, int) {
@@ -1120,6 +1164,7 @@ func modelRoutingInputForRequest(req executionRequest, phase routingPhase, role 
 		ExplicitTransformation: containsAny("rename", "format", "replace", "mechanical"), Reversible: !irreversible,
 		DeterministicAcceptance: containsAny("test", "acceptance", "format", "rename"), PublicContractChange: publicContract,
 		UnresolvedReview: containsAny("open risk", "unresolved", "ambiguous"),
+		SolAvailable:     req.SolAvailable,
 	}
 }
 
