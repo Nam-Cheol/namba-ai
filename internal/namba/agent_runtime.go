@@ -33,6 +33,31 @@ func runtimeProfileForAgent(role string) agentRuntimeProfile {
 	return profile
 }
 
+// legacyStaticRuntimeProfileForAgent preserves the role defaults that existed
+// before adaptive model routing. Legacy projects must not inherit Luna/Terra/Sol
+// IDs merely because the managed adaptive profiles changed.
+func legacyStaticRuntimeProfileForAgent(role string) agentRuntimeProfile {
+	profile := agentRuntimeProfile{Role: strings.TrimSpace(role)}
+	switch profile.Role {
+	case "namba-planner", "namba-plan-reviewer":
+		profile.Model = "gpt-5.4"
+		profile.ModelReasoningEffort = "high"
+	case "namba-product-manager":
+		profile.Model = "gpt-5.4"
+		profile.ModelReasoningEffort = "medium"
+	case "namba-frontend-architect", "namba-mobile-engineer", "namba-designer", "namba-backend-architect":
+		profile.Model = "gpt-5.4"
+		profile.ModelReasoningEffort = "medium"
+	case "namba-security-engineer", "namba-reviewer":
+		profile.Model = "gpt-5.4"
+		profile.ModelReasoningEffort = "high"
+	case "namba-frontend-implementer", "namba-backend-implementer", "namba-data-engineer", "namba-test-engineer", "namba-devops-engineer", "namba-implementer":
+		profile.Model = "gpt-5.4-mini"
+		profile.ModelReasoningEffort = "medium"
+	}
+	return profile
+}
+
 func runtimeProfilesForRoles(roles []string) []agentRuntimeProfile {
 	profiles := make([]agentRuntimeProfile, 0, len(roles))
 	seen := make(map[string]bool, len(roles))

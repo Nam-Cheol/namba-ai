@@ -601,19 +601,24 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	var observedThreadID string
 	latestWritableThreadIDs := make(map[string]string)
 	executedTurnRequests := make([]executionRequest, 0, len(turnRequests))
+	pendingReadOnlyCheckpointOutputs := make([]string, 0)
 	for index, turnReq := range turnRequests {
 		if index > 0 && observedThreadID != "" && turnReq.Model == turnRequests[index-1].Model {
 			turnReq.ResumeSession = true
 			turnReq.ThreadID = observedThreadID
 		}
-		if index > 0 && turnRequests[index-1].RoutingDecision.ReadOnly && !turnReq.RoutingDecision.ReadOnly && len(result.Turns) > 0 {
-			turnReq.Prompt = appendReadOnlyCheckpointHandoff(turnReq.Prompt, result.Turns[len(result.Turns)-1].Output)
+		if !turnReq.RoutingDecision.ReadOnly && len(pendingReadOnlyCheckpointOutputs) > 0 {
+			turnReq.Prompt = appendReadOnlyCheckpointHandoff(turnReq.Prompt, pendingReadOnlyCheckpointOutputs...)
+			pendingReadOnlyCheckpointOutputs = pendingReadOnlyCheckpointOutputs[:0]
 		}
 		turnRequests[index] = turnReq
 		executedTurnRequests = append(executedTurnRequests, turnReq)
 		hooks.recordModelRoutingTurns(executedTurnRequests)
 		turnResult, err := selectedRunner.Execute(ctx, turnReq, capabilities)
 		result.Turns = append(result.Turns, turnResult)
+		if err == nil && turnReq.RoutingDecision.ReadOnly {
+			pendingReadOnlyCheckpointOutputs = append(pendingReadOnlyCheckpointOutputs, turnResult.Output)
+		}
 		observedThreadID = turnResult.ThreadID
 		if observedThreadID != "" && !turnReq.RoutingDecision.ReadOnly {
 			latestWritableThreadIDs[turnReq.Model] = observedThreadID
@@ -962,17 +967,19 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	return result, finalReport, errors.Join(fmt.Errorf("%s", result.Error), publishErr)
 }
 
-func appendReadOnlyCheckpointHandoff(prompt, checkpointOutput string) string {
-	checkpoint := strings.TrimSpace(checkpointOutput)
-	if checkpoint == "" {
-		checkpoint = "external_unobserved"
+func appendReadOnlyCheckpointHandoff(prompt string, checkpointOutputs ...string) string {
+	lines := []string{strings.TrimSpace(prompt), "", "## Read-only checkpoint handoff"}
+	for index, checkpointOutput := range checkpointOutputs {
+		checkpoint := strings.TrimSpace(checkpointOutput)
+		if checkpoint == "" {
+			checkpoint = "external_unobserved"
+		}
+		if len(checkpointOutputs) > 1 {
+			lines = append(lines, fmt.Sprintf("### Checkpoint %d", index+1))
+		}
+		lines = append(lines, checkpoint)
 	}
-	return strings.Join([]string{
-		strings.TrimSpace(prompt),
-		"",
-		"## Read-only checkpoint handoff",
-		checkpoint,
-	}, "\n")
+	return strings.Join(lines, "\n")
 }
 
 func (a *App) writeExecutionArtifacts(projectRoot, logID string, result executionResult) error {
@@ -1048,6 +1055,7 @@ func buildLegacyExecutionTurnRequests(req executionRequest) []executionRequest {
 	}
 
 	for _, profile := range req.DelegationPlan.SelectedRoleProfiles {
+		legacyProfile := legacyStaticRuntimeProfileForAgent(profile.Role)
 		turn := req
 		turn.TurnName = roleTurnName(profile.Role)
 		turn.TurnRole = profile.Role
@@ -1056,11 +1064,11 @@ func buildLegacyExecutionTurnRequests(req executionRequest) []executionRequest {
 		// model, effort, and writable prompt contract.
 		turn.ResumeSession = false
 		turn.ThreadID = ""
-		turn.Model = firstNonBlank(profile.Model, req.Model)
+		turn.Model = firstNonBlank(legacyProfile.Model, req.Model)
 		turn.Profile = req.Profile
-		turn.RequestedReasoningEffort = profile.ModelReasoningEffort
+		turn.RequestedReasoningEffort = firstNonBlank(legacyProfile.ModelReasoningEffort, req.RequestedReasoningEffort)
 		turn.RoutingDecision = modelRoutingDecisionResult{}
-		turn.Prompt = buildDelegationTurnPrompt(turn, profile, true)
+		turn.Prompt = buildDelegationTurnPrompt(turn, legacyProfile, true)
 		turns = append(turns, turn)
 	}
 	return turns

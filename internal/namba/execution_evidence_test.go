@@ -276,6 +276,80 @@ func TestExecuteRunPassesReadOnlyReviewCheckpointToTerraWriter(t *testing.T) {
 	}
 }
 
+func TestExecuteRunPassesAllPendingReadOnlyCheckpointsToWriter(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	threadIDs := []string{
+		"019f5f13-3132-76c3-b9c7-ac521e89355e",
+		"019f5f13-3132-76c3-b9c7-ac521e89355f",
+		"019f5f13-3132-76c3-b9c7-ac521e893560",
+	}
+	checkpointOutputs := []string{
+		"design checkpoint: preserve the interaction contract",
+		"architecture checkpoint: preserve the service boundary",
+	}
+	var codexInputs []string
+	app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, _ string, input string) (string, string, error) {
+		if !isCodexExec(name, args) || len(codexInputs) >= len(threadIDs) {
+			t.Fatalf("unexpected Codex call: %s %v", name, args)
+		}
+		codexInputs = append(codexInputs, input)
+		callIndex := len(codexInputs) - 1
+		output := `{"thread_id":"` + threadIDs[callIndex] + `"}`
+		if callIndex < len(checkpointOutputs) {
+			output += "\n" + `{"type":"item.completed","item":{"text":"` + checkpointOutputs[callIndex] + `"}}`
+		}
+		return output, "", nil
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		if isShellCommand(name) {
+			return "validation ok", nil
+		}
+		t.Fatalf("unexpected command: %s %v", name, args)
+		return "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Cross-system design and architecture with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"frontend", "backend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-designer"),
+				runtimeProfileForAgent("namba-frontend-architect"),
+			},
+		},
+	}
+	result, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
+	if err != nil {
+		t.Fatalf("execute run: %v", err)
+	}
+	if len(codexInputs) != 3 || len(result.Turns) != 3 || result.Turns[2].Name != "implement" {
+		t.Fatalf("expected two read-only checkpoints followed by implementation, inputs=%d turns=%+v", len(codexInputs), result.Turns)
+	}
+	for _, checkpoint := range checkpointOutputs {
+		if !strings.Contains(codexInputs[2], checkpoint) {
+			t.Fatalf("writer lost pending checkpoint %q: %q", checkpoint, codexInputs[2])
+		}
+	}
+}
+
 func TestExecuteRunRepairsFromLatestWritableModelThread(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

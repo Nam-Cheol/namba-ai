@@ -317,7 +317,7 @@ func TestBuildExecutionTurnRequestsPreservesLegacyStaticTeamFlow(t *testing.T) {
 			ReviewerRole:    "namba-reviewer",
 			DominantDomains: []string{"backend", "frontend"},
 			SelectedRoleProfiles: []agentRuntimeProfile{
-				{Role: "namba-reviewer", Model: "gpt-5.4", ModelReasoningEffort: "high"},
+				runtimeProfileForAgent("namba-reviewer"),
 			},
 		},
 	}
@@ -332,7 +332,10 @@ func TestBuildExecutionTurnRequestsPreservesLegacyStaticTeamFlow(t *testing.T) {
 	if turns[1].RoutingDecision.Model != "" || turns[1].RoutingDecision.Status != "" || turns[1].RoutingDecision.ReadOnly || turns[1].SandboxMode != "workspace-write" {
 		t.Fatalf("legacy specialist inherited adaptive routing state: %+v", turns[1])
 	}
-	if strings.Contains(turns[1].Prompt, "Act as the read-only") || !strings.Contains(turns[1].Prompt, "Close acceptance gaps") {
+	if turns[1].Model != "gpt-5.4" || turns[1].RequestedReasoningEffort != "high" {
+		t.Fatalf("legacy reviewer must keep the pre-adaptive static profile, got %+v", turns[1])
+	}
+	if strings.Contains(turns[1].Prompt, "Act as the read-only") || !strings.Contains(turns[1].Prompt, "Close acceptance gaps") || !strings.Contains(turns[1].Prompt, "Requested reasoning effort for this turn: `high`") {
 		t.Fatalf("legacy reviewer prompt changed to an adaptive read-only checkpoint: %q", turns[1].Prompt)
 	}
 }
