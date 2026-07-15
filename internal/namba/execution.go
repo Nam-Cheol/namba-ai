@@ -869,16 +869,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		repairReq, nextSolRemaining, nextSolHighRemaining := buildRepairExecutionTurnRequest(req, finalReport, attempt, repairSessionID, logID, solRemaining, solHighRemaining)
 		solRemaining, solHighRemaining = nextSolRemaining, nextSolHighRemaining
 		hooks.recordModelRoutingTurn(repairReq)
-
-		repairResult, repairErr := selectedRunner.Execute(ctx, repairReq, capabilities)
-		result.Turns = append(result.Turns, repairResult)
-		result.RetryCount++
-		if repairReq.ResumeSession {
-			result.SessionContinuity = "explicit-thread-resume"
-		} else {
-			result.SessionContinuity = "degraded-fresh-exec"
-		}
-		if repairErr != nil {
+		failRepair := func(repairErr error) (executionResult, validationReport, error) {
 			result.Output = joinExecutionOutputs(result.Turns)
 			result.FinishedAt = a.now().Format(time.RFC3339)
 			result.Error = repairErr.Error()
@@ -904,6 +895,37 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 				}
 			}
 			return result, finalReport, errors.Join(repairErr, publishErr)
+		}
+
+		if routingErr := validateModelRoutingTurnPlan([]executionRequest{repairReq}); routingErr != nil {
+			return failRepair(routingErr)
+		}
+
+		repairResult, repairErr := selectedRunner.Execute(ctx, repairReq, capabilities)
+		result.Turns = append(result.Turns, repairResult)
+		if repairErr == nil && repairReq.RoutingDecision.ReadOnly {
+			repairReq, repairErr = buildRepairWriterExecutionTurnRequest(req, finalReport, attempt, latestWritableThreadIDs[modelRoutingModelTerra], logID, repairResult.Output, solRemaining, solHighRemaining)
+			if repairErr == nil {
+				hooks.recordModelRoutingTurn(repairReq)
+				repairErr = validateModelRoutingTurnPlan([]executionRequest{repairReq})
+			}
+			if repairErr == nil {
+				repairResult, repairErr = selectedRunner.Execute(ctx, repairReq, capabilities)
+				result.Turns = append(result.Turns, repairResult)
+			}
+		}
+		result.RetryCount++
+		if repairReq.ResumeSession {
+			result.SessionContinuity = "explicit-thread-resume"
+		} else {
+			result.SessionContinuity = "degraded-fresh-exec"
+		}
+		if repairErr != nil {
+			return failRepair(repairErr)
+		}
+		if repairResult.ThreadID != "" && !repairReq.RoutingDecision.ReadOnly {
+			latestWritableThreadIDs[repairReq.Model] = repairResult.ThreadID
+			result.SessionID = repairResult.ThreadID
 		}
 	}
 
@@ -1099,12 +1121,54 @@ func buildRepairExecutionTurnRequest(req executionRequest, report validationRepo
 		repairReq.Model = repairReq.RoutingDecision.Model
 		repairReq.RequestedReasoningEffort = repairReq.RoutingDecision.ReasoningEffort
 		if repairReq.RoutingDecision.ReadOnly {
+			repairReq.TurnName = fmt.Sprintf("repair-%d-diagnosis", attempt)
 			repairReq.SandboxMode = "read-only"
+			repairReq.Prompt = strings.Join([]string{
+				"Diagnose the validation failure and produce a concrete handoff for the writer. Do not modify files.",
+				"",
+				repairReq.Prompt,
+			}, "\n")
 		}
 	} else {
 		repairReq.RequestedReasoningEffort = "high"
 	}
 	return repairReq, solRemaining, solHighRemaining
+}
+
+func buildRepairWriterExecutionTurnRequest(req executionRequest, report validationReport, attempt int, sessionID, logID, diagnosticOutput string, solRemaining, solHighRemaining int) (executionRequest, error) {
+	writerReq := req
+	writerReq.ResumeSession = codexSessionStateful(req.SessionMode) && sessionID != "" && sessionID != logID
+	writerReq.ThreadID = sessionID
+	writerReq.TurnName = fmt.Sprintf("repair-%d-writer", attempt)
+	writerReq.TurnRole = req.DelegationPlan.IntegratorRole
+	writerReq.Phase = routingPhaseRepair
+	writerReq.Prompt = strings.Join([]string{
+		buildRepairPrompt(req, report, attempt, !writerReq.ResumeSession),
+		"",
+		"## Sol diagnostic checkpoint",
+		strings.TrimSpace(diagnosticOutput),
+		"",
+		"Apply the necessary fixes in the workspace. Do not stop at analysis.",
+	}, "\n")
+	writerReq.Model = modelRoutingModelTerra
+	writerReq.RequestedReasoningEffort = "high"
+	writerReq.SandboxMode = req.SandboxMode
+	writerReq.RoutingDecision = modelRoutingDecisionResult{
+		Phase:                 routingPhaseRepair,
+		Tier:                  "standard",
+		Model:                 modelRoutingModelTerra,
+		ReasoningEffort:       "high",
+		RuleID:                "terra-repair-after-sol-diagnostic-v1",
+		ReasonCodes:           []string{"repair_attempt", "sol_diagnostic_handoff", "terra_writer"},
+		Status:                modelRoutingStatusPlanned,
+		RemainingSolTurns:     solRemaining,
+		RemainingSolHighTurns: solHighRemaining,
+		ReadOnly:              false,
+	}
+	if err := validateModelRoutingTurnPlan([]executionRequest{writerReq}); err != nil {
+		return executionRequest{}, err
+	}
+	return writerReq, nil
 }
 
 func solTurnBudgetForMode(mode executionMode) int {

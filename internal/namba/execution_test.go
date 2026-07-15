@@ -545,6 +545,75 @@ func TestProbeCodexCapabilitiesIncludesResumeHelpWhenResumeIsPlanned(t *testing.
 	}
 }
 
+func TestProbeCodexCapabilitiesChecksExactSolAvailability(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		stdout    string
+		stderr    string
+		runErr    error
+		available bool
+	}{
+		{name: "available", stdout: `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, available: true},
+		{name: "entitlement rejected", stderr: "model gpt-5.6-sol is not available", runErr: errors.New("exit status 1"), available: false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			tmp := t.TempDir()
+			app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+			app.lookPath = func(name string) (string, error) {
+				if name == "codex" {
+					return name, nil
+				}
+				return "", errors.New("missing dependency")
+			}
+			app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+				if dir != tmp {
+					t.Fatalf("expected capability probe workdir %s, got %s", tmp, dir)
+				}
+				switch {
+				case isCodexVersionCommand(name, args):
+					return "codex-cli test", nil
+				case isCodexHelpCommand(name, args, false):
+					return "-c, --config\n-a, --ask-for-approval\n-s, --sandbox\n-m, --model\n--ephemeral\n--json", nil
+				case isCodexHelpCommand(name, args, true):
+					return "-c, --config\n-m, --model\n--json", nil
+				default:
+					t.Fatalf("unexpected command: %s %v", name, args)
+					return "", nil
+				}
+			}
+			probeCalls := 0
+			app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
+				probeCalls++
+				if name != "codex" || dir != tmp || !containsArgPair(args, "-m", modelRoutingModelSol) || indexOfArg(args, "--json") == -1 || indexOfArg(args, "--ephemeral") == -1 {
+					t.Fatalf("unexpected exact-model probe: %s %v dir=%s", name, args, dir)
+				}
+				if !strings.Contains(input, "namba-sol-available") {
+					t.Fatalf("unexpected exact-model probe input: %q", input)
+				}
+				return tt.stdout, tt.stderr, tt.runErr
+			}
+
+			caps, err := app.probeCodexCapabilities(context.Background(), tmp, executionRequest{
+				SpecID:             "SPEC-069",
+				WorkDir:            tmp,
+				Prompt:             "Cross-system security architecture with irreversible risk and acceptance tests.",
+				ApprovalPolicy:     "on-request",
+				SandboxMode:        "workspace-write",
+				ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+				SessionMode:        "stateful",
+				RepairAttempts:     1,
+				Mode:               executionModeDefault,
+			})
+			if err != nil {
+				t.Fatalf("probeCodexCapabilities failed: %v", err)
+			}
+			if probeCalls != 1 || caps.SolAvailable == nil || *caps.SolAvailable != tt.available {
+				t.Fatalf("expected exact Sol availability %t from one probe, got calls=%d capabilities=%+v", tt.available, probeCalls, caps)
+			}
+		})
+	}
+}
+
 func TestBuildExecutionPromptIncludesModeGuidance(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

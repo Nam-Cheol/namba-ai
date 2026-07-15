@@ -298,6 +298,147 @@ func TestExecuteRunBlocksRequiredSolWhenCapabilityProbeMarksItUnavailable(t *tes
 	}
 }
 
+func TestExecuteRunBlocksUnavailableRepairBeforeCodex(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
+		capabilities := testCodexCapabilities()
+		capabilities.SolAvailable = boolPtr(false)
+		return capabilities, nil
+	}
+	codexCalls := 0
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			codexCalls++
+			if codexCalls > 1 {
+				t.Fatalf("blocked repair must not execute Codex: %v", args)
+			}
+			return `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, nil
+		case isShellCommand(name):
+			return "validation failed", errors.New("simulated validation failure")
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Cross-system security architecture with irreversible risk and acceptance tests.",
+		Mode:               executionModeDefault,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		RepairAttempts:     1,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "security"},
+		},
+	}
+	result, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
+	if err == nil || !strings.Contains(err.Error(), "model_unavailable") {
+		t.Fatalf("expected unavailable repair route to block, got %v", err)
+	}
+	if codexCalls != 1 || result.RetryCount != 0 {
+		t.Fatalf("blocked repair must not spend an attempt or call Codex, calls=%d retries=%d", codexCalls, result.RetryCount)
+	}
+}
+
+func TestExecuteRunUsesSolDiagnosticThenTerraWriterWithinOneRepairAttempt(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
+		capabilities := testCodexCapabilities()
+		capabilities.SolAvailable = boolPtr(true)
+		return capabilities, nil
+	}
+	threadIDs := []string{
+		"019f5f13-3132-76c3-b9c7-ac521e89355e",
+		"019f5f13-3132-76c3-b9c7-ac521e89355f",
+		"019f5f13-3132-76c3-b9c7-ac521e893560",
+	}
+	var codexArgs [][]string
+	validationCalls := 0
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			if len(codexArgs) >= len(threadIDs) {
+				t.Fatalf("unexpected Codex call: %v", args)
+			}
+			codexArgs = append(codexArgs, append([]string(nil), args...))
+			return `{"thread_id":"` + threadIDs[len(codexArgs)-1] + `"}`, nil
+		case isShellCommand(name):
+			validationCalls++
+			if validationCalls == 1 {
+				return "validation failed", errors.New("simulated validation failure")
+			}
+			return "validation ok", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Cross-system security architecture with irreversible risk and acceptance tests.",
+		Mode:               executionModeDefault,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		RepairAttempts:     1,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "security"},
+		},
+	}
+	result, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
+	if err != nil {
+		t.Fatalf("execute run: %v", err)
+	}
+	if len(codexArgs) != 3 || result.RetryCount != 1 || len(result.Turns) != 3 {
+		t.Fatalf("expected implement, diagnostic, and writer in one repair attempt, calls=%d retries=%d turns=%+v", len(codexArgs), result.RetryCount, result.Turns)
+	}
+	if result.Turns[0].Model != modelRoutingModelTerra || result.Turns[1].Model != modelRoutingModelSol || result.Turns[2].Model != modelRoutingModelTerra {
+		t.Fatalf("unexpected repair model sequence: %+v", result.Turns)
+	}
+	if result.Turns[1].Name != "repair-1-diagnosis" || result.Turns[2].Name != "repair-1-writer" {
+		t.Fatalf("unexpected repair turn names: %+v", result.Turns)
+	}
+	resumeIndex := indexOfArg(codexArgs[2], "resume")
+	if resumeIndex == -1 || resumeIndex+1 >= len(codexArgs[2]) || codexArgs[2][resumeIndex+1] != threadIDs[0] {
+		t.Fatalf("Terra writer must resume the latest writable Terra thread %q, got %v", threadIDs[0], codexArgs[2])
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
+	if len(manifest.ModelRoutingTurns) != 3 || manifest.ModelRoutingTurns[2].RuleID != "terra-repair-after-sol-diagnostic-v1" {
+		t.Fatalf("expected diagnostic and writer routing evidence, got %+v", manifest.ModelRoutingTurns)
+	}
+}
+
 func TestCodexDiagnosticsEvidenceCoversVersionDoctorRedactionAndMismatch(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

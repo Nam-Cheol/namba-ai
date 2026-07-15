@@ -62,6 +62,9 @@ func (a *App) probeCodexCapabilities(ctx context.Context, dir string, req execut
 	if !matrix.Exec.ModelFlag && !matrix.Exec.Config {
 		unavailable := false
 		matrix.SolAvailable = &unavailable
+	} else if plannedRequestsNeedSol(plannedCodexRequests(req)) {
+		available := a.probeSolModelAvailability(ctx, dir, matrix)
+		matrix.SolAvailable = &available
 	}
 	if !plannedInvocationsNeedResume(plannedCodexRequests(req)) {
 		return matrix, nil
@@ -73,6 +76,43 @@ func (a *App) probeCodexCapabilities(ctx context.Context, dir string, req execut
 	}
 	matrix.Resume = parseCodexCommandCapabilities(resumeHelp)
 	return matrix, nil
+}
+
+func plannedRequestsNeedSol(planned []executionRequest) bool {
+	for _, req := range planned {
+		if req.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 && req.RoutingDecision.Model == modelRoutingModelSol && req.RoutingDecision.Status == modelRoutingStatusPlanned {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *App) probeSolModelAvailability(ctx context.Context, dir string, capabilities codexCapabilityMatrix) bool {
+	if !capabilities.Exec.JSONFlag || a.runCodexCmdWithInput == nil {
+		return false
+	}
+
+	sessionMode := "stateful"
+	if capabilities.Exec.EphemeralFlag {
+		sessionMode = "ephemeral"
+	}
+	command, err := buildCodexExecCommand(executionRequest{
+		WorkDir:        dir,
+		Prompt:         "Return exactly `namba-sol-available`. Do not inspect or modify files.",
+		ApprovalPolicy: "never",
+		SandboxMode:    "read-only",
+		Model:          modelRoutingModelSol,
+		SessionMode:    sessionMode,
+	}, capabilities)
+	if err != nil {
+		return false
+	}
+
+	stdout, stderr, err := a.runCodexCmdWithInput(ctx, "codex", command.Args, dir, command.Input)
+	if err != nil {
+		return false
+	}
+	return firstCodexThreadID(strings.Join(nonEmptyArgs([]string{stdout, stderr}), "\n")) != ""
 }
 
 func parseCodexCommandCapabilities(help string) codexCommandCapabilities {
@@ -153,12 +193,14 @@ func plannedCodexRequests(req executionRequest) []executionRequest {
 			planned[index].ThreadID = resumeThreadID
 		}
 	}
-	if req.RepairAttempts > 0 && codexSessionStateful(req.SessionMode) {
+	if req.RepairAttempts > 0 {
 		solRemaining, solHighRemaining := remainingSolTurnBudgets(req, planned)
-		repairReq, _, _ := buildRepairExecutionTurnRequest(req, validationReport{}, 1, resumeThreadID, "", solRemaining, solHighRemaining)
+		repairSessionID := ""
+		if codexSessionStateful(req.SessionMode) {
+			repairSessionID = resumeThreadID
+		}
+		repairReq, _, _ := buildRepairExecutionTurnRequest(req, validationReport{}, 1, repairSessionID, "", solRemaining, solHighRemaining)
 		repairReq.TurnName = "repair-preview"
-		repairReq.ResumeSession = true
-		repairReq.ThreadID = resumeThreadID
 		planned = append(planned, repairReq)
 	}
 	return planned
