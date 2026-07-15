@@ -712,6 +712,9 @@ func TestProbeCodexCapabilitiesIncludesResumeHelpWhenResumeIsPlanned(t *testing.
 	if !caps.Resume.Config || !caps.Resume.ModelFlag {
 		t.Fatalf("expected populated resume capabilities, got %+v", caps.Resume)
 	}
+	if len(caps.Probes) != 3 || caps.Probes[0].Name != lifecycleProbeCodexVersion || caps.Probes[1].Name != lifecycleProbeCodexExecHelp || caps.Probes[2].Name != lifecycleProbeCodexResumeExecHelp || caps.Probes[2].Status != lifecycleProbeStatusSucceeded {
+		t.Fatalf("expected version, exec-help, and resume-help bounded outcomes, got %+v", caps.Probes)
+	}
 }
 
 func TestProbeCodexCapabilitiesChecksExactSolAvailability(t *testing.T) {
@@ -721,9 +724,10 @@ func TestProbeCodexCapabilitiesChecksExactSolAvailability(t *testing.T) {
 		stderr    string
 		runErr    error
 		available bool
+		status    string
 	}{
-		{name: "available", stdout: `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, available: true},
-		{name: "entitlement rejected", stderr: "model gpt-5.6-sol is not available", runErr: errors.New("exit status 1"), available: false},
+		{name: "available", stdout: `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, available: true, status: lifecycleProbeStatusAvailable},
+		{name: "entitlement rejected", stderr: "model gpt-5.6-sol is not available", runErr: errors.New("exit status 1"), available: false, status: lifecycleProbeStatusError},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			tmp := t.TempDir()
@@ -778,6 +782,9 @@ func TestProbeCodexCapabilitiesChecksExactSolAvailability(t *testing.T) {
 			}
 			if probeCalls != 1 || caps.SolAvailable == nil || *caps.SolAvailable != tt.available {
 				t.Fatalf("expected exact Sol availability %t from one probe, got calls=%d capabilities=%+v", tt.available, probeCalls, caps)
+			}
+			if len(caps.Probes) < 3 || caps.Probes[0].Name != lifecycleProbeCodexVersion || caps.Probes[1].Name != lifecycleProbeCodexExecHelp || caps.Probes[2].Name != lifecycleProbeSolAvailability || caps.Probes[2].Status != tt.status {
+				t.Fatalf("expected ordered bounded capability outcomes ending in %q, got %+v", tt.status, caps.Probes)
 			}
 		})
 	}

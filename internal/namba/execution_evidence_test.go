@@ -99,8 +99,9 @@ func TestRunEvidenceRecordsActualRoutedTurnsForReportAggregation(t *testing.T) {
 			},
 		},
 	}
-	lifecycle := newHookLifecycle(app, tmp, "spec-069", req, "")
-	lifecycle.recordModelRoutingTurns(buildExecutionTurnRequests(req))
+	state := newExecutionLifecycleState(req)
+	lifecycle := newHookLifecycleWithState(app, tmp, "spec-069", state, "")
+	state.replaceReachedRoutingTurns(buildExecutionTurnRequests(req))
 	if err := lifecycle.writeRunEvidence(context.Background(), "completed", 0, false, ""); err != nil {
 		t.Fatalf("write evidence: %v", err)
 	}

@@ -38,10 +38,11 @@ func (a *App) runPreflight(ctx context.Context, req executionRequest) (preflight
 	} else {
 		addStep(preflightStep{Name: "codex", Passed: true, Detail: "codex available"})
 		detected, err := a.codexCapabilities(ctx, workDir, req)
+		capabilities = detected
+		report.Probes = append(report.Probes, detected.Probes...)
 		if err != nil {
 			addStep(preflightStep{Name: "codex_cli_capabilities", Error: err.Error()})
 		} else {
-			capabilities = detected
 			addStep(preflightStep{Name: "codex_cli_capabilities", Passed: true, Detail: firstNonBlank(capabilities.Version, "capabilities detected")})
 			contractReq := req
 			contractReq.SolAvailable = capabilities.SolAvailable

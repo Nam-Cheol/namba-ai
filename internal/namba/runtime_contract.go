@@ -82,11 +82,12 @@ type workflowConfig struct {
 }
 
 type preflightReport struct {
-	SpecID     string          `json:"spec_id"`
-	Passed     bool            `json:"passed"`
-	StartedAt  string          `json:"started_at"`
-	FinishedAt string          `json:"finished_at"`
-	Steps      []preflightStep `json:"steps"`
+	SpecID     string                  `json:"spec_id"`
+	Passed     bool                    `json:"passed"`
+	StartedAt  string                  `json:"started_at"`
+	FinishedAt string                  `json:"finished_at"`
+	Steps      []preflightStep         `json:"steps"`
+	Probes     []lifecycleProbeOutcome `json:"probes,omitempty"`
 }
 
 type preflightStep struct {

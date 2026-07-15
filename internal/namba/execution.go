@@ -464,7 +464,8 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	if progress != nil {
 		progressPath = progress.Path()
 	}
-	hooks := newHookLifecycle(a, projectRoot, logID, req, progressPath)
+	lifecycleState := newExecutionLifecycleState(req)
+	hooks := newHookLifecycleWithState(a, projectRoot, logID, lifecycleState, progressPath)
 	writeRunEvidence := func(status string, validationAttempts int, failureSummary string) error {
 		return hooks.writeRunEvidence(ctx, status, validationAttempts, false, failureSummary)
 	}
@@ -491,9 +492,8 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	}
 
 	preflight, capabilities, preflightErr := a.runPreflight(ctx, req)
-	plannedReq := req
-	plannedReq.SolAvailable = capabilities.SolAvailable
-	hooks.recordModelRoutingPlan(plannedExecutionTurnRequests(plannedReq))
+	lifecycleState.recordPreflight(capabilities)
+	req = lifecycleState.requestSnapshot()
 	if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-preflight.json"), preflight); err != nil {
 		return result, validationReport{}, err
 	}
@@ -557,7 +557,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	turnRequests := buildExecutionTurnRequests(req)
 	if routingErr := validateModelRoutingTurnPlan(turnRequests); routingErr != nil {
 		if blockedTurn, ok := firstBlockedModelRoutingTurn(turnRequests); ok {
-			hooks.recordModelRoutingTurns([]executionRequest{blockedTurn})
+			lifecycleState.replaceReachedRoutingTurns([]executionRequest{blockedTurn})
 		}
 		result.FinishedAt = a.now().Format(time.RFC3339)
 		result.Error = routingErr.Error()
@@ -602,7 +602,6 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	}
 
 	var observedThreadID string
-	latestWritableThreadIDs := make(map[string]string)
 	executedTurnRequests := make([]executionRequest, 0, len(turnRequests))
 	pendingReadOnlyCheckpointOutputs := make([]string, 0)
 	for index, turnReq := range turnRequests {
@@ -619,14 +618,14 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		}
 		turnRequests[index] = turnReq
 		executedTurnRequests = append(executedTurnRequests, turnReq)
-		hooks.recordModelRoutingTurns(executedTurnRequests)
+		lifecycleState.replaceReachedRoutingTurns(executedTurnRequests)
 		turnResult, err := selectedRunner.Execute(ctx, turnReq, capabilities)
 		result.Turns = append(result.Turns, turnResult)
 		if err == nil && turnReq.RoutingDecision.ReadOnly {
 			pendingReadOnlyCheckpointOutputs = append(pendingReadOnlyCheckpointOutputs, turnResult.Output)
 		}
 		observedThreadID = turnResult.ThreadID
-		if updateLatestWritableThreadID(latestWritableThreadIDs, turnReq, observedThreadID) {
+		if lifecycleState.observeWritableThread(turnReq, observedThreadID) {
 			result.SessionID = observedThreadID
 		}
 		if turnReq.ResumeSession {
@@ -881,10 +880,10 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		}
 
 		repairPreview, _, _ := buildRepairExecutionTurnRequest(req, finalReport, attempt, "", logID, solRemaining, solHighRemaining)
-		repairSessionID := latestWritableThreadIDs[repairPreview.Model]
+		repairSessionID := lifecycleState.latestWritableThreadID(repairPreview.Model)
 		repairReq, nextSolRemaining, nextSolHighRemaining := buildRepairExecutionTurnRequest(req, finalReport, attempt, repairSessionID, logID, solRemaining, solHighRemaining)
 		solRemaining, solHighRemaining = nextSolRemaining, nextSolHighRemaining
-		hooks.recordModelRoutingTurn(repairReq)
+		lifecycleState.appendReachedRoutingTurn(repairReq)
 		failRepair := func(repairErr error) (executionResult, validationReport, error) {
 			result.Output = joinExecutionOutputs(result.Turns)
 			result.FinishedAt = a.now().Format(time.RFC3339)
@@ -920,9 +919,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		repairResult, repairErr := selectedRunner.Execute(ctx, repairReq, capabilities)
 		result.Turns = append(result.Turns, repairResult)
 		if repairErr == nil && repairReq.RoutingDecision.ReadOnly {
-			repairReq, repairErr = buildRepairWriterExecutionTurnRequest(req, finalReport, attempt, latestWritableThreadIDs[modelRoutingModelTerra], logID, repairResult.Output, solRemaining, solHighRemaining)
+			repairReq, repairErr = buildRepairWriterExecutionTurnRequest(req, finalReport, attempt, lifecycleState.latestWritableThreadID(modelRoutingModelTerra), logID, repairResult.Output, solRemaining, solHighRemaining)
 			if repairErr == nil {
-				hooks.recordModelRoutingTurn(repairReq)
+				lifecycleState.appendReachedRoutingTurn(repairReq)
 				repairErr = validateModelRoutingTurnPlan([]executionRequest{repairReq})
 			}
 			if repairErr == nil {
@@ -939,7 +938,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		if repairErr != nil {
 			return failRepair(repairErr)
 		}
-		if updateLatestWritableThreadID(latestWritableThreadIDs, repairReq, repairResult.ThreadID) {
+		if lifecycleState.observeWritableThread(repairReq, repairResult.ThreadID) {
 			result.SessionID = repairResult.ThreadID
 		}
 	}
@@ -1027,27 +1026,6 @@ func (a *App) runValidationReport(ctx context.Context, root string, cfg qualityC
 
 	report.FinishedAt = a.now().Format(time.RFC3339)
 	return report, nil
-}
-
-// updateLatestWritableThreadID makes resume authority match the immediately
-// preceding writable turn for a model. Missing or malformed structured output
-// revokes any older cached UUID instead of allowing a later repair to resume a
-// stale conversation.
-func updateLatestWritableThreadID(latest map[string]string, req executionRequest, threadID string) bool {
-	if req.RoutingDecision.ReadOnly {
-		return false
-	}
-	model := strings.TrimSpace(req.Model)
-	if model == "" {
-		return false
-	}
-	threadID = strings.TrimSpace(threadID)
-	if threadID == "" {
-		delete(latest, model)
-		return false
-	}
-	latest[model] = threadID
-	return true
 }
 
 func validationPipelineSteps(cfg qualityConfig) []validationStep {

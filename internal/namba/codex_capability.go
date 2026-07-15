@@ -24,6 +24,7 @@ type codexCapabilityMatrix struct {
 	Exec         codexCommandCapabilities `json:"exec"`
 	Resume       codexCommandCapabilities `json:"resume"`
 	SolAvailable *bool                    `json:"sol_available,omitempty"`
+	Probes       []lifecycleProbeOutcome  `json:"probes,omitempty"`
 }
 
 type resolvedCodexInvocation struct {
@@ -47,24 +48,41 @@ func (a *App) probeCodexCapabilities(ctx context.Context, dir string, req execut
 		return codexCapabilityMatrix{}, err
 	}
 
-	version, err := a.runBinary(ctx, "codex", []string{"--version"}, dir)
+	matrix := codexCapabilityMatrix{}
+	var version string
+	versionProbe, err := runBoundedLifecycleProbe(ctx, lifecycleProbeCodexVersion, a.capabilityProbeTimeout, func(probeCtx context.Context) error {
+		var probeErr error
+		version, probeErr = a.runBinary(probeCtx, "codex", []string{"--version"}, dir)
+		return probeErr
+	})
+	matrix.Probes = append(matrix.Probes, versionProbe)
 	if err != nil {
-		return codexCapabilityMatrix{}, fmt.Errorf("codex --version: %w", err)
+		return matrix, fmt.Errorf("codex --version: %w", err)
 	}
-	execHelp, err := a.runBinary(ctx, "codex", []string{"exec", "--help"}, dir)
+	matrix.Version = strings.TrimSpace(version)
+
+	var execHelp string
+	execHelpProbe, err := runBoundedLifecycleProbe(ctx, lifecycleProbeCodexExecHelp, a.capabilityProbeTimeout, func(probeCtx context.Context) error {
+		var probeErr error
+		execHelp, probeErr = a.runBinary(probeCtx, "codex", []string{"exec", "--help"}, dir)
+		return probeErr
+	})
+	matrix.Probes = append(matrix.Probes, execHelpProbe)
 	if err != nil {
-		return codexCapabilityMatrix{}, fmt.Errorf("codex exec --help: %w", err)
+		return matrix, fmt.Errorf("codex exec --help: %w", err)
 	}
-	matrix := codexCapabilityMatrix{
-		Version: strings.TrimSpace(version),
-		Exec:    parseCodexCommandCapabilities(execHelp),
-	}
+	matrix.Exec = parseCodexCommandCapabilities(execHelp)
+	needsSol := plannedRequestsNeedSol(plannedCodexRequests(req))
 	if !matrix.Exec.ModelFlag && !matrix.Exec.Config {
 		unavailable := false
 		matrix.SolAvailable = &unavailable
-	} else if plannedRequestsNeedSol(plannedCodexRequests(req)) {
-		available := a.probeSolModelAvailability(ctx, dir, matrix)
+		if needsSol {
+			matrix.Probes = append(matrix.Probes, lifecycleProbeOutcome{Name: lifecycleProbeSolAvailability, Status: lifecycleProbeStatusUnsupported})
+		}
+	} else if needsSol {
+		available, probe := a.probeSolModelAvailability(ctx, dir, matrix)
 		matrix.SolAvailable = &available
+		matrix.Probes = append(matrix.Probes, probe)
 	}
 	planningReq := req
 	planningReq.SolAvailable = matrix.SolAvailable
@@ -73,9 +91,15 @@ func (a *App) probeCodexCapabilities(ctx context.Context, dir string, req execut
 		return matrix, nil
 	}
 
-	resumeHelp, err := a.runBinary(ctx, "codex", []string{"exec", "resume", "--help"}, dir)
+	var resumeHelp string
+	resumeHelpProbe, err := runBoundedLifecycleProbe(ctx, lifecycleProbeCodexResumeExecHelp, a.capabilityProbeTimeout, func(probeCtx context.Context) error {
+		var probeErr error
+		resumeHelp, probeErr = a.runBinary(probeCtx, "codex", []string{"exec", "resume", "--help"}, dir)
+		return probeErr
+	})
+	matrix.Probes = append(matrix.Probes, resumeHelpProbe)
 	if err != nil {
-		return codexCapabilityMatrix{}, fmt.Errorf("codex exec resume --help: %w", err)
+		return matrix, fmt.Errorf("codex exec resume --help: %w", err)
 	}
 	matrix.Resume = parseCodexCommandCapabilities(resumeHelp)
 	return matrix, nil
@@ -90,9 +114,9 @@ func plannedRequestsNeedSol(planned []executionRequest) bool {
 	return false
 }
 
-func (a *App) probeSolModelAvailability(ctx context.Context, dir string, capabilities codexCapabilityMatrix) bool {
+func (a *App) probeSolModelAvailability(ctx context.Context, dir string, capabilities codexCapabilityMatrix) (bool, lifecycleProbeOutcome) {
 	if !capabilities.Exec.JSONFlag || a.runCodexCmdWithInput == nil {
-		return false
+		return false, lifecycleProbeOutcome{Name: lifecycleProbeSolAvailability, Status: lifecycleProbeStatusUnsupported}
 	}
 
 	sessionMode := "stateful"
@@ -108,14 +132,25 @@ func (a *App) probeSolModelAvailability(ctx context.Context, dir string, capabil
 		SessionMode:    sessionMode,
 	}, capabilities)
 	if err != nil {
-		return false
+		return false, lifecycleProbeOutcome{Name: lifecycleProbeSolAvailability, Status: lifecycleProbeStatusError}
 	}
 
-	stdout, stderr, err := a.runCodexCmdWithInput(ctx, "codex", command.Args, dir, command.Input)
-	if err != nil {
-		return false
+	var stdout, stderr string
+	probe, probeErr := runBoundedLifecycleProbe(ctx, lifecycleProbeSolAvailability, a.capabilityProbeTimeout, func(probeCtx context.Context) error {
+		var runErr error
+		stdout, stderr, runErr = a.runCodexCmdWithInput(probeCtx, "codex", command.Args, dir, command.Input)
+		return runErr
+	})
+	if probeErr != nil {
+		return false, probe
 	}
-	return firstCodexThreadID(strings.Join(nonEmptyArgs([]string{stdout, stderr}), "\n")) != ""
+	available := firstCodexThreadID(strings.Join(nonEmptyArgs([]string{stdout, stderr}), "\n")) != ""
+	if available {
+		probe.Status = lifecycleProbeStatusAvailable
+	} else {
+		probe.Status = lifecycleProbeStatusUnavailable
+	}
+	return available, probe
 }
 
 func parseCodexCommandCapabilities(help string) codexCommandCapabilities {

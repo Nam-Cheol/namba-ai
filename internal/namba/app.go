@@ -43,6 +43,7 @@ type App struct {
 	runCmd                  func(context.Context, string, []string, string) (string, error)
 	runCmdWithInput         func(context.Context, string, []string, string, string) (string, string, error)
 	runCodexCmdWithInput    func(context.Context, string, []string, string, string) (string, string, error)
+	capabilityProbeTimeout  time.Duration
 	startCmd                func(string, []string, string) error
 	downloadURL             func(context.Context, string) ([]byte, error)
 	executablePath          func() (string, error)
@@ -108,17 +109,18 @@ type specPackage struct {
 
 func NewApp(stdout, stderr io.Writer) *App {
 	return &App{
-		stdin:        os.Stdin,
-		stdout:       stdout,
-		stderr:       stderr,
-		now:          time.Now,
-		getenv:       os.Getenv,
-		getwd:        os.Getwd,
-		readFile:     os.ReadFile,
-		writeFile:    os.WriteFile,
-		mkdirAll:     os.MkdirAll,
-		lookPath:     exec.LookPath,
-		userCacheDir: os.UserCacheDir,
+		stdin:                  os.Stdin,
+		stdout:                 stdout,
+		stderr:                 stderr,
+		now:                    time.Now,
+		getenv:                 os.Getenv,
+		getwd:                  os.Getwd,
+		readFile:               os.ReadFile,
+		writeFile:              os.WriteFile,
+		mkdirAll:               os.MkdirAll,
+		lookPath:               exec.LookPath,
+		capabilityProbeTimeout: defaultCodexCapabilityProbeTimeout,
+		userCacheDir:           os.UserCacheDir,
 		newParallelProgressSink: func(cfg parallelProgressSinkConfig) (parallelProgressSink, error) {
 			return newJSONLParallelProgressSink(cfg)
 		},
