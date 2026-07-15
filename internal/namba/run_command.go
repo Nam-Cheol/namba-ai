@@ -214,10 +214,14 @@ func (a *App) dispatchRunExecution(ctx context.Context, options runExecuteOption
 	if options.dryRun {
 		request := a.newExecutionRequest(runCtx.SpecPkg.ID, runCtx.Root, runCtx.Prompt, options.mode, runCtx.Delegation, runCtx.SystemCfg, runCtx.CodexCfg)
 		fmt.Fprintf(a.stdout, "Model routing plan for %s (planned)\n", runCtx.SpecPkg.ID)
-		for _, turn := range buildExecutionTurnRequests(request) {
+		for _, turn := range plannedExecutionTurnRequests(request) {
 			decision := turn.RoutingDecision
-			fmt.Fprintf(a.stdout, "- phase=%s role=%s tier=%s model=%s effort=%s rule=%s reasons=%s session=fresh_session sol_remaining=%d state=%s\n",
-				decision.Phase, firstNonBlank(turn.TurnRole, "integrator"), decision.Tier, turn.Model, turn.RequestedReasoningEffort, decision.RuleID, strings.Join(decision.ReasonCodes, ","), decision.RemainingSolTurns, decision.Status)
+			sessionStrategy := "fresh_session"
+			if turn.ResumeSession {
+				sessionStrategy = "explicit_thread_resume"
+			}
+			fmt.Fprintf(a.stdout, "- phase=%s role=%s tier=%s model=%s effort=%s rule=%s reasons=%s session=%s sol_remaining=%d state=%s\n",
+				decision.Phase, firstNonBlank(turn.TurnRole, "integrator"), decision.Tier, turn.Model, turn.RequestedReasoningEffort, decision.RuleID, strings.Join(decision.ReasonCodes, ","), sessionStrategy, decision.RemainingSolTurns, decision.Status)
 		}
 		fmt.Fprintf(a.stdout, "Prepared execution request at %s\n", runCtx.PromptPath)
 		return nil

@@ -1447,6 +1447,36 @@ func TestDispatchRunExecutionDryRunSkipsRunnerAndPrintsPromptPath(t *testing.T) 
 	}
 }
 
+func TestDispatchRunExecutionDryRunReportsPlannedAdjacentResume(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+	runCtx := runExecutionContext{
+		Root:       t.TempDir(),
+		SpecPkg:    specPackage{ID: "SPEC-069"},
+		SystemCfg:  systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"},
+		CodexCfg:   codexConfig{ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1, SessionMode: "stateful"},
+		Prompt:     "Implement a reversible local change with deterministic acceptance tests.",
+		PromptPath: filepath.Join(t.TempDir(), "spec-069-request.md"),
+		Delegation: delegationPlan{
+			IntegratorRole: "namba-implementer",
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-test-engineer"),
+			},
+		},
+	}
+
+	if err := app.dispatchRunExecution(context.Background(), runExecuteOptions{specID: "SPEC-069", mode: executionModeTeam, dryRun: true}, runCtx); err != nil {
+		t.Fatalf("dispatch dry-run: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "phase=implement") || !strings.Contains(output, "phase=test") {
+		t.Fatalf("expected implement and test turns in dry-run plan, got %q", output)
+	}
+	if !strings.Contains(output, "phase=test role=namba-test-engineer tier=standard model=gpt-5.6-terra effort=medium rule=standard-default-v1 reasons= session=explicit_thread_resume") {
+		t.Fatalf("legal same-model implement to test edge must report its planned resume, got %q", output)
+	}
+}
+
 func TestRunBlocksFrontendMajorWhenFrontendSynthesisIsIncomplete(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

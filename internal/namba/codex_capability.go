@@ -207,6 +207,22 @@ func executablePlannedCodexRequests(planned []executionRequest) ([]executionRequ
 }
 
 func plannedCodexRequests(req executionRequest) []executionRequest {
+	planned := plannedExecutionTurnRequests(req)
+	resumeThreadID := firstNonBlank(strings.TrimSpace(req.ThreadID), plannedCodexResumeThreadID)
+	if req.RepairAttempts > 0 {
+		solRemaining, solHighRemaining := remainingSolTurnBudgets(req, planned)
+		repairSessionID := ""
+		if codexSessionStateful(req.SessionMode) {
+			repairSessionID = resumeThreadID
+		}
+		repairReq, _, _ := buildRepairExecutionTurnRequest(req, validationReport{}, 1, repairSessionID, "", solRemaining, solHighRemaining)
+		repairReq.TurnName = "repair-preview"
+		planned = append(planned, repairReq)
+	}
+	return planned
+}
+
+func plannedExecutionTurnRequests(req executionRequest) []executionRequest {
 	planned := buildExecutionTurnRequests(req)
 	resumeThreadID := firstNonBlank(strings.TrimSpace(req.ThreadID), plannedCodexResumeThreadID)
 	if codexSessionStateful(req.SessionMode) {
@@ -217,16 +233,6 @@ func plannedCodexRequests(req executionRequest) []executionRequest {
 			planned[index].ResumeSession = true
 			planned[index].ThreadID = resumeThreadID
 		}
-	}
-	if req.RepairAttempts > 0 {
-		solRemaining, solHighRemaining := remainingSolTurnBudgets(req, planned)
-		repairSessionID := ""
-		if codexSessionStateful(req.SessionMode) {
-			repairSessionID = resumeThreadID
-		}
-		repairReq, _, _ := buildRepairExecutionTurnRequest(req, validationReport{}, 1, repairSessionID, "", solRemaining, solHighRemaining)
-		repairReq.TurnName = "repair-preview"
-		planned = append(planned, repairReq)
 	}
 	return planned
 }

@@ -244,7 +244,7 @@ func modelRoutingEvidenceForRequest(req executionRequest) *modelRoutingEvidence 
 		strategy = "explicit_thread_resume"
 	}
 	usageState := modelRoutingUsageExternalUnobserved
-	if decision.Status == modelRoutingStatusBlocked && decision.FallbackReason == modelRoutingReasonBlockedModelUnavailable {
+	if decision.FallbackReason == modelRoutingReasonBlockedModelUnavailable || decision.FallbackReason == modelRoutingReasonModelUnavailable {
 		usageState = modelRoutingUsageUnavailable
 	}
 	return &modelRoutingEvidence{

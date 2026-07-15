@@ -144,6 +144,20 @@ func TestModelRoutingEvidenceDistinguishesUnobservedUsageFromUnavailableModel(t 
 	if blocked == nil || blocked.UsageState != modelRoutingUsageUnavailable {
 		t.Fatalf("blocked unavailable model must retain unavailable usage state, got %+v", blocked)
 	}
+
+	optionalFallback := modelRoutingEvidenceForRequest(executionRequest{
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		RoutingDecision: modelRoutingDecisionResult{
+			Phase:          routingPhaseDesign,
+			Model:          modelRoutingModelTerra,
+			Status:         modelRoutingStatusFallback,
+			FallbackReason: modelRoutingReasonModelUnavailable,
+		},
+	})
+	if optionalFallback == nil || optionalFallback.UsageState != modelRoutingUsageUnavailable {
+		t.Fatalf("optional fallback caused by unavailable Sol must retain unavailable usage state, got %+v", optionalFallback)
+	}
 }
 
 func TestExecuteRunEvidenceRecordsResumeStateAfterItIsAssigned(t *testing.T) {
