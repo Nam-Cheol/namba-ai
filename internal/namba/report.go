@@ -680,6 +680,28 @@ func renderNambaReport(report nambaReport, format string) (string, error) {
 	} else {
 		fmt.Fprintf(&b, "- `%s`: status `%s`, spec `%s`, missing evidence %d\n", report.Runs.Latest.Path, report.Runs.Latest.Status, fallbackOrValue(report.Runs.Latest.SpecID, "unknown"), report.Runs.Latest.MissingEvidence)
 	}
+	fmt.Fprintf(&b, "\n## Model Routing\n\n")
+	if report.Runs.ModelRouting == nil {
+		fmt.Fprintf(&b, "- no model routing evidence found\n")
+	} else {
+		routing := report.Runs.ModelRouting
+		fmt.Fprintf(&b, "- version: `%s`\n", fallbackOrValue(routing.Version, "unknown"))
+		models := make([]string, 0, len(routing.TurnsByModel))
+		for model := range routing.TurnsByModel {
+			models = append(models, model)
+		}
+		sort.Strings(models)
+		if len(models) == 0 {
+			fmt.Fprintf(&b, "- turns by model: none\n")
+		} else {
+			for _, model := range models {
+				fmt.Fprintf(&b, "- turns `%s`: %d\n", model, routing.TurnsByModel[model])
+			}
+		}
+		fmt.Fprintf(&b, "- fallback turns: %d\n", routing.FallbackCount)
+		fmt.Fprintf(&b, "- blocked turns: %d\n", routing.BlockedCount)
+		fmt.Fprintf(&b, "- unavailable usage: %d\n", routing.UnavailableUsageCount)
+	}
 	fmt.Fprintf(&b, "\n## Stale Candidates\n\n")
 	stale := append([]reportStaleItem{}, report.Queue.StaleCandidates...)
 	stale = append(stale, report.Specs.StaleCandidates...)
