@@ -115,6 +115,67 @@ func TestRunEvidenceRecordsActualRoutedTurnsForReportAggregation(t *testing.T) {
 	}
 }
 
+func TestExecuteRunEvidenceRecordsResumeStateAfterItIsAssigned(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		switch name {
+		case "codex", "git":
+			return name, nil
+		default:
+			return "", errors.New("missing dependency")
+		}
+	}
+	threadIDs := []string{
+		"019f5f13-3132-76c3-b9c7-ac521e89355e",
+		"019f5f13-3132-76c3-b9c7-ac521e89355f",
+	}
+	codexCalls := 0
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		if !isCodexExec(name, args) {
+			t.Fatalf("unexpected command: %s %v", name, args)
+		}
+		if codexCalls >= len(threadIDs) {
+			t.Fatalf("unexpected extra Codex call: %v", args)
+		}
+		threadID := threadIDs[codexCalls]
+		codexCalls++
+		return `{"thread_id":"` + threadID + `"}`, nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Implement a reversible local change with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole: "namba-implementer",
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				{Role: "namba-reviewer", Model: modelRoutingModelTerra},
+			},
+		},
+	}
+	if _, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "none", LintCommand: "none", TypecheckCommand: "none"}, nil, ""); err != nil {
+		t.Fatalf("execute run: %v", err)
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
+	if len(manifest.ModelRoutingTurns) != 2 {
+		t.Fatalf("expected two executed turns, got %+v", manifest.ModelRoutingTurns)
+	}
+	resumed := manifest.ModelRoutingTurns[1]
+	if resumed.SessionStrategy != "explicit_thread_resume" || resumed.ThreadID != threadIDs[0] {
+		t.Fatalf("expected evidence to retain the assigned resume state, got %+v", resumed)
+	}
+}
+
 func TestCodexDiagnosticsEvidenceCoversVersionDoctorRedactionAndMismatch(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

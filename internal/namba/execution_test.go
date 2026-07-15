@@ -255,7 +255,7 @@ func TestBuildExecutionTurnRequestsUsesPredicatesAndKeepsFreshTurnContext(t *tes
 		t.Fatalf("fresh Sol turn lost base context: %q", architect.Prompt)
 	}
 
-	simple := modelRoutingInputForRequest(executionRequest{Prompt: "Simple mechanical rename with format test acceptance."}, routingPhaseImplement, "namba-implementer", 1, 1, true)
+	simple := modelRoutingInputForRequest(executionRequest{Prompt: "Simple mechanical rename with format test acceptance."}, routingPhaseImplement, "namba-implementer", 0, 1, 1, true)
 	if got := modelRoutingDecision(simple); got.Model != modelRoutingModelLuna {
 		t.Fatalf("simple execution decision = %+v, want Luna", got)
 	}
@@ -285,6 +285,30 @@ func TestBuildExecutionTurnRequestsCapsSolHighAtOne(t *testing.T) {
 	}
 	if err := validateModelRoutingTurnPlan(turns); err != nil {
 		t.Fatalf("Terra fallback must remain executable, got %v", err)
+	}
+}
+
+func TestBuildRepairExecutionTurnRequestRecomputesCostBalancedRouting(t *testing.T) {
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Cross-system security architecture with irreversible risk and acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		RepairAttempts:     2,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "security"},
+		},
+	}
+
+	repair, solRemaining, solHighRemaining := buildRepairExecutionTurnRequest(req, validationReport{}, 1, "019f5f13-3132-76c3-b9c7-ac521e89355e", "spec-069", 1, 1)
+	if repair.Phase != routingPhaseRepair || repair.RoutingDecision.RuleID != "sol-high-repeated-risk-diagnosis-v1" || repair.Model != modelRoutingModelSol || repair.RequestedReasoningEffort != "high" || !repair.RoutingDecision.ReadOnly || repair.SandboxMode != "read-only" {
+		t.Fatalf("repair turn did not recompute repeated-risk routing: %+v", repair)
+	}
+	if solRemaining != 0 || solHighRemaining != 0 {
+		t.Fatalf("repair Sol decision did not consume remaining budgets: sol=%d high=%d", solRemaining, solHighRemaining)
 	}
 }
 
@@ -482,7 +506,6 @@ func TestProbeCodexCapabilitiesIncludesResumeHelpWhenResumeIsPlanned(t *testing.
 		SandboxMode:    "workspace-write",
 		SessionMode:    "stateful",
 		RepairAttempts: 1,
-		ThreadID:       "thread-probe",
 		Mode:           executionModeDefault,
 	})
 	if err != nil {

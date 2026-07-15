@@ -32,6 +32,8 @@ type resolvedCodexInvocation struct {
 	ConfigOverrides []string
 }
 
+const plannedCodexResumeThreadID = "00000000-0000-0000-0000-000000000000"
+
 func (a *App) codexCapabilities(ctx context.Context, dir string, req executionRequest) (codexCapabilityMatrix, error) {
 	if a.detectCodexCapabilities != nil {
 		return a.detectCodexCapabilities(ctx, dir, req)
@@ -136,11 +138,22 @@ func resolvePlannedCodexInvocations(req executionRequest, capabilities codexCapa
 
 func plannedCodexRequests(req executionRequest) []executionRequest {
 	planned := buildExecutionTurnRequests(req)
-	if req.RepairAttempts > 0 && codexSessionStateful(req.SessionMode) && strings.TrimSpace(req.ThreadID) != "" {
-		repairReq := req
-		repairReq.ResumeSession = true
+	resumeThreadID := firstNonBlank(strings.TrimSpace(req.ThreadID), plannedCodexResumeThreadID)
+	if codexSessionStateful(req.SessionMode) {
+		for index := 1; index < len(planned); index++ {
+			if planned[index].Model != planned[index-1].Model {
+				continue
+			}
+			planned[index].ResumeSession = true
+			planned[index].ThreadID = resumeThreadID
+		}
+	}
+	if req.RepairAttempts > 0 && codexSessionStateful(req.SessionMode) {
+		solRemaining, solHighRemaining := remainingSolTurnBudgets(req, planned)
+		repairReq, _, _ := buildRepairExecutionTurnRequest(req, validationReport{}, 1, resumeThreadID, "", solRemaining, solHighRemaining)
 		repairReq.TurnName = "repair-preview"
-		repairReq.TurnRole = req.DelegationPlan.IntegratorRole
+		repairReq.ResumeSession = true
+		repairReq.ThreadID = resumeThreadID
 		planned = append(planned, repairReq)
 	}
 	return planned

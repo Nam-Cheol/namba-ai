@@ -573,6 +573,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	if codexSessionStateful(req.SessionMode) {
 		teamContinuationMode = "explicit-thread-resume"
 	}
+	solRemaining, solHighRemaining := remainingSolTurnBudgets(req, turnRequests)
 
 	if err := publishProgress(
 		"running",
@@ -593,15 +594,19 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	}
 
 	var observedThreadID string
+	executedTurnRequests := make([]executionRequest, 0, len(turnRequests))
 	for index, turnReq := range turnRequests {
-		if index > 0 && observedThreadID != "" && turnReq.Model == req.Model {
+		if index > 0 && observedThreadID != "" && turnReq.Model == turnRequests[index-1].Model {
 			turnReq.ResumeSession = true
 			turnReq.ThreadID = observedThreadID
 		}
+		turnRequests[index] = turnReq
+		executedTurnRequests = append(executedTurnRequests, turnReq)
+		hooks.recordModelRoutingTurns(executedTurnRequests)
 		turnResult, err := selectedRunner.Execute(ctx, turnReq, capabilities)
 		result.Turns = append(result.Turns, turnResult)
-		if observedThreadID == "" && turnResult.ThreadID != "" {
-			observedThreadID = turnResult.ThreadID
+		observedThreadID = turnResult.ThreadID
+		if result.SessionID == logID && observedThreadID != "" {
 			result.SessionID = observedThreadID
 		}
 		if turnReq.ResumeSession {
@@ -855,13 +860,8 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			return result, finalReport, err
 		}
 
-		repairReq := req
-		repairReq.ResumeSession = codexSessionStateful(req.SessionMode) && result.SessionID != "" && result.SessionID != logID
-		repairReq.ThreadID = result.SessionID
-		repairReq.TurnName = fmt.Sprintf("repair-%d", attempt)
-		repairReq.TurnRole = req.DelegationPlan.IntegratorRole
-		repairReq.Prompt = buildRepairPrompt(req, finalReport, attempt, !repairReq.ResumeSession)
-		repairReq.RequestedReasoningEffort = "high"
+		repairReq, nextSolRemaining, nextSolHighRemaining := buildRepairExecutionTurnRequest(req, finalReport, attempt, result.SessionID, logID, solRemaining, solHighRemaining)
+		solRemaining, solHighRemaining = nextSolRemaining, nextSolHighRemaining
 		hooks.recordModelRoutingTurn(repairReq)
 
 		repairResult, repairErr := selectedRunner.Execute(ctx, repairReq, capabilities)
@@ -990,7 +990,7 @@ func buildExecutionTurnRequests(req executionRequest) []executionRequest {
 	base.TurnName = "implement"
 	base.TurnRole = req.DelegationPlan.IntegratorRole
 	base.Phase = routingPhaseImplement
-	base.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(base, base.Phase, base.TurnRole, solRemaining, solHighRemaining, true))
+	base.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(base, base.Phase, base.TurnRole, 0, solRemaining, solHighRemaining, true))
 	solRemaining, solHighRemaining = updatedSolTurnBudgets(base.RoutingDecision, solRemaining, solHighRemaining)
 	if base.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
 		base.Model = base.RoutingDecision.Model
@@ -1007,7 +1007,7 @@ func buildExecutionTurnRequests(req executionRequest) []executionRequest {
 		turn.TurnName = roleTurnName(profile.Role)
 		turn.TurnRole = profile.Role
 		turn.Phase = routingPhaseForRole(profile.Role)
-		turn.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(turn, turn.Phase, profile.Role, solRemaining, solHighRemaining, true))
+		turn.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(turn, turn.Phase, profile.Role, 0, solRemaining, solHighRemaining, true))
 		solRemaining, solHighRemaining = updatedSolTurnBudgets(turn.RoutingDecision, solRemaining, solHighRemaining)
 		// A continuation is legal only after an explicit UUID is observed from
 		// the immediately preceding same-model turn.
@@ -1028,6 +1028,39 @@ func buildExecutionTurnRequests(req executionRequest) []executionRequest {
 		turns = append(turns, turn)
 	}
 	return turns
+}
+
+func remainingSolTurnBudgets(req executionRequest, turns []executionRequest) (int, int) {
+	solRemaining := solTurnBudgetForMode(req.Mode)
+	solHighRemaining := solHighTurnBudgetForMode(req.Mode)
+	for _, turn := range turns {
+		solRemaining, solHighRemaining = updatedSolTurnBudgets(turn.RoutingDecision, solRemaining, solHighRemaining)
+	}
+	return solRemaining, solHighRemaining
+}
+
+func buildRepairExecutionTurnRequest(req executionRequest, report validationReport, attempt int, sessionID, logID string, solRemaining, solHighRemaining int) (executionRequest, int, int) {
+	repairReq := req
+	repairReq.ResumeSession = codexSessionStateful(req.SessionMode) && sessionID != "" && sessionID != logID
+	repairReq.ThreadID = sessionID
+	repairReq.TurnName = fmt.Sprintf("repair-%d", attempt)
+	repairReq.TurnRole = req.DelegationPlan.IntegratorRole
+	repairReq.Phase = routingPhaseRepair
+	repairReq.Prompt = buildRepairPrompt(req, report, attempt, !repairReq.ResumeSession)
+	routingRequest := repairReq
+	routingRequest.Prompt = strings.Join([]string{req.Prompt, repairReq.Prompt}, "\n")
+	repairReq.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(routingRequest, repairReq.Phase, repairReq.TurnRole, attempt, solRemaining, solHighRemaining, true))
+	solRemaining, solHighRemaining = updatedSolTurnBudgets(repairReq.RoutingDecision, solRemaining, solHighRemaining)
+	if repairReq.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
+		repairReq.Model = repairReq.RoutingDecision.Model
+		repairReq.RequestedReasoningEffort = repairReq.RoutingDecision.ReasoningEffort
+		if repairReq.RoutingDecision.ReadOnly {
+			repairReq.SandboxMode = "read-only"
+		}
+	} else {
+		repairReq.RequestedReasoningEffort = "high"
+	}
+	return repairReq, solRemaining, solHighRemaining
 }
 
 func solTurnBudgetForMode(mode executionMode) int {
@@ -1062,7 +1095,7 @@ func validateModelRoutingTurnPlan(turns []executionRequest) error {
 	return nil
 }
 
-func modelRoutingInputForRequest(req executionRequest, phase routingPhase, role string, solRemaining, solHighRemaining int, budgetActive bool) modelRoutingInput {
+func modelRoutingInputForRequest(req executionRequest, phase routingPhase, role string, repairCount, solRemaining, solHighRemaining int, budgetActive bool) modelRoutingInput {
 	text := strings.ToLower(strings.Join(append([]string{req.Prompt}, req.DelegationPlan.DominantDomains...), "\n"))
 	containsAny := func(words ...string) bool {
 		for _, word := range words {
@@ -1081,7 +1114,7 @@ func modelRoutingInputForRequest(req executionRequest, phase routingPhase, role 
 	return modelRoutingInput{
 		Phase: phase, Role: role, Domain: strings.Join(req.DelegationPlan.DominantDomains, ","),
 		CriticalRisk: criticalRisk, HighAmbiguity: highAmbiguity, CrossSystem: crossSystem, Irreversible: irreversible,
-		RepairCount: req.RepairAttempts, RemainingSolTurns: solRemaining, SolBudgetActive: budgetActive,
+		RepairCount: repairCount, RemainingSolTurns: solRemaining, SolBudgetActive: budgetActive,
 		RemainingSolHighTurns: solHighRemaining, SolHighBudgetActive: budgetActive,
 		SimpleImplementation: simple, SingleSubsystem: len(req.DelegationPlan.DominantDomains) <= 1,
 		ExplicitTransformation: containsAny("rename", "format", "replace", "mechanical"), Reversible: !irreversible,
