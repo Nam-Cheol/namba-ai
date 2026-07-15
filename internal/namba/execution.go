@@ -1029,6 +1029,42 @@ func validationPipelineSteps(cfg qualityConfig) []validationStep {
 }
 
 func buildExecutionTurnRequests(req executionRequest) []executionRequest {
+	if req.ModelRoutingPolicy != modelRoutingPolicyCostBalancedV1 {
+		return buildLegacyExecutionTurnRequests(req)
+	}
+	return buildCostBalancedExecutionTurnRequests(req)
+}
+
+func buildLegacyExecutionTurnRequests(req executionRequest) []executionRequest {
+	base := req
+	base.TurnName = "implement"
+	base.TurnRole = req.DelegationPlan.IntegratorRole
+	base.RoutingDecision = modelRoutingDecisionResult{}
+	turns := []executionRequest{base}
+	if normalizeExecutionMode(req.Mode) != executionModeTeam {
+		return turns
+	}
+
+	for _, profile := range req.DelegationPlan.SelectedRoleProfiles {
+		turn := req
+		turn.TurnName = roleTurnName(profile.Role)
+		turn.TurnRole = profile.Role
+		// Runtime resume authority is assigned only after the preceding turn
+		// yields a canonical UUID. The legacy flow keeps its configured order,
+		// model, effort, and writable prompt contract.
+		turn.ResumeSession = false
+		turn.ThreadID = ""
+		turn.Model = firstNonBlank(profile.Model, req.Model)
+		turn.Profile = req.Profile
+		turn.RequestedReasoningEffort = profile.ModelReasoningEffort
+		turn.RoutingDecision = modelRoutingDecisionResult{}
+		turn.Prompt = buildDelegationTurnPrompt(turn, profile, true)
+		turns = append(turns, turn)
+	}
+	return turns
+}
+
+func buildCostBalancedExecutionTurnRequests(req executionRequest) []executionRequest {
 	solRemaining := solTurnBudgetForMode(req.Mode)
 	solHighRemaining := solHighTurnBudgetForMode(req.Mode)
 	base := req
@@ -1111,14 +1147,16 @@ func buildReadOnlyReviewWriterRequest(req executionRequest, solRemaining, solHig
 }
 
 func routeExecutionTurn(turn executionRequest, repairCount int, solRemaining, solHighRemaining *int) executionRequest {
+	if turn.ModelRoutingPolicy != modelRoutingPolicyCostBalancedV1 {
+		turn.RoutingDecision = modelRoutingDecisionResult{}
+		return turn
+	}
 	turn.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(turn, turn.Phase, turn.TurnRole, repairCount, *solRemaining, *solHighRemaining, true))
 	*solRemaining, *solHighRemaining = updatedSolTurnBudgets(turn.RoutingDecision, *solRemaining, *solHighRemaining)
-	if turn.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
-		turn.Model = turn.RoutingDecision.Model
-		turn.RequestedReasoningEffort = turn.RoutingDecision.ReasoningEffort
-		if turn.RoutingDecision.ReadOnly {
-			turn.SandboxMode = "read-only"
-		}
+	turn.Model = turn.RoutingDecision.Model
+	turn.RequestedReasoningEffort = turn.RoutingDecision.ReasoningEffort
+	if turn.RoutingDecision.ReadOnly {
+		turn.SandboxMode = "read-only"
 	}
 	return turn
 }
@@ -1165,24 +1203,25 @@ func buildRepairExecutionTurnRequest(req executionRequest, report validationRepo
 	repairReq.TurnRole = req.DelegationPlan.IntegratorRole
 	repairReq.Phase = routingPhaseRepair
 	repairReq.Prompt = buildRepairPrompt(req, report, attempt, !repairReq.ResumeSession)
+	if repairReq.ModelRoutingPolicy != modelRoutingPolicyCostBalancedV1 {
+		repairReq.RoutingDecision = modelRoutingDecisionResult{}
+		repairReq.RequestedReasoningEffort = "high"
+		return repairReq, solRemaining, solHighRemaining
+	}
 	routingRequest := repairReq
 	routingRequest.Prompt = strings.Join([]string{req.Prompt, repairReq.Prompt}, "\n")
 	repairReq.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(routingRequest, repairReq.Phase, repairReq.TurnRole, attempt, solRemaining, solHighRemaining, true))
 	solRemaining, solHighRemaining = updatedSolTurnBudgets(repairReq.RoutingDecision, solRemaining, solHighRemaining)
-	if repairReq.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
-		repairReq.Model = repairReq.RoutingDecision.Model
-		repairReq.RequestedReasoningEffort = repairReq.RoutingDecision.ReasoningEffort
-		if repairReq.RoutingDecision.ReadOnly {
-			repairReq.TurnName = fmt.Sprintf("repair-%d-diagnosis", attempt)
-			repairReq.SandboxMode = "read-only"
-			repairReq.Prompt = strings.Join([]string{
-				"Diagnose the validation failure and produce a concrete handoff for the writer. Do not modify files.",
-				"",
-				repairReq.Prompt,
-			}, "\n")
-		}
-	} else {
-		repairReq.RequestedReasoningEffort = "high"
+	repairReq.Model = repairReq.RoutingDecision.Model
+	repairReq.RequestedReasoningEffort = repairReq.RoutingDecision.ReasoningEffort
+	if repairReq.RoutingDecision.ReadOnly {
+		repairReq.TurnName = fmt.Sprintf("repair-%d-diagnosis", attempt)
+		repairReq.SandboxMode = "read-only"
+		repairReq.Prompt = strings.Join([]string{
+			"Diagnose the validation failure and produce a concrete handoff for the writer. Do not modify files.",
+			"",
+			repairReq.Prompt,
+		}, "\n")
 	}
 	return repairReq, solRemaining, solHighRemaining
 }

@@ -303,6 +303,40 @@ func TestBuildExecutionTurnRequestsAddsTerraWriterAfterReadOnlyReview(t *testing
 	}
 }
 
+func TestBuildExecutionTurnRequestsPreservesLegacyStaticTeamFlow(t *testing.T) {
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Cross-system review with architecture tradeoffs and acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyLegacyStaticV1,
+		Model:              "gpt-5.4",
+		SandboxMode:        "workspace-write",
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			ReviewerRole:    "namba-reviewer",
+			DominantDomains: []string{"backend", "frontend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				{Role: "namba-reviewer", Model: "gpt-5.4", ModelReasoningEffort: "high"},
+			},
+		},
+	}
+
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 2 {
+		t.Fatalf("legacy team flow must keep one implement and one configured specialist turn, got %+v", turns)
+	}
+	if turns[0].TurnName != "implement" || turns[1].TurnName != "reviewer" {
+		t.Fatalf("legacy team ordering changed: %+v", turns)
+	}
+	if turns[1].RoutingDecision.Model != "" || turns[1].RoutingDecision.Status != "" || turns[1].RoutingDecision.ReadOnly || turns[1].SandboxMode != "workspace-write" {
+		t.Fatalf("legacy specialist inherited adaptive routing state: %+v", turns[1])
+	}
+	if strings.Contains(turns[1].Prompt, "Act as the read-only") || !strings.Contains(turns[1].Prompt, "Close acceptance gaps") {
+		t.Fatalf("legacy reviewer prompt changed to an adaptive read-only checkpoint: %q", turns[1].Prompt)
+	}
+}
+
 func TestBuildExecutionTurnRequestsCapsSolHighAtOne(t *testing.T) {
 	req := executionRequest{
 		SpecID:             "SPEC-069",
@@ -371,6 +405,34 @@ func TestBuildRepairExecutionTurnRequestRecomputesCostBalancedRouting(t *testing
 	}
 	if solRemaining != 0 || solHighRemaining != 0 {
 		t.Fatalf("repair Sol decision did not consume remaining budgets: sol=%d high=%d", solRemaining, solHighRemaining)
+	}
+}
+
+func TestBuildRepairExecutionTurnRequestPreservesLegacyStaticFlow(t *testing.T) {
+	req := executionRequest{
+		SpecID:                   "SPEC-069",
+		Prompt:                   "Cross-system security architecture with irreversible risk and acceptance tests.",
+		ModelRoutingPolicy:       modelRoutingPolicyLegacyStaticV1,
+		Model:                    "gpt-5.4",
+		SandboxMode:              "workspace-write",
+		SessionMode:              "stateful",
+		RequestedReasoningEffort: "",
+		RepairAttempts:           2,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "security"},
+		},
+	}
+
+	repair, solRemaining, solHighRemaining := buildRepairExecutionTurnRequest(req, validationReport{}, 1, "019f5f13-3132-76c3-b9c7-ac521e89355e", "spec-069", 1, 1)
+	if repair.Model != "gpt-5.4" || repair.RequestedReasoningEffort != "high" || repair.SandboxMode != "workspace-write" {
+		t.Fatalf("legacy repair runtime changed: %+v", repair)
+	}
+	if repair.RoutingDecision.Model != "" || repair.RoutingDecision.Status != "" || repair.RoutingDecision.ReadOnly || strings.Contains(repair.Prompt, "Diagnose the validation failure") {
+		t.Fatalf("legacy repair inherited adaptive diagnosis behavior: %+v", repair)
+	}
+	if solRemaining != 1 || solHighRemaining != 1 {
+		t.Fatalf("legacy repair consumed adaptive Sol budgets: sol=%d high=%d", solRemaining, solHighRemaining)
 	}
 }
 
@@ -714,6 +776,44 @@ func TestProbeCodexCapabilitiesStopsInvocationPlanningForBlockedSol(t *testing.T
 	req.SolAvailable = caps.SolAvailable
 	if _, err := validateCodexExecutionContract(req, caps); err != nil {
 		t.Fatalf("blocked routing must take precedence over invocation resolution: %v", err)
+	}
+}
+
+func TestResolvePlannedCodexInvocationsValidatesExecutableTurnsWhenRepairPreviewIsBlocked(t *testing.T) {
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Cross-system security architecture with irreversible risk and acceptance tests.",
+		Mode:               executionModeDefault,
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		RepairAttempts:     1,
+		SolAvailable:       boolPtr(false),
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "security"},
+		},
+	}
+
+	planned := plannedCodexRequests(req)
+	if len(planned) != 2 || planned[0].RoutingDecision.Status != modelRoutingStatusPlanned || planned[1].TurnName != "repair-preview" || planned[1].RoutingDecision.Status != modelRoutingStatusBlocked {
+		t.Fatalf("expected an executable initial turn and blocked conditional repair preview, got %+v", planned)
+	}
+
+	invocations, err := resolvePlannedCodexInvocations(req, codexCapabilityMatrix{
+		Exec: codexCommandCapabilities{Config: true, ModelFlag: true},
+	})
+	if err != nil {
+		t.Fatalf("executable initial turn must still pass contract validation: %v", err)
+	}
+	if len(invocations) != 1 || invocations[0].CommandShape != "codex exec" {
+		t.Fatalf("blocked repair preview must be excluded without suppressing the initial invocation: %+v", invocations)
+	}
+
+	if _, err := resolvePlannedCodexInvocations(req, codexCapabilityMatrix{Exec: codexCommandCapabilities{ApprovalFlag: true, SandboxFlag: true}}); err == nil || !strings.Contains(err.Error(), "model") {
+		t.Fatalf("initial Terra invocation must fail preflight when the CLI cannot represent its model, got %v", err)
 	}
 }
 

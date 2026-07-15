@@ -321,9 +321,10 @@ func resolveRuntimeAddDirs(base string, dirs []string) ([]string, error) {
 func (a *App) newExecutionRequest(specID, workDir, prompt string, mode executionMode, plan delegationPlan, systemCfg systemConfig, codexCfg codexConfig) executionRequest {
 	runtimeCfg := resolveCodexRuntimeForMode(codexCfg, mode)
 	model := runtimeCfg.Model
-	decision := modelRoutingDecision(modelRoutingInput{Phase: routingPhaseImplement, Role: plan.IntegratorRole})
+	decision := modelRoutingDecisionResult{}
 	reasoningEffort := ""
 	if runtimeCfg.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
+		decision = modelRoutingDecision(modelRoutingInput{Phase: routingPhaseImplement, Role: plan.IntegratorRole})
 		model = decision.Model
 		reasoningEffort = decision.ReasoningEffort
 	}

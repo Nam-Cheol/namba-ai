@@ -71,6 +71,9 @@ func TestLegacyStaticRequestOmitsReasoningOverride(t *testing.T) {
 	if req.RequestedReasoningEffort != "" {
 		t.Fatalf("legacy request must not force reasoning effort, got %+v", req)
 	}
+	if req.RoutingDecision.Model != "" || req.RoutingDecision.Status != "" || req.RoutingDecision.ReadOnly {
+		t.Fatalf("legacy request must not carry an adaptive routing decision, got %+v", req.RoutingDecision)
+	}
 
 	_, err := resolveCodexInvocation(req, codexCapabilityMatrix{Exec: codexCommandCapabilities{
 		ApprovalFlag: true,

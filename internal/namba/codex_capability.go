@@ -68,8 +68,8 @@ func (a *App) probeCodexCapabilities(ctx context.Context, dir string, req execut
 	}
 	planningReq := req
 	planningReq.SolAvailable = matrix.SolAvailable
-	planned := plannedCodexRequests(planningReq)
-	if plannedRequestsContainRoutingBlock(planned) || !plannedInvocationsNeedResume(planned) {
+	planned, immediateBlock := executablePlannedCodexRequests(plannedCodexRequests(planningReq))
+	if immediateBlock || !plannedInvocationsNeedResume(planned) {
 		return matrix, nil
 	}
 
@@ -172,8 +172,8 @@ func validateCodexExecutionContract(req executionRequest, capabilities codexCapa
 }
 
 func resolvePlannedCodexInvocations(req executionRequest, capabilities codexCapabilityMatrix) ([]resolvedCodexInvocation, error) {
-	planned := plannedCodexRequests(req)
-	if plannedRequestsContainRoutingBlock(planned) {
+	planned, immediateBlock := executablePlannedCodexRequests(plannedCodexRequests(req))
+	if immediateBlock {
 		return nil, nil
 	}
 	invocations := make([]resolvedCodexInvocation, 0, len(planned))
@@ -187,13 +187,23 @@ func resolvePlannedCodexInvocations(req executionRequest, capabilities codexCapa
 	return invocations, nil
 }
 
-func plannedRequestsContainRoutingBlock(planned []executionRequest) bool {
+// executablePlannedCodexRequests separates turns that can run now from a
+// conditional repair preview. An immediate blocked turn takes precedence over
+// invocation validation, while a blocked future repair must not suppress
+// validation of otherwise executable turns.
+func executablePlannedCodexRequests(planned []executionRequest) ([]executionRequest, bool) {
+	executable := make([]executionRequest, 0, len(planned))
 	for _, req := range planned {
-		if req.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 && req.RoutingDecision.Status == modelRoutingStatusBlocked {
-			return true
+		blocked := req.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 && req.RoutingDecision.Status == modelRoutingStatusBlocked
+		if !blocked {
+			executable = append(executable, req)
+			continue
+		}
+		if req.TurnName != "repair-preview" {
+			return nil, true
 		}
 	}
-	return false
+	return executable, false
 }
 
 func plannedCodexRequests(req executionRequest) []executionRequest {
