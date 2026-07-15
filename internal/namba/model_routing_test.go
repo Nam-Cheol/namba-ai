@@ -11,6 +11,7 @@ func TestModelRoutingDecisionPolicyTable(t *testing.T) {
 		tier     string
 		readOnly bool
 		status   string
+		reason   string
 	}{
 		{
 			name:  "simple single subsystem implementation uses Luna",
@@ -50,17 +51,17 @@ func TestModelRoutingDecisionPolicyTable(t *testing.T) {
 		{
 			name:  "required Sol unavailable blocks",
 			input: modelRoutingInput{Phase: routingPhaseArchitecture, Role: "namba-backend-architect", CrossSystem: true, SolAvailable: boolPtr(false)},
-			model: modelRoutingModelSol, effort: "medium", tier: "deep", readOnly: true, status: modelRoutingStatusBlocked,
+			model: modelRoutingModelSol, effort: "medium", tier: "deep", readOnly: true, status: modelRoutingStatusBlocked, reason: modelRoutingReasonBlockedModelUnavailable,
 		},
 		{
 			name:  "optional Sol unavailable falls back to Terra high",
 			input: modelRoutingInput{Phase: routingPhaseDesign, Role: "namba-designer", SolAvailable: boolPtr(false)},
-			model: modelRoutingModelTerra, effort: "high", tier: "standard", status: modelRoutingStatusFallback,
+			model: modelRoutingModelTerra, effort: "high", tier: "standard", status: modelRoutingStatusFallback, reason: modelRoutingReasonModelUnavailable,
 		},
 		{
 			name:  "active zero Sol budget blocks required architecture decision",
 			input: modelRoutingInput{Phase: routingPhaseArchitecture, Role: "namba-backend-architect", CrossSystem: true, RemainingSolTurns: 0, SolBudgetActive: true},
-			model: modelRoutingModelSol, effort: "medium", tier: "deep", readOnly: true, status: modelRoutingStatusBlocked,
+			model: modelRoutingModelSol, effort: "medium", tier: "deep", readOnly: true, status: modelRoutingStatusBlocked, reason: "sol_turn_budget_exhausted",
 		},
 		{
 			name:  "active Sol budget decrements before planned decision returns",
@@ -74,6 +75,9 @@ func TestModelRoutingDecisionPolicyTable(t *testing.T) {
 			got := modelRoutingDecision(tt.input)
 			if got.Model != tt.model || got.ReasoningEffort != tt.effort || got.Tier != tt.tier || got.ReadOnly != tt.readOnly || got.Status != tt.status {
 				t.Fatalf("decision = %+v", got)
+			}
+			if got.FallbackReason != tt.reason {
+				t.Fatalf("fallback reason = %q, want %q", got.FallbackReason, tt.reason)
 			}
 			if got.ReasoningEffort == "xhigh" || got.ReasoningEffort == "max" {
 				t.Fatalf("forbidden effort: %+v", got)

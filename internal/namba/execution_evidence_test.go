@@ -138,7 +138,7 @@ func TestModelRoutingEvidenceDistinguishesUnobservedUsageFromUnavailableModel(t 
 			Phase:          routingPhaseArchitecture,
 			Model:          modelRoutingModelSol,
 			Status:         modelRoutingStatusBlocked,
-			FallbackReason: "model_unavailable",
+			FallbackReason: modelRoutingReasonBlockedModelUnavailable,
 		},
 	})
 	if blocked == nil || blocked.UsageState != modelRoutingUsageUnavailable {
@@ -473,14 +473,14 @@ func TestExecuteRunBlocksRequiredSolWhenCapabilityProbeMarksItUnavailable(t *tes
 		},
 	}
 	_, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "none", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
-	if err == nil || !strings.Contains(err.Error(), "model_unavailable") {
+	if err == nil || !strings.Contains(err.Error(), modelRoutingReasonBlockedModelUnavailable) {
 		t.Fatalf("expected required Sol to block before execution, got %v", err)
 	}
 	if strings.Contains(err.Error(), "cannot be represented") {
 		t.Fatalf("routing block must take precedence over generic invocation errors: %v", err)
 	}
 	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
-	if len(manifest.ModelRoutingTurns) != 1 || manifest.ModelRoutingTurns[0].State != modelRoutingStatusBlocked || manifest.ModelRoutingTurns[0].FallbackReason != "model_unavailable" || manifest.ModelRoutingTurns[0].RequestedModel != modelRoutingModelSol {
+	if len(manifest.ModelRoutingTurns) != 1 || manifest.ModelRoutingTurns[0].State != modelRoutingStatusBlocked || manifest.ModelRoutingTurns[0].FallbackReason != modelRoutingReasonBlockedModelUnavailable || manifest.ModelRoutingTurns[0].RequestedModel != modelRoutingModelSol {
 		t.Fatalf("expected blocked model-unavailable routing evidence, got %+v", manifest.ModelRoutingTurns)
 	}
 }
@@ -535,7 +535,7 @@ func TestExecuteRunBlocksUnavailableRepairBeforeCodex(t *testing.T) {
 		},
 	}
 	result, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
-	if err == nil || !strings.Contains(err.Error(), "model_unavailable") {
+	if err == nil || !strings.Contains(err.Error(), modelRoutingReasonBlockedModelUnavailable) {
 		t.Fatalf("expected unavailable repair route to block, got %v", err)
 	}
 	if codexCalls != 1 || result.RetryCount != 0 {

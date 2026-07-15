@@ -38,6 +38,11 @@ const (
 	modelRoutingStatusBlocked  = "blocked"
 )
 
+const (
+	modelRoutingReasonModelUnavailable        = "model_unavailable"
+	modelRoutingReasonBlockedModelUnavailable = "blocked_model_unavailable"
+)
+
 type modelRoutingInput struct {
 	Phase                   routingPhase
 	Role                    string
@@ -155,7 +160,11 @@ func resolveSolDecision(input modelRoutingInput, rule, effort string, required b
 		return fallbackOrBlockSol(decision, required, "sol_turn_budget_exhausted")
 	}
 	if input.SolAvailable != nil && !*input.SolAvailable {
-		return fallbackOrBlockSol(decision, required, "model_unavailable")
+		reason := modelRoutingReasonModelUnavailable
+		if required {
+			reason = modelRoutingReasonBlockedModelUnavailable
+		}
+		return fallbackOrBlockSol(decision, required, reason)
 	}
 	if effort == "high" && input.SolHighBudgetActive && input.RemainingSolHighTurns <= 0 {
 		// A prior Sol high checkpoint already covered the required risk review.

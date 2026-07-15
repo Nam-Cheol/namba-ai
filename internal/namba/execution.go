@@ -1299,7 +1299,7 @@ func validateModelRoutingTurnPlan(turns []executionRequest) error {
 	if !ok {
 		return nil
 	}
-	return fmt.Errorf("model routing blocked for phase %q role %q: %s", turn.RoutingDecision.Phase, firstNonBlank(turn.TurnRole, "integrator"), firstNonBlank(turn.RoutingDecision.FallbackReason, "blocked_model_unavailable"))
+	return fmt.Errorf("model routing blocked for phase %q role %q: %s", turn.RoutingDecision.Phase, firstNonBlank(turn.TurnRole, "integrator"), firstNonBlank(turn.RoutingDecision.FallbackReason, modelRoutingReasonBlockedModelUnavailable))
 }
 
 func firstBlockedModelRoutingTurn(turns []executionRequest) (executionRequest, bool) {

@@ -382,7 +382,7 @@ func TestBuildExecutionTurnRequestsBlocksRequiredSolWhenCapabilityIsUnavailable(
 		},
 	}
 	turns := buildExecutionTurnRequests(req)
-	if len(turns) != 2 || turns[0].RoutingDecision.Status != modelRoutingStatusBlocked || turns[0].RoutingDecision.FallbackReason != "model_unavailable" {
+	if len(turns) != 2 || turns[0].RoutingDecision.Status != modelRoutingStatusBlocked || turns[0].RoutingDecision.FallbackReason != modelRoutingReasonBlockedModelUnavailable {
 		t.Fatalf("expected unavailable required Sol checkpoint to block before implementation, got %+v", turns)
 	}
 }
