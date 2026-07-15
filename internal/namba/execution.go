@@ -603,13 +603,16 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	executedTurnRequests := make([]executionRequest, 0, len(turnRequests))
 	pendingReadOnlyCheckpointOutputs := make([]string, 0)
 	for index, turnReq := range turnRequests {
-		if index > 0 && observedThreadID != "" && turnReq.Model == turnRequests[index-1].Model {
+		resumeAdjacentTurn := index > 0 && observedThreadID != "" && canResumeExecutionTurn(turnRequests[index-1], turnReq)
+		if resumeAdjacentTurn {
 			turnReq.ResumeSession = true
 			turnReq.ThreadID = observedThreadID
 		}
-		if !turnReq.RoutingDecision.ReadOnly && len(pendingReadOnlyCheckpointOutputs) > 0 {
+		if len(pendingReadOnlyCheckpointOutputs) > 0 && (!turnReq.RoutingDecision.ReadOnly || !resumeAdjacentTurn) {
 			turnReq.Prompt = appendReadOnlyCheckpointHandoff(turnReq.Prompt, pendingReadOnlyCheckpointOutputs...)
-			pendingReadOnlyCheckpointOutputs = pendingReadOnlyCheckpointOutputs[:0]
+			if !turnReq.RoutingDecision.ReadOnly {
+				pendingReadOnlyCheckpointOutputs = pendingReadOnlyCheckpointOutputs[:0]
+			}
 		}
 		turnRequests[index] = turnReq
 		executedTurnRequests = append(executedTurnRequests, turnReq)
@@ -1193,6 +1196,42 @@ func routingPhaseOrder(phase routingPhase) int {
 		return 8
 	default:
 		return 9
+	}
+}
+
+func canResumeExecutionTurn(previous, current executionRequest) bool {
+	if previous.Model == "" || previous.Model != current.Model {
+		return false
+	}
+	// Legacy static runs predate the adaptive phase machine and retain their
+	// existing same-model continuation behavior. Cost-balanced turns must also
+	// cross an explicitly allowed direct phase edge.
+	if current.ModelRoutingPolicy != modelRoutingPolicyCostBalancedV1 {
+		return true
+	}
+	return isAllowedDirectRoutingPhaseTransition(previous.Phase, current.Phase)
+}
+
+func isAllowedDirectRoutingPhaseTransition(from, to routingPhase) bool {
+	switch from {
+	case routingPhaseIntake:
+		return to == routingPhasePlan
+	case routingPhasePlan:
+		return to == routingPhaseDesign || to == routingPhaseArchitecture || to == routingPhaseImplement
+	case routingPhaseDesign, routingPhaseArchitecture:
+		return to == routingPhaseImplement
+	case routingPhaseImplement:
+		return to == routingPhaseTest
+	case routingPhaseTest:
+		return to == routingPhaseIntegration || to == routingPhaseRepair
+	case routingPhaseIntegration:
+		return to == routingPhaseReview || to == routingPhaseRepair
+	case routingPhaseReview:
+		return to == routingPhaseRepair
+	case routingPhaseRepair:
+		return to == routingPhaseImplement || to == routingPhaseTest || to == routingPhaseIntegration || to == routingPhaseReview
+	default:
+		return false
 	}
 }
 

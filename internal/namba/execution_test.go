@@ -340,6 +340,71 @@ func TestBuildExecutionTurnRequestsPreservesLegacyStaticTeamFlow(t *testing.T) {
 	}
 }
 
+func TestAllowedDirectRoutingPhaseTransitionTable(t *testing.T) {
+	tests := []struct {
+		name string
+		from routingPhase
+		to   routingPhase
+		want bool
+	}{
+		{name: "intake to plan", from: routingPhaseIntake, to: routingPhasePlan, want: true},
+		{name: "plan to design", from: routingPhasePlan, to: routingPhaseDesign, want: true},
+		{name: "plan to architecture", from: routingPhasePlan, to: routingPhaseArchitecture, want: true},
+		{name: "plan to implement", from: routingPhasePlan, to: routingPhaseImplement, want: true},
+		{name: "design to implement", from: routingPhaseDesign, to: routingPhaseImplement, want: true},
+		{name: "architecture to implement", from: routingPhaseArchitecture, to: routingPhaseImplement, want: true},
+		{name: "implement to test", from: routingPhaseImplement, to: routingPhaseTest, want: true},
+		{name: "test to integration", from: routingPhaseTest, to: routingPhaseIntegration, want: true},
+		{name: "test to repair", from: routingPhaseTest, to: routingPhaseRepair, want: true},
+		{name: "integration to review", from: routingPhaseIntegration, to: routingPhaseReview, want: true},
+		{name: "integration to repair", from: routingPhaseIntegration, to: routingPhaseRepair, want: true},
+		{name: "review to repair", from: routingPhaseReview, to: routingPhaseRepair, want: true},
+		{name: "repair to implement", from: routingPhaseRepair, to: routingPhaseImplement, want: true},
+		{name: "repair to test", from: routingPhaseRepair, to: routingPhaseTest, want: true},
+		{name: "repair to integration", from: routingPhaseRepair, to: routingPhaseIntegration, want: true},
+		{name: "repair to review", from: routingPhaseRepair, to: routingPhaseReview, want: true},
+		{name: "design to architecture branches", from: routingPhaseDesign, to: routingPhaseArchitecture, want: false},
+		{name: "implement to review skips test and integration", from: routingPhaseImplement, to: routingPhaseReview, want: false},
+		{name: "same phase is not an edge", from: routingPhaseReview, to: routingPhaseReview, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isAllowedDirectRoutingPhaseTransition(tt.from, tt.to); got != tt.want {
+				t.Fatalf("transition %s -> %s allowed = %t, want %t", tt.from, tt.to, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPlannedCodexRequestsDoNotResumeIllegalSameModelPhaseEdge(t *testing.T) {
+	req := executionRequest{
+		Prompt:             "Cross-system design and architecture with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"frontend", "backend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-designer"),
+				runtimeProfileForAgent("namba-frontend-architect"),
+			},
+		},
+	}
+
+	planned := plannedCodexRequests(req)
+	if len(planned) != 3 || planned[0].Phase != routingPhaseDesign || planned[1].Phase != routingPhaseArchitecture {
+		t.Fatalf("unexpected phase plan: %+v", planned)
+	}
+	if planned[0].Model != planned[1].Model {
+		t.Fatalf("fixture requires the same model across the illegal edge: %+v", planned[:2])
+	}
+	if planned[1].ResumeSession || planned[1].ThreadID != "" {
+		t.Fatalf("design to architecture must remain a fresh checkpoint in preflight: %+v", planned[1])
+	}
+}
+
 func TestBuildExecutionTurnRequestsCapsSolHighAtOne(t *testing.T) {
 	req := executionRequest{
 		SpecID:             "SPEC-069",

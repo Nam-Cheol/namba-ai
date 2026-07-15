@@ -189,7 +189,7 @@ func TestExecuteRunEvidenceRecordsResumeStateAfterItIsAssigned(t *testing.T) {
 		DelegationPlan: delegationPlan{
 			IntegratorRole: "namba-implementer",
 			SelectedRoleProfiles: []agentRuntimeProfile{
-				{Role: "namba-reviewer", Model: modelRoutingModelTerra},
+				{Role: "namba-test-engineer", Model: modelRoutingModelTerra},
 			},
 		},
 	}
@@ -295,11 +295,13 @@ func TestExecuteRunPassesAllPendingReadOnlyCheckpointsToWriter(t *testing.T) {
 		"design checkpoint: preserve the interaction contract",
 		"architecture checkpoint: preserve the service boundary",
 	}
+	var codexArgs [][]string
 	var codexInputs []string
 	app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, _ string, input string) (string, string, error) {
 		if !isCodexExec(name, args) || len(codexInputs) >= len(threadIDs) {
 			t.Fatalf("unexpected Codex call: %s %v", name, args)
 		}
+		codexArgs = append(codexArgs, append([]string(nil), args...))
 		codexInputs = append(codexInputs, input)
 		callIndex := len(codexInputs) - 1
 		output := `{"thread_id":"` + threadIDs[callIndex] + `"}`
@@ -342,6 +344,12 @@ func TestExecuteRunPassesAllPendingReadOnlyCheckpointsToWriter(t *testing.T) {
 	}
 	if len(codexInputs) != 3 || len(result.Turns) != 3 || result.Turns[2].Name != "implement" {
 		t.Fatalf("expected two read-only checkpoints followed by implementation, inputs=%d turns=%+v", len(codexInputs), result.Turns)
+	}
+	if indexOfArg(codexArgs[1], "resume") != -1 {
+		t.Fatalf("design to architecture is not a legal adjacent resume edge: %v", codexArgs[1])
+	}
+	if !strings.Contains(codexInputs[1], checkpointOutputs[0]) {
+		t.Fatalf("fresh architecture checkpoint did not receive the design handoff: %q", codexInputs[1])
 	}
 	for _, checkpoint := range checkpointOutputs {
 		if !strings.Contains(codexInputs[2], checkpoint) {

@@ -211,7 +211,7 @@ func plannedCodexRequests(req executionRequest) []executionRequest {
 	resumeThreadID := firstNonBlank(strings.TrimSpace(req.ThreadID), plannedCodexResumeThreadID)
 	if codexSessionStateful(req.SessionMode) {
 		for index := 1; index < len(planned); index++ {
-			if planned[index].Model != planned[index-1].Model {
+			if !canResumeExecutionTurn(planned[index-1], planned[index]) {
 				continue
 			}
 			planned[index].ResumeSession = true
