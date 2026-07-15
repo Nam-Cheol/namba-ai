@@ -264,6 +264,38 @@ func TestBuildExecutionTurnRequestsUsesPredicatesAndKeepsFreshTurnContext(t *tes
 	}
 }
 
+func TestBuildExecutionTurnRequestsAddsTerraWriterAfterReadOnlyReview(t *testing.T) {
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Cross-system feature with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SandboxMode:        "workspace-write",
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "frontend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-reviewer"),
+			},
+		},
+	}
+
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 3 {
+		t.Fatalf("expected implementation, read-only review, and writer turns, got %+v", turns)
+	}
+	reviewer := turns[1]
+	if reviewer.Phase != routingPhaseReview || reviewer.Model != modelRoutingModelSol || !reviewer.RoutingDecision.ReadOnly {
+		t.Fatalf("expected a read-only Sol review checkpoint, got %+v", reviewer)
+	}
+	writer := turns[2]
+	if writer.Phase != routingPhaseRepair || writer.Model != modelRoutingModelTerra || writer.RoutingDecision.ReadOnly || writer.RoutingDecision.RuleID != "terra-writer-after-read-only-review-v1" || writer.SandboxMode != "workspace-write" {
+		t.Fatalf("expected a writable Terra consumer after review, got %+v", writer)
+	}
+}
+
 func TestBuildExecutionTurnRequestsCapsSolHighAtOne(t *testing.T) {
 	req := executionRequest{
 		SpecID:             "SPEC-069",

@@ -603,6 +603,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			turnReq.ResumeSession = true
 			turnReq.ThreadID = observedThreadID
 		}
+		if index > 0 && turnRequests[index-1].RoutingDecision.ReadOnly && !turnReq.RoutingDecision.ReadOnly && len(result.Turns) > 0 {
+			turnReq.Prompt = appendReadOnlyCheckpointHandoff(turnReq.Prompt, result.Turns[len(result.Turns)-1].Output)
+		}
 		turnRequests[index] = turnReq
 		executedTurnRequests = append(executedTurnRequests, turnReq)
 		hooks.recordModelRoutingTurns(executedTurnRequests)
@@ -956,6 +959,19 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	return result, finalReport, errors.Join(fmt.Errorf("%s", result.Error), publishErr)
 }
 
+func appendReadOnlyCheckpointHandoff(prompt, checkpointOutput string) string {
+	checkpoint := strings.TrimSpace(checkpointOutput)
+	if checkpoint == "" {
+		checkpoint = "external_unobserved"
+	}
+	return strings.Join([]string{
+		strings.TrimSpace(prompt),
+		"",
+		"## Read-only checkpoint handoff",
+		checkpoint,
+	}, "\n")
+}
+
 func (a *App) writeExecutionArtifacts(projectRoot, logID string, result executionResult) error {
 	if err := writeRunText(filepath.Join(projectRoot, logsDir, "runs", logID+"-result.txt"), result.Output); err != nil {
 		return err
@@ -1055,7 +1071,42 @@ func buildExecutionTurnRequests(req executionRequest) []executionRequest {
 			appendProfile(profile)
 		}
 	}
+	if len(turns) > 0 && turns[len(turns)-1].RoutingDecision.ReadOnly {
+		turns = append(turns, buildReadOnlyReviewWriterRequest(req, solRemaining, solHighRemaining))
+	}
 	return turns
+}
+
+func buildReadOnlyReviewWriterRequest(req executionRequest, solRemaining, solHighRemaining int) executionRequest {
+	writerReq := req
+	writerReq.TurnName = "review-repair-writer"
+	writerReq.TurnRole = firstNonBlank(req.DelegationPlan.IntegratorRole, "namba-implementer")
+	writerReq.Phase = routingPhaseRepair
+	writerReq.ResumeSession = false
+	writerReq.ThreadID = ""
+	writerReq.Model = modelRoutingModelTerra
+	writerReq.RequestedReasoningEffort = "high"
+	writerReq.SandboxMode = req.SandboxMode
+	writerReq.Prompt = strings.Join([]string{
+		"Consume the preceding read-only review checkpoint and apply every actionable fix in the workspace.",
+		"Do not stop at analysis. Preserve the accepted implementation when no change is required.",
+		"",
+		"## Base execution context",
+		req.Prompt,
+	}, "\n")
+	writerReq.RoutingDecision = modelRoutingDecisionResult{
+		Phase:                 routingPhaseRepair,
+		Tier:                  "standard",
+		Model:                 modelRoutingModelTerra,
+		ReasoningEffort:       "high",
+		RuleID:                "terra-writer-after-read-only-review-v1",
+		ReasonCodes:           []string{"read_only_review_handoff", "terra_writer"},
+		Status:                modelRoutingStatusPlanned,
+		RemainingSolTurns:     solRemaining,
+		RemainingSolHighTurns: solHighRemaining,
+		ReadOnly:              false,
+	}
+	return writerReq
 }
 
 func routeExecutionTurn(turn executionRequest, repairCount int, solRemaining, solHighRemaining *int) executionRequest {

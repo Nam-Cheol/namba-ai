@@ -419,7 +419,7 @@ func collectReportRuns(root string, report *nambaReport, sinceCutoff time.Time, 
 					if routing.State == modelRoutingStatusBlocked {
 						runs.ModelRouting.BlockedCount++
 					}
-					if routing.UsageState == "unavailable" {
+					if routing.UsageState == modelRoutingUsageUnavailable {
 						runs.ModelRouting.UnavailableUsageCount++
 					}
 				}

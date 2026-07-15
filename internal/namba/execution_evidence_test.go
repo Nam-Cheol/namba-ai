@@ -110,8 +110,39 @@ func TestRunEvidenceRecordsActualRoutedTurnsForReportAggregation(t *testing.T) {
 		t.Fatalf("expected phase-ordered Sol checkpoint then Terra implementation, got %+v", manifest.ModelRoutingTurns)
 	}
 	report := collectNambaReport(tmp, time.Now(), reportOptions{})
-	if report.Runs.ModelRouting == nil || report.Runs.ModelRouting.TurnsByModel[modelRoutingModelTerra] != 1 || report.Runs.ModelRouting.TurnsByModel[modelRoutingModelSol] != 1 {
+	if report.Runs.ModelRouting == nil || report.Runs.ModelRouting.TurnsByModel[modelRoutingModelTerra] != 1 || report.Runs.ModelRouting.TurnsByModel[modelRoutingModelSol] != 1 || report.Runs.ModelRouting.UnavailableUsageCount != 0 {
 		t.Fatalf("expected report to aggregate routed turn models, got %+v", report.Runs.ModelRouting)
+	}
+}
+
+func TestModelRoutingEvidenceDistinguishesUnobservedUsageFromUnavailableModel(t *testing.T) {
+	planned := modelRoutingEvidenceForRequest(executionRequest{
+		ModelRoutingPolicy:       modelRoutingPolicyCostBalancedV1,
+		Model:                    modelRoutingModelTerra,
+		RequestedReasoningEffort: "medium",
+		RoutingDecision: modelRoutingDecisionResult{
+			Phase:           routingPhaseImplement,
+			Model:           modelRoutingModelTerra,
+			ReasoningEffort: "medium",
+			Status:          modelRoutingStatusPlanned,
+		},
+	})
+	if planned == nil || planned.UsageState != modelRoutingUsageExternalUnobserved {
+		t.Fatalf("successful routed turn must keep unobserved usage distinct, got %+v", planned)
+	}
+
+	blocked := modelRoutingEvidenceForRequest(executionRequest{
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelSol,
+		RoutingDecision: modelRoutingDecisionResult{
+			Phase:          routingPhaseArchitecture,
+			Model:          modelRoutingModelSol,
+			Status:         modelRoutingStatusBlocked,
+			FallbackReason: "model_unavailable",
+		},
+	})
+	if blocked == nil || blocked.UsageState != modelRoutingUsageUnavailable {
+		t.Fatalf("blocked unavailable model must retain unavailable usage state, got %+v", blocked)
 	}
 }
 
@@ -173,6 +204,75 @@ func TestExecuteRunEvidenceRecordsResumeStateAfterItIsAssigned(t *testing.T) {
 	resumed := manifest.ModelRoutingTurns[1]
 	if resumed.SessionStrategy != "explicit_thread_resume" || resumed.ThreadID != threadIDs[0] {
 		t.Fatalf("expected evidence to retain the assigned resume state, got %+v", resumed)
+	}
+}
+
+func TestExecuteRunPassesReadOnlyReviewCheckpointToTerraWriter(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	threadIDs := []string{
+		"019f5f13-3132-76c3-b9c7-ac521e89355e",
+		"019f5f13-3132-76c3-b9c7-ac521e89355f",
+		"019f5f13-3132-76c3-b9c7-ac521e893560",
+	}
+	var codexInputs []string
+	app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, _ string, input string) (string, string, error) {
+		if !isCodexExec(name, args) || len(codexInputs) >= len(threadIDs) {
+			t.Fatalf("unexpected Codex call: %s %v", name, args)
+		}
+		codexInputs = append(codexInputs, input)
+		output := `{"thread_id":"` + threadIDs[len(codexInputs)-1] + `"}`
+		if len(codexInputs) == 2 {
+			output += "\n" + `{"type":"item.completed","item":{"text":"review checkpoint: tighten the cross-system boundary"}}`
+		}
+		return output, "", nil
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		if isShellCommand(name) {
+			return "validation ok", nil
+		}
+		t.Fatalf("unexpected command: %s %v", name, args)
+		return "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Cross-system feature with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "frontend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-reviewer"),
+			},
+		},
+	}
+	result, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
+	if err != nil {
+		t.Fatalf("execute run: %v", err)
+	}
+	if len(codexInputs) != 3 || len(result.Turns) != 3 {
+		t.Fatalf("expected implement, review, and writer calls, inputs=%d turns=%+v", len(codexInputs), result.Turns)
+	}
+	if !strings.Contains(codexInputs[2], "## Read-only checkpoint handoff") || !strings.Contains(codexInputs[2], "review checkpoint: tighten the cross-system boundary") {
+		t.Fatalf("Terra writer did not receive the Sol review handoff: %q", codexInputs[2])
+	}
+	if result.Turns[2].Name != "review-repair-writer" || result.Turns[2].Model != modelRoutingModelTerra {
+		t.Fatalf("unexpected review handoff writer result: %+v", result.Turns[2])
 	}
 }
 

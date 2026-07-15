@@ -11,7 +11,11 @@ import (
 	"time"
 )
 
-const executionEvidenceSchemaVersion = "execution-evidence/v1"
+const (
+	executionEvidenceSchemaVersion      = "execution-evidence/v1"
+	modelRoutingUsageExternalUnobserved = "external_unobserved"
+	modelRoutingUsageUnavailable        = "unavailable"
+)
 
 type executionEvidenceState string
 
@@ -239,6 +243,10 @@ func modelRoutingEvidenceForRequest(req executionRequest) *modelRoutingEvidence 
 	if req.ResumeSession && strings.TrimSpace(req.ThreadID) != "" {
 		strategy = "explicit_thread_resume"
 	}
+	usageState := modelRoutingUsageExternalUnobserved
+	if decision.Status == modelRoutingStatusBlocked && decision.FallbackReason == "model_unavailable" {
+		usageState = modelRoutingUsageUnavailable
+	}
 	return &modelRoutingEvidence{
 		Version:                  "model-routing/v1",
 		Phase:                    string(decision.Phase),
@@ -256,7 +264,7 @@ func modelRoutingEvidenceForRequest(req executionRequest) *modelRoutingEvidence 
 		State:                    firstNonBlank(decision.Status, "planned"),
 		ThreadID:                 strings.TrimSpace(req.ThreadID),
 		SessionStrategy:          strategy,
-		UsageState:               "unavailable",
+		UsageState:               usageState,
 	}
 }
 
