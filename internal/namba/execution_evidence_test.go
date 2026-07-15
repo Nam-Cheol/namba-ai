@@ -648,6 +648,79 @@ func TestExecuteRunUsesSolDiagnosticThenTerraWriterWithinOneRepairAttempt(t *tes
 	}
 }
 
+func TestExecuteRunStartsFreshRepairAfterWritableTurnOmitsThreadID(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	threadIDs := []string{
+		"019f5f13-3132-76c3-b9c7-ac521e89355e",
+		"",
+		"019f5f13-3132-76c3-b9c7-ac521e89355f",
+	}
+	var codexArgs [][]string
+	validationCalls := 0
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			if len(codexArgs) >= len(threadIDs) {
+				t.Fatalf("unexpected Codex call: %v", args)
+			}
+			index := len(codexArgs)
+			codexArgs = append(codexArgs, append([]string(nil), args...))
+			if threadIDs[index] == "" {
+				return "repair output without structured thread UUID", nil
+			}
+			return `{"thread_id":"` + threadIDs[index] + `"}`, nil
+		case isShellCommand(name):
+			validationCalls++
+			if validationCalls <= 2 {
+				return "validation failed", errors.New("simulated validation failure")
+			}
+			return "validation ok", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Implement a local change with deterministic acceptance tests.",
+		Mode:               executionModeDefault,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		RepairAttempts:     2,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"core"},
+		},
+	}
+	result, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
+	if err != nil {
+		t.Fatalf("execute run: %v", err)
+	}
+	if len(codexArgs) != 3 || len(result.Turns) != 3 || result.RetryCount != 2 {
+		t.Fatalf("expected implement and two repair turns, calls=%d retries=%d turns=%+v", len(codexArgs), result.RetryCount, result.Turns)
+	}
+	firstRepairResume := indexOfArg(codexArgs[1], "resume")
+	if firstRepairResume == -1 || firstRepairResume+1 >= len(codexArgs[1]) || codexArgs[1][firstRepairResume+1] != threadIDs[0] {
+		t.Fatalf("first repair must resume the initial writable thread %q, got %v", threadIDs[0], codexArgs[1])
+	}
+	if indexOfArg(codexArgs[2], "resume") != -1 || result.Turns[2].SessionAction != "exec" {
+		t.Fatalf("repair after missing UUID must start fresh, args=%v turn=%+v", codexArgs[2], result.Turns[2])
+	}
+}
+
 func TestCodexDiagnosticsEvidenceCoversVersionDoctorRedactionAndMismatch(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

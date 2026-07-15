@@ -626,8 +626,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			pendingReadOnlyCheckpointOutputs = append(pendingReadOnlyCheckpointOutputs, turnResult.Output)
 		}
 		observedThreadID = turnResult.ThreadID
-		if observedThreadID != "" && !turnReq.RoutingDecision.ReadOnly {
-			latestWritableThreadIDs[turnReq.Model] = observedThreadID
+		if updateLatestWritableThreadID(latestWritableThreadIDs, turnReq, observedThreadID) {
 			result.SessionID = observedThreadID
 		}
 		if turnReq.ResumeSession {
@@ -940,8 +939,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		if repairErr != nil {
 			return failRepair(repairErr)
 		}
-		if repairResult.ThreadID != "" && !repairReq.RoutingDecision.ReadOnly {
-			latestWritableThreadIDs[repairReq.Model] = repairResult.ThreadID
+		if updateLatestWritableThreadID(latestWritableThreadIDs, repairReq, repairResult.ThreadID) {
 			result.SessionID = repairResult.ThreadID
 		}
 	}
@@ -1029,6 +1027,27 @@ func (a *App) runValidationReport(ctx context.Context, root string, cfg qualityC
 
 	report.FinishedAt = a.now().Format(time.RFC3339)
 	return report, nil
+}
+
+// updateLatestWritableThreadID makes resume authority match the immediately
+// preceding writable turn for a model. Missing or malformed structured output
+// revokes any older cached UUID instead of allowing a later repair to resume a
+// stale conversation.
+func updateLatestWritableThreadID(latest map[string]string, req executionRequest, threadID string) bool {
+	if req.RoutingDecision.ReadOnly {
+		return false
+	}
+	model := strings.TrimSpace(req.Model)
+	if model == "" {
+		return false
+	}
+	threadID = strings.TrimSpace(threadID)
+	if threadID == "" {
+		delete(latest, model)
+		return false
+	}
+	latest[model] = threadID
+	return true
 }
 
 func validationPipelineSteps(cfg qualityConfig) []validationStep {
