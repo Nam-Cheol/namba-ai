@@ -10,10 +10,11 @@ import (
 const defaultCodexCapabilityProbeTimeout = 10 * time.Second
 
 const (
-	lifecycleProbeCodexVersion        = "codex_version"
-	lifecycleProbeCodexExecHelp       = "codex_exec_help"
-	lifecycleProbeSolAvailability     = "codex_sol_availability"
-	lifecycleProbeCodexResumeExecHelp = "codex_resume_exec_help"
+	lifecycleProbeCodexVersion           = "codex_version"
+	lifecycleProbeCodexExecHelp          = "codex_exec_help"
+	lifecycleProbeCodexModelAvailability = "codex_model_availability"
+	lifecycleProbeSolAvailability        = "codex_sol_availability"
+	lifecycleProbeCodexResumeExecHelp    = "codex_resume_exec_help"
 )
 
 const (
@@ -28,6 +29,7 @@ const (
 
 type lifecycleProbeOutcome struct {
 	Name       string `json:"name"`
+	Model      string `json:"model,omitempty"`
 	Status     string `json:"status"`
 	TimeoutMS  int64  `json:"timeout_ms,omitempty"`
 	DurationMS int64  `json:"duration_ms"`
@@ -93,7 +95,7 @@ func (s *executionLifecycleState) recordPreflight(capabilities codexCapabilityMa
 		return
 	}
 	s.capabilities = capabilities
-	s.request.SolAvailable = capabilities.SolAvailable
+	s.request = withModelAvailability(s.request, capabilities)
 	s.modelRoutingPlan = append(s.modelRoutingPlan[:0], plannedExecutionTurnRequests(s.request)...)
 }
 

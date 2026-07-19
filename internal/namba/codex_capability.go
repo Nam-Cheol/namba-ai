@@ -20,11 +20,12 @@ type codexCommandCapabilities struct {
 }
 
 type codexCapabilityMatrix struct {
-	Version      string                   `json:"version,omitempty"`
-	Exec         codexCommandCapabilities `json:"exec"`
-	Resume       codexCommandCapabilities `json:"resume"`
-	SolAvailable *bool                    `json:"sol_available,omitempty"`
-	Probes       []lifecycleProbeOutcome  `json:"probes,omitempty"`
+	Version           string                   `json:"version,omitempty"`
+	Exec              codexCommandCapabilities `json:"exec"`
+	Resume            codexCommandCapabilities `json:"resume"`
+	SolAvailable      *bool                    `json:"sol_available,omitempty"`
+	ModelAvailability map[string]bool          `json:"model_availability,omitempty"`
+	Probes            []lifecycleProbeOutcome  `json:"probes,omitempty"`
 }
 
 type resolvedCodexInvocation struct {
@@ -72,20 +73,11 @@ func (a *App) probeCodexCapabilities(ctx context.Context, dir string, req execut
 		return matrix, fmt.Errorf("codex exec --help: %w", err)
 	}
 	matrix.Exec = parseCodexCommandCapabilities(execHelp)
-	needsSol := plannedRequestsNeedSol(plannedCodexRequests(req))
-	if !matrix.Exec.ModelFlag && !matrix.Exec.Config {
-		unavailable := false
-		matrix.SolAvailable = &unavailable
-		if needsSol {
-			matrix.Probes = append(matrix.Probes, lifecycleProbeOutcome{Name: lifecycleProbeSolAvailability, Status: lifecycleProbeStatusUnsupported})
-		}
-	} else if needsSol {
-		available, probe := a.probeSolModelAvailability(ctx, dir, req, matrix)
-		matrix.SolAvailable = &available
-		matrix.Probes = append(matrix.Probes, probe)
+	if req.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
+		matrix.ModelAvailability = make(map[string]bool)
+		a.probePlannedRoutedModels(ctx, dir, req, &matrix)
 	}
-	planningReq := req
-	planningReq.SolAvailable = matrix.SolAvailable
+	planningReq := withModelAvailability(req, matrix)
 	planned, immediateBlock := executablePlannedCodexRequests(plannedCodexRequests(planningReq))
 	if immediateBlock || !plannedInvocationsNeedResume(planned) {
 		return matrix, nil
@@ -105,18 +97,81 @@ func (a *App) probeCodexCapabilities(ctx context.Context, dir string, req execut
 	return matrix, nil
 }
 
-func plannedRequestsNeedSol(planned []executionRequest) bool {
-	for _, req := range planned {
-		if req.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 && req.RoutingDecision.Model == modelRoutingModelSol && req.RoutingDecision.Status == modelRoutingStatusPlanned {
-			return true
-		}
+func (a *App) probePlannedRoutedModels(ctx context.Context, dir string, req executionRequest, matrix *codexCapabilityMatrix) {
+	if matrix == nil {
+		return
 	}
-	return false
+	if matrix.ModelAvailability == nil {
+		matrix.ModelAvailability = make(map[string]bool)
+	}
+	for {
+		planningReq := withModelAvailability(req, *matrix)
+		models := plannedRoutedModelIDs(plannedCodexRequests(planningReq))
+		nextModel := ""
+		for _, model := range models {
+			if _, probed := matrix.ModelAvailability[model]; !probed {
+				nextModel = model
+				break
+			}
+		}
+		if nextModel == "" {
+			return
+		}
+		available, probe := a.probeModelAvailability(ctx, dir, req, nextModel, *matrix)
+		matrix.ModelAvailability[nextModel] = available
+		if nextModel == modelRoutingModelSol {
+			solAvailable := available
+			matrix.SolAvailable = &solAvailable
+		}
+		matrix.Probes = append(matrix.Probes, probe)
+	}
 }
 
-func (a *App) probeSolModelAvailability(ctx context.Context, dir string, req executionRequest, capabilities codexCapabilityMatrix) (bool, lifecycleProbeOutcome) {
-	if !capabilities.Exec.JSONFlag || a.runCodexCmdWithInput == nil {
-		return false, lifecycleProbeOutcome{Name: lifecycleProbeSolAvailability, Status: lifecycleProbeStatusUnsupported}
+func plannedRoutedModelIDs(planned []executionRequest) []string {
+	models := make([]string, 0, len(planned))
+	seen := make(map[string]bool, len(planned))
+	for _, req := range planned {
+		if req.ModelRoutingPolicy != modelRoutingPolicyCostBalancedV1 {
+			continue
+		}
+		if req.RoutingDecision.Status == modelRoutingStatusBlocked {
+			if req.TurnName != "repair-preview" {
+				break
+			}
+			continue
+		}
+		model := strings.TrimSpace(req.RoutingDecision.Model)
+		if model == "" || seen[model] {
+			continue
+		}
+		seen[model] = true
+		models = append(models, model)
+	}
+	return models
+}
+
+func withModelAvailability(req executionRequest, capabilities codexCapabilityMatrix) executionRequest {
+	req.SolAvailable = capabilities.SolAvailable
+	if len(capabilities.ModelAvailability) == 0 {
+		req.ModelAvailability = nil
+		return req
+	}
+	req.ModelAvailability = make(map[string]bool, len(capabilities.ModelAvailability))
+	for model, available := range capabilities.ModelAvailability {
+		req.ModelAvailability[model] = available
+	}
+	return req
+}
+
+func (a *App) probeModelAvailability(ctx context.Context, dir string, req executionRequest, model string, capabilities codexCapabilityMatrix) (bool, lifecycleProbeOutcome) {
+	probeName := lifecycleProbeCodexModelAvailability
+	if model == modelRoutingModelSol {
+		probeName = lifecycleProbeSolAvailability
+	}
+	baseOutcome := lifecycleProbeOutcome{Name: probeName, Model: model}
+	if (!capabilities.Exec.ModelFlag && !capabilities.Exec.Config) || !capabilities.Exec.JSONFlag || a.runCodexCmdWithInput == nil {
+		baseOutcome.Status = lifecycleProbeStatusUnsupported
+		return false, baseOutcome
 	}
 
 	sessionMode := "stateful"
@@ -125,23 +180,25 @@ func (a *App) probeSolModelAvailability(ctx context.Context, dir string, req exe
 	}
 	command, err := buildCodexExecCommand(executionRequest{
 		WorkDir:        dir,
-		Prompt:         "Return exactly `namba-sol-available`. Do not inspect or modify files.",
+		Prompt:         "Return exactly `namba-model-available`. Do not inspect or modify files.",
 		ApprovalPolicy: "never",
 		SandboxMode:    "read-only",
-		Model:          modelRoutingModelSol,
+		Model:          model,
 		Profile:        strings.TrimSpace(req.Profile),
 		SessionMode:    sessionMode,
 	}, capabilities)
 	if err != nil {
-		return false, lifecycleProbeOutcome{Name: lifecycleProbeSolAvailability, Status: lifecycleProbeStatusError}
+		baseOutcome.Status = lifecycleProbeStatusError
+		return false, baseOutcome
 	}
 
 	var stdout, stderr string
-	probe, probeErr := runBoundedLifecycleProbe(ctx, lifecycleProbeSolAvailability, a.capabilityProbeTimeout, func(probeCtx context.Context) error {
+	probe, probeErr := runBoundedLifecycleProbe(ctx, probeName, a.capabilityProbeTimeout, func(probeCtx context.Context) error {
 		var runErr error
 		stdout, stderr, runErr = a.runCodexCmdWithInput(probeCtx, "codex", command.Args, dir, command.Input)
 		return runErr
 	})
+	probe.Model = model
 	if probeErr != nil {
 		return false, probe
 	}
@@ -210,7 +267,13 @@ func validateCodexExecutionContract(req executionRequest, capabilities codexCapa
 func resolvePlannedCodexInvocations(req executionRequest, capabilities codexCapabilityMatrix) ([]resolvedCodexInvocation, error) {
 	planned, immediateBlock := executablePlannedCodexRequests(plannedCodexRequests(req))
 	if immediateBlock {
-		return nil, nil
+		for _, plannedReq := range plannedCodexRequests(req) {
+			if plannedReq.TurnName == "repair-preview" || plannedReq.RoutingDecision.Status != modelRoutingStatusBlocked {
+				continue
+			}
+			return nil, validateModelRoutingTurnPlan([]executionRequest{plannedReq})
+		}
+		return nil, fmt.Errorf("model routing blocked before invocation planning")
 	}
 	invocations := make([]resolvedCodexInvocation, 0, len(planned))
 	for _, plannedReq := range planned {

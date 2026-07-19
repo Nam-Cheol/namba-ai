@@ -61,6 +61,7 @@ type executionRequest struct {
 	ResumeSession            bool                       `json:"resume_session,omitempty"`
 	ThreadID                 string                     `json:"thread_id,omitempty"`
 	SolAvailable             *bool                      `json:"-"`
+	ModelAvailability        map[string]bool            `json:"-"`
 }
 
 type codexConfig struct {

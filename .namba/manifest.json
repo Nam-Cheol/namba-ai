@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-19T13:53:24+09:00",
+  "generated_at": "2026-07-19T18:40:08+09:00",
   "entries": [
     {
       "path": ".agents/skills/namba-coach/SKILL.md",
@@ -460,8 +460,8 @@
       "path": ".namba/codex/model-routing.md",
       "kind": "asset",
       "owner": "namba-managed",
-      "checksum": "aa5bdc6e8a1eaa3d27ee3b6d243d93ac3fe2ba805dd511809e66822ec23209fe",
-      "updated_at": "2026-07-19T13:52:55+09:00"
+      "checksum": "d52204d6e69c3a90a16771689a92e132d60018e87318d1d65d6d507666d8af2d",
+      "updated_at": "2026-07-19T18:40:08+09:00"
     },
     {
       "path": ".namba/codex/output-contract.md",

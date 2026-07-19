@@ -886,11 +886,21 @@ func TestProbeCodexCapabilitiesChecksExactSolAvailability(t *testing.T) {
 			probeCalls := 0
 			app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
 				probeCalls++
-				if name != "codex" || dir != tmp || !containsArgPair(args, "-m", modelRoutingModelSol) || !containsArgPair(args, "-p", "namba-sol-profile") || indexOfArg(args, "--json") == -1 || indexOfArg(args, "--ephemeral") == -1 {
+				if name != "codex" || dir != tmp || indexOfArg(args, "-m") == -1 || !containsArgPair(args, "-p", "namba-sol-profile") || indexOfArg(args, "--json") == -1 || indexOfArg(args, "--ephemeral") == -1 {
 					t.Fatalf("unexpected exact-model probe: %s %v dir=%s", name, args, dir)
 				}
-				if !strings.Contains(input, "namba-sol-available") {
+				if !strings.Contains(input, "namba-model-available") {
 					t.Fatalf("unexpected exact-model probe input: %q", input)
+				}
+				modelIndex := indexOfArg(args, "-m")
+				if modelIndex == -1 || modelIndex+1 >= len(args) {
+					t.Fatalf("exact-model probe is missing model: %v", args)
+				}
+				if args[modelIndex+1] == modelRoutingModelTerra {
+					return `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355f"}`, "", nil
+				}
+				if args[modelIndex+1] != modelRoutingModelSol {
+					t.Fatalf("unexpected exact-model probe target: %v", args)
 				}
 				return tt.stdout, tt.stderr, tt.runErr
 			}
@@ -910,13 +920,96 @@ func TestProbeCodexCapabilitiesChecksExactSolAvailability(t *testing.T) {
 			if err != nil {
 				t.Fatalf("probeCodexCapabilities failed: %v", err)
 			}
-			if probeCalls != 1 || caps.SolAvailable == nil || *caps.SolAvailable != tt.available {
-				t.Fatalf("expected exact Sol availability %t from one probe, got calls=%d capabilities=%+v", tt.available, probeCalls, caps)
+			expectedProbeCalls := 1
+			if tt.available {
+				expectedProbeCalls = 2
+			}
+			if probeCalls != expectedProbeCalls || caps.SolAvailable == nil || *caps.SolAvailable != tt.available {
+				t.Fatalf("expected exact Sol availability %t and routed-model closure, got calls=%d capabilities=%+v", tt.available, probeCalls, caps)
 			}
 			if len(caps.Probes) < 3 || caps.Probes[0].Name != lifecycleProbeCodexVersion || caps.Probes[1].Name != lifecycleProbeCodexExecHelp || caps.Probes[2].Name != lifecycleProbeSolAvailability || caps.Probes[2].Status != tt.status {
 				t.Fatalf("expected ordered bounded capability outcomes ending in %q, got %+v", tt.status, caps.Probes)
 			}
 		})
+	}
+}
+
+func TestProbeCodexCapabilitiesChecksFallbackModelClosure(t *testing.T) {
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if dir != tmp {
+			t.Fatalf("expected capability probe workdir %s, got %s", tmp, dir)
+		}
+		switch {
+		case isCodexVersionCommand(name, args):
+			return "codex-cli test", nil
+		case isCodexHelpCommand(name, args, false):
+			return "-c, --config\n-a, --ask-for-approval\n-s, --sandbox\n-m, --model\n--ephemeral\n--json", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	var probedModels []string
+	app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
+		modelIndex := indexOfArg(args, "-m")
+		if name != "codex" || dir != tmp || modelIndex == -1 || modelIndex+1 >= len(args) || indexOfArg(args, "--json") == -1 || indexOfArg(args, "--ephemeral") == -1 {
+			t.Fatalf("unexpected exact-model probe: %s %v dir=%s", name, args, dir)
+		}
+		if !strings.Contains(input, "namba-model-available") {
+			t.Fatalf("unexpected exact-model probe input: %q", input)
+		}
+		model := args[modelIndex+1]
+		probedModels = append(probedModels, model)
+		if model == modelRoutingModelLuna {
+			return "", "model gpt-5.6-luna is not available", errors.New("exit status 1")
+		}
+		if model != modelRoutingModelTerra {
+			t.Fatalf("unexpected routed model probe: %q", model)
+		}
+		return `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Simple mechanical rename with deterministic tests.",
+		Mode:               executionModeDefault,
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend"},
+		},
+	}
+	caps, err := app.probeCodexCapabilities(context.Background(), tmp, req)
+	if err != nil {
+		t.Fatalf("probeCodexCapabilities failed: %v", err)
+	}
+	if got, want := strings.Join(probedModels, ","), modelRoutingModelLuna+","+modelRoutingModelTerra; got != want {
+		t.Fatalf("probed models = %q, want fallback closure %q", got, want)
+	}
+	if caps.ModelAvailability[modelRoutingModelLuna] || !caps.ModelAvailability[modelRoutingModelTerra] {
+		t.Fatalf("unexpected routed model availability: %+v", caps.ModelAvailability)
+	}
+	if len(caps.Probes) != 4 || caps.Probes[2].Model != modelRoutingModelLuna || caps.Probes[3].Model != modelRoutingModelTerra {
+		t.Fatalf("expected ordered model-specific bounded probes, got %+v", caps.Probes)
+	}
+
+	req.ModelAvailability = caps.ModelAvailability
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 1 || turns[0].Model != modelRoutingModelTerra || turns[0].RoutingDecision.Status != modelRoutingStatusFallback || turns[0].RoutingDecision.FallbackReason != modelRoutingReasonModelUnavailable {
+		t.Fatalf("unavailable Luna must fall back to a probed Terra writer, got %+v", turns)
 	}
 }
 
@@ -978,9 +1071,9 @@ func TestProbeCodexCapabilitiesStopsInvocationPlanningForBlockedSol(t *testing.T
 	if caps.SolAvailable == nil || *caps.SolAvailable || resumeHelpCalls != 0 {
 		t.Fatalf("expected blocked Sol availability without resume probing, calls=%d capabilities=%+v", resumeHelpCalls, caps)
 	}
-	req.SolAvailable = caps.SolAvailable
-	if _, err := validateCodexExecutionContract(req, caps); err != nil {
-		t.Fatalf("blocked routing must take precedence over invocation resolution: %v", err)
+	req = withModelAvailability(req, caps)
+	if _, err := validateCodexExecutionContract(req, caps); err == nil || !strings.Contains(err.Error(), modelRoutingReasonBlockedModelUnavailable) {
+		t.Fatalf("blocked routing must fail the preflight contract before invocation resolution, got %v", err)
 	}
 }
 

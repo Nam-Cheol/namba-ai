@@ -65,6 +65,7 @@ type modelRoutingInput struct {
 	BuildSystemChange       bool
 	UnresolvedReview        bool
 	SolAvailable            *bool // nil means capability has not ruled Sol out.
+	ModelAvailability       map[string]bool
 }
 
 type modelRoutingDecisionResult struct {
@@ -99,7 +100,7 @@ func modelRoutingDecision(input modelRoutingInput) modelRoutingDecisionResult {
 		decision.Model = modelRoutingModelLuna
 		decision.RuleID = "luna-simple-implementation-v1"
 		decision.ReasonCodes = []string{"single_subsystem", "explicit_transformation", "reversible", "deterministic_acceptance"}
-		return decision
+		return enforceRoutedModelAvailability(input, decision)
 	}
 
 	// Sol is a decision/review tool, never an implementation model. Repair is
@@ -127,7 +128,7 @@ func modelRoutingDecision(input modelRoutingInput) modelRoutingDecisionResult {
 	if input.Phase == routingPhaseImplement && (input.CrossSystem || input.Irreversible || input.CriticalRisk) {
 		decision.ReasonCodes = []string{"implementation_requires_writer", "terra_writer"}
 	}
-	return decision
+	return enforceRoutedModelAvailability(input, decision)
 }
 
 func requiresSolHighCheckpoint(input modelRoutingInput) bool {
@@ -161,19 +162,19 @@ func resolveSolDecision(input modelRoutingInput, rule, effort string, required b
 		ReadOnly:              true,
 	}
 	if input.SolBudgetActive && input.RemainingSolTurns <= 0 {
-		return fallbackOrBlockSol(decision, required, "sol_turn_budget_exhausted")
+		return fallbackOrBlockSol(input, decision, required, "sol_turn_budget_exhausted")
 	}
-	if input.SolAvailable != nil && !*input.SolAvailable {
+	if available, known := routedModelAvailability(input, modelRoutingModelSol); known && !available {
 		reason := modelRoutingReasonModelUnavailable
 		if required {
 			reason = modelRoutingReasonBlockedModelUnavailable
 		}
-		return fallbackOrBlockSol(decision, required, reason)
+		return fallbackOrBlockSol(input, decision, required, reason)
 	}
 	if effort == "high" && input.SolHighBudgetActive && input.RemainingSolHighTurns <= 0 {
 		// A prior Sol high checkpoint already covered the required risk review.
 		// Keep the one-turn high cap without preventing the writer/reviewer flow.
-		return fallbackOrBlockSol(decision, false, "sol_high_turn_budget_exhausted")
+		return fallbackOrBlockSol(input, decision, false, "sol_high_turn_budget_exhausted")
 	}
 	if input.SolBudgetActive {
 		decision.RemainingSolTurns = input.RemainingSolTurns - 1
@@ -184,7 +185,7 @@ func resolveSolDecision(input modelRoutingInput, rule, effort string, required b
 	return decision
 }
 
-func fallbackOrBlockSol(decision modelRoutingDecisionResult, required bool, reason string) modelRoutingDecisionResult {
+func fallbackOrBlockSol(input modelRoutingInput, decision modelRoutingDecisionResult, required bool, reason string) modelRoutingDecisionResult {
 	decision.FallbackReason = reason
 	if required {
 		decision.Status = modelRoutingStatusBlocked
@@ -197,6 +198,41 @@ func fallbackOrBlockSol(decision modelRoutingDecisionResult, required bool, reas
 	decision.Status = modelRoutingStatusFallback
 	decision.ReadOnly = false
 	decision.RuleID += "-fallback-terra"
+	return enforceRoutedModelAvailability(input, decision)
+}
+
+func routedModelAvailability(input modelRoutingInput, model string) (bool, bool) {
+	model = strings.TrimSpace(model)
+	if available, ok := input.ModelAvailability[model]; ok {
+		return available, true
+	}
+	if model == modelRoutingModelSol && input.SolAvailable != nil {
+		return *input.SolAvailable, true
+	}
+	return false, false
+}
+
+func enforceRoutedModelAvailability(input modelRoutingInput, decision modelRoutingDecisionResult) modelRoutingDecisionResult {
+	available, known := routedModelAvailability(input, decision.Model)
+	if !known || available || decision.Status == modelRoutingStatusBlocked {
+		return decision
+	}
+
+	if decision.Model == modelRoutingModelLuna {
+		decision.Tier = "standard"
+		decision.Model = modelRoutingModelTerra
+		decision.ReasoningEffort = "medium"
+		decision.Status = modelRoutingStatusFallback
+		decision.FallbackReason = modelRoutingReasonModelUnavailable
+		decision.RuleID += "-fallback-terra"
+		decision.ReasonCodes = append(decision.ReasonCodes, "luna_unavailable", "terra_writer")
+		return enforceRoutedModelAvailability(input, decision)
+	}
+
+	decision.Status = modelRoutingStatusBlocked
+	decision.FallbackReason = modelRoutingReasonBlockedModelUnavailable
+	decision.RuleID += "-blocked-model-unavailable"
+	decision.ReasonCodes = append(decision.ReasonCodes, strings.TrimPrefix(decision.Model, "gpt-5.6-")+"_unavailable")
 	return decision
 }
 

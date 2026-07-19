@@ -573,8 +573,58 @@ func TestExecuteRunBlocksRequiredSolWhenCapabilityProbeMarksItUnavailable(t *tes
 		t.Fatalf("routing block must take precedence over generic invocation errors: %v", err)
 	}
 	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
-	if len(manifest.ModelRoutingTurns) != 1 || manifest.ModelRoutingTurns[0].State != modelRoutingStatusBlocked || manifest.ModelRoutingTurns[0].FallbackReason != modelRoutingReasonBlockedModelUnavailable || manifest.ModelRoutingTurns[0].RequestedModel != modelRoutingModelSol {
-		t.Fatalf("expected blocked model-unavailable routing evidence, got %+v", manifest.ModelRoutingTurns)
+	if manifest.Status != "preflight_failed" || manifest.ModelRouting == nil || manifest.ModelRouting.State != modelRoutingStatusBlocked || manifest.ModelRouting.FallbackReason != modelRoutingReasonBlockedModelUnavailable || manifest.ModelRouting.RequestedModel != modelRoutingModelSol || len(manifest.ModelRoutingTurns) != 0 {
+		t.Fatalf("expected preflight blocked model-unavailable routing evidence, got %+v", manifest)
+	}
+}
+
+func TestExecuteRunBlocksUnavailableTerraDuringPreflight(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
+		capabilities := testCodexCapabilities()
+		capabilities.ModelAvailability = map[string]bool{modelRoutingModelTerra: false}
+		capabilities.Probes = []lifecycleProbeOutcome{{
+			Name:   lifecycleProbeCodexModelAvailability,
+			Model:  modelRoutingModelTerra,
+			Status: lifecycleProbeStatusError,
+		}}
+		return capabilities, nil
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		t.Fatalf("unavailable Terra must block during preflight before any command runs: %s %v", name, args)
+		return "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Implement an ordinary backend change with deterministic acceptance tests.",
+		Mode:               executionModeDefault,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend"},
+		},
+	}
+	_, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "none", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
+	if err == nil || !strings.Contains(err.Error(), modelRoutingReasonBlockedModelUnavailable) {
+		t.Fatalf("expected unavailable Terra to fail preflight, got %v", err)
+	}
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
+	if manifest.Status != "preflight_failed" || manifest.ModelRouting == nil || manifest.ModelRouting.State != modelRoutingStatusBlocked || manifest.ModelRouting.FallbackReason != modelRoutingReasonBlockedModelUnavailable || manifest.ModelRouting.RequestedModel != modelRoutingModelTerra {
+		t.Fatalf("expected preflight blocked Terra evidence, got %+v", manifest)
 	}
 }
 

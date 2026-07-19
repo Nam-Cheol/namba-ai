@@ -123,7 +123,7 @@ func TestExecuteRunBoundsAndPersistsSolProbeTimeout(t *testing.T) {
 	}
 
 	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
-	if manifest.Status != "execution_failed" || manifest.Preflight.State != executionEvidenceStatePresent {
-		t.Fatalf("bounded probe failure must still finalize execution evidence, got %+v", manifest)
+	if manifest.Status != "preflight_failed" || manifest.Preflight.State != executionEvidenceStatePresent || manifest.ModelRouting == nil || manifest.ModelRouting.State != modelRoutingStatusBlocked {
+		t.Fatalf("bounded probe failure must finalize blocked preflight evidence, got %+v", manifest)
 	}
 }

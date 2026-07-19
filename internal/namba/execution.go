@@ -553,7 +553,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		return result, validationReport{}, err
 	}
 
-	req.SolAvailable = capabilities.SolAvailable
+	req = withModelAvailability(req, capabilities)
 	turnRequests := buildExecutionTurnRequests(req)
 	if routingErr := validateModelRoutingTurnPlan(turnRequests); routingErr != nil {
 		if blockedTurn, ok := firstBlockedModelRoutingTurn(turnRequests); ok {
@@ -1418,7 +1418,8 @@ func modelRoutingInputForRequest(req executionRequest, phase routingPhase, role 
 		ExplicitTransformation: containsAny("rename", "format", "replace", "mechanical"), Reversible: !irreversible,
 		DeterministicAcceptance: containsAny("test", "acceptance", "format", "rename"), PublicContractChange: publicContract,
 		BuildSystemChange: buildSystemChange, UnresolvedReview: containsAny("open risk", "unresolved", "ambiguous"),
-		SolAvailable: req.SolAvailable,
+		SolAvailable:      req.SolAvailable,
+		ModelAvailability: req.ModelAvailability,
 	}
 }
 
