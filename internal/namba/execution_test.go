@@ -271,6 +271,42 @@ func TestBuildExecutionTurnRequestsUsesPredicatesAndKeepsFreshTurnContext(t *tes
 	}
 }
 
+func TestModelRoutingInputIgnoresGeneratedExecutionPromptBoilerplate(t *testing.T) {
+	generatedPrompt := strings.Join([]string{
+		"# NambaAI Execution Request",
+		"",
+		"## Run Mode",
+		"- Execution style: one runner; keep implementation, integration, and validation inside one workspace.",
+		"",
+		"## SPEC",
+		"Simple explicit mechanical rename in one backend package.",
+		"",
+		"## Plan",
+		"Rename the local symbol only.",
+		"",
+		"## Acceptance",
+		"- [ ] The rename is covered by a deterministic test.",
+		"",
+		"## Validation",
+		"- build: go build ./...",
+	}, "\n")
+	req := executionRequest{
+		Prompt: generatedPrompt,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend"},
+		},
+	}
+
+	input := modelRoutingInputForRequest(req, routingPhaseImplement, "namba-implementer", 0, 1, 1, true)
+	if input.BuildSystemChange || input.CrossSystem {
+		t.Fatalf("generated run boilerplate must not change task routing predicates, got %+v", input)
+	}
+	if got := modelRoutingDecision(input); got.Model != modelRoutingModelLuna {
+		t.Fatalf("simple generated default prompt decision = %+v, want Luna", got)
+	}
+}
+
 func TestBuildExecutionTurnRequestsInsertsSolCheckpointBeforeStandaloneHighRiskWriter(t *testing.T) {
 	for _, tt := range []struct {
 		name   string

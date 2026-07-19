@@ -226,6 +226,65 @@ func TestExecuteRunEvidenceRecordsResumeStateAfterItIsAssigned(t *testing.T) {
 	}
 }
 
+func TestExecuteRunKeepsEphemeralTurnsFresh(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
+		capabilities := testCodexCapabilities()
+		capabilities.Exec.EphemeralFlag = true
+		return capabilities, nil
+	}
+	threadIDs := []string{
+		"019f5f13-3132-76c3-b9c7-ac521e89355e",
+		"019f5f13-3132-76c3-b9c7-ac521e89355f",
+	}
+	var commands [][]string
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		if !isCodexExec(name, args) {
+			t.Fatalf("unexpected command: %s %v", name, args)
+		}
+		commands = append(commands, append([]string(nil), args...))
+		return `{"thread_id":"` + threadIDs[len(commands)-1] + `"}`, nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Implement a reversible local change with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "ephemeral",
+		DelegationPlan: delegationPlan{
+			IntegratorRole: "namba-implementer",
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				{Role: "namba-test-engineer", Model: modelRoutingModelTerra},
+			},
+		},
+	}
+	if _, _, err := app.executeRun(context.Background(), tmp, "spec-069-ephemeral", req, tmp, qualityConfig{TestCommand: "none", LintCommand: "none", TypecheckCommand: "none"}, nil, ""); err != nil {
+		t.Fatalf("ephemeral multi-turn run must not attempt a resume: %v", err)
+	}
+	if len(commands) != 2 {
+		t.Fatalf("expected two fresh ephemeral turns, got %d commands", len(commands))
+	}
+	for _, args := range commands {
+		if indexOfArg(args, "resume") != -1 {
+			t.Fatalf("ephemeral turn must not invoke codex exec resume, got %v", args)
+		}
+	}
+}
+
 func TestExecuteRunPassesReadOnlyReviewCheckpointToTerraWriter(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

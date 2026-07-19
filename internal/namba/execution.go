@@ -605,7 +605,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	executedTurnRequests := make([]executionRequest, 0, len(turnRequests))
 	pendingReadOnlyCheckpointOutputs := make([]string, 0)
 	for index, turnReq := range turnRequests {
-		resumeAdjacentTurn := index > 0 && observedThreadID != "" && canResumeExecutionTurn(turnRequests[index-1], turnReq)
+		resumeAdjacentTurn := codexSessionStateful(req.SessionMode) && index > 0 && observedThreadID != "" && canResumeExecutionTurn(turnRequests[index-1], turnReq)
 		if resumeAdjacentTurn {
 			turnReq.ResumeSession = true
 			turnReq.ThreadID = observedThreadID
@@ -1383,7 +1383,7 @@ func firstBlockedModelRoutingTurn(turns []executionRequest) (executionRequest, b
 }
 
 func modelRoutingInputForRequest(req executionRequest, phase routingPhase, role string, repairCount, solRemaining, solHighRemaining int, budgetActive bool) modelRoutingInput {
-	text := strings.ToLower(strings.Join(append([]string{req.Prompt}, req.DelegationPlan.DominantDomains...), "\n"))
+	text := strings.ToLower(strings.Join(append([]string{modelRoutingTaskText(req.Prompt)}, req.DelegationPlan.DominantDomains...), "\n"))
 	containsAny := func(words ...string) bool {
 		for _, word := range words {
 			if strings.Contains(text, word) {
@@ -1424,6 +1424,38 @@ func modelRoutingInputForRequest(req executionRequest, phase routingPhase, role 
 		SolAvailable:      req.SolAvailable,
 		ModelAvailability: req.ModelAvailability,
 	}
+}
+
+// modelRoutingTaskText excludes Namba's generated run envelope from routing
+// predicates. The envelope contains mode and validation boilerplate such as
+// "integration" and "build", which are execution instructions rather than
+// task signals. Direct-fix and custom prompts retain their full text.
+func modelRoutingTaskText(prompt string) string {
+	const executionHeader = "# NambaAI Execution Request"
+	start := strings.Index(prompt, executionHeader)
+	if start < 0 {
+		return prompt
+	}
+
+	capturing := false
+	sections := make([]string, 0, 3)
+	for _, line := range strings.Split(prompt[start:], "\n") {
+		switch strings.TrimSpace(line) {
+		case "## SPEC", "## Plan", "## Acceptance":
+			capturing = true
+			continue
+		case "## Validation":
+			capturing = false
+			continue
+		}
+		if capturing {
+			sections = append(sections, line)
+		}
+	}
+	if taskText := strings.TrimSpace(strings.Join(sections, "\n")); taskText != "" {
+		return taskText
+	}
+	return prompt
 }
 
 func routingPhaseForRole(role string) routingPhase {
