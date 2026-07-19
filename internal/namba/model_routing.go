@@ -106,7 +106,7 @@ func modelRoutingDecision(input modelRoutingInput) modelRoutingDecisionResult {
 	// deliberately Terra unless the explicit repeated-failure risk predicate is
 	// met below.
 	if input.Phase != routingPhaseImplement && input.Phase != routingPhaseRepair {
-		if input.CriticalRisk && input.HighAmbiguity && (input.CrossSystem || input.Irreversible) {
+		if requiresSolHighCheckpoint(input) {
 			return resolveSolDecision(input, "sol-high-risk-decision-v1", "high", true, []string{"critical_risk", "high_ambiguity", riskScopeReason(input)})
 		}
 		if shouldUseSolMedium(input) {
@@ -119,7 +119,7 @@ func modelRoutingDecision(input modelRoutingInput) modelRoutingDecisionResult {
 		decision.ReasoningEffort = "high"
 		decision.RuleID = "terra-repair-v1"
 		decision.ReasonCodes = []string{"repair_attempt"}
-		if input.CriticalRisk && input.HighAmbiguity && (input.CrossSystem || input.Irreversible) {
+		if requiresSolHighCheckpoint(input) {
 			return resolveSolDecision(input, "sol-high-repeated-risk-diagnosis-v1", "high", true, []string{"repeated_failure", "critical_risk", "high_ambiguity", riskScopeReason(input)})
 		}
 	}
@@ -128,6 +128,10 @@ func modelRoutingDecision(input modelRoutingInput) modelRoutingDecisionResult {
 		decision.ReasonCodes = []string{"implementation_requires_writer", "terra_writer"}
 	}
 	return decision
+}
+
+func requiresSolHighCheckpoint(input modelRoutingInput) bool {
+	return input.CriticalRisk && input.HighAmbiguity && (input.CrossSystem || input.Irreversible)
 }
 
 func isSimpleLunaImplementation(input modelRoutingInput) bool {

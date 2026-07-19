@@ -1085,7 +1085,11 @@ func buildCostBalancedExecutionTurnRequests(req executionRequest) []executionReq
 	base.TurnRole = req.DelegationPlan.IntegratorRole
 	base.Phase = routingPhaseImplement
 	if normalizeExecutionMode(req.Mode) != executionModeTeam {
-		return []executionRequest{routeExecutionTurn(base, 0, &solRemaining, &solHighRemaining)}
+		turns := make([]executionRequest, 0, 2)
+		if checkpoint, ok := buildStandaloneHighRiskCheckpoint(req, &solRemaining, &solHighRemaining); ok {
+			turns = append(turns, checkpoint)
+		}
+		return append(turns, routeExecutionTurn(base, 0, &solRemaining, &solHighRemaining))
 	}
 
 	profiles := append([]agentRuntimeProfile(nil), req.DelegationPlan.SelectedRoleProfiles...)
@@ -1125,6 +1129,24 @@ func buildCostBalancedExecutionTurnRequests(req executionRequest) []executionReq
 		turns = append(turns, buildReadOnlyReviewWriterRequest(req, solRemaining, solHighRemaining))
 	}
 	return turns
+}
+
+func buildStandaloneHighRiskCheckpoint(req executionRequest, solRemaining, solHighRemaining *int) (executionRequest, bool) {
+	const checkpointRole = "namba-high-risk-advisor"
+	input := modelRoutingInputForRequest(req, routingPhaseArchitecture, checkpointRole, 0, *solRemaining, *solHighRemaining, true)
+	if !requiresSolHighCheckpoint(input) {
+		return executionRequest{}, false
+	}
+
+	checkpoint := req
+	checkpoint.TurnName = "high-risk-checkpoint"
+	checkpoint.TurnRole = checkpointRole
+	checkpoint.Phase = routingPhaseArchitecture
+	checkpoint.ResumeSession = false
+	checkpoint.ThreadID = ""
+	checkpoint = routeExecutionTurn(checkpoint, 0, solRemaining, solHighRemaining)
+	checkpoint.Prompt = buildDelegationTurnPrompt(checkpoint, agentRuntimeProfile{Role: checkpointRole}, true)
+	return checkpoint, true
 }
 
 func buildReadOnlyReviewWriterRequest(req executionRequest, solRemaining, solHighRemaining int) executionRequest {

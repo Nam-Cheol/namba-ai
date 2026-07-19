@@ -291,6 +291,76 @@ func TestExecuteRunPassesReadOnlyReviewCheckpointToTerraWriter(t *testing.T) {
 	}
 }
 
+func TestExecuteRunPassesStandaloneHighRiskSolCheckpointToWriter(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	threadIDs := []string{
+		"019f5f13-3132-76c3-b9c7-ac521e89355e",
+		"019f5f13-3132-76c3-b9c7-ac521e89355f",
+	}
+	var codexInputs []string
+	app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, _ string, input string) (string, string, error) {
+		if !isCodexExec(name, args) || len(codexInputs) >= len(threadIDs) {
+			t.Fatalf("unexpected Codex call: %s %v", name, args)
+		}
+		codexInputs = append(codexInputs, input)
+		callIndex := len(codexInputs) - 1
+		output := `{"thread_id":"` + threadIDs[callIndex] + `"}`
+		if callIndex == 0 {
+			output += "\n" + `{"type":"item.completed","item":{"text":"high-risk checkpoint: isolate the irreversible security boundary"}}`
+		}
+		return output, "", nil
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		if isShellCommand(name) {
+			return "validation ok", nil
+		}
+		t.Fatalf("unexpected command: %s %v", name, args)
+		return "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "DIRECT-FIX",
+		WorkDir:            tmp,
+		Prompt:             "Resolve an ambiguous cross-system security architecture with an irreversible migration and deterministic acceptance tests.",
+		Mode:               executionModeDefault,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "standalone-runner",
+			DominantDomains: []string{"backend", "security"},
+		},
+	}
+	result, _, err := app.executeRun(context.Background(), tmp, "direct-fix", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
+	if err != nil {
+		t.Fatalf("execute run: %v", err)
+	}
+	if len(codexInputs) != 2 || len(result.Turns) != 2 {
+		t.Fatalf("expected standalone checkpoint and writer calls, inputs=%d turns=%+v", len(codexInputs), result.Turns)
+	}
+	if result.Turns[0].Name != "high-risk-checkpoint" || result.Turns[0].Model != modelRoutingModelSol || result.Turns[1].Name != "implement" || result.Turns[1].Model != modelRoutingModelTerra {
+		t.Fatalf("unexpected standalone high-risk execution order: %+v", result.Turns)
+	}
+	if !strings.Contains(codexInputs[1], "## Read-only checkpoint handoff") || !strings.Contains(codexInputs[1], "high-risk checkpoint: isolate the irreversible security boundary") {
+		t.Fatalf("standalone writer did not receive the Sol checkpoint: %q", codexInputs[1])
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "direct-fix-evidence.json"))
+	if len(manifest.ModelRoutingTurns) != 2 || manifest.ModelRoutingTurns[0].RequestedModel != modelRoutingModelSol || manifest.ModelRoutingTurns[1].RequestedModel != modelRoutingModelTerra {
+		t.Fatalf("execution evidence lost the standalone checkpoint boundary: %+v", manifest.ModelRoutingTurns)
+	}
+}
+
 func TestExecuteRunPassesAllPendingReadOnlyCheckpointsToWriter(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
@@ -533,7 +603,7 @@ func TestExecuteRunBlocksUnavailableRepairBeforeCodex(t *testing.T) {
 			}
 			return `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, nil
 		case isShellCommand(name):
-			return "validation failed", errors.New("simulated validation failure")
+			return "ambiguous cross-system security architecture with irreversible risk", errors.New("simulated validation failure")
 		default:
 			t.Fatalf("unexpected command: %s %v", name, args)
 			return "", nil
@@ -543,7 +613,7 @@ func TestExecuteRunBlocksUnavailableRepairBeforeCodex(t *testing.T) {
 	req := executionRequest{
 		SpecID:             "SPEC-069",
 		WorkDir:            tmp,
-		Prompt:             "Cross-system security architecture with irreversible risk and acceptance tests.",
+		Prompt:             "Implement an ordinary backend change with deterministic acceptance tests.",
 		Mode:               executionModeDefault,
 		Runner:             "codex",
 		ApprovalPolicy:     "on-request",
@@ -554,7 +624,7 @@ func TestExecuteRunBlocksUnavailableRepairBeforeCodex(t *testing.T) {
 		RepairAttempts:     1,
 		DelegationPlan: delegationPlan{
 			IntegratorRole:  "namba-implementer",
-			DominantDomains: []string{"backend", "security"},
+			DominantDomains: []string{"backend"},
 		},
 	}
 	result, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
@@ -599,7 +669,7 @@ func TestExecuteRunUsesSolDiagnosticThenTerraWriterWithinOneRepairAttempt(t *tes
 		case isShellCommand(name):
 			validationCalls++
 			if validationCalls == 1 {
-				return "validation failed", errors.New("simulated validation failure")
+				return "ambiguous cross-system security architecture with irreversible risk", errors.New("simulated validation failure")
 			}
 			return "validation ok", nil
 		default:
@@ -611,7 +681,7 @@ func TestExecuteRunUsesSolDiagnosticThenTerraWriterWithinOneRepairAttempt(t *tes
 	req := executionRequest{
 		SpecID:             "SPEC-069",
 		WorkDir:            tmp,
-		Prompt:             "Cross-system security architecture with irreversible risk and acceptance tests.",
+		Prompt:             "Implement an ordinary backend change with deterministic acceptance tests.",
 		Mode:               executionModeDefault,
 		Runner:             "codex",
 		ApprovalPolicy:     "on-request",
@@ -622,7 +692,7 @@ func TestExecuteRunUsesSolDiagnosticThenTerraWriterWithinOneRepairAttempt(t *tes
 		RepairAttempts:     1,
 		DelegationPlan: delegationPlan{
 			IntegratorRole:  "namba-implementer",
-			DominantDomains: []string{"backend", "security"},
+			DominantDomains: []string{"backend"},
 		},
 	}
 	result, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, "")

@@ -271,6 +271,73 @@ func TestBuildExecutionTurnRequestsUsesPredicatesAndKeepsFreshTurnContext(t *tes
 	}
 }
 
+func TestBuildExecutionTurnRequestsInsertsSolCheckpointBeforeStandaloneHighRiskWriter(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		specID string
+		mode   executionMode
+	}{
+		{name: "default", specID: "SPEC-069", mode: executionModeDefault},
+		{name: "solo", specID: "SPEC-069", mode: executionModeSolo},
+		{name: "direct fix", specID: "DIRECT-FIX", mode: executionModeDefault},
+		{name: "parallel worker", specID: "SPEC-069", mode: executionModeParallel},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			req := executionRequest{
+				SpecID:             tt.specID,
+				Prompt:             "Resolve an ambiguous cross-system security architecture with an irreversible migration and deterministic acceptance tests.",
+				Mode:               tt.mode,
+				ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+				SandboxMode:        "workspace-write",
+				SessionMode:        "stateful",
+				DelegationPlan: delegationPlan{
+					IntegratorRole:  "standalone-runner",
+					DominantDomains: []string{"backend", "security"},
+				},
+			}
+
+			turns := buildExecutionTurnRequests(req)
+			if len(turns) != 2 {
+				t.Fatalf("standalone high-risk route must contain checkpoint then writer, got %+v", turns)
+			}
+			checkpoint, writer := turns[0], turns[1]
+			if checkpoint.Phase != routingPhaseArchitecture || checkpoint.Model != modelRoutingModelSol || checkpoint.RequestedReasoningEffort != "high" || !checkpoint.RoutingDecision.ReadOnly || checkpoint.SandboxMode != "read-only" || checkpoint.RoutingDecision.RuleID != "sol-high-risk-decision-v1" {
+				t.Fatalf("expected required Sol-high read-only checkpoint, got %+v", checkpoint)
+			}
+			if writer.Phase != routingPhaseImplement || writer.Model != modelRoutingModelTerra || writer.RoutingDecision.ReadOnly || writer.SandboxMode != "workspace-write" {
+				t.Fatalf("expected writable Terra implementation after checkpoint, got %+v", writer)
+			}
+			if checkpoint.RoutingDecision.RemainingSolTurns != 0 || checkpoint.RoutingDecision.RemainingSolHighTurns != 0 {
+				t.Fatalf("standalone checkpoint must consume the one-turn Sol budgets exactly once, got %+v", checkpoint.RoutingDecision)
+			}
+		})
+	}
+
+	ordinary := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Implement an ordinary backend change with deterministic acceptance tests.",
+		Mode:               executionModeDefault,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SandboxMode:        "workspace-write",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "standalone-runner",
+			DominantDomains: []string{"backend"},
+		},
+	}
+	if turns := buildExecutionTurnRequests(ordinary); len(turns) != 1 || turns[0].Phase != routingPhaseImplement {
+		t.Fatalf("ordinary standalone work must not gain a synthetic Sol checkpoint, got %+v", turns)
+	}
+
+	blocked := ordinary
+	blocked.Prompt = "Resolve an ambiguous cross-system security architecture with an irreversible migration and deterministic acceptance tests."
+	blocked.DelegationPlan.DominantDomains = []string{"backend", "security"}
+	blocked.SolAvailable = boolPtr(false)
+	blockedTurns := buildExecutionTurnRequests(blocked)
+	if len(blockedTurns) != 2 || blockedTurns[0].RoutingDecision.Status != modelRoutingStatusBlocked || blockedTurns[0].RoutingDecision.FallbackReason != modelRoutingReasonBlockedModelUnavailable {
+		t.Fatalf("unavailable required Sol must block before the standalone writer, got %+v", blockedTurns)
+	}
+}
+
 func TestBuildExecutionTurnRequestsAddsTerraWriterAfterReadOnlyReview(t *testing.T) {
 	req := executionRequest{
 		SpecID:             "SPEC-069",
@@ -854,40 +921,49 @@ func TestProbeCodexCapabilitiesStopsInvocationPlanningForBlockedSol(t *testing.T
 	}
 }
 
-func TestResolvePlannedCodexInvocationsValidatesExecutableTurnsWhenRepairPreviewIsBlocked(t *testing.T) {
-	req := executionRequest{
+func TestExecutablePlannedCodexRequestsValidatesExecutableTurnsWhenRepairPreviewIsBlocked(t *testing.T) {
+	initialReq := executionRequest{
 		SpecID:             "SPEC-069",
-		Prompt:             "Cross-system security architecture with irreversible risk and acceptance tests.",
+		Prompt:             "Implement an ordinary backend change with deterministic acceptance tests.",
 		Mode:               executionModeDefault,
 		ApprovalPolicy:     "on-request",
 		SandboxMode:        "workspace-write",
 		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
 		Model:              modelRoutingModelTerra,
 		SessionMode:        "stateful",
-		RepairAttempts:     1,
-		SolAvailable:       boolPtr(false),
 		DelegationPlan: delegationPlan{
 			IntegratorRole:  "namba-implementer",
-			DominantDomains: []string{"backend", "security"},
+			DominantDomains: []string{"backend"},
 		},
 	}
-
-	planned := plannedCodexRequests(req)
-	if len(planned) != 2 || planned[0].RoutingDecision.Status != modelRoutingStatusPlanned || planned[1].TurnName != "repair-preview" || planned[1].RoutingDecision.Status != modelRoutingStatusBlocked {
-		t.Fatalf("expected an executable initial turn and blocked conditional repair preview, got %+v", planned)
+	initial := buildExecutionTurnRequests(initialReq)[0]
+	blockedRepair := initialReq
+	blockedRepair.TurnName = "repair-preview"
+	blockedRepair.Phase = routingPhaseRepair
+	blockedRepair.RoutingDecision = modelRoutingDecisionResult{
+		Phase:          routingPhaseRepair,
+		Model:          modelRoutingModelSol,
+		Status:         modelRoutingStatusBlocked,
+		FallbackReason: modelRoutingReasonBlockedModelUnavailable,
+		RequiredSol:    true,
+		ReadOnly:       true,
+	}
+	planned, immediateBlock := executablePlannedCodexRequests([]executionRequest{initial, blockedRepair})
+	if immediateBlock || len(planned) != 1 || planned[0].TurnName != "implement" {
+		t.Fatalf("blocked conditional repair preview must not suppress the executable initial turn, got immediate=%t planned=%+v", immediateBlock, planned)
 	}
 
-	invocations, err := resolvePlannedCodexInvocations(req, codexCapabilityMatrix{
+	invocation, err := resolveCodexInvocation(planned[0], codexCapabilityMatrix{
 		Exec: codexCommandCapabilities{Config: true, ModelFlag: true},
 	})
 	if err != nil {
 		t.Fatalf("executable initial turn must still pass contract validation: %v", err)
 	}
-	if len(invocations) != 1 || invocations[0].CommandShape != "codex exec" {
-		t.Fatalf("blocked repair preview must be excluded without suppressing the initial invocation: %+v", invocations)
+	if invocation.CommandShape != "codex exec" {
+		t.Fatalf("blocked repair preview must be excluded without suppressing the initial invocation: %+v", invocation)
 	}
 
-	if _, err := resolvePlannedCodexInvocations(req, codexCapabilityMatrix{Exec: codexCommandCapabilities{ApprovalFlag: true, SandboxFlag: true}}); err == nil || !strings.Contains(err.Error(), "model") {
+	if _, err := resolveCodexInvocation(planned[0], codexCapabilityMatrix{Exec: codexCommandCapabilities{ApprovalFlag: true, SandboxFlag: true}}); err == nil || !strings.Contains(err.Error(), "model") {
 		t.Fatalf("initial Terra invocation must fail preflight when the CLI cannot represent its model, got %v", err)
 	}
 }
