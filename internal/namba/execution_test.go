@@ -1013,6 +1013,61 @@ func TestProbeCodexCapabilitiesChecksFallbackModelClosure(t *testing.T) {
 	}
 }
 
+func TestProbeCodexCapabilitiesValidatesLocalContractBeforeModelProbes(t *testing.T) {
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if dir != tmp {
+			t.Fatalf("expected capability probe workdir %s, got %s", tmp, dir)
+		}
+		switch {
+		case isCodexVersionCommand(name, args):
+			return "codex-cli test", nil
+		case isCodexHelpCommand(name, args, false):
+			return "-a, --ask-for-approval\n-s, --sandbox\n-m, --model\n--ephemeral\n--json", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+	modelProbeCalls := 0
+	app.runCodexCmdWithInput = func(context.Context, string, []string, string, string) (string, string, error) {
+		modelProbeCalls++
+		return `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Simple mechanical rename with deterministic tests.",
+		Mode:               executionModeDefault,
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend"},
+		},
+	}
+	caps, err := app.probeCodexCapabilities(context.Background(), tmp, req)
+	if err == nil || !strings.Contains(err.Error(), "model_reasoning_effort cannot be represented") {
+		t.Fatalf("expected no-config surface to fail before model probing, got %v", err)
+	}
+	if modelProbeCalls != 0 {
+		t.Fatalf("invalid local invocation contract must not spend model probes, calls=%d", modelProbeCalls)
+	}
+	if len(caps.Probes) != 2 || caps.Probes[0].Name != lifecycleProbeCodexVersion || caps.Probes[1].Name != lifecycleProbeCodexExecHelp {
+		t.Fatalf("expected only local capability probes before contract failure, got %+v", caps.Probes)
+	}
+}
+
 func TestProbeCodexCapabilitiesStopsInvocationPlanningForBlockedSol(t *testing.T) {
 	tmp := t.TempDir()
 	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
@@ -1032,7 +1087,7 @@ func TestProbeCodexCapabilitiesStopsInvocationPlanningForBlockedSol(t *testing.T
 		case isCodexVersionCommand(name, args):
 			return "codex-cli test", nil
 		case isCodexHelpCommand(name, args, false):
-			return "-a, --ask-for-approval\n-s, --sandbox\n--json", nil
+			return "-c, --config\n-a, --ask-for-approval\n-s, --sandbox", nil
 		case isCodexHelpCommand(name, args, true):
 			resumeHelpCalls++
 			return "", errors.New("resume surface unavailable")

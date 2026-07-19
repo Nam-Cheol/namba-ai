@@ -74,6 +74,9 @@ func (a *App) probeCodexCapabilities(ctx context.Context, dir string, req execut
 	}
 	matrix.Exec = parseCodexCommandCapabilities(execHelp)
 	if req.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
+		if err := validateCodexExecSurfaceBeforeModelProbes(req, matrix); err != nil {
+			return matrix, fmt.Errorf("codex exec surface: %w", err)
+		}
 		matrix.ModelAvailability = make(map[string]bool)
 		a.probePlannedRoutedModels(ctx, dir, req, &matrix)
 	}
@@ -236,6 +239,25 @@ func plannedInvocationsNeedResume(planned []executionRequest) bool {
 		}
 	}
 	return false
+}
+
+// validateCodexExecSurfaceBeforeModelProbes dry-resolves every executable
+// routed turn against the already-detected local exec surface. Resume details
+// remain a later exact-plan check, but no live model call is spent when the
+// installed CLI cannot represent a turn's model, reasoning, or other controls.
+func validateCodexExecSurfaceBeforeModelProbes(req executionRequest, capabilities codexCapabilityMatrix) error {
+	planned, immediateBlock := executablePlannedCodexRequests(plannedCodexRequests(req))
+	if immediateBlock {
+		return validateModelRoutingTurnPlan(plannedCodexRequests(req))
+	}
+	for _, plannedReq := range planned {
+		plannedReq.ResumeSession = false
+		plannedReq.ThreadID = ""
+		if _, err := resolveCodexInvocation(plannedReq, capabilities); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func validateCodexExecutionContract(req executionRequest, capabilities codexCapabilityMatrix) (string, error) {
