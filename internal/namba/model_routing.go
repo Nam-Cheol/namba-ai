@@ -135,7 +135,7 @@ func requiresSolHighCheckpoint(input modelRoutingInput) bool {
 }
 
 func isSimpleLunaImplementation(input modelRoutingInput) bool {
-	return input.Phase == routingPhaseImplement && input.SimpleImplementation && input.SingleSubsystem && input.ExplicitTransformation && input.Reversible && input.DeterministicAcceptance && !input.PublicContractChange && !input.BuildSystemChange && !input.UnresolvedReview
+	return input.Phase == routingPhaseImplement && input.SimpleImplementation && input.SingleSubsystem && input.ExplicitTransformation && input.Reversible && input.DeterministicAcceptance && !input.CriticalRisk && !input.CrossSystem && !input.Irreversible && !input.PublicContractChange && !input.BuildSystemChange && !input.UnresolvedReview
 }
 
 func shouldUseSolMedium(input modelRoutingInput) bool {

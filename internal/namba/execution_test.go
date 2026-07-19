@@ -875,7 +875,7 @@ func TestProbeCodexCapabilitiesChecksExactSolAvailability(t *testing.T) {
 				case isCodexVersionCommand(name, args):
 					return "codex-cli test", nil
 				case isCodexHelpCommand(name, args, false):
-					return "-c, --config\n-a, --ask-for-approval\n-s, --sandbox\n-m, --model\n--ephemeral\n--json", nil
+					return "-c, --config\n-a, --ask-for-approval\n-s, --sandbox\n-m, --model\n-p, --profile\n--ephemeral\n--json", nil
 				case isCodexHelpCommand(name, args, true):
 					return "-c, --config\n-m, --model\n--json", nil
 				default:
@@ -886,7 +886,7 @@ func TestProbeCodexCapabilitiesChecksExactSolAvailability(t *testing.T) {
 			probeCalls := 0
 			app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
 				probeCalls++
-				if name != "codex" || dir != tmp || !containsArgPair(args, "-m", modelRoutingModelSol) || indexOfArg(args, "--json") == -1 || indexOfArg(args, "--ephemeral") == -1 {
+				if name != "codex" || dir != tmp || !containsArgPair(args, "-m", modelRoutingModelSol) || !containsArgPair(args, "-p", "namba-sol-profile") || indexOfArg(args, "--json") == -1 || indexOfArg(args, "--ephemeral") == -1 {
 					t.Fatalf("unexpected exact-model probe: %s %v dir=%s", name, args, dir)
 				}
 				if !strings.Contains(input, "namba-sol-available") {
@@ -901,6 +901,7 @@ func TestProbeCodexCapabilitiesChecksExactSolAvailability(t *testing.T) {
 				Prompt:             "Cross-system security architecture with irreversible risk and acceptance tests.",
 				ApprovalPolicy:     "on-request",
 				SandboxMode:        "workspace-write",
+				Profile:            "namba-sol-profile",
 				ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
 				SessionMode:        "stateful",
 				RepairAttempts:     1,

@@ -80,7 +80,7 @@ func (a *App) probeCodexCapabilities(ctx context.Context, dir string, req execut
 			matrix.Probes = append(matrix.Probes, lifecycleProbeOutcome{Name: lifecycleProbeSolAvailability, Status: lifecycleProbeStatusUnsupported})
 		}
 	} else if needsSol {
-		available, probe := a.probeSolModelAvailability(ctx, dir, matrix)
+		available, probe := a.probeSolModelAvailability(ctx, dir, req, matrix)
 		matrix.SolAvailable = &available
 		matrix.Probes = append(matrix.Probes, probe)
 	}
@@ -114,7 +114,7 @@ func plannedRequestsNeedSol(planned []executionRequest) bool {
 	return false
 }
 
-func (a *App) probeSolModelAvailability(ctx context.Context, dir string, capabilities codexCapabilityMatrix) (bool, lifecycleProbeOutcome) {
+func (a *App) probeSolModelAvailability(ctx context.Context, dir string, req executionRequest, capabilities codexCapabilityMatrix) (bool, lifecycleProbeOutcome) {
 	if !capabilities.Exec.JSONFlag || a.runCodexCmdWithInput == nil {
 		return false, lifecycleProbeOutcome{Name: lifecycleProbeSolAvailability, Status: lifecycleProbeStatusUnsupported}
 	}
@@ -129,6 +129,7 @@ func (a *App) probeSolModelAvailability(ctx context.Context, dir string, capabil
 		ApprovalPolicy: "never",
 		SandboxMode:    "read-only",
 		Model:          modelRoutingModelSol,
+		Profile:        strings.TrimSpace(req.Profile),
 		SessionMode:    sessionMode,
 	}, capabilities)
 	if err != nil {

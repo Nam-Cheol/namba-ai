@@ -29,6 +29,21 @@ func TestModelRoutingDecisionPolicyTable(t *testing.T) {
 			model: modelRoutingModelTerra, effort: "medium", tier: "standard", status: modelRoutingStatusPlanned,
 		},
 		{
+			name:  "critical simple implementation stays on Terra",
+			input: modelRoutingInput{Phase: routingPhaseImplement, Role: "namba-security-engineer", SimpleImplementation: true, SingleSubsystem: true, ExplicitTransformation: true, Reversible: true, DeterministicAcceptance: true, CriticalRisk: true},
+			model: modelRoutingModelTerra, effort: "medium", tier: "standard", status: modelRoutingStatusPlanned,
+		},
+		{
+			name:  "cross system simple implementation stays on Terra",
+			input: modelRoutingInput{Phase: routingPhaseImplement, Role: "namba-implementer", SimpleImplementation: true, SingleSubsystem: true, ExplicitTransformation: true, Reversible: true, DeterministicAcceptance: true, CrossSystem: true},
+			model: modelRoutingModelTerra, effort: "medium", tier: "standard", status: modelRoutingStatusPlanned,
+		},
+		{
+			name:  "irreversible simple implementation stays on Terra",
+			input: modelRoutingInput{Phase: routingPhaseImplement, Role: "namba-implementer", SimpleImplementation: true, SingleSubsystem: true, ExplicitTransformation: true, Reversible: true, DeterministicAcceptance: true, Irreversible: true},
+			model: modelRoutingModelTerra, effort: "medium", tier: "standard", status: modelRoutingStatusPlanned,
+		},
+		{
 			name:  "cross system architecture uses Sol medium read only",
 			input: modelRoutingInput{Phase: routingPhaseArchitecture, Role: "namba-backend-architect", CrossSystem: true},
 			model: modelRoutingModelSol, effort: "medium", tier: "deep", readOnly: true, status: modelRoutingStatusPlanned,
