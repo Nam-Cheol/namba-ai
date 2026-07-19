@@ -216,6 +216,10 @@ func TestExecuteRunEvidenceRecordsResumeStateAfterItIsAssigned(t *testing.T) {
 	if len(manifest.ModelRoutingTurns) != 2 {
 		t.Fatalf("expected two executed turns, got %+v", manifest.ModelRoutingTurns)
 	}
+	fresh := manifest.ModelRoutingTurns[0]
+	if fresh.SessionStrategy != "fresh_session" || fresh.ThreadID != threadIDs[0] {
+		t.Fatalf("expected fresh-turn evidence to retain its observed thread UUID, got %+v", fresh)
+	}
 	resumed := manifest.ModelRoutingTurns[1]
 	if resumed.SessionStrategy != "explicit_thread_resume" || resumed.ThreadID != threadIDs[0] {
 		t.Fatalf("expected evidence to retain the assigned resume state, got %+v", resumed)

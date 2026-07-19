@@ -625,6 +625,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			pendingReadOnlyCheckpointOutputs = append(pendingReadOnlyCheckpointOutputs, turnResult.Output)
 		}
 		observedThreadID = turnResult.ThreadID
+		turnReq = lifecycleState.recordReachedTurnObservation(turnReq, observedThreadID)
+		turnRequests[index] = turnReq
+		executedTurnRequests[len(executedTurnRequests)-1] = turnReq
 		if lifecycleState.observeWritableThread(turnReq, observedThreadID) {
 			result.SessionID = observedThreadID
 		}

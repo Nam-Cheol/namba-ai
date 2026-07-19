@@ -56,6 +56,73 @@ func TestExecutionLifecycleStateOwnsRoutingSessionAndEvidenceBoundaries(t *testi
 	}
 }
 
+func TestExecuteRunStopsLocalPreflightBeforeLiveCodexProbes(t *testing.T) {
+	tests := []struct {
+		name      string
+		configure func(*executionRequest)
+		wantError string
+	}{
+		{
+			name: "invalid add dir",
+			configure: func(req *executionRequest) {
+				req.AddDirs = []string{"missing-dir"}
+			},
+			wantError: "add_dirs",
+		},
+		{
+			name: "missing required env",
+			configure: func(req *executionRequest) {
+				req.RequiredEnv = []string{"NAMBA_TEST_MISSING_ENV"}
+			},
+			wantError: "required_env",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tmp := t.TempDir()
+			app := NewApp(nil, nil)
+			app.lookPath = func(name string) (string, error) {
+				if name == "codex" || name == "git" {
+					return name, nil
+				}
+				return "", errors.New("missing dependency")
+			}
+			app.getenv = func(string) string { return "" }
+			capabilityCalls := 0
+			app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
+				capabilityCalls++
+				return testCodexCapabilities(), nil
+			}
+
+			req := executionRequest{
+				SpecID:             "SPEC-069",
+				WorkDir:            tmp,
+				Prompt:             "Implement a reversible local change with deterministic acceptance tests.",
+				Mode:               executionModeDefault,
+				Runner:             "codex",
+				ApprovalPolicy:     "on-request",
+				SandboxMode:        "workspace-write",
+				ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+				SessionMode:        "stateful",
+				DelegationPlan: delegationPlan{
+					IntegratorRole:  "namba-implementer",
+					DominantDomains: []string{"core"},
+				},
+			}
+			tc.configure(&req)
+
+			_, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{}, nil, "")
+			if err == nil || !strings.Contains(err.Error(), tc.wantError) {
+				t.Fatalf("expected local preflight failure at %s, got %v", tc.wantError, err)
+			}
+			if capabilityCalls != 0 {
+				t.Fatalf("local preflight blocker must short-circuit before live Codex probes, calls=%d", capabilityCalls)
+			}
+		})
+	}
+}
+
 func TestExecuteRunBoundsAndPersistsSolProbeTimeout(t *testing.T) {
 	tmp := t.TempDir()
 	app := NewApp(nil, nil)

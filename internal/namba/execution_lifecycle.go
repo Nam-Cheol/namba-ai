@@ -120,6 +120,23 @@ func (s *executionLifecycleState) appendReachedRoutingTurn(turn executionRequest
 	s.modelRoutingTurns = append(s.modelRoutingTurns, turn)
 }
 
+// recordReachedTurnObservation attaches a canonical UUID observed from a fresh
+// execution to its reached routing evidence. Resume turns retain the UUID they
+// actually used as input instead of being rewritten by a later output value.
+func (s *executionLifecycleState) recordReachedTurnObservation(turn executionRequest, threadID string) executionRequest {
+	if s == nil {
+		return turn
+	}
+	threadID = strings.TrimSpace(threadID)
+	if !turn.ResumeSession && isCodexThreadUUID(threadID) {
+		turn.ThreadID = threadID
+	}
+	if len(s.modelRoutingTurns) > 0 {
+		s.modelRoutingTurns[len(s.modelRoutingTurns)-1] = turn
+	}
+	return turn
+}
+
 func (s *executionLifecycleState) modelRoutingEvidence() (*modelRoutingEvidence, []modelRoutingEvidence) {
 	if s == nil {
 		return nil, nil
