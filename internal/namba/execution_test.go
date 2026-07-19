@@ -338,6 +338,68 @@ func TestBuildExecutionTurnRequestsInsertsSolCheckpointBeforeStandaloneHighRiskW
 	}
 }
 
+func TestBuildExecutionTurnRequestsInsertsSolCheckpointBeforeImplementOnlyHighRiskTeam(t *testing.T) {
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Resolve an ambiguous cross-system security architecture with an irreversible migration and deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SandboxMode:        "workspace-write",
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			ReviewerRole:    "namba-reviewer",
+			DominantDomains: []string{"backend", "security"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-security-engineer"),
+				runtimeProfileForAgent("namba-reviewer"),
+			},
+		},
+	}
+
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 4 {
+		t.Fatalf("implement-only high-risk team must contain checkpoint, integrator, specialist, and reviewer, got %+v", turns)
+	}
+	checkpoint := turns[0]
+	if checkpoint.TurnName != "high-risk-checkpoint" || checkpoint.TurnRole != "namba-high-risk-advisor" || checkpoint.Phase != routingPhaseArchitecture || checkpoint.Model != modelRoutingModelSol || !checkpoint.RoutingDecision.ReadOnly {
+		t.Fatalf("required Sol checkpoint must precede every team writer, got %+v", turns)
+	}
+	if turns[1].TurnName != "implement" || turns[1].RoutingDecision.ReadOnly {
+		t.Fatalf("integrator must be the first writer immediately after the checkpoint, got %+v", turns)
+	}
+}
+
+func TestBuildExecutionTurnRequestsRendersRoutedFallbackEffortInSpecialistPrompt(t *testing.T) {
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Cross-system product design with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SandboxMode:        "workspace-write",
+		SolAvailable:       boolPtr(false),
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"frontend", "backend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-designer"),
+			},
+		},
+	}
+
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 2 {
+		t.Fatalf("expected fallback designer and integrator turns, got %+v", turns)
+	}
+	designer := turns[0]
+	if designer.Model != modelRoutingModelTerra || designer.RequestedReasoningEffort != "high" || designer.RoutingDecision.Status != modelRoutingStatusFallback {
+		t.Fatalf("fixture must route optional Sol designer to Terra high, got %+v", designer)
+	}
+	if !strings.Contains(designer.Prompt, "Requested reasoning effort for this turn: `high`.") || strings.Contains(designer.Prompt, "Requested reasoning effort for this turn: `medium`.") {
+		t.Fatalf("specialist prompt must render routed effort, got %q", designer.Prompt)
+	}
+}
+
 func TestBuildExecutionTurnRequestsAddsTerraWriterAfterReadOnlyReview(t *testing.T) {
 	req := executionRequest{
 		SpecID:             "SPEC-069",

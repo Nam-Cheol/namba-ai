@@ -1086,7 +1086,7 @@ func buildCostBalancedExecutionTurnRequests(req executionRequest) []executionReq
 	base.Phase = routingPhaseImplement
 	if normalizeExecutionMode(req.Mode) != executionModeTeam {
 		turns := make([]executionRequest, 0, 2)
-		if checkpoint, ok := buildStandaloneHighRiskCheckpoint(req, &solRemaining, &solHighRemaining); ok {
+		if checkpoint, ok := buildSyntheticHighRiskCheckpoint(req, &solRemaining, &solHighRemaining); ok {
 			turns = append(turns, checkpoint)
 		}
 		return append(turns, routeExecutionTurn(base, 0, &solRemaining, &solHighRemaining))
@@ -1114,9 +1114,16 @@ func buildCostBalancedExecutionTurnRequests(req executionRequest) []executionReq
 		turn.Prompt = buildDelegationTurnPrompt(turn, profile, true)
 		turns = append(turns, turn)
 	}
+	hasPreWriteCheckpoint := false
 	for _, profile := range profiles {
 		if routingPhaseOrder(routingPhaseForRole(profile.Role)) < routingPhaseOrder(routingPhaseImplement) {
 			appendProfile(profile)
+			hasPreWriteCheckpoint = true
+		}
+	}
+	if !hasPreWriteCheckpoint {
+		if checkpoint, ok := buildSyntheticHighRiskCheckpoint(req, &solRemaining, &solHighRemaining); ok {
+			turns = append(turns, checkpoint)
 		}
 	}
 	turns = append(turns, routeExecutionTurn(base, 0, &solRemaining, &solHighRemaining))
@@ -1131,7 +1138,7 @@ func buildCostBalancedExecutionTurnRequests(req executionRequest) []executionReq
 	return turns
 }
 
-func buildStandaloneHighRiskCheckpoint(req executionRequest, solRemaining, solHighRemaining *int) (executionRequest, bool) {
+func buildSyntheticHighRiskCheckpoint(req executionRequest, solRemaining, solHighRemaining *int) (executionRequest, bool) {
 	const checkpointRole = "namba-high-risk-advisor"
 	input := modelRoutingInputForRequest(req, routingPhaseArchitecture, checkpointRole, 0, *solRemaining, *solHighRemaining, true)
 	if !requiresSolHighCheckpoint(input) {
@@ -1458,8 +1465,8 @@ func buildDelegationTurnPrompt(req executionRequest, profile agentRuntimeProfile
 		fmt.Sprintf("Continue the current `%s` execution as `%s` in the same workspace.", req.SpecID, profile.Role),
 		"Make direct repository changes for your specialty, then stop so the next turn or validator can continue.",
 	}
-	if profile.ModelReasoningEffort != "" {
-		lines = append(lines, fmt.Sprintf("Requested reasoning effort for this turn: `%s`.", profile.ModelReasoningEffort))
+	if req.RequestedReasoningEffort != "" {
+		lines = append(lines, fmt.Sprintf("Requested reasoning effort for this turn: `%s`.", req.RequestedReasoningEffort))
 	}
 	if profile.Role == req.DelegationPlan.ReviewerRole {
 		lines = append(lines, "Act as the final reviewer for the same-workspace team run. Close acceptance gaps you find instead of only describing them.")
