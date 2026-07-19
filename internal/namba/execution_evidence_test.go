@@ -903,6 +903,14 @@ func TestExecuteRunStartsFreshRepairAfterWritableTurnOmitsThreadID(t *testing.T)
 	if indexOfArg(codexArgs[2], "resume") != -1 || result.Turns[2].SessionAction != "exec" {
 		t.Fatalf("repair after missing UUID must start fresh, args=%v turn=%+v", codexArgs[2], result.Turns[2])
 	}
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
+	if len(manifest.ModelRoutingTurns) != 3 {
+		t.Fatalf("expected routing evidence for implement and two repair turns, got %+v", manifest.ModelRoutingTurns)
+	}
+	freshRepair := manifest.ModelRoutingTurns[2]
+	if freshRepair.SessionStrategy != "fresh_session" || freshRepair.ThreadID != threadIDs[2] {
+		t.Fatalf("fresh repair evidence must retain its observed thread UUID, got %+v", freshRepair)
+	}
 }
 
 func TestCodexDiagnosticsEvidenceCoversVersionDoctorRedactionAndMismatch(t *testing.T) {

@@ -921,6 +921,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 
 		repairResult, repairErr := selectedRunner.Execute(ctx, repairReq, capabilities)
 		result.Turns = append(result.Turns, repairResult)
+		repairReq = lifecycleState.recordReachedTurnObservation(repairReq, repairResult.ThreadID)
 		if repairErr == nil && repairReq.RoutingDecision.ReadOnly {
 			repairReq, repairErr = buildRepairWriterExecutionTurnRequest(req, finalReport, attempt, lifecycleState.latestWritableThreadID(modelRoutingModelTerra), logID, repairResult.Output, solRemaining, solHighRemaining)
 			if repairErr == nil {
@@ -930,6 +931,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			if repairErr == nil {
 				repairResult, repairErr = selectedRunner.Execute(ctx, repairReq, capabilities)
 				result.Turns = append(result.Turns, repairResult)
+				repairReq = lifecycleState.recordReachedTurnObservation(repairReq, repairResult.ThreadID)
 			}
 		}
 		result.RetryCount++
