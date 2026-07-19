@@ -120,7 +120,7 @@ namba land
 ## ✅ ローカル品質ゲート
 
 - PR 前に `scripts/quality.sh` で CI の中核品質バーをローカル実行できます。
-- `go.mod` の `toolchain go1.26.4` を使うため、CI と `GOTOOLCHAIN=auto` のローカル実行は既知の Go 1.26.3 標準ライブラリ脆弱性を避けます。
+- `go.mod` の `toolchain go1.26.5` を使うため、CI と `GOTOOLCHAIN=auto` のローカル実行は既知の Go 1.26.3 標準ライブラリ脆弱性を避けます。
 - このゲートは Python unittest、Go unit/race tests、harness eval regression、evidence schema validation、report JSON validation、gofmt、go vet、staticcheck、govulncheck、Go coverage report を実行します。
 - 既定 artifact は coverage profile/text、`eval-scorecard.json`、`eval-summary.md`、`report.json`、`schema-validation.txt` です。
 - aggregate Go coverage threshold は 73.0% です。計画時に測定した 73.7% baseline より少し低くし、Go version/reporting noise を吸収しながら意味のある回帰を止めます。

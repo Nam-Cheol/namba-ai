@@ -689,6 +689,8 @@ internal/namba/eval_scorecard_test.go
 internal/namba/execution.go
 internal/namba/execution_evidence.go
 internal/namba/execution_evidence_test.go
+internal/namba/execution_lifecycle.go
+internal/namba/execution_lifecycle_test.go
 internal/namba/execution_smoke_test.go
 internal/namba/execution_test.go
 internal/namba/frontend_brief.go
