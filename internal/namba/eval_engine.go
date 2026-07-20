@@ -255,9 +255,10 @@ func evaluateAgentDelegationScenario(scenario evalScenario) (map[string]any, []s
 		return nil, []string{fmt.Sprintf("unsupported agent delegation mode %q", fixture.Mode)}
 	}
 	delegation := suggestDelegationPlan(mode, fixture.SpecText, fixture.PlanText, fixture.AcceptanceText)
+	selectedRoles := append([]string{}, delegation.SelectedRoles...)
 	return map[string]any{
 		"route_selection":   "agent_delegation",
-		"selected_roles":    delegation.SelectedRoles,
+		"selected_roles":    selectedRoles,
 		"integrator_role":   delegation.IntegratorRole,
 		"reviewer_role":     delegation.ReviewerRole,
 		"delegation_budget": delegation.DelegationBudget,

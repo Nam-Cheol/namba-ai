@@ -473,6 +473,32 @@ func TestEvalAgentDelegationScenarioUsesConfiguredModeAndDirectDelegationPlan(t 
 	}
 }
 
+func TestEvalAgentDelegationScenarioSerializesEmptySelectedRolesAsArray(t *testing.T) {
+	t.Parallel()
+
+	actual, failures := evaluateAgentDelegationScenario(evalScenario{
+		Type: "agent_delegation",
+		Fixture: json.RawMessage(`{
+			"mode": "parallel",
+			"spec_text": "Implement a backend API service endpoint in a worktree fan-out."
+		}`),
+	})
+	if len(failures) != 0 {
+		t.Fatalf("evaluate parallel agent delegation scenario: %+v", failures)
+	}
+	roles, ok := actual["selected_roles"].([]string)
+	if !ok || roles == nil || len(roles) != 0 {
+		t.Fatalf("expected selected_roles to be a non-nil empty []string, got %#v", actual["selected_roles"])
+	}
+	encoded, err := json.Marshal(actual)
+	if err != nil {
+		t.Fatalf("marshal delegation result: %v", err)
+	}
+	if !strings.Contains(string(encoded), `"selected_roles":[]`) {
+		t.Fatalf("expected selected_roles to serialize as an array, got %s", encoded)
+	}
+}
+
 func TestEvalFileReadsDiskBeforeEmbeddedFixture(t *testing.T) {
 	t.Parallel()
 
