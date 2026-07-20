@@ -26,6 +26,7 @@ func codexScaffoldFilesForOS(profile initProfile, goos string) map[string]string
 		filepath.ToSlash(filepath.Join(codexStateDir, "statusline.example.toml")):     renderCodexStatusLineExample(),
 		filepath.ToSlash(filepath.Join(codexStateDir, "claude-codex-mapping.md")):     renderClaudeCodexMapping(),
 		filepath.ToSlash(filepath.Join(codexStateDir, "output-contract.md")):          renderOutputContractDocLocalized(profile),
+		filepath.ToSlash(filepath.Join(codexStateDir, "model-routing.md")):            renderModelRoutingDoc(),
 		filepath.ToSlash(filepath.Join(codexStateDir, "validate-output-contract.py")): renderOutputContractValidatorLocalized(profile),
 		filepath.ToSlash(repoCodexConfigPath):                                         renderRepoCodexConfig(profile),
 		filepath.ToSlash(repoCodexHooksPath):                                          renderNambaCodexHooksJSONForOS(goos),
@@ -46,6 +47,8 @@ func codexAgentTemplates() map[string]string {
 	return map[string]string{
 		"namba-planner.md":                renderPlannerRoleCard(),
 		"namba-planner.toml":              renderPlannerCustomAgent(),
+		"namba-high-risk-advisor.md":      renderHighRiskAdvisorRoleCard(),
+		"namba-high-risk-advisor.toml":    renderHighRiskAdvisorCustomAgent(),
 		"namba-plan-reviewer.md":          renderPlanReviewerRoleCard(),
 		"namba-plan-reviewer.toml":        renderPlanReviewerCustomAgent(),
 		"namba-product-manager.md":        renderProductManagerRoleCard(),
@@ -80,6 +83,7 @@ func codexAgentTemplates() map[string]string {
 func requiredCodexAgentFiles() []string {
 	return []string{
 		"namba-planner.toml",
+		"namba-high-risk-advisor.toml",
 		"namba-plan-reviewer.toml",
 		"namba-product-manager.toml",
 		"namba-frontend-architect.toml",

@@ -95,6 +95,46 @@ func TestReportCommandHumanOutputSurfacesOperatorSections(t *testing.T) {
 	}
 }
 
+func TestRenderNambaReportHumanOutputSummarizesModelRouting(t *testing.T) {
+	report := nambaReport{
+		GeneratedAt: "2026-07-15T12:00:00+09:00",
+		Summary:     reportSummary{Health: "attention", NextAction: "inspect routing fallbacks"},
+		Runs: reportRuns{
+			ModelRouting: &reportModelRouting{
+				Version: "model-routing/v1",
+				TurnsByModel: map[string]int{
+					modelRoutingModelSol:   1,
+					modelRoutingModelTerra: 2,
+				},
+				FallbackCount:         1,
+				BlockedCount:          1,
+				UnavailableUsageCount: 1,
+			},
+		},
+	}
+
+	out, err := renderNambaReport(report, "text")
+	if err != nil {
+		t.Fatalf("render text report: %v", err)
+	}
+	for _, want := range []string{
+		"## Model Routing",
+		"- version: `model-routing/v1`",
+		"- turns `gpt-5.6-sol`: 1",
+		"- turns `gpt-5.6-terra`: 2",
+		"- fallback turns: 1",
+		"- blocked turns: 1",
+		"- unavailable usage: 1",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("human report missing model routing summary %q:\n%s", want, out)
+		}
+	}
+	if strings.Index(out, modelRoutingModelSol) > strings.Index(out, modelRoutingModelTerra) {
+		t.Fatalf("model routing rows must be deterministic:\n%s", out)
+	}
+}
+
 func TestReportSinceFiltersTimeSeriesEvidence(t *testing.T) {
 	root := newReportFixture(t)
 	oldEvidence := executionEvidenceManifest{

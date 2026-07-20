@@ -112,7 +112,7 @@ type hookLifecycle struct {
 	artifactRoot string
 	configRoot   string
 	logID        string
-	req          executionRequest
+	state        *executionLifecycleState
 	progressPath string
 	scope        string
 	config       hookConfig
@@ -174,6 +174,14 @@ type runnerObservation struct {
 }
 
 func newHookLifecycle(app *App, artifactRoot, logID string, req executionRequest, progressPath string) *hookLifecycle {
+	return newHookLifecycleWithState(app, artifactRoot, logID, newExecutionLifecycleState(req), progressPath)
+}
+
+func newHookLifecycleWithState(app *App, artifactRoot, logID string, state *executionLifecycleState, progressPath string) *hookLifecycle {
+	if state == nil {
+		state = newExecutionLifecycleState(executionRequest{})
+	}
+	req := state.requestSnapshot()
 	artifactRoot = strings.TrimSpace(artifactRoot)
 	if abs, err := filepath.Abs(artifactRoot); err == nil {
 		artifactRoot = filepath.Clean(abs)
@@ -191,7 +199,7 @@ func newHookLifecycle(app *App, artifactRoot, logID string, req executionRequest
 		artifactRoot: artifactRoot,
 		configRoot:   configRoot,
 		logID:        strings.TrimSpace(logID),
-		req:          req,
+		state:        state,
 		progressPath: strings.TrimSpace(progressPath),
 		scope:        hookScopeWorker,
 		config:       cfg,
@@ -289,10 +297,11 @@ func (l *hookLifecycle) writeRunEvidence(ctx context.Context, status string, val
 		Kind:          "progress",
 		NotApplicable: true,
 	}
+	req := l.state.requestSnapshot()
 	if relPath := firstNonBlank(
 		executionEvidenceRelativePath(l.artifactRoot, l.progressPath),
-		relativeParallelProgressLogPath(l.req.SpecID),
-	); normalizeExecutionMode(l.req.Mode) == executionModeParallel && relPath != "" {
+		relativeParallelProgressLogPath(req.SpecID),
+	); normalizeExecutionMode(req.Mode) == executionModeParallel && relPath != "" {
 		progress = executionEvidenceRefInput{
 			Kind: "progress",
 			Path: relPath,
@@ -302,15 +311,16 @@ func (l *hookLifecycle) writeRunEvidence(ctx context.Context, status string, val
 		LogDir:                filepath.ToSlash(filepath.Join(logsDir, "runs")),
 		LogPrefix:             l.logID,
 		RunCommands:           false,
-		Request:               &l.req,
+		Request:               &req,
 		IncludeDoctorLogFiles: false,
 	})
+	routing, routingTurns := l.state.modelRoutingEvidence()
 
 	return l.app.writeExecutionEvidenceManifest(l.artifactRoot, executionEvidenceOptions{
 		ProjectRoot:        l.artifactRoot,
 		LogID:              l.logID,
-		SpecID:             l.req.SpecID,
-		ExecutionMode:      l.req.Mode,
+		SpecID:             req.SpecID,
+		ExecutionMode:      req.Mode,
 		Status:             status,
 		ValidationAttempts: validationAttempts,
 		ProgressLogFailed:  progressLogFailed,
@@ -318,6 +328,8 @@ func (l *hookLifecycle) writeRunEvidence(ctx context.Context, status string, val
 		FinalizedBy:        "executeRun",
 		Progress:           progress,
 		CodexDiagnostics:   &diagnostics,
+		ModelRouting:       routing,
+		ModelRoutingTurns:  routingTurns,
 		Hooks:              l.results,
 	})
 }
@@ -475,14 +487,15 @@ func (l *hookLifecycle) applyHookFailurePolicy(result hookResult, hook hookRegis
 }
 
 func (l *hookLifecycle) contextForTrigger(trigger hookTrigger) hookExecutionContext {
+	req := l.state.requestSnapshot()
 	return hookExecutionContext{
 		SchemaVersion: hookContextSchemaVersion,
 		Event:         string(trigger.Event),
 		LogID:         l.logID,
 		RunID:         l.logID,
-		SpecID:        strings.TrimSpace(l.req.SpecID),
-		ExecutionMode: string(normalizeExecutionMode(l.req.Mode)),
-		WorkDir:       strings.TrimSpace(l.req.WorkDir),
+		SpecID:        strings.TrimSpace(req.SpecID),
+		ExecutionMode: string(normalizeExecutionMode(req.Mode)),
+		WorkDir:       strings.TrimSpace(req.WorkDir),
 		ProjectRoot:   l.configRoot,
 		Artifacts:     l.artifactPaths(),
 		StageStatus:   strings.TrimSpace(trigger.StageStatus),

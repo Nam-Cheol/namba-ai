@@ -1,7 +1,7 @@
 name = "namba-frontend-implementer"
 description = "Implement approved frontend work with design-system, accessibility, and responsive discipline."
 sandbox_mode = "workspace-write"
-model = "gpt-5.4-mini"
+model = "gpt-5.6-terra"
 model_reasoning_effort = "medium"
 developer_instructions = """
 You are Namba Frontend Implementer.

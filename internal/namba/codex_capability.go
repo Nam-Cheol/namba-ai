@@ -20,9 +20,12 @@ type codexCommandCapabilities struct {
 }
 
 type codexCapabilityMatrix struct {
-	Version string                   `json:"version,omitempty"`
-	Exec    codexCommandCapabilities `json:"exec"`
-	Resume  codexCommandCapabilities `json:"resume"`
+	Version           string                   `json:"version,omitempty"`
+	Exec              codexCommandCapabilities `json:"exec"`
+	Resume            codexCommandCapabilities `json:"resume"`
+	SolAvailable      *bool                    `json:"sol_available,omitempty"`
+	ModelAvailability map[string]bool          `json:"model_availability,omitempty"`
+	Probes            []lifecycleProbeOutcome  `json:"probes,omitempty"`
 }
 
 type resolvedCodexInvocation struct {
@@ -31,6 +34,8 @@ type resolvedCodexInvocation struct {
 	DirectFlags     []string
 	ConfigOverrides []string
 }
+
+const plannedCodexResumeThreadID = "00000000-0000-0000-0000-000000000000"
 
 func (a *App) codexCapabilities(ctx context.Context, dir string, req executionRequest) (codexCapabilityMatrix, error) {
 	if a.detectCodexCapabilities != nil {
@@ -44,28 +49,169 @@ func (a *App) probeCodexCapabilities(ctx context.Context, dir string, req execut
 		return codexCapabilityMatrix{}, err
 	}
 
-	version, err := a.runBinary(ctx, "codex", []string{"--version"}, dir)
+	matrix := codexCapabilityMatrix{}
+	var version string
+	versionProbe, err := runBoundedLifecycleProbe(ctx, lifecycleProbeCodexVersion, a.capabilityProbeTimeout, func(probeCtx context.Context) error {
+		var probeErr error
+		version, probeErr = a.runBinary(probeCtx, "codex", []string{"--version"}, dir)
+		return probeErr
+	})
+	matrix.Probes = append(matrix.Probes, versionProbe)
 	if err != nil {
-		return codexCapabilityMatrix{}, fmt.Errorf("codex --version: %w", err)
+		return matrix, fmt.Errorf("codex --version: %w", err)
 	}
-	execHelp, err := a.runBinary(ctx, "codex", []string{"exec", "--help"}, dir)
+	matrix.Version = strings.TrimSpace(version)
+
+	var execHelp string
+	execHelpProbe, err := runBoundedLifecycleProbe(ctx, lifecycleProbeCodexExecHelp, a.capabilityProbeTimeout, func(probeCtx context.Context) error {
+		var probeErr error
+		execHelp, probeErr = a.runBinary(probeCtx, "codex", []string{"exec", "--help"}, dir)
+		return probeErr
+	})
+	matrix.Probes = append(matrix.Probes, execHelpProbe)
 	if err != nil {
-		return codexCapabilityMatrix{}, fmt.Errorf("codex exec --help: %w", err)
+		return matrix, fmt.Errorf("codex exec --help: %w", err)
 	}
-	matrix := codexCapabilityMatrix{
-		Version: strings.TrimSpace(version),
-		Exec:    parseCodexCommandCapabilities(execHelp),
+	matrix.Exec = parseCodexCommandCapabilities(execHelp)
+	if req.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 {
+		if err := validateCodexExecSurfaceBeforeModelProbes(req, matrix); err != nil {
+			return matrix, fmt.Errorf("codex exec surface: %w", err)
+		}
+		matrix.ModelAvailability = make(map[string]bool)
+		a.probePlannedRoutedModels(ctx, dir, req, &matrix)
 	}
-	if !plannedInvocationsNeedResume(plannedCodexRequests(req)) {
+	planningReq := withModelAvailability(req, matrix)
+	planned, immediateBlock := executablePlannedCodexRequests(plannedCodexRequests(planningReq))
+	if immediateBlock || !plannedInvocationsNeedResume(planned) {
 		return matrix, nil
 	}
 
-	resumeHelp, err := a.runBinary(ctx, "codex", []string{"exec", "resume", "--help"}, dir)
+	var resumeHelp string
+	resumeHelpProbe, err := runBoundedLifecycleProbe(ctx, lifecycleProbeCodexResumeExecHelp, a.capabilityProbeTimeout, func(probeCtx context.Context) error {
+		var probeErr error
+		resumeHelp, probeErr = a.runBinary(probeCtx, "codex", []string{"exec", "resume", "--help"}, dir)
+		return probeErr
+	})
+	matrix.Probes = append(matrix.Probes, resumeHelpProbe)
 	if err != nil {
-		return codexCapabilityMatrix{}, fmt.Errorf("codex exec resume --help: %w", err)
+		return matrix, fmt.Errorf("codex exec resume --help: %w", err)
 	}
 	matrix.Resume = parseCodexCommandCapabilities(resumeHelp)
 	return matrix, nil
+}
+
+func (a *App) probePlannedRoutedModels(ctx context.Context, dir string, req executionRequest, matrix *codexCapabilityMatrix) {
+	if matrix == nil {
+		return
+	}
+	if matrix.ModelAvailability == nil {
+		matrix.ModelAvailability = make(map[string]bool)
+	}
+	for {
+		planningReq := withModelAvailability(req, *matrix)
+		models := plannedRoutedModelIDs(plannedCodexRequests(planningReq))
+		nextModel := ""
+		for _, model := range models {
+			if _, probed := matrix.ModelAvailability[model]; !probed {
+				nextModel = model
+				break
+			}
+		}
+		if nextModel == "" {
+			return
+		}
+		available, probe := a.probeModelAvailability(ctx, dir, req, nextModel, *matrix)
+		matrix.ModelAvailability[nextModel] = available
+		if nextModel == modelRoutingModelSol {
+			solAvailable := available
+			matrix.SolAvailable = &solAvailable
+		}
+		matrix.Probes = append(matrix.Probes, probe)
+	}
+}
+
+func plannedRoutedModelIDs(planned []executionRequest) []string {
+	models := make([]string, 0, len(planned))
+	seen := make(map[string]bool, len(planned))
+	for _, req := range planned {
+		if req.ModelRoutingPolicy != modelRoutingPolicyCostBalancedV1 {
+			continue
+		}
+		if req.RoutingDecision.Status == modelRoutingStatusBlocked {
+			if req.TurnName != "repair-preview" {
+				break
+			}
+			continue
+		}
+		model := strings.TrimSpace(req.RoutingDecision.Model)
+		if model == "" || seen[model] {
+			continue
+		}
+		seen[model] = true
+		models = append(models, model)
+	}
+	return models
+}
+
+func withModelAvailability(req executionRequest, capabilities codexCapabilityMatrix) executionRequest {
+	req.SolAvailable = capabilities.SolAvailable
+	if len(capabilities.ModelAvailability) == 0 {
+		req.ModelAvailability = nil
+		return req
+	}
+	req.ModelAvailability = make(map[string]bool, len(capabilities.ModelAvailability))
+	for model, available := range capabilities.ModelAvailability {
+		req.ModelAvailability[model] = available
+	}
+	return req
+}
+
+func (a *App) probeModelAvailability(ctx context.Context, dir string, req executionRequest, model string, capabilities codexCapabilityMatrix) (bool, lifecycleProbeOutcome) {
+	probeName := lifecycleProbeCodexModelAvailability
+	if model == modelRoutingModelSol {
+		probeName = lifecycleProbeSolAvailability
+	}
+	baseOutcome := lifecycleProbeOutcome{Name: probeName, Model: model}
+	if (!capabilities.Exec.ModelFlag && !capabilities.Exec.Config) || !capabilities.Exec.JSONFlag || a.runCodexCmdWithInput == nil {
+		baseOutcome.Status = lifecycleProbeStatusUnsupported
+		return false, baseOutcome
+	}
+
+	sessionMode := "stateful"
+	if capabilities.Exec.EphemeralFlag {
+		sessionMode = "ephemeral"
+	}
+	command, err := buildCodexExecCommand(executionRequest{
+		WorkDir:        dir,
+		Prompt:         "Return exactly `namba-model-available`. Do not inspect or modify files.",
+		ApprovalPolicy: "never",
+		SandboxMode:    "read-only",
+		Model:          model,
+		Profile:        strings.TrimSpace(req.Profile),
+		SessionMode:    sessionMode,
+	}, capabilities)
+	if err != nil {
+		baseOutcome.Status = lifecycleProbeStatusError
+		return false, baseOutcome
+	}
+
+	var stdout, stderr string
+	probe, probeErr := runBoundedLifecycleProbe(ctx, probeName, a.capabilityProbeTimeout, func(probeCtx context.Context) error {
+		var runErr error
+		stdout, stderr, runErr = a.runCodexCmdWithInput(probeCtx, "codex", command.Args, dir, command.Input)
+		return runErr
+	})
+	probe.Model = model
+	if probeErr != nil {
+		return false, probe
+	}
+	available := firstCodexThreadID(strings.Join(nonEmptyArgs([]string{stdout, stderr}), "\n")) != ""
+	if available {
+		probe.Status = lifecycleProbeStatusAvailable
+	} else {
+		probe.Status = lifecycleProbeStatusUnavailable
+	}
+	return available, probe
 }
 
 func parseCodexCommandCapabilities(help string) codexCommandCapabilities {
@@ -95,6 +241,25 @@ func plannedInvocationsNeedResume(planned []executionRequest) bool {
 	return false
 }
 
+// validateCodexExecSurfaceBeforeModelProbes dry-resolves every executable
+// routed turn against the already-detected local exec surface. Resume details
+// remain a later exact-plan check, but no live model call is spent when the
+// installed CLI cannot represent a turn's model, reasoning, or other controls.
+func validateCodexExecSurfaceBeforeModelProbes(req executionRequest, capabilities codexCapabilityMatrix) error {
+	planned, immediateBlock := executablePlannedCodexRequests(plannedCodexRequests(req))
+	if immediateBlock {
+		return validateModelRoutingTurnPlan(plannedCodexRequests(req))
+	}
+	for _, plannedReq := range planned {
+		plannedReq.ResumeSession = false
+		plannedReq.ThreadID = ""
+		if _, err := resolveCodexInvocation(plannedReq, capabilities); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func validateCodexExecutionContract(req executionRequest, capabilities codexCapabilityMatrix) (string, error) {
 	invocations, err := resolvePlannedCodexInvocations(req, capabilities)
 	if err != nil {
@@ -122,7 +287,16 @@ func validateCodexExecutionContract(req executionRequest, capabilities codexCapa
 }
 
 func resolvePlannedCodexInvocations(req executionRequest, capabilities codexCapabilityMatrix) ([]resolvedCodexInvocation, error) {
-	planned := plannedCodexRequests(req)
+	planned, immediateBlock := executablePlannedCodexRequests(plannedCodexRequests(req))
+	if immediateBlock {
+		for _, plannedReq := range plannedCodexRequests(req) {
+			if plannedReq.TurnName == "repair-preview" || plannedReq.RoutingDecision.Status != modelRoutingStatusBlocked {
+				continue
+			}
+			return nil, validateModelRoutingTurnPlan([]executionRequest{plannedReq})
+		}
+		return nil, fmt.Errorf("model routing blocked before invocation planning")
+	}
 	invocations := make([]resolvedCodexInvocation, 0, len(planned))
 	for _, plannedReq := range planned {
 		invocation, err := resolveCodexInvocation(plannedReq, capabilities)
@@ -134,14 +308,72 @@ func resolvePlannedCodexInvocations(req executionRequest, capabilities codexCapa
 	return invocations, nil
 }
 
+// executablePlannedCodexRequests separates turns that can run now from a
+// conditional repair preview. An immediate blocked turn takes precedence over
+// invocation validation, while a blocked future repair must not suppress
+// validation of otherwise executable turns.
+func executablePlannedCodexRequests(planned []executionRequest) ([]executionRequest, bool) {
+	executable := make([]executionRequest, 0, len(planned))
+	for _, req := range planned {
+		blocked := req.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 && req.RoutingDecision.Status == modelRoutingStatusBlocked
+		if !blocked {
+			executable = append(executable, req)
+			continue
+		}
+		if req.TurnName != "repair-preview" {
+			return nil, true
+		}
+	}
+	return executable, false
+}
+
 func plannedCodexRequests(req executionRequest) []executionRequest {
-	planned := buildExecutionTurnRequests(req)
-	if req.RepairAttempts > 0 && codexSessionStateful(req.SessionMode) {
-		repairReq := req
-		repairReq.ResumeSession = true
+	planned := plannedExecutionTurnRequests(req)
+	resumeThreadID := firstNonBlank(strings.TrimSpace(req.ThreadID), plannedCodexResumeThreadID)
+	if req.RepairAttempts > 0 {
+		solRemaining, solHighRemaining := remainingSolTurnBudgets(req, planned)
+		repairReq, _, _ := buildRepairExecutionTurnRequest(req, validationReport{}, 1, "", "", solRemaining, solHighRemaining)
+		if codexSessionStateful(req.SessionMode) {
+			if repairSessionID := plannedWritableResumeThreadID(planned, repairReq.Model, resumeThreadID); repairSessionID != "" {
+				repairReq, _, _ = buildRepairExecutionTurnRequest(req, validationReport{}, 1, repairSessionID, "", solRemaining, solHighRemaining)
+			}
+		}
 		repairReq.TurnName = "repair-preview"
-		repairReq.TurnRole = req.DelegationPlan.IntegratorRole
 		planned = append(planned, repairReq)
+	}
+	return planned
+}
+
+// plannedWritableResumeThreadID models only continuations that execution can
+// actually create: a repair may resume when a preceding planned writable turn
+// targets the same model. A model boundary (for example Luna to Terra) has no
+// observed authority and must remain fresh during preflight as well.
+func plannedWritableResumeThreadID(planned []executionRequest, model, resumeThreadID string) string {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return ""
+	}
+	for index := len(planned) - 1; index >= 0; index-- {
+		turn := planned[index]
+		if turn.RoutingDecision.ReadOnly || strings.TrimSpace(turn.Model) != model {
+			continue
+		}
+		return firstNonBlank(strings.TrimSpace(turn.ThreadID), resumeThreadID)
+	}
+	return ""
+}
+
+func plannedExecutionTurnRequests(req executionRequest) []executionRequest {
+	planned := buildExecutionTurnRequests(req)
+	resumeThreadID := firstNonBlank(strings.TrimSpace(req.ThreadID), plannedCodexResumeThreadID)
+	if codexSessionStateful(req.SessionMode) {
+		for index := 1; index < len(planned); index++ {
+			if !canResumeExecutionTurn(planned[index-1], planned[index]) {
+				continue
+			}
+			planned[index].ResumeSession = true
+			planned[index].ThreadID = resumeThreadID
+		}
 	}
 	return planned
 }
@@ -163,6 +395,9 @@ func resolveCodexInvocation(req executionRequest, capabilities codexCapabilityMa
 	}
 	if req.ResumeSession && !codexSessionStateful(sessionMode) {
 		return resolvedCodexInvocation{}, fmt.Errorf("session_mode %q does not support resume", sessionMode)
+	}
+	if req.ResumeSession && strings.TrimSpace(req.ThreadID) == "" {
+		return resolvedCodexInvocation{}, fmt.Errorf("resume requires an explicit Codex thread UUID")
 	}
 
 	invocation := resolvedCodexInvocation{
@@ -207,6 +442,13 @@ func resolveSingleExecInvocation(invocation resolvedCodexInvocation, req executi
 		} else {
 			invocation.ConfigOverrides = append(invocation.ConfigOverrides, "model")
 		}
+	}
+	if effort := strings.TrimSpace(req.RequestedReasoningEffort); effort != "" {
+		if !surface.Config {
+			return resolvedCodexInvocation{}, fmt.Errorf("%s: model_reasoning_effort cannot be represented by the installed Codex CLI", invocation.CommandShape)
+		}
+		invocation.Args = appendConfigOverride(invocation.Args, "model_reasoning_effort", tomlString(effort))
+		invocation.ConfigOverrides = append(invocation.ConfigOverrides, "model_reasoning_effort")
 	}
 
 	if profile := strings.TrimSpace(req.Profile); profile != "" {
@@ -258,7 +500,7 @@ func resolveSingleExecInvocation(invocation resolvedCodexInvocation, req executi
 func resolveResumeInvocation(invocation resolvedCodexInvocation, req executionRequest, capabilities codexCapabilityMatrix, sandbox string) (resolvedCodexInvocation, error) {
 	invocation.CommandShape = "codex exec resume"
 	prefix := append([]string{}, invocation.Args...)
-	suffix := []string{"resume", "--last"}
+	suffix := []string{"resume", strings.TrimSpace(req.ThreadID)}
 	approval := normalizeApprovalPolicy(req.ApprovalPolicy)
 
 	var err error
@@ -292,6 +534,17 @@ func resolveResumeInvocation(invocation resolvedCodexInvocation, req executionRe
 		} else {
 			invocation.ConfigOverrides = append(invocation.ConfigOverrides, "model")
 		}
+	}
+	if effort := strings.TrimSpace(req.RequestedReasoningEffort); effort != "" {
+		switch {
+		case capabilities.Resume.Config:
+			suffix = appendConfigOverride(suffix, "model_reasoning_effort", tomlString(effort))
+		case capabilities.Exec.Config:
+			prefix = appendConfigOverride(prefix, "model_reasoning_effort", tomlString(effort))
+		default:
+			return resolvedCodexInvocation{}, fmt.Errorf("%s: model_reasoning_effort cannot be represented by the installed Codex CLI", invocation.CommandShape)
+		}
+		invocation.ConfigOverrides = append(invocation.ConfigOverrides, "model_reasoning_effort")
 	}
 
 	if profile := strings.TrimSpace(req.Profile); profile != "" {

@@ -33,23 +33,12 @@ func (a *App) runPreflight(ctx context.Context, req executionRequest) (preflight
 		addStep(preflightStep{Name: "project_root", Passed: true, Detail: workDir})
 	}
 
+	codexAvailable := false
 	if _, err := a.lookPath("codex"); err != nil {
 		addStep(preflightStep{Name: "codex", Error: err.Error()})
 	} else {
+		codexAvailable = true
 		addStep(preflightStep{Name: "codex", Passed: true, Detail: "codex available"})
-		detected, err := a.codexCapabilities(ctx, workDir, req)
-		if err != nil {
-			addStep(preflightStep{Name: "codex_cli_capabilities", Error: err.Error()})
-		} else {
-			capabilities = detected
-			addStep(preflightStep{Name: "codex_cli_capabilities", Passed: true, Detail: firstNonBlank(capabilities.Version, "capabilities detected")})
-			detail, contractErr := validateCodexExecutionContract(req, capabilities)
-			if contractErr != nil {
-				addStep(preflightStep{Name: "codex_cli_contract", Error: contractErr.Error()})
-			} else {
-				addStep(preflightStep{Name: "codex_cli_contract", Passed: true, Detail: detail})
-			}
-		}
 	}
 
 	if normalizeExecutionMode(req.Mode) == executionModeParallel || isGitRepository(workDir) {
@@ -86,6 +75,26 @@ func (a *App) runPreflight(ctx context.Context, req executionRequest) (preflight
 
 	if req.RequiresNetwork {
 		addStep(preflightStep{Name: "network", Passed: true, Detail: "run declares network access requirements"})
+	}
+
+	// Capability detection can perform bounded live model probes. Keep every
+	// cheap local gate ahead of it so an invalid run cannot spend external calls.
+	if report.Passed && codexAvailable {
+		detected, err := a.codexCapabilities(ctx, workDir, req)
+		capabilities = detected
+		report.Probes = append(report.Probes, detected.Probes...)
+		if err != nil {
+			addStep(preflightStep{Name: "codex_cli_capabilities", Error: err.Error()})
+		} else {
+			addStep(preflightStep{Name: "codex_cli_capabilities", Passed: true, Detail: firstNonBlank(capabilities.Version, "capabilities detected")})
+			contractReq := withModelAvailability(req, capabilities)
+			detail, contractErr := validateCodexExecutionContract(contractReq, capabilities)
+			if contractErr != nil {
+				addStep(preflightStep{Name: "codex_cli_contract", Error: contractErr.Error()})
+			} else {
+				addStep(preflightStep{Name: "codex_cli_contract", Passed: true, Detail: detail})
+			}
+		}
 	}
 
 	report.FinishedAt = a.now().Format(time.RFC3339)

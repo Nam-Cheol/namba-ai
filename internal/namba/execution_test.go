@@ -100,55 +100,60 @@ func TestBuildCodexExecArgsSupportsFallbacksAndResumeSurface(t *testing.T) {
 		{
 			name: "exec falls back to config overrides",
 			req: executionRequest{
-				ApprovalPolicy: "on-request",
-				SandboxMode:    "workspace-write",
-				Model:          "gpt-5.4",
-				Profile:        "namba",
-				WebSearch:      true,
-				AddDirs:        []string{"extra"},
-				SessionMode:    "stateful",
-				Prompt:         "ship it",
+				ApprovalPolicy:           "on-request",
+				SandboxMode:              "workspace-write",
+				Model:                    "gpt-5.4",
+				RequestedReasoningEffort: "medium",
+				Profile:                  "namba",
+				WebSearch:                true,
+				AddDirs:                  []string{"extra"},
+				SessionMode:              "stateful",
+				Prompt:                   "ship it",
 			},
 			caps: codexCapabilityMatrix{
 				Exec: codexCommandCapabilities{Config: true, SandboxFlag: true, ModelFlag: true, ProfileFlag: true, AddDirFlag: true},
 			},
-			want: []string{"exec", "-c", `approval_policy="on-request"`, "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "-c", `web_search="live"`, "--add-dir", "extra", "-"},
+			want: []string{"exec", "-c", `approval_policy="on-request"`, "-s", "workspace-write", "-m", "gpt-5.4", "-c", `model_reasoning_effort="medium"`, "-p", "namba", "-c", `web_search="live"`, "--add-dir", "extra", "-"},
 		},
 		{
 			name: "resume allows exec-level flags before resume",
 			req: executionRequest{
-				ApprovalPolicy: "never",
-				SandboxMode:    "workspace-write",
-				Model:          "gpt-5.4",
-				Profile:        "namba",
-				WebSearch:      true,
-				AddDirs:        []string{`C:\extra`},
-				SessionMode:    "stateful",
-				ResumeSession:  true,
-				Prompt:         "continue",
+				ApprovalPolicy:           "never",
+				SandboxMode:              "workspace-write",
+				Model:                    "gpt-5.4",
+				Profile:                  "namba",
+				WebSearch:                true,
+				AddDirs:                  []string{`C:\extra`},
+				SessionMode:              "stateful",
+				ResumeSession:            true,
+				ThreadID:                 "thread-123",
+				RequestedReasoningEffort: "high",
+				Prompt:                   "continue",
 			},
 			caps: codexCapabilityMatrix{
 				Exec:   codexCommandCapabilities{Config: true, SandboxFlag: true, ModelFlag: true, ProfileFlag: true, AddDirFlag: true},
 				Resume: codexCommandCapabilities{Config: true, ModelFlag: true},
 			},
-			want: []string{"exec", "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "--add-dir", `C:\extra`, "resume", "--last", "-c", `approval_policy="never"`, "-c", `web_search="live"`, "-"},
+			want: []string{"exec", "-s", "workspace-write", "-m", "gpt-5.4", "-p", "namba", "--add-dir", `C:\extra`, "resume", "thread-123", "-c", `approval_policy="never"`, "-c", `model_reasoning_effort="high"`, "-c", `web_search="live"`, "-"},
 		},
 		{
 			name: "resume uses resume-specific config fallbacks",
 			req: executionRequest{
-				ApprovalPolicy: "never",
-				SandboxMode:    "workspace-write",
-				Model:          "gpt-5.4",
-				WebSearch:      true,
-				AddDirs:        []string{`C:\extra`},
-				SessionMode:    "stateful",
-				ResumeSession:  true,
-				Prompt:         "continue",
+				ApprovalPolicy:           "never",
+				SandboxMode:              "workspace-write",
+				Model:                    "gpt-5.4",
+				WebSearch:                true,
+				AddDirs:                  []string{`C:\extra`},
+				SessionMode:              "stateful",
+				ResumeSession:            true,
+				ThreadID:                 "thread-456",
+				RequestedReasoningEffort: "medium",
+				Prompt:                   "continue",
 			},
 			caps: codexCapabilityMatrix{
 				Resume: codexCommandCapabilities{Config: true, ModelFlag: true},
 			},
-			want: []string{"exec", "resume", "--last", "-c", `approval_policy="never"`, "-c", `sandbox_mode="workspace-write"`, "-m", "gpt-5.4", "-c", `web_search="live"`, "-c", `sandbox_workspace_write.writable_roots=["C:\\extra"]`, "-"},
+			want: []string{"exec", "resume", "thread-456", "-c", `approval_policy="never"`, "-c", `sandbox_mode="workspace-write"`, "-m", "gpt-5.4", "-c", `model_reasoning_effort="medium"`, "-c", `web_search="live"`, "-c", `sandbox_workspace_write.writable_roots=["C:\\extra"]`, "-"},
 		},
 	}
 
@@ -190,6 +195,7 @@ func TestBuildCodexExecCommandTransportsPromptOverStdin(t *testing.T) {
 				Prompt:         longPrompt,
 				SessionMode:    "stateful",
 				ResumeSession:  true,
+				ThreadID:       "thread-stdin",
 			},
 			caps: codexCapabilityMatrix{
 				Exec:   codexCommandCapabilities{Config: true, SandboxFlag: true},
@@ -218,6 +224,489 @@ func TestBuildCodexExecCommandTransportsPromptOverStdin(t *testing.T) {
 				t.Fatalf("argv exceeds Windows command-line limit simulation: %d", got)
 			}
 		})
+	}
+}
+
+func TestBuildExecutionTurnRequestsUsesPredicatesAndKeepsFreshTurnContext(t *testing.T) {
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Cross-system architecture design with security risk and acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "same-workspace-integrator",
+			DominantDomains: []string{"backend", "security"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-backend-architect"),
+			},
+		},
+	}
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 2 {
+		t.Fatalf("turns = %+v", turns)
+	}
+	architect := turns[0]
+	if architect.Model != modelRoutingModelSol || !architect.RoutingDecision.ReadOnly || architect.ResumeSession {
+		t.Fatalf("architect turn did not use fresh read-only Sol checkpoint: %+v", architect)
+	}
+	if !strings.Contains(architect.Prompt, "## Base execution context") || !strings.Contains(architect.Prompt, req.Prompt) {
+		t.Fatalf("fresh Sol turn lost base context: %q", architect.Prompt)
+	}
+	if turns[1].Phase != routingPhaseImplement {
+		t.Fatalf("implementation must follow the architecture checkpoint, got %+v", turns)
+	}
+
+	simple := modelRoutingInputForRequest(executionRequest{Prompt: "Simple explicit mechanical rename with format test acceptance."}, routingPhaseImplement, "namba-implementer", 0, 1, 1, true)
+	if got := modelRoutingDecision(simple); got.Model != modelRoutingModelLuna {
+		t.Fatalf("simple execution decision = %+v, want Luna", got)
+	}
+	buildCI := modelRoutingInputForRequest(executionRequest{Prompt: "Simple mechanical rename in CI workflow with test acceptance."}, routingPhaseImplement, "namba-implementer", 0, 1, 1, true)
+	if !buildCI.BuildSystemChange {
+		t.Fatalf("CI workflow change must set the build-system guard: %+v", buildCI)
+	}
+	if got := modelRoutingDecision(buildCI); got.Model != modelRoutingModelTerra {
+		t.Fatalf("build/CI execution decision = %+v, want Terra", got)
+	}
+}
+
+func TestModelRoutingInputIgnoresGeneratedExecutionPromptBoilerplate(t *testing.T) {
+	generatedPrompt := strings.Join([]string{
+		"# NambaAI Execution Request",
+		"",
+		"## Run Mode",
+		"- Execution style: one runner; keep implementation, integration, and validation inside one workspace.",
+		"",
+		"## SPEC",
+		"Simple explicit mechanical rename in one backend package.",
+		"",
+		"## Plan",
+		"Rename the local symbol only.",
+		"",
+		"## Acceptance",
+		"- [ ] The rename is covered by a deterministic test.",
+		"",
+		"## Validation",
+		"- build: go build ./...",
+	}, "\n")
+	req := executionRequest{
+		Prompt: generatedPrompt,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend"},
+		},
+	}
+
+	input := modelRoutingInputForRequest(req, routingPhaseImplement, "namba-implementer", 0, 1, 1, true)
+	if input.BuildSystemChange || input.CrossSystem {
+		t.Fatalf("generated run boilerplate must not change task routing predicates, got %+v", input)
+	}
+	if got := modelRoutingDecision(input); got.Model != modelRoutingModelLuna {
+		t.Fatalf("simple generated default prompt decision = %+v, want Luna", got)
+	}
+}
+
+func TestBuildExecutionTurnRequestsInsertsSolCheckpointBeforeStandaloneHighRiskWriter(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		specID string
+		mode   executionMode
+	}{
+		{name: "default", specID: "SPEC-069", mode: executionModeDefault},
+		{name: "solo", specID: "SPEC-069", mode: executionModeSolo},
+		{name: "direct fix", specID: "DIRECT-FIX", mode: executionModeDefault},
+		{name: "parallel worker", specID: "SPEC-069", mode: executionModeParallel},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			req := executionRequest{
+				SpecID:             tt.specID,
+				Prompt:             "Resolve an ambiguous cross-system security architecture with an irreversible migration and deterministic acceptance tests.",
+				Mode:               tt.mode,
+				ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+				SandboxMode:        "workspace-write",
+				SessionMode:        "stateful",
+				DelegationPlan: delegationPlan{
+					IntegratorRole:  "standalone-runner",
+					DominantDomains: []string{"backend", "security"},
+				},
+			}
+
+			turns := buildExecutionTurnRequests(req)
+			if len(turns) != 2 {
+				t.Fatalf("standalone high-risk route must contain checkpoint then writer, got %+v", turns)
+			}
+			checkpoint, writer := turns[0], turns[1]
+			if checkpoint.Phase != routingPhaseArchitecture || checkpoint.Model != modelRoutingModelSol || checkpoint.RequestedReasoningEffort != "high" || !checkpoint.RoutingDecision.ReadOnly || checkpoint.SandboxMode != "read-only" || checkpoint.RoutingDecision.RuleID != "sol-high-risk-decision-v1" {
+				t.Fatalf("expected required Sol-high read-only checkpoint, got %+v", checkpoint)
+			}
+			if writer.Phase != routingPhaseImplement || writer.Model != modelRoutingModelTerra || writer.RoutingDecision.ReadOnly || writer.SandboxMode != "workspace-write" {
+				t.Fatalf("expected writable Terra implementation after checkpoint, got %+v", writer)
+			}
+			if checkpoint.RoutingDecision.RemainingSolTurns != 0 || checkpoint.RoutingDecision.RemainingSolHighTurns != 0 {
+				t.Fatalf("standalone checkpoint must consume the one-turn Sol budgets exactly once, got %+v", checkpoint.RoutingDecision)
+			}
+		})
+	}
+
+	ordinary := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Implement an ordinary backend change with deterministic acceptance tests.",
+		Mode:               executionModeDefault,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SandboxMode:        "workspace-write",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "standalone-runner",
+			DominantDomains: []string{"backend"},
+		},
+	}
+	if turns := buildExecutionTurnRequests(ordinary); len(turns) != 1 || turns[0].Phase != routingPhaseImplement {
+		t.Fatalf("ordinary standalone work must not gain a synthetic Sol checkpoint, got %+v", turns)
+	}
+
+	blocked := ordinary
+	blocked.Prompt = "Resolve an ambiguous cross-system security architecture with an irreversible migration and deterministic acceptance tests."
+	blocked.DelegationPlan.DominantDomains = []string{"backend", "security"}
+	blocked.SolAvailable = boolPtr(false)
+	blockedTurns := buildExecutionTurnRequests(blocked)
+	if len(blockedTurns) != 2 || blockedTurns[0].RoutingDecision.Status != modelRoutingStatusBlocked || blockedTurns[0].RoutingDecision.FallbackReason != modelRoutingReasonBlockedModelUnavailable {
+		t.Fatalf("unavailable required Sol must block before the standalone writer, got %+v", blockedTurns)
+	}
+}
+
+func TestBuildExecutionTurnRequestsInsertsSolCheckpointBeforeImplementOnlyHighRiskTeam(t *testing.T) {
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Resolve an ambiguous cross-system security architecture with an irreversible migration and deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SandboxMode:        "workspace-write",
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			ReviewerRole:    "namba-reviewer",
+			DominantDomains: []string{"backend", "security"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-security-engineer"),
+				runtimeProfileForAgent("namba-reviewer"),
+			},
+		},
+	}
+
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 4 {
+		t.Fatalf("implement-only high-risk team must contain checkpoint, integrator, specialist, and reviewer, got %+v", turns)
+	}
+	checkpoint := turns[0]
+	if checkpoint.TurnName != "high-risk-checkpoint" || checkpoint.TurnRole != "namba-high-risk-advisor" || checkpoint.Phase != routingPhaseArchitecture || checkpoint.Model != modelRoutingModelSol || !checkpoint.RoutingDecision.ReadOnly {
+		t.Fatalf("required Sol checkpoint must precede every team writer, got %+v", turns)
+	}
+	if turns[1].TurnName != "implement" || turns[1].RoutingDecision.ReadOnly {
+		t.Fatalf("integrator must be the first writer immediately after the checkpoint, got %+v", turns)
+	}
+}
+
+func TestBuildExecutionTurnRequestsRendersRoutedFallbackEffortInSpecialistPrompt(t *testing.T) {
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Cross-system product design with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SandboxMode:        "workspace-write",
+		SolAvailable:       boolPtr(false),
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"frontend", "backend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-designer"),
+			},
+		},
+	}
+
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 2 {
+		t.Fatalf("expected fallback designer and integrator turns, got %+v", turns)
+	}
+	designer := turns[0]
+	if designer.Model != modelRoutingModelTerra || designer.RequestedReasoningEffort != "high" || designer.RoutingDecision.Status != modelRoutingStatusFallback {
+		t.Fatalf("fixture must route optional Sol designer to Terra high, got %+v", designer)
+	}
+	if !strings.Contains(designer.Prompt, "Requested reasoning effort for this turn: `high`.") || strings.Contains(designer.Prompt, "Requested reasoning effort for this turn: `medium`.") {
+		t.Fatalf("specialist prompt must render routed effort, got %q", designer.Prompt)
+	}
+}
+
+func TestBuildExecutionTurnRequestsAddsTerraWriterAfterReadOnlyReview(t *testing.T) {
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Cross-system feature with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SandboxMode:        "workspace-write",
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "frontend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-reviewer"),
+			},
+		},
+	}
+
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 3 {
+		t.Fatalf("expected implementation, read-only review, and writer turns, got %+v", turns)
+	}
+	reviewer := turns[1]
+	if reviewer.Phase != routingPhaseReview || reviewer.Model != modelRoutingModelSol || !reviewer.RoutingDecision.ReadOnly {
+		t.Fatalf("expected a read-only Sol review checkpoint, got %+v", reviewer)
+	}
+	writer := turns[2]
+	if writer.Phase != routingPhaseRepair || writer.Model != modelRoutingModelTerra || writer.RoutingDecision.ReadOnly || writer.RoutingDecision.RuleID != "terra-writer-after-read-only-review-v1" || writer.SandboxMode != "workspace-write" {
+		t.Fatalf("expected a writable Terra consumer after review, got %+v", writer)
+	}
+}
+
+func TestBuildExecutionTurnRequestsPreservesLegacyStaticTeamFlow(t *testing.T) {
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Cross-system review with architecture tradeoffs and acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyLegacyStaticV1,
+		Model:              "gpt-5.4",
+		SandboxMode:        "workspace-write",
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			ReviewerRole:    "namba-reviewer",
+			DominantDomains: []string{"backend", "frontend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-reviewer"),
+			},
+		},
+	}
+
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 2 {
+		t.Fatalf("legacy team flow must keep one implement and one configured specialist turn, got %+v", turns)
+	}
+	if turns[0].TurnName != "implement" || turns[1].TurnName != "reviewer" {
+		t.Fatalf("legacy team ordering changed: %+v", turns)
+	}
+	if turns[1].RoutingDecision.Model != "" || turns[1].RoutingDecision.Status != "" || turns[1].RoutingDecision.ReadOnly || turns[1].SandboxMode != "workspace-write" {
+		t.Fatalf("legacy specialist inherited adaptive routing state: %+v", turns[1])
+	}
+	if turns[1].Model != "gpt-5.4" || turns[1].RequestedReasoningEffort != "high" {
+		t.Fatalf("legacy reviewer must keep the pre-adaptive static profile, got %+v", turns[1])
+	}
+	if strings.Contains(turns[1].Prompt, "Act as the read-only") || !strings.Contains(turns[1].Prompt, "Close acceptance gaps") || !strings.Contains(turns[1].Prompt, "Requested reasoning effort for this turn: `high`") {
+		t.Fatalf("legacy reviewer prompt changed to an adaptive read-only checkpoint: %q", turns[1].Prompt)
+	}
+}
+
+func TestAllowedDirectRoutingPhaseTransitionTable(t *testing.T) {
+	tests := []struct {
+		name string
+		from routingPhase
+		to   routingPhase
+		want bool
+	}{
+		{name: "intake to plan", from: routingPhaseIntake, to: routingPhasePlan, want: true},
+		{name: "plan to design", from: routingPhasePlan, to: routingPhaseDesign, want: true},
+		{name: "plan to architecture", from: routingPhasePlan, to: routingPhaseArchitecture, want: true},
+		{name: "plan to implement", from: routingPhasePlan, to: routingPhaseImplement, want: true},
+		{name: "design to implement", from: routingPhaseDesign, to: routingPhaseImplement, want: true},
+		{name: "architecture to implement", from: routingPhaseArchitecture, to: routingPhaseImplement, want: true},
+		{name: "implement to test", from: routingPhaseImplement, to: routingPhaseTest, want: true},
+		{name: "test to integration", from: routingPhaseTest, to: routingPhaseIntegration, want: true},
+		{name: "test to repair", from: routingPhaseTest, to: routingPhaseRepair, want: true},
+		{name: "integration to review", from: routingPhaseIntegration, to: routingPhaseReview, want: true},
+		{name: "integration to repair", from: routingPhaseIntegration, to: routingPhaseRepair, want: true},
+		{name: "review to repair", from: routingPhaseReview, to: routingPhaseRepair, want: true},
+		{name: "repair to implement", from: routingPhaseRepair, to: routingPhaseImplement, want: true},
+		{name: "repair to test", from: routingPhaseRepair, to: routingPhaseTest, want: true},
+		{name: "repair to integration", from: routingPhaseRepair, to: routingPhaseIntegration, want: true},
+		{name: "repair to review", from: routingPhaseRepair, to: routingPhaseReview, want: true},
+		{name: "design to architecture branches", from: routingPhaseDesign, to: routingPhaseArchitecture, want: false},
+		{name: "implement to review skips test and integration", from: routingPhaseImplement, to: routingPhaseReview, want: false},
+		{name: "same phase is not an edge", from: routingPhaseReview, to: routingPhaseReview, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isAllowedDirectRoutingPhaseTransition(tt.from, tt.to); got != tt.want {
+				t.Fatalf("transition %s -> %s allowed = %t, want %t", tt.from, tt.to, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPlannedCodexRequestsDoNotResumeIllegalSameModelPhaseEdge(t *testing.T) {
+	req := executionRequest{
+		Prompt:             "Cross-system design and architecture with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"frontend", "backend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-designer"),
+				runtimeProfileForAgent("namba-frontend-architect"),
+			},
+		},
+	}
+
+	planned := plannedCodexRequests(req)
+	if len(planned) != 3 || planned[0].Phase != routingPhaseDesign || planned[1].Phase != routingPhaseArchitecture {
+		t.Fatalf("unexpected phase plan: %+v", planned)
+	}
+	if planned[0].Model != planned[1].Model {
+		t.Fatalf("fixture requires the same model across the illegal edge: %+v", planned[:2])
+	}
+	if planned[1].ResumeSession || planned[1].ThreadID != "" {
+		t.Fatalf("design to architecture must remain a fresh checkpoint in preflight: %+v", planned[1])
+	}
+}
+
+func TestPlannedCodexRequestsAvoidRepairResumeWithoutSameModelWriter(t *testing.T) {
+	req := executionRequest{
+		Prompt:             "Simple explicit mechanical rename with deterministic acceptance tests.",
+		Mode:               executionModeDefault,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		RepairAttempts:     1,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend"},
+		},
+	}
+
+	planned := plannedCodexRequests(req)
+	if len(planned) != 2 || planned[0].Model != modelRoutingModelLuna || planned[1].TurnName != "repair-preview" || planned[1].Model != modelRoutingModelTerra {
+		t.Fatalf("expected Luna implementation then Terra repair preview, got %+v", planned)
+	}
+	if planned[1].ResumeSession || planned[1].ThreadID != "" {
+		t.Fatalf("repair preview without a same-model writable predecessor must stay fresh, got %+v", planned[1])
+	}
+	if _, err := validateCodexExecutionContract(req, codexCapabilityMatrix{Exec: codexCommandCapabilities{Config: true, ModelFlag: true}}); err != nil {
+		t.Fatalf("fresh repair preview must not require an unsupported resume surface: %v", err)
+	}
+}
+
+func TestBuildExecutionTurnRequestsCapsSolHighAtOne(t *testing.T) {
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Cross-system security architecture design with irreversible risk and acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "security"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-backend-architect"),
+				runtimeProfileForAgent("namba-reviewer"),
+			},
+		},
+	}
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 3 || turns[0].RoutingDecision.ReasoningEffort != "high" || turns[0].RoutingDecision.Status != modelRoutingStatusPlanned {
+		t.Fatalf("expected the first high-risk checkpoint to use Sol high, got %+v", turns)
+	}
+	if turns[2].Model != modelRoutingModelTerra || turns[2].RoutingDecision.Status != modelRoutingStatusFallback || turns[2].RoutingDecision.FallbackReason != "sol_high_turn_budget_exhausted" {
+		t.Fatalf("expected second Sol high decision to fall back to Terra, got %+v", turns[2].RoutingDecision)
+	}
+	if err := validateModelRoutingTurnPlan(turns); err != nil {
+		t.Fatalf("Terra fallback must remain executable, got %v", err)
+	}
+}
+
+func TestBuildExecutionTurnRequestsBlocksRequiredSolWhenCapabilityIsUnavailable(t *testing.T) {
+	req := executionRequest{
+		Prompt:             "Cross-system architecture with acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SolAvailable:       boolPtr(false),
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "frontend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-backend-architect"),
+			},
+		},
+	}
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 2 || turns[0].RoutingDecision.Status != modelRoutingStatusBlocked || turns[0].RoutingDecision.FallbackReason != modelRoutingReasonBlockedModelUnavailable {
+		t.Fatalf("expected unavailable required Sol checkpoint to block before implementation, got %+v", turns)
+	}
+}
+
+func TestBuildRepairExecutionTurnRequestRecomputesCostBalancedRouting(t *testing.T) {
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Cross-system security architecture with irreversible risk and acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		RepairAttempts:     2,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "security"},
+		},
+	}
+
+	repair, solRemaining, solHighRemaining := buildRepairExecutionTurnRequest(req, validationReport{}, 1, "019f5f13-3132-76c3-b9c7-ac521e89355e", "spec-069", 1, 1)
+	if repair.Phase != routingPhaseRepair || repair.RoutingDecision.RuleID != "sol-high-repeated-risk-diagnosis-v1" || repair.Model != modelRoutingModelSol || repair.RequestedReasoningEffort != "high" || !repair.RoutingDecision.ReadOnly || repair.SandboxMode != "read-only" {
+		t.Fatalf("repair turn did not recompute repeated-risk routing: %+v", repair)
+	}
+	if solRemaining != 0 || solHighRemaining != 0 {
+		t.Fatalf("repair Sol decision did not consume remaining budgets: sol=%d high=%d", solRemaining, solHighRemaining)
+	}
+}
+
+func TestBuildRepairExecutionTurnRequestPreservesLegacyStaticFlow(t *testing.T) {
+	req := executionRequest{
+		SpecID:                   "SPEC-069",
+		Prompt:                   "Cross-system security architecture with irreversible risk and acceptance tests.",
+		ModelRoutingPolicy:       modelRoutingPolicyLegacyStaticV1,
+		Model:                    "gpt-5.4",
+		SandboxMode:              "workspace-write",
+		SessionMode:              "stateful",
+		RequestedReasoningEffort: "",
+		RepairAttempts:           2,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "security"},
+		},
+	}
+
+	repair, solRemaining, solHighRemaining := buildRepairExecutionTurnRequest(req, validationReport{}, 1, "019f5f13-3132-76c3-b9c7-ac521e89355e", "spec-069", 1, 1)
+	if repair.Model != "gpt-5.4" || repair.RequestedReasoningEffort != "high" || repair.SandboxMode != "workspace-write" {
+		t.Fatalf("legacy repair runtime changed: %+v", repair)
+	}
+	if repair.RoutingDecision.Model != "" || repair.RoutingDecision.Status != "" || repair.RoutingDecision.ReadOnly || strings.Contains(repair.Prompt, "Diagnose the validation failure") {
+		t.Fatalf("legacy repair inherited adaptive diagnosis behavior: %+v", repair)
+	}
+	if solRemaining != 1 || solHighRemaining != 1 {
+		t.Fatalf("legacy repair consumed adaptive Sol budgets: sol=%d high=%d", solRemaining, solHighRemaining)
+	}
+}
+
+func TestFirstCodexThreadIDAcceptsOnlyCanonicalUUIDs(t *testing.T) {
+	const validThreadID = "019f5f13-3132-76c3-b9c7-ac521e89355e"
+	output := strings.Join([]string{
+		`{"session_id":"nested-tool-status"}`,
+		`{"thread":{"id":"not-a-uuid"}}`,
+		`{"event":{"thread_id":"` + validThreadID + `"}}`,
+	}, "\n")
+
+	if got := firstCodexThreadID(output); got != validThreadID {
+		t.Fatalf("thread id = %q, want %q", got, validThreadID)
+	}
+	if got := firstCodexThreadID(`{"thread_id":"nested-tool-status"}`); got != "" {
+		t.Fatalf("non-UUID thread id must not become resume authority: %q", got)
 	}
 }
 
@@ -400,6 +889,7 @@ func TestProbeCodexCapabilitiesIncludesResumeHelpWhenResumeIsPlanned(t *testing.
 		SessionMode:    "stateful",
 		RepairAttempts: 1,
 		Mode:           executionModeDefault,
+		Model:          "gpt-5.4",
 	})
 	if err != nil {
 		t.Fatalf("probeCodexCapabilities failed: %v", err)
@@ -412,6 +902,342 @@ func TestProbeCodexCapabilitiesIncludesResumeHelpWhenResumeIsPlanned(t *testing.
 	}
 	if !caps.Resume.Config || !caps.Resume.ModelFlag {
 		t.Fatalf("expected populated resume capabilities, got %+v", caps.Resume)
+	}
+	if len(caps.Probes) != 3 || caps.Probes[0].Name != lifecycleProbeCodexVersion || caps.Probes[1].Name != lifecycleProbeCodexExecHelp || caps.Probes[2].Name != lifecycleProbeCodexResumeExecHelp || caps.Probes[2].Status != lifecycleProbeStatusSucceeded {
+		t.Fatalf("expected version, exec-help, and resume-help bounded outcomes, got %+v", caps.Probes)
+	}
+}
+
+func TestProbeCodexCapabilitiesChecksExactSolAvailability(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		stdout    string
+		stderr    string
+		runErr    error
+		available bool
+		status    string
+	}{
+		{name: "available", stdout: `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, available: true, status: lifecycleProbeStatusAvailable},
+		{name: "entitlement rejected", stderr: "model gpt-5.6-sol is not available", runErr: errors.New("exit status 1"), available: false, status: lifecycleProbeStatusError},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			tmp := t.TempDir()
+			app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+			app.lookPath = func(name string) (string, error) {
+				if name == "codex" {
+					return name, nil
+				}
+				return "", errors.New("missing dependency")
+			}
+			app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+				if dir != tmp {
+					t.Fatalf("expected capability probe workdir %s, got %s", tmp, dir)
+				}
+				switch {
+				case isCodexVersionCommand(name, args):
+					return "codex-cli test", nil
+				case isCodexHelpCommand(name, args, false):
+					return "-c, --config\n-a, --ask-for-approval\n-s, --sandbox\n-m, --model\n-p, --profile\n--ephemeral\n--json", nil
+				case isCodexHelpCommand(name, args, true):
+					return "-c, --config\n-m, --model\n--json", nil
+				default:
+					t.Fatalf("unexpected command: %s %v", name, args)
+					return "", nil
+				}
+			}
+			probeCalls := 0
+			app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
+				probeCalls++
+				if name != "codex" || dir != tmp || indexOfArg(args, "-m") == -1 || !containsArgPair(args, "-p", "namba-sol-profile") || indexOfArg(args, "--json") == -1 || indexOfArg(args, "--ephemeral") == -1 {
+					t.Fatalf("unexpected exact-model probe: %s %v dir=%s", name, args, dir)
+				}
+				if !strings.Contains(input, "namba-model-available") {
+					t.Fatalf("unexpected exact-model probe input: %q", input)
+				}
+				modelIndex := indexOfArg(args, "-m")
+				if modelIndex == -1 || modelIndex+1 >= len(args) {
+					t.Fatalf("exact-model probe is missing model: %v", args)
+				}
+				if args[modelIndex+1] == modelRoutingModelTerra {
+					return `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355f"}`, "", nil
+				}
+				if args[modelIndex+1] != modelRoutingModelSol {
+					t.Fatalf("unexpected exact-model probe target: %v", args)
+				}
+				return tt.stdout, tt.stderr, tt.runErr
+			}
+
+			caps, err := app.probeCodexCapabilities(context.Background(), tmp, executionRequest{
+				SpecID:             "SPEC-069",
+				WorkDir:            tmp,
+				Prompt:             "Cross-system security architecture with irreversible risk and acceptance tests.",
+				ApprovalPolicy:     "on-request",
+				SandboxMode:        "workspace-write",
+				Profile:            "namba-sol-profile",
+				ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+				SessionMode:        "stateful",
+				RepairAttempts:     1,
+				Mode:               executionModeDefault,
+			})
+			if err != nil {
+				t.Fatalf("probeCodexCapabilities failed: %v", err)
+			}
+			expectedProbeCalls := 1
+			if tt.available {
+				expectedProbeCalls = 2
+			}
+			if probeCalls != expectedProbeCalls || caps.SolAvailable == nil || *caps.SolAvailable != tt.available {
+				t.Fatalf("expected exact Sol availability %t and routed-model closure, got calls=%d capabilities=%+v", tt.available, probeCalls, caps)
+			}
+			if len(caps.Probes) < 3 || caps.Probes[0].Name != lifecycleProbeCodexVersion || caps.Probes[1].Name != lifecycleProbeCodexExecHelp || caps.Probes[2].Name != lifecycleProbeSolAvailability || caps.Probes[2].Status != tt.status {
+				t.Fatalf("expected ordered bounded capability outcomes ending in %q, got %+v", tt.status, caps.Probes)
+			}
+		})
+	}
+}
+
+func TestProbeCodexCapabilitiesChecksFallbackModelClosure(t *testing.T) {
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if dir != tmp {
+			t.Fatalf("expected capability probe workdir %s, got %s", tmp, dir)
+		}
+		switch {
+		case isCodexVersionCommand(name, args):
+			return "codex-cli test", nil
+		case isCodexHelpCommand(name, args, false):
+			return "-c, --config\n-a, --ask-for-approval\n-s, --sandbox\n-m, --model\n--ephemeral\n--json", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	var probedModels []string
+	app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, dir, input string) (string, string, error) {
+		modelIndex := indexOfArg(args, "-m")
+		if name != "codex" || dir != tmp || modelIndex == -1 || modelIndex+1 >= len(args) || indexOfArg(args, "--json") == -1 || indexOfArg(args, "--ephemeral") == -1 {
+			t.Fatalf("unexpected exact-model probe: %s %v dir=%s", name, args, dir)
+		}
+		if !strings.Contains(input, "namba-model-available") {
+			t.Fatalf("unexpected exact-model probe input: %q", input)
+		}
+		model := args[modelIndex+1]
+		probedModels = append(probedModels, model)
+		if model == modelRoutingModelLuna {
+			return "", "model gpt-5.6-luna is not available", errors.New("exit status 1")
+		}
+		if model != modelRoutingModelTerra {
+			t.Fatalf("unexpected routed model probe: %q", model)
+		}
+		return `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Simple mechanical rename with deterministic tests.",
+		Mode:               executionModeDefault,
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend"},
+		},
+	}
+	caps, err := app.probeCodexCapabilities(context.Background(), tmp, req)
+	if err != nil {
+		t.Fatalf("probeCodexCapabilities failed: %v", err)
+	}
+	if got, want := strings.Join(probedModels, ","), modelRoutingModelLuna+","+modelRoutingModelTerra; got != want {
+		t.Fatalf("probed models = %q, want fallback closure %q", got, want)
+	}
+	if caps.ModelAvailability[modelRoutingModelLuna] || !caps.ModelAvailability[modelRoutingModelTerra] {
+		t.Fatalf("unexpected routed model availability: %+v", caps.ModelAvailability)
+	}
+	if len(caps.Probes) != 4 || caps.Probes[2].Model != modelRoutingModelLuna || caps.Probes[3].Model != modelRoutingModelTerra {
+		t.Fatalf("expected ordered model-specific bounded probes, got %+v", caps.Probes)
+	}
+
+	req.ModelAvailability = caps.ModelAvailability
+	turns := buildExecutionTurnRequests(req)
+	if len(turns) != 1 || turns[0].Model != modelRoutingModelTerra || turns[0].RoutingDecision.Status != modelRoutingStatusFallback || turns[0].RoutingDecision.FallbackReason != modelRoutingReasonModelUnavailable {
+		t.Fatalf("unavailable Luna must fall back to a probed Terra writer, got %+v", turns)
+	}
+}
+
+func TestProbeCodexCapabilitiesValidatesLocalContractBeforeModelProbes(t *testing.T) {
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if dir != tmp {
+			t.Fatalf("expected capability probe workdir %s, got %s", tmp, dir)
+		}
+		switch {
+		case isCodexVersionCommand(name, args):
+			return "codex-cli test", nil
+		case isCodexHelpCommand(name, args, false):
+			return "-a, --ask-for-approval\n-s, --sandbox\n-m, --model\n--ephemeral\n--json", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+	modelProbeCalls := 0
+	app.runCodexCmdWithInput = func(context.Context, string, []string, string, string) (string, string, error) {
+		modelProbeCalls++
+		return `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Simple mechanical rename with deterministic tests.",
+		Mode:               executionModeDefault,
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend"},
+		},
+	}
+	caps, err := app.probeCodexCapabilities(context.Background(), tmp, req)
+	if err == nil || !strings.Contains(err.Error(), "model_reasoning_effort cannot be represented") {
+		t.Fatalf("expected no-config surface to fail before model probing, got %v", err)
+	}
+	if modelProbeCalls != 0 {
+		t.Fatalf("invalid local invocation contract must not spend model probes, calls=%d", modelProbeCalls)
+	}
+	if len(caps.Probes) != 2 || caps.Probes[0].Name != lifecycleProbeCodexVersion || caps.Probes[1].Name != lifecycleProbeCodexExecHelp {
+		t.Fatalf("expected only local capability probes before contract failure, got %+v", caps.Probes)
+	}
+}
+
+func TestProbeCodexCapabilitiesStopsInvocationPlanningForBlockedSol(t *testing.T) {
+	tmp := t.TempDir()
+	app := NewApp(&bytes.Buffer{}, &bytes.Buffer{})
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+
+	resumeHelpCalls := 0
+	app.runCmd = func(_ context.Context, name string, args []string, dir string) (string, error) {
+		if dir != tmp {
+			t.Fatalf("expected capability probe workdir %s, got %s", tmp, dir)
+		}
+		switch {
+		case isCodexVersionCommand(name, args):
+			return "codex-cli test", nil
+		case isCodexHelpCommand(name, args, false):
+			return "-c, --config\n-a, --ask-for-approval\n-s, --sandbox", nil
+		case isCodexHelpCommand(name, args, true):
+			resumeHelpCalls++
+			return "", errors.New("resume surface unavailable")
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+	app.runCodexCmdWithInput = func(context.Context, string, []string, string, string) (string, string, error) {
+		t.Fatal("blocked Sol plan must not run an exact-model probe")
+		return "", "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Cross-system architecture with acceptance tests.",
+		Mode:               executionModeTeam,
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		RepairAttempts:     1,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "frontend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-backend-architect"),
+			},
+		},
+	}
+	caps, err := app.probeCodexCapabilities(context.Background(), tmp, req)
+	if err != nil {
+		t.Fatalf("probeCodexCapabilities failed: %v", err)
+	}
+	if caps.SolAvailable == nil || *caps.SolAvailable || resumeHelpCalls != 0 {
+		t.Fatalf("expected blocked Sol availability without resume probing, calls=%d capabilities=%+v", resumeHelpCalls, caps)
+	}
+	req = withModelAvailability(req, caps)
+	if _, err := validateCodexExecutionContract(req, caps); err == nil || !strings.Contains(err.Error(), modelRoutingReasonBlockedModelUnavailable) {
+		t.Fatalf("blocked routing must fail the preflight contract before invocation resolution, got %v", err)
+	}
+}
+
+func TestExecutablePlannedCodexRequestsValidatesExecutableTurnsWhenRepairPreviewIsBlocked(t *testing.T) {
+	initialReq := executionRequest{
+		SpecID:             "SPEC-069",
+		Prompt:             "Implement an ordinary backend change with deterministic acceptance tests.",
+		Mode:               executionModeDefault,
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend"},
+		},
+	}
+	initial := buildExecutionTurnRequests(initialReq)[0]
+	blockedRepair := initialReq
+	blockedRepair.TurnName = "repair-preview"
+	blockedRepair.Phase = routingPhaseRepair
+	blockedRepair.RoutingDecision = modelRoutingDecisionResult{
+		Phase:          routingPhaseRepair,
+		Model:          modelRoutingModelSol,
+		Status:         modelRoutingStatusBlocked,
+		FallbackReason: modelRoutingReasonBlockedModelUnavailable,
+		RequiredSol:    true,
+		ReadOnly:       true,
+	}
+	planned, immediateBlock := executablePlannedCodexRequests([]executionRequest{initial, blockedRepair})
+	if immediateBlock || len(planned) != 1 || planned[0].TurnName != "implement" {
+		t.Fatalf("blocked conditional repair preview must not suppress the executable initial turn, got immediate=%t planned=%+v", immediateBlock, planned)
+	}
+
+	invocation, err := resolveCodexInvocation(planned[0], codexCapabilityMatrix{
+		Exec: codexCommandCapabilities{Config: true, ModelFlag: true},
+	})
+	if err != nil {
+		t.Fatalf("executable initial turn must still pass contract validation: %v", err)
+	}
+	if invocation.CommandShape != "codex exec" {
+		t.Fatalf("blocked repair preview must be excluded without suppressing the initial invocation: %+v", invocation)
+	}
+
+	if _, err := resolveCodexInvocation(planned[0], codexCapabilityMatrix{Exec: codexCommandCapabilities{ApprovalFlag: true, SandboxFlag: true}}); err == nil || !strings.Contains(err.Error(), "model") {
+		t.Fatalf("initial Terra invocation must fail preflight when the CLI cannot represent its model, got %v", err)
 	}
 }
 
@@ -493,9 +1319,9 @@ func TestSuggestDelegationPlanRoutesSpecialists(t *testing.T) {
 		}
 	}
 	for role, want := range map[string]agentRuntimeProfile{
-		"namba-mobile-engineer":   {Role: "namba-mobile-engineer", Model: "gpt-5.4", ModelReasoningEffort: "medium"},
-		"namba-security-engineer": {Role: "namba-security-engineer", Model: "gpt-5.4", ModelReasoningEffort: "high"},
-		"namba-reviewer":          {Role: "namba-reviewer", Model: "gpt-5.4", ModelReasoningEffort: "high"},
+		"namba-mobile-engineer":   {Role: "namba-mobile-engineer", Model: modelRoutingModelTerra, ModelReasoningEffort: "medium"},
+		"namba-security-engineer": {Role: "namba-security-engineer", Model: modelRoutingModelTerra, ModelReasoningEffort: "medium"},
+		"namba-reviewer":          {Role: "namba-reviewer", Model: modelRoutingModelTerra, ModelReasoningEffort: "medium"},
 	} {
 		found := false
 		for _, profile := range teamPlan.SelectedRoleProfiles {
@@ -510,7 +1336,7 @@ func TestSuggestDelegationPlanRoutesSpecialists(t *testing.T) {
 			t.Fatalf("expected runtime profile for %s, got %+v", role, teamPlan.SelectedRoleProfiles)
 		}
 	}
-	if prompt := strings.Join(formatDelegationPlanPrompt(teamPlan), "\n"); !strings.Contains(prompt, "model_reasoning_effort `high`") || !strings.Contains(prompt, "`namba-mobile-engineer` -> model `gpt-5.4`") {
+	if prompt := strings.Join(formatDelegationPlanPrompt(teamPlan), "\n"); !strings.Contains(prompt, "model_reasoning_effort `medium`") || !strings.Contains(prompt, "`namba-mobile-engineer` -> model `gpt-5.6-terra`") {
 		t.Fatalf("expected team prompt to include role runtime metadata, got %q", prompt)
 	}
 	if teamPlan.DelegationBudget < 2 {
@@ -974,6 +1800,36 @@ func TestDispatchRunExecutionDryRunSkipsRunnerAndPrintsPromptPath(t *testing.T) 
 	}
 	if _, err := os.Stat(filepath.Join(tmp, ".namba", "logs", "runs", "spec-001-execution.json")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("expected dry-run dispatch to avoid execution artifacts, got err=%v", err)
+	}
+}
+
+func TestDispatchRunExecutionDryRunReportsPlannedAdjacentResume(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	app := NewApp(stdout, &bytes.Buffer{})
+	runCtx := runExecutionContext{
+		Root:       t.TempDir(),
+		SpecPkg:    specPackage{ID: "SPEC-069"},
+		SystemCfg:  systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"},
+		CodexCfg:   codexConfig{ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1, SessionMode: "stateful"},
+		Prompt:     "Implement a reversible local change with deterministic acceptance tests.",
+		PromptPath: filepath.Join(t.TempDir(), "spec-069-request.md"),
+		Delegation: delegationPlan{
+			IntegratorRole: "namba-implementer",
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-test-engineer"),
+			},
+		},
+	}
+
+	if err := app.dispatchRunExecution(context.Background(), runExecuteOptions{specID: "SPEC-069", mode: executionModeTeam, dryRun: true}, runCtx); err != nil {
+		t.Fatalf("dispatch dry-run: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "phase=implement") || !strings.Contains(output, "phase=test") {
+		t.Fatalf("expected implement and test turns in dry-run plan, got %q", output)
+	}
+	if !strings.Contains(output, "phase=test role=namba-test-engineer tier=standard model=gpt-5.6-terra effort=medium rule=standard-default-v1 reasons= session=explicit_thread_resume") {
+		t.Fatalf("legal same-model implement to test edge must report its planned resume, got %q", output)
 	}
 }
 
@@ -1798,7 +2654,7 @@ func TestRunAllowsResumeProfileViaExecLevelFlags(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()
 
-	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"), "agent_mode: multi\nstatus_line_preset: namba\nrepo_skills_path: .agents/skills\nrepo_agents_path: .codex/agents\nprofile: namba\nsession_mode: stateful\nrepair_attempts: 1\n")
+	writeTestFile(t, filepath.Join(tmp, ".namba", "config", "sections", "codex.yaml"), "agent_mode: multi\nstatus_line_preset: namba\nrepo_skills_path: .agents/skills\nrepo_agents_path: .codex/agents\nmodel_routing_policy: gpt-5.6-cost-balanced-v1\nprofile: namba\nsession_mode: stateful\nrepair_attempts: 1\n")
 
 	var sawResumeWithExecProfile bool
 	app.lookPath = func(name string) (string, error) {
@@ -1814,7 +2670,7 @@ func TestRunAllowsResumeProfileViaExecLevelFlags(t *testing.T) {
 			if resumeIndex != -1 && profileIndex != -1 && profileIndex < resumeIndex && profileIndex+1 < len(args) && args[profileIndex+1] == "namba" {
 				sawResumeWithExecProfile = true
 			}
-			return "runner output", nil
+			return `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, nil
 		}
 		if isShellCommand(name) {
 			return "validation ok", nil
@@ -1826,7 +2682,7 @@ func TestRunAllowsResumeProfileViaExecLevelFlags(t *testing.T) {
 		t.Fatalf("expected team run to succeed, got %v", err)
 	}
 	if !sawResumeWithExecProfile {
-		t.Fatal("expected resume turns to carry profile via exec-level flags before resume")
+		t.Fatal("expected same-model turns to carry profile via explicit-thread resume")
 	}
 }
 

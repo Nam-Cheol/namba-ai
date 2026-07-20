@@ -14,10 +14,32 @@ type agentRuntimeProfile struct {
 func runtimeProfileForAgent(role string) agentRuntimeProfile {
 	profile := agentRuntimeProfile{Role: strings.TrimSpace(role)}
 	switch profile.Role {
-	case "namba-planner":
-		profile.Model = "gpt-5.4"
+	case "namba-explorer", "namba-simple-implementer":
+		profile.Model = modelRoutingModelLuna
+		profile.ModelReasoningEffort = "low"
+	case "namba-product-manager":
+		profile.Model = modelRoutingModelTerra
+		profile.ModelReasoningEffort = "medium"
+	case "namba-planner", "namba-frontend-architect", "namba-designer", "namba-backend-architect":
+		profile.Model = modelRoutingModelSol
+		profile.ModelReasoningEffort = "medium"
+	case "namba-high-risk-advisor":
+		profile.Model = modelRoutingModelSol
 		profile.ModelReasoningEffort = "high"
-	case "namba-plan-reviewer":
+	case "namba-plan-reviewer", "namba-mobile-engineer", "namba-security-engineer", "namba-reviewer", "namba-frontend-implementer", "namba-backend-implementer", "namba-data-engineer", "namba-test-engineer", "namba-devops-engineer", "namba-implementer":
+		profile.Model = modelRoutingModelTerra
+		profile.ModelReasoningEffort = "medium"
+	}
+	return profile
+}
+
+// legacyStaticRuntimeProfileForAgent preserves the role defaults that existed
+// before adaptive model routing. Legacy projects must not inherit Luna/Terra/Sol
+// IDs merely because the managed adaptive profiles changed.
+func legacyStaticRuntimeProfileForAgent(role string) agentRuntimeProfile {
+	profile := agentRuntimeProfile{Role: strings.TrimSpace(role)}
+	switch profile.Role {
+	case "namba-planner", "namba-plan-reviewer":
 		profile.Model = "gpt-5.4"
 		profile.ModelReasoningEffort = "high"
 	case "namba-product-manager":

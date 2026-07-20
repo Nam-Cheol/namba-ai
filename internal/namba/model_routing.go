@@ -1,0 +1,247 @@
+package namba
+
+import "strings"
+
+// Model IDs are deliberately explicit: the gpt-5.6 alias can resolve to a
+// different tier and is therefore not a stable execution contract.
+const (
+	modelRoutingPolicyCostBalancedV1 = "gpt-5.6-cost-balanced-v1"
+	modelRoutingPolicyLegacyStaticV1 = "legacy-static-v1"
+	modelRoutingModelLuna            = "gpt-5.6-luna"
+	modelRoutingModelTerra           = "gpt-5.6-terra"
+	modelRoutingModelSol             = "gpt-5.6-sol"
+)
+
+var modelRoutingPolicyRegistry = map[string]string{
+	"efficient": modelRoutingModelLuna,
+	"standard":  modelRoutingModelTerra,
+	"deep":      modelRoutingModelSol,
+}
+
+type routingPhase string
+
+const (
+	routingPhaseIntake       routingPhase = "intake"
+	routingPhasePlan         routingPhase = "plan"
+	routingPhaseDesign       routingPhase = "design"
+	routingPhaseArchitecture routingPhase = "architecture"
+	routingPhaseImplement    routingPhase = "implement"
+	routingPhaseTest         routingPhase = "test"
+	routingPhaseIntegration  routingPhase = "integration"
+	routingPhaseReview       routingPhase = "review"
+	routingPhaseRepair       routingPhase = "repair"
+)
+
+const (
+	modelRoutingStatusPlanned  = "planned"
+	modelRoutingStatusFallback = "fallback"
+	modelRoutingStatusBlocked  = "blocked"
+)
+
+const (
+	modelRoutingReasonModelUnavailable        = "model_unavailable"
+	modelRoutingReasonBlockedModelUnavailable = "blocked_model_unavailable"
+)
+
+type modelRoutingInput struct {
+	Phase                   routingPhase
+	Role                    string
+	Domain                  string
+	CriticalRisk            bool
+	HighAmbiguity           bool
+	CrossSystem             bool
+	Irreversible            bool
+	RepairCount             int
+	RemainingSolTurns       int
+	SolBudgetActive         bool
+	RemainingSolHighTurns   int
+	SolHighBudgetActive     bool
+	SimpleImplementation    bool
+	SingleSubsystem         bool
+	ExplicitTransformation  bool
+	Reversible              bool
+	DeterministicAcceptance bool
+	PublicContractChange    bool
+	BuildSystemChange       bool
+	UnresolvedReview        bool
+	SolAvailable            *bool // nil means capability has not ruled Sol out.
+	ModelAvailability       map[string]bool
+}
+
+type modelRoutingDecisionResult struct {
+	Phase                 routingPhase `json:"phase"`
+	Tier                  string       `json:"tier"`
+	Model                 string       `json:"model"`
+	ReasoningEffort       string       `json:"reasoning_effort"`
+	RuleID                string       `json:"rule_id"`
+	ReasonCodes           []string     `json:"reason_codes,omitempty"`
+	Status                string       `json:"status"`
+	FallbackReason        string       `json:"fallback_reason,omitempty"`
+	RequiredSol           bool         `json:"required_sol"`
+	RemainingSolTurns     int          `json:"remaining_sol_turns,omitempty"`
+	RemainingSolHighTurns int          `json:"remaining_sol_high_turns,omitempty"`
+	ReadOnly              bool         `json:"read_only"`
+}
+
+func modelRoutingDecision(input modelRoutingInput) modelRoutingDecisionResult {
+	decision := modelRoutingDecisionResult{
+		Phase:                 input.Phase,
+		Tier:                  "standard",
+		Model:                 modelRoutingModelTerra,
+		ReasoningEffort:       "medium",
+		RuleID:                "standard-default-v1",
+		Status:                modelRoutingStatusPlanned,
+		RemainingSolTurns:     maxInt(input.RemainingSolTurns, 0),
+		RemainingSolHighTurns: maxInt(input.RemainingSolHighTurns, 0),
+	}
+
+	if isSimpleLunaImplementation(input) {
+		decision.Tier = "efficient"
+		decision.Model = modelRoutingModelLuna
+		decision.RuleID = "luna-simple-implementation-v1"
+		decision.ReasonCodes = []string{"single_subsystem", "explicit_transformation", "reversible", "deterministic_acceptance"}
+		return enforceRoutedModelAvailability(input, decision)
+	}
+
+	// Sol is a decision/review tool, never an implementation model. Repair is
+	// deliberately Terra unless the explicit repeated-failure risk predicate is
+	// met below.
+	if input.Phase != routingPhaseImplement && input.Phase != routingPhaseRepair {
+		if requiresSolHighCheckpoint(input) {
+			return resolveSolDecision(input, "sol-high-risk-decision-v1", "high", true, []string{"critical_risk", "high_ambiguity", riskScopeReason(input)})
+		}
+		if shouldUseSolMedium(input) {
+			required := input.CrossSystem && input.Phase == routingPhaseArchitecture
+			return resolveSolDecision(input, "sol-medium-design-or-architecture-v1", "medium", required, []string{"initial_design_or_architecture", riskScopeReason(input)})
+		}
+	}
+
+	if input.Phase == routingPhaseRepair && input.RepairCount > 0 {
+		decision.ReasoningEffort = "high"
+		decision.RuleID = "terra-repair-v1"
+		decision.ReasonCodes = []string{"repair_attempt"}
+		if requiresSolHighCheckpoint(input) {
+			return resolveSolDecision(input, "sol-high-repeated-risk-diagnosis-v1", "high", true, []string{"repeated_failure", "critical_risk", "high_ambiguity", riskScopeReason(input)})
+		}
+	}
+
+	if input.Phase == routingPhaseImplement && (input.CrossSystem || input.Irreversible || input.CriticalRisk) {
+		decision.ReasonCodes = []string{"implementation_requires_writer", "terra_writer"}
+	}
+	return enforceRoutedModelAvailability(input, decision)
+}
+
+func requiresSolHighCheckpoint(input modelRoutingInput) bool {
+	return input.CriticalRisk && input.HighAmbiguity && (input.CrossSystem || input.Irreversible)
+}
+
+func isSimpleLunaImplementation(input modelRoutingInput) bool {
+	return input.Phase == routingPhaseImplement && input.SimpleImplementation && input.SingleSubsystem && input.ExplicitTransformation && input.Reversible && input.DeterministicAcceptance && !input.CriticalRisk && !input.CrossSystem && !input.Irreversible && !input.PublicContractChange && !input.BuildSystemChange && !input.UnresolvedReview
+}
+
+func shouldUseSolMedium(input modelRoutingInput) bool {
+	if input.Phase != routingPhasePlan && input.Phase != routingPhaseDesign && input.Phase != routingPhaseArchitecture && input.Phase != routingPhaseReview {
+		return false
+	}
+	role := strings.TrimSpace(strings.ToLower(input.Role))
+	return input.CrossSystem || input.Irreversible || input.Phase == routingPhaseArchitecture || input.Phase == routingPhaseDesign || strings.Contains(role, "planner") || strings.Contains(role, "architect") || strings.Contains(role, "designer")
+}
+
+func resolveSolDecision(input modelRoutingInput, rule, effort string, required bool, reasons []string) modelRoutingDecisionResult {
+	decision := modelRoutingDecisionResult{
+		Phase:                 input.Phase,
+		Tier:                  "deep",
+		Model:                 modelRoutingModelSol,
+		ReasoningEffort:       effort,
+		RuleID:                rule,
+		ReasonCodes:           reasons,
+		Status:                modelRoutingStatusPlanned,
+		RequiredSol:           required,
+		RemainingSolTurns:     maxInt(input.RemainingSolTurns, 0),
+		RemainingSolHighTurns: maxInt(input.RemainingSolHighTurns, 0),
+		ReadOnly:              true,
+	}
+	if input.SolBudgetActive && input.RemainingSolTurns <= 0 {
+		return fallbackOrBlockSol(input, decision, required, "sol_turn_budget_exhausted")
+	}
+	if available, known := routedModelAvailability(input, modelRoutingModelSol); known && !available {
+		reason := modelRoutingReasonModelUnavailable
+		if required {
+			reason = modelRoutingReasonBlockedModelUnavailable
+		}
+		return fallbackOrBlockSol(input, decision, required, reason)
+	}
+	if effort == "high" && input.SolHighBudgetActive && input.RemainingSolHighTurns <= 0 {
+		// A prior Sol high checkpoint already covered the required risk review.
+		// Keep the one-turn high cap without preventing the writer/reviewer flow.
+		return fallbackOrBlockSol(input, decision, false, "sol_high_turn_budget_exhausted")
+	}
+	if input.SolBudgetActive {
+		decision.RemainingSolTurns = input.RemainingSolTurns - 1
+	}
+	if effort == "high" && input.SolHighBudgetActive {
+		decision.RemainingSolHighTurns = input.RemainingSolHighTurns - 1
+	}
+	return decision
+}
+
+func fallbackOrBlockSol(input modelRoutingInput, decision modelRoutingDecisionResult, required bool, reason string) modelRoutingDecisionResult {
+	decision.FallbackReason = reason
+	if required {
+		decision.Status = modelRoutingStatusBlocked
+		decision.RuleID += "-blocked"
+		return decision
+	}
+	decision.Tier = "standard"
+	decision.Model = modelRoutingModelTerra
+	decision.ReasoningEffort = "high"
+	decision.Status = modelRoutingStatusFallback
+	decision.ReadOnly = false
+	decision.RuleID += "-fallback-terra"
+	return enforceRoutedModelAvailability(input, decision)
+}
+
+func routedModelAvailability(input modelRoutingInput, model string) (bool, bool) {
+	model = strings.TrimSpace(model)
+	if available, ok := input.ModelAvailability[model]; ok {
+		return available, true
+	}
+	if model == modelRoutingModelSol && input.SolAvailable != nil {
+		return *input.SolAvailable, true
+	}
+	return false, false
+}
+
+func enforceRoutedModelAvailability(input modelRoutingInput, decision modelRoutingDecisionResult) modelRoutingDecisionResult {
+	available, known := routedModelAvailability(input, decision.Model)
+	if !known || available || decision.Status == modelRoutingStatusBlocked {
+		return decision
+	}
+
+	if decision.Model == modelRoutingModelLuna {
+		decision.Tier = "standard"
+		decision.Model = modelRoutingModelTerra
+		decision.ReasoningEffort = "medium"
+		decision.Status = modelRoutingStatusFallback
+		decision.FallbackReason = modelRoutingReasonModelUnavailable
+		decision.RuleID += "-fallback-terra"
+		decision.ReasonCodes = append(decision.ReasonCodes, "luna_unavailable", "terra_writer")
+		return enforceRoutedModelAvailability(input, decision)
+	}
+
+	decision.Status = modelRoutingStatusBlocked
+	decision.FallbackReason = modelRoutingReasonBlockedModelUnavailable
+	decision.RuleID += "-blocked-model-unavailable"
+	decision.ReasonCodes = append(decision.ReasonCodes, strings.TrimPrefix(decision.Model, "gpt-5.6-")+"_unavailable")
+	return decision
+}
+
+func riskScopeReason(input modelRoutingInput) string {
+	if input.CrossSystem {
+		return "cross_system"
+	}
+	if input.Irreversible {
+		return "irreversible"
+	}
+	return "architectural_judgment"
+}

@@ -1,8 +1,8 @@
 name = "namba-security-engineer"
 description = "Handle authentication, authorization, secrets, privacy, and hardening work with explicit security discipline."
 sandbox_mode = "workspace-write"
-model = "gpt-5.4"
-model_reasoning_effort = "high"
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
 developer_instructions = """
 You are Namba Security Engineer.
 

@@ -8,8 +8,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
+	"unicode"
 )
 
 type executionTurnResult struct {
@@ -21,6 +23,7 @@ type executionTurnResult struct {
 	AddDirs         []string `json:"add_dirs,omitempty"`
 	SessionMode     string   `json:"session_mode,omitempty"`
 	SessionAction   string   `json:"session_action,omitempty"`
+	ThreadID        string   `json:"thread_id,omitempty"`
 	ReasoningEffort string   `json:"reasoning_effort,omitempty"`
 	Output          string   `json:"output,omitempty"`
 	CommandArgs     []string `json:"command_args,omitempty"`
@@ -146,6 +149,7 @@ func (r codexRunner) Execute(ctx context.Context, req executionRequest, capabili
 		}
 	}
 	result.FinishedAt = r.now().Format(time.RFC3339)
+	result.ThreadID = firstCodexThreadID(result.Output)
 	if err != nil {
 		result.ExitCode = commandExitCode(err)
 		result.Error = err.Error()
@@ -154,6 +158,69 @@ func (r codexRunner) Execute(ctx context.Context, req executionRequest, capabili
 
 	result.Succeeded = true
 	return result, nil
+}
+
+// firstCodexThreadID intentionally accepts only structured JSONL evidence. A
+// human-readable UUID in an agent response is not safe resume authority.
+func firstCodexThreadID(output string) string {
+	for _, line := range strings.Split(output, "\n") {
+		var event any
+		if err := json.Unmarshal([]byte(strings.TrimSpace(line)), &event); err != nil {
+			continue
+		}
+		if id := threadIDFromJSONValue(event); id != "" {
+			return id
+		}
+	}
+	return ""
+}
+
+func threadIDFromJSONValue(value any) string {
+	switch typed := value.(type) {
+	case map[string]any:
+		for _, key := range []string{"thread_id", "threadId", "session_id", "sessionId"} {
+			if id, ok := typed[key].(string); ok && isCodexThreadUUID(id) {
+				return strings.TrimSpace(id)
+			}
+		}
+		if thread, ok := typed["thread"].(map[string]any); ok {
+			if id, ok := thread["id"].(string); ok && isCodexThreadUUID(id) {
+				return strings.TrimSpace(id)
+			}
+		}
+		for _, child := range typed {
+			if id := threadIDFromJSONValue(child); id != "" {
+				return id
+			}
+		}
+	case []any:
+		for _, child := range typed {
+			if id := threadIDFromJSONValue(child); id != "" {
+				return id
+			}
+		}
+	}
+	return ""
+}
+
+func isCodexThreadUUID(value string) bool {
+	id := strings.TrimSpace(value)
+	if len(id) != 36 {
+		return false
+	}
+	for index, char := range id {
+		switch index {
+		case 8, 13, 18, 23:
+			if char != '-' {
+				return false
+			}
+		default:
+			if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F')) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func buildCodexExecArgs(req executionRequest, capabilities codexCapabilityMatrix) ([]string, error) {
@@ -397,7 +464,8 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	if progress != nil {
 		progressPath = progress.Path()
 	}
-	hooks := newHookLifecycle(a, projectRoot, logID, req, progressPath)
+	lifecycleState := newExecutionLifecycleState(req)
+	hooks := newHookLifecycleWithState(a, projectRoot, logID, lifecycleState, progressPath)
 	writeRunEvidence := func(status string, validationAttempts int, failureSummary string) error {
 		return hooks.writeRunEvidence(ctx, status, validationAttempts, false, failureSummary)
 	}
@@ -424,6 +492,8 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	}
 
 	preflight, capabilities, preflightErr := a.runPreflight(ctx, req)
+	lifecycleState.recordPreflight(capabilities)
+	req = lifecycleState.requestSnapshot()
 	if err := writeJSONFile(filepath.Join(projectRoot, logsDir, "runs", logID+"-preflight.json"), preflight); err != nil {
 		return result, validationReport{}, err
 	}
@@ -483,11 +553,35 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		return result, validationReport{}, err
 	}
 
+	req = withModelAvailability(req, capabilities)
 	turnRequests := buildExecutionTurnRequests(req)
+	if routingErr := validateModelRoutingTurnPlan(turnRequests); routingErr != nil {
+		if blockedTurn, ok := firstBlockedModelRoutingTurn(turnRequests); ok {
+			lifecycleState.replaceReachedRoutingTurns([]executionRequest{blockedTurn})
+		}
+		result.FinishedAt = a.now().Format(time.RFC3339)
+		result.Error = routingErr.Error()
+		if writeErr := a.writeExecutionArtifacts(projectRoot, logID, result); writeErr != nil {
+			return result, validationReport{}, writeErr
+		}
+		afterExecutionErr := hooks.Trigger(ctx, hookTrigger{
+			Event:        hookEventAfterExecution,
+			StageStatus:  "failed",
+			ErrorSummary: routingErr.Error(),
+			EventData: map[string]any{
+				"execution_path": filepath.ToSlash(filepath.Join(logsDir, "runs", logID+"-execution.json")),
+			},
+		})
+		if writeErr := writeRunEvidence("execution_failed", 0, result.Error); writeErr != nil {
+			return result, validationReport{}, errors.Join(routingErr, afterExecutionErr, writeErr)
+		}
+		return result, validationReport{}, errors.Join(routingErr, afterExecutionErr)
+	}
 	teamContinuationMode := "degraded-fresh-exec"
 	if codexSessionStateful(req.SessionMode) {
-		teamContinuationMode = "codex-exec-resume-last"
+		teamContinuationMode = "explicit-thread-resume"
 	}
+	solRemaining, solHighRemaining := remainingSolTurnBudgets(req, turnRequests)
 
 	if err := publishProgress(
 		"running",
@@ -507,9 +601,44 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		return result, validationReport{}, err
 	}
 
-	for _, turnReq := range turnRequests {
+	var observedThreadID string
+	executedTurnRequests := make([]executionRequest, 0, len(turnRequests))
+	pendingReadOnlyCheckpointOutputs := make([]string, 0)
+	pendingFreshWritableOutputs := make([]string, 0)
+	for index, turnReq := range turnRequests {
+		resumeAdjacentTurn := codexSessionStateful(req.SessionMode) && index > 0 && observedThreadID != "" && canResumeExecutionTurn(turnRequests[index-1], turnReq)
+		if resumeAdjacentTurn {
+			turnReq.ResumeSession = true
+			turnReq.ThreadID = observedThreadID
+		}
+		if len(pendingReadOnlyCheckpointOutputs) > 0 && (!turnReq.RoutingDecision.ReadOnly || !resumeAdjacentTurn) {
+			turnReq.Prompt = appendReadOnlyCheckpointHandoff(turnReq.Prompt, pendingReadOnlyCheckpointOutputs...)
+			if !turnReq.RoutingDecision.ReadOnly {
+				pendingReadOnlyCheckpointOutputs = pendingReadOnlyCheckpointOutputs[:0]
+			}
+		}
+		if !resumeAdjacentTurn && len(pendingFreshWritableOutputs) > 0 {
+			turnReq.Prompt = appendFreshWritableBoundaryHandoff(turnReq.Prompt, pendingFreshWritableOutputs...)
+			pendingFreshWritableOutputs = pendingFreshWritableOutputs[:0]
+		}
+		turnRequests[index] = turnReq
+		executedTurnRequests = append(executedTurnRequests, turnReq)
+		lifecycleState.replaceReachedRoutingTurns(executedTurnRequests)
 		turnResult, err := selectedRunner.Execute(ctx, turnReq, capabilities)
 		result.Turns = append(result.Turns, turnResult)
+		if err == nil && turnReq.RoutingDecision.ReadOnly {
+			pendingReadOnlyCheckpointOutputs = append(pendingReadOnlyCheckpointOutputs, turnResult.Output)
+		}
+		if err == nil && !turnReq.RoutingDecision.ReadOnly && !isCodexThreadUUID(turnResult.ThreadID) && strings.TrimSpace(turnResult.Output) != "" {
+			pendingFreshWritableOutputs = append(pendingFreshWritableOutputs, turnResult.Output)
+		}
+		observedThreadID = turnResult.ThreadID
+		turnReq = lifecycleState.recordReachedTurnObservation(turnReq, observedThreadID)
+		turnRequests[index] = turnReq
+		executedTurnRequests[len(executedTurnRequests)-1] = turnReq
+		if lifecycleState.observeWritableThread(turnReq, observedThreadID) {
+			result.SessionID = observedThreadID
+		}
 		if turnReq.ResumeSession {
 			result.SessionContinuity = teamContinuationMode
 		}
@@ -761,22 +890,16 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 			return result, finalReport, err
 		}
 
-		repairReq := req
-		repairReq.ResumeSession = codexSessionStateful(req.SessionMode)
-		repairReq.TurnName = fmt.Sprintf("repair-%d", attempt)
-		repairReq.TurnRole = req.DelegationPlan.IntegratorRole
-		repairReq.Prompt = buildRepairPrompt(req, finalReport, attempt, !repairReq.ResumeSession)
-		repairReq.RequestedReasoningEffort = ""
-
-		repairResult, repairErr := selectedRunner.Execute(ctx, repairReq, capabilities)
-		result.Turns = append(result.Turns, repairResult)
-		result.RetryCount++
-		if repairReq.ResumeSession {
-			result.SessionContinuity = "codex-exec-resume-last"
-		} else {
-			result.SessionContinuity = "degraded-fresh-exec"
+		repairPreview, _, _ := buildRepairExecutionTurnRequest(req, finalReport, attempt, "", logID, solRemaining, solHighRemaining)
+		repairSessionID := lifecycleState.latestWritableThreadID(repairPreview.Model)
+		repairReq, nextSolRemaining, nextSolHighRemaining := buildRepairExecutionTurnRequest(req, finalReport, attempt, repairSessionID, logID, solRemaining, solHighRemaining)
+		solRemaining, solHighRemaining = nextSolRemaining, nextSolHighRemaining
+		if !repairReq.ResumeSession && len(pendingFreshWritableOutputs) > 0 {
+			repairReq.Prompt = appendFreshWritableBoundaryHandoff(repairReq.Prompt, pendingFreshWritableOutputs...)
+			pendingFreshWritableOutputs = pendingFreshWritableOutputs[:0]
 		}
-		if repairErr != nil {
+		lifecycleState.appendReachedRoutingTurn(repairReq)
+		failRepair := func(repairErr error) (executionResult, validationReport, error) {
 			result.Output = joinExecutionOutputs(result.Turns)
 			result.FinishedAt = a.now().Format(time.RFC3339)
 			result.Error = repairErr.Error()
@@ -802,6 +925,44 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 				}
 			}
 			return result, finalReport, errors.Join(repairErr, publishErr)
+		}
+
+		if routingErr := validateModelRoutingTurnPlan([]executionRequest{repairReq}); routingErr != nil {
+			return failRepair(routingErr)
+		}
+
+		repairResult, repairErr := selectedRunner.Execute(ctx, repairReq, capabilities)
+		result.Turns = append(result.Turns, repairResult)
+		repairReq = lifecycleState.recordReachedTurnObservation(repairReq, repairResult.ThreadID)
+		if repairErr == nil && !repairReq.RoutingDecision.ReadOnly && !isCodexThreadUUID(repairResult.ThreadID) && strings.TrimSpace(repairResult.Output) != "" {
+			pendingFreshWritableOutputs = append(pendingFreshWritableOutputs, repairResult.Output)
+		}
+		if repairErr == nil && repairReq.RoutingDecision.ReadOnly {
+			repairReq, repairErr = buildRepairWriterExecutionTurnRequest(req, finalReport, attempt, lifecycleState.latestWritableThreadID(modelRoutingModelTerra), logID, repairResult.Output, solRemaining, solHighRemaining)
+			if repairErr == nil {
+				lifecycleState.appendReachedRoutingTurn(repairReq)
+				repairErr = validateModelRoutingTurnPlan([]executionRequest{repairReq})
+			}
+			if repairErr == nil {
+				repairResult, repairErr = selectedRunner.Execute(ctx, repairReq, capabilities)
+				result.Turns = append(result.Turns, repairResult)
+				repairReq = lifecycleState.recordReachedTurnObservation(repairReq, repairResult.ThreadID)
+				if !repairReq.RoutingDecision.ReadOnly && !isCodexThreadUUID(repairResult.ThreadID) && strings.TrimSpace(repairResult.Output) != "" {
+					pendingFreshWritableOutputs = append(pendingFreshWritableOutputs, repairResult.Output)
+				}
+			}
+		}
+		result.RetryCount++
+		if repairReq.ResumeSession {
+			result.SessionContinuity = "explicit-thread-resume"
+		} else {
+			result.SessionContinuity = "degraded-fresh-exec"
+		}
+		if repairErr != nil {
+			return failRepair(repairErr)
+		}
+		if lifecycleState.observeWritableThread(repairReq, repairResult.ThreadID) {
+			result.SessionID = repairResult.ThreadID
 		}
 	}
 
@@ -830,6 +991,36 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		}
 	}
 	return result, finalReport, errors.Join(fmt.Errorf("%s", result.Error), publishErr)
+}
+
+func appendReadOnlyCheckpointHandoff(prompt string, checkpointOutputs ...string) string {
+	lines := []string{strings.TrimSpace(prompt), "", "## Read-only checkpoint handoff"}
+	for index, checkpointOutput := range checkpointOutputs {
+		checkpoint := strings.TrimSpace(checkpointOutput)
+		if checkpoint == "" {
+			checkpoint = "external_unobserved"
+		}
+		if len(checkpointOutputs) > 1 {
+			lines = append(lines, fmt.Sprintf("### Checkpoint %d", index+1))
+		}
+		lines = append(lines, checkpoint)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func appendFreshWritableBoundaryHandoff(prompt string, outputs ...string) string {
+	lines := []string{strings.TrimSpace(prompt), "", "## Fresh writable boundary handoff"}
+	for index, output := range outputs {
+		output = strings.TrimSpace(output)
+		if output == "" {
+			continue
+		}
+		if len(outputs) > 1 {
+			lines = append(lines, fmt.Sprintf("### Previous writable turn %d", index+1))
+		}
+		lines = append(lines, output)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (a *App) writeExecutionArtifacts(projectRoot, logID string, result executionResult) error {
@@ -888,28 +1079,436 @@ func validationPipelineSteps(cfg qualityConfig) []validationStep {
 }
 
 func buildExecutionTurnRequests(req executionRequest) []executionRequest {
+	if req.ModelRoutingPolicy != modelRoutingPolicyCostBalancedV1 {
+		return buildLegacyExecutionTurnRequests(req)
+	}
+	return buildCostBalancedExecutionTurnRequests(req)
+}
+
+func buildLegacyExecutionTurnRequests(req executionRequest) []executionRequest {
 	base := req
 	base.TurnName = "implement"
 	base.TurnRole = req.DelegationPlan.IntegratorRole
-
+	base.RoutingDecision = modelRoutingDecisionResult{}
 	turns := []executionRequest{base}
 	if normalizeExecutionMode(req.Mode) != executionModeTeam {
 		return turns
 	}
 
-	stateful := codexSessionStateful(req.SessionMode)
 	for _, profile := range req.DelegationPlan.SelectedRoleProfiles {
+		legacyProfile := legacyStaticRuntimeProfileForAgent(profile.Role)
 		turn := req
 		turn.TurnName = roleTurnName(profile.Role)
 		turn.TurnRole = profile.Role
-		turn.ResumeSession = stateful
-		turn.Model = firstNonBlank(profile.Model, req.Model)
+		// Runtime resume authority is assigned only after the preceding turn
+		// yields a canonical UUID. The legacy flow keeps its configured order,
+		// model, effort, and writable prompt contract.
+		turn.ResumeSession = false
+		turn.ThreadID = ""
+		turn.Model = firstNonBlank(legacyProfile.Model, req.Model)
 		turn.Profile = req.Profile
-		turn.RequestedReasoningEffort = profile.ModelReasoningEffort
-		turn.Prompt = buildDelegationTurnPrompt(req, profile, !stateful)
+		turn.RequestedReasoningEffort = firstNonBlank(legacyProfile.ModelReasoningEffort, req.RequestedReasoningEffort)
+		turn.RoutingDecision = modelRoutingDecisionResult{}
+		turn.Prompt = buildDelegationTurnPrompt(turn, legacyProfile, true)
 		turns = append(turns, turn)
 	}
 	return turns
+}
+
+func buildCostBalancedExecutionTurnRequests(req executionRequest) []executionRequest {
+	solRemaining := solTurnBudgetForMode(req.Mode)
+	solHighRemaining := solHighTurnBudgetForMode(req.Mode)
+	base := req
+	base.TurnName = "implement"
+	base.TurnRole = req.DelegationPlan.IntegratorRole
+	base.Phase = routingPhaseImplement
+	if normalizeExecutionMode(req.Mode) != executionModeTeam {
+		turns := make([]executionRequest, 0, 2)
+		if checkpoint, ok := buildSyntheticHighRiskCheckpoint(req, &solRemaining, &solHighRemaining); ok {
+			turns = append(turns, checkpoint)
+		}
+		return append(turns, routeExecutionTurn(base, 0, &solRemaining, &solHighRemaining))
+	}
+
+	profiles := append([]agentRuntimeProfile(nil), req.DelegationPlan.SelectedRoleProfiles...)
+	sort.SliceStable(profiles, func(left, right int) bool {
+		return routingPhaseOrder(routingPhaseForRole(profiles[left].Role)) < routingPhaseOrder(routingPhaseForRole(profiles[right].Role))
+	})
+	turns := make([]executionRequest, 0, len(profiles)+1)
+	appendProfile := func(profile agentRuntimeProfile) {
+		turn := req
+		turn.TurnName = roleTurnName(profile.Role)
+		turn.TurnRole = profile.Role
+		turn.Phase = routingPhaseForRole(profile.Role)
+		// A continuation is legal only after an explicit UUID is observed from
+		// the immediately preceding same-model turn.
+		turn.ResumeSession = false
+		turn.Model = firstNonBlank(profile.Model, req.Model)
+		turn.Profile = req.Profile
+		turn = routeExecutionTurn(turn, 0, &solRemaining, &solHighRemaining)
+		if turn.RequestedReasoningEffort == "" {
+			turn.RequestedReasoningEffort = profile.ModelReasoningEffort
+		}
+		turn.Prompt = buildDelegationTurnPrompt(turn, profile, true)
+		turns = append(turns, turn)
+	}
+	hasPreWriteCheckpoint := false
+	for _, profile := range profiles {
+		if routingPhaseOrder(routingPhaseForRole(profile.Role)) < routingPhaseOrder(routingPhaseImplement) {
+			appendProfile(profile)
+			hasPreWriteCheckpoint = true
+		}
+	}
+	if !hasPreWriteCheckpoint {
+		if checkpoint, ok := buildSyntheticHighRiskCheckpoint(req, &solRemaining, &solHighRemaining); ok {
+			turns = append(turns, checkpoint)
+		}
+	}
+	turns = append(turns, routeExecutionTurn(base, 0, &solRemaining, &solHighRemaining))
+	for _, profile := range profiles {
+		if routingPhaseOrder(routingPhaseForRole(profile.Role)) >= routingPhaseOrder(routingPhaseImplement) {
+			appendProfile(profile)
+		}
+	}
+	if len(turns) > 0 && turns[len(turns)-1].RoutingDecision.ReadOnly {
+		turns = append(turns, buildReadOnlyReviewWriterRequest(req, solRemaining, solHighRemaining))
+	}
+	return turns
+}
+
+func buildSyntheticHighRiskCheckpoint(req executionRequest, solRemaining, solHighRemaining *int) (executionRequest, bool) {
+	const checkpointRole = "namba-high-risk-advisor"
+	input := modelRoutingInputForRequest(req, routingPhaseArchitecture, checkpointRole, 0, *solRemaining, *solHighRemaining, true)
+	if !requiresSolHighCheckpoint(input) {
+		return executionRequest{}, false
+	}
+
+	checkpoint := req
+	checkpoint.TurnName = "high-risk-checkpoint"
+	checkpoint.TurnRole = checkpointRole
+	checkpoint.Phase = routingPhaseArchitecture
+	checkpoint.ResumeSession = false
+	checkpoint.ThreadID = ""
+	checkpoint = routeExecutionTurn(checkpoint, 0, solRemaining, solHighRemaining)
+	checkpoint.Prompt = buildDelegationTurnPrompt(checkpoint, agentRuntimeProfile{Role: checkpointRole}, true)
+	return checkpoint, true
+}
+
+func buildReadOnlyReviewWriterRequest(req executionRequest, solRemaining, solHighRemaining int) executionRequest {
+	writerReq := req
+	writerReq.TurnName = "review-repair-writer"
+	writerReq.TurnRole = firstNonBlank(req.DelegationPlan.IntegratorRole, "namba-implementer")
+	writerReq.Phase = routingPhaseRepair
+	writerReq.ResumeSession = false
+	writerReq.ThreadID = ""
+	writerReq.Model = modelRoutingModelTerra
+	writerReq.RequestedReasoningEffort = "high"
+	writerReq.SandboxMode = req.SandboxMode
+	writerReq.Prompt = strings.Join([]string{
+		"Consume the preceding read-only review checkpoint and apply every actionable fix in the workspace.",
+		"Do not stop at analysis. Preserve the accepted implementation when no change is required.",
+		"",
+		"## Base execution context",
+		req.Prompt,
+	}, "\n")
+	writerReq.RoutingDecision = modelRoutingDecisionResult{
+		Phase:                 routingPhaseRepair,
+		Tier:                  "standard",
+		Model:                 modelRoutingModelTerra,
+		ReasoningEffort:       "high",
+		RuleID:                "terra-writer-after-read-only-review-v1",
+		ReasonCodes:           []string{"read_only_review_handoff", "terra_writer"},
+		Status:                modelRoutingStatusPlanned,
+		RemainingSolTurns:     solRemaining,
+		RemainingSolHighTurns: solHighRemaining,
+		ReadOnly:              false,
+	}
+	return writerReq
+}
+
+func routeExecutionTurn(turn executionRequest, repairCount int, solRemaining, solHighRemaining *int) executionRequest {
+	if turn.ModelRoutingPolicy != modelRoutingPolicyCostBalancedV1 {
+		turn.RoutingDecision = modelRoutingDecisionResult{}
+		return turn
+	}
+	turn.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(turn, turn.Phase, turn.TurnRole, repairCount, *solRemaining, *solHighRemaining, true))
+	*solRemaining, *solHighRemaining = updatedSolTurnBudgets(turn.RoutingDecision, *solRemaining, *solHighRemaining)
+	turn.Model = turn.RoutingDecision.Model
+	turn.RequestedReasoningEffort = turn.RoutingDecision.ReasoningEffort
+	if turn.RoutingDecision.ReadOnly {
+		turn.SandboxMode = "read-only"
+	}
+	return turn
+}
+
+func routingPhaseOrder(phase routingPhase) int {
+	switch phase {
+	case routingPhaseIntake:
+		return 0
+	case routingPhasePlan:
+		return 1
+	case routingPhaseDesign:
+		return 2
+	case routingPhaseArchitecture:
+		return 3
+	case routingPhaseImplement:
+		return 4
+	case routingPhaseTest:
+		return 5
+	case routingPhaseIntegration:
+		return 6
+	case routingPhaseReview:
+		return 7
+	case routingPhaseRepair:
+		return 8
+	default:
+		return 9
+	}
+}
+
+func canResumeExecutionTurn(previous, current executionRequest) bool {
+	if previous.Model == "" || previous.Model != current.Model {
+		return false
+	}
+	// Legacy static runs predate the adaptive phase machine and retain their
+	// existing same-model continuation behavior. Cost-balanced turns must also
+	// cross an explicitly allowed direct phase edge.
+	if current.ModelRoutingPolicy != modelRoutingPolicyCostBalancedV1 {
+		return true
+	}
+	return isAllowedDirectRoutingPhaseTransition(previous.Phase, current.Phase)
+}
+
+func isAllowedDirectRoutingPhaseTransition(from, to routingPhase) bool {
+	switch from {
+	case routingPhaseIntake:
+		return to == routingPhasePlan
+	case routingPhasePlan:
+		return to == routingPhaseDesign || to == routingPhaseArchitecture || to == routingPhaseImplement
+	case routingPhaseDesign, routingPhaseArchitecture:
+		return to == routingPhaseImplement
+	case routingPhaseImplement:
+		return to == routingPhaseTest
+	case routingPhaseTest:
+		return to == routingPhaseIntegration || to == routingPhaseRepair
+	case routingPhaseIntegration:
+		return to == routingPhaseReview || to == routingPhaseRepair
+	case routingPhaseReview:
+		return to == routingPhaseRepair
+	case routingPhaseRepair:
+		return to == routingPhaseImplement || to == routingPhaseTest || to == routingPhaseIntegration || to == routingPhaseReview
+	default:
+		return false
+	}
+}
+
+func remainingSolTurnBudgets(req executionRequest, turns []executionRequest) (int, int) {
+	solRemaining := solTurnBudgetForMode(req.Mode)
+	solHighRemaining := solHighTurnBudgetForMode(req.Mode)
+	for _, turn := range turns {
+		solRemaining, solHighRemaining = updatedSolTurnBudgets(turn.RoutingDecision, solRemaining, solHighRemaining)
+	}
+	return solRemaining, solHighRemaining
+}
+
+func buildRepairExecutionTurnRequest(req executionRequest, report validationReport, attempt int, sessionID, logID string, solRemaining, solHighRemaining int) (executionRequest, int, int) {
+	repairReq := req
+	repairReq.ResumeSession = codexSessionStateful(req.SessionMode) && sessionID != "" && sessionID != logID
+	repairReq.ThreadID = sessionID
+	repairReq.TurnName = fmt.Sprintf("repair-%d", attempt)
+	repairReq.TurnRole = req.DelegationPlan.IntegratorRole
+	repairReq.Phase = routingPhaseRepair
+	repairReq.Prompt = buildRepairPrompt(req, report, attempt, !repairReq.ResumeSession)
+	if repairReq.ModelRoutingPolicy != modelRoutingPolicyCostBalancedV1 {
+		repairReq.RoutingDecision = modelRoutingDecisionResult{}
+		repairReq.RequestedReasoningEffort = "high"
+		return repairReq, solRemaining, solHighRemaining
+	}
+	routingRequest := repairReq
+	routingRequest.Prompt = strings.Join([]string{req.Prompt, repairReq.Prompt}, "\n")
+	repairReq.RoutingDecision = modelRoutingDecision(modelRoutingInputForRequest(routingRequest, repairReq.Phase, repairReq.TurnRole, attempt, solRemaining, solHighRemaining, true))
+	solRemaining, solHighRemaining = updatedSolTurnBudgets(repairReq.RoutingDecision, solRemaining, solHighRemaining)
+	repairReq.Model = repairReq.RoutingDecision.Model
+	repairReq.RequestedReasoningEffort = repairReq.RoutingDecision.ReasoningEffort
+	if repairReq.RoutingDecision.ReadOnly {
+		repairReq.TurnName = fmt.Sprintf("repair-%d-diagnosis", attempt)
+		repairReq.SandboxMode = "read-only"
+		repairReq.Prompt = strings.Join([]string{
+			"Diagnose the validation failure and produce a concrete handoff for the writer. Do not modify files.",
+			"",
+			repairReq.Prompt,
+		}, "\n")
+	}
+	return repairReq, solRemaining, solHighRemaining
+}
+
+func buildRepairWriterExecutionTurnRequest(req executionRequest, report validationReport, attempt int, sessionID, logID, diagnosticOutput string, solRemaining, solHighRemaining int) (executionRequest, error) {
+	writerReq := req
+	writerReq.ResumeSession = codexSessionStateful(req.SessionMode) && sessionID != "" && sessionID != logID
+	writerReq.ThreadID = sessionID
+	writerReq.TurnName = fmt.Sprintf("repair-%d-writer", attempt)
+	writerReq.TurnRole = req.DelegationPlan.IntegratorRole
+	writerReq.Phase = routingPhaseRepair
+	writerReq.Prompt = strings.Join([]string{
+		buildRepairPrompt(req, report, attempt, !writerReq.ResumeSession),
+		"",
+		"## Sol diagnostic checkpoint",
+		strings.TrimSpace(diagnosticOutput),
+		"",
+		"Apply the necessary fixes in the workspace. Do not stop at analysis.",
+	}, "\n")
+	writerReq.Model = modelRoutingModelTerra
+	writerReq.RequestedReasoningEffort = "high"
+	writerReq.SandboxMode = req.SandboxMode
+	writerReq.RoutingDecision = modelRoutingDecisionResult{
+		Phase:                 routingPhaseRepair,
+		Tier:                  "standard",
+		Model:                 modelRoutingModelTerra,
+		ReasoningEffort:       "high",
+		RuleID:                "terra-repair-after-sol-diagnostic-v1",
+		ReasonCodes:           []string{"repair_attempt", "sol_diagnostic_handoff", "terra_writer"},
+		Status:                modelRoutingStatusPlanned,
+		RemainingSolTurns:     solRemaining,
+		RemainingSolHighTurns: solHighRemaining,
+		ReadOnly:              false,
+	}
+	if err := validateModelRoutingTurnPlan([]executionRequest{writerReq}); err != nil {
+		return executionRequest{}, err
+	}
+	return writerReq, nil
+}
+
+func solTurnBudgetForMode(mode executionMode) int {
+	if normalizeExecutionMode(mode) == executionModeTeam {
+		return 2
+	}
+	return 1
+}
+
+func solHighTurnBudgetForMode(executionMode) int {
+	return 1
+}
+
+func updatedSolTurnBudgets(decision modelRoutingDecisionResult, solRemaining, solHighRemaining int) (int, int) {
+	if decision.Model != modelRoutingModelSol || decision.Status != modelRoutingStatusPlanned {
+		return solRemaining, solHighRemaining
+	}
+	solRemaining = decision.RemainingSolTurns
+	if decision.ReasoningEffort == "high" {
+		solHighRemaining = decision.RemainingSolHighTurns
+	}
+	return solRemaining, solHighRemaining
+}
+
+func validateModelRoutingTurnPlan(turns []executionRequest) error {
+	turn, ok := firstBlockedModelRoutingTurn(turns)
+	if !ok {
+		return nil
+	}
+	return fmt.Errorf("model routing blocked for phase %q role %q: %s", turn.RoutingDecision.Phase, firstNonBlank(turn.TurnRole, "integrator"), firstNonBlank(turn.RoutingDecision.FallbackReason, modelRoutingReasonBlockedModelUnavailable))
+}
+
+func firstBlockedModelRoutingTurn(turns []executionRequest) (executionRequest, bool) {
+	for _, turn := range turns {
+		if turn.ModelRoutingPolicy == modelRoutingPolicyCostBalancedV1 && turn.RoutingDecision.Status == modelRoutingStatusBlocked {
+			return turn, true
+		}
+	}
+	return executionRequest{}, false
+}
+
+func modelRoutingInputForRequest(req executionRequest, phase routingPhase, role string, repairCount, solRemaining, solHighRemaining int, budgetActive bool) modelRoutingInput {
+	text := strings.ToLower(strings.Join(append([]string{modelRoutingTaskText(req.Prompt)}, req.DelegationPlan.DominantDomains...), "\n"))
+	containsAny := func(words ...string) bool {
+		for _, word := range words {
+			if strings.Contains(text, word) {
+				return true
+			}
+		}
+		return false
+	}
+	tokens := strings.FieldsFunc(text, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	containsToken := func(words ...string) bool {
+		for _, token := range tokens {
+			for _, word := range words {
+				if token == word {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	publicContract := containsAny("api", "schema", "migration", "auth", "permission", "deploy", "dependency")
+	buildSystemChange := containsAny("build", "github actions", "continuous integration", "workflow", "pipeline", "makefile", "dockerfile") || containsToken("ci")
+	crossSystem := len(req.DelegationPlan.DominantDomains) > 1 || containsAny("cross-system", "cross system", "integration")
+	criticalRisk := containsAny("security", "auth", "permission", "secret", "privacy", "irreversible")
+	irreversible := containsAny("migration", "schema", "deploy", "irreversible")
+	highAmbiguity := containsAny("architecture", "ambiguous", "tradeoff", "design")
+	simple := phase == routingPhaseImplement && containsAny("simple", "mechanical", "rename", "format")
+	return modelRoutingInput{
+		Phase: phase, Role: role, Domain: strings.Join(req.DelegationPlan.DominantDomains, ","),
+		CriticalRisk: criticalRisk, HighAmbiguity: highAmbiguity, CrossSystem: crossSystem, Irreversible: irreversible,
+		RepairCount: repairCount, RemainingSolTurns: solRemaining, SolBudgetActive: budgetActive,
+		RemainingSolHighTurns: solHighRemaining, SolHighBudgetActive: budgetActive,
+		SimpleImplementation: simple, SingleSubsystem: len(req.DelegationPlan.DominantDomains) <= 1,
+		ExplicitTransformation: containsAny("rename", "format", "replace", "mechanical"), Reversible: !irreversible,
+		DeterministicAcceptance: containsAny("test", "acceptance", "format", "rename"), PublicContractChange: publicContract,
+		BuildSystemChange: buildSystemChange, UnresolvedReview: containsAny("open risk", "unresolved", "ambiguous"),
+		SolAvailable:      req.SolAvailable,
+		ModelAvailability: req.ModelAvailability,
+	}
+}
+
+// modelRoutingTaskText excludes Namba's generated run envelope from routing
+// predicates. The envelope contains mode and validation boilerplate such as
+// "integration" and "build", which are execution instructions rather than
+// task signals. Direct-fix and custom prompts retain their full text.
+func modelRoutingTaskText(prompt string) string {
+	const executionHeader = "# NambaAI Execution Request"
+	start := strings.Index(prompt, executionHeader)
+	if start < 0 {
+		return prompt
+	}
+
+	capturing := false
+	sections := make([]string, 0, 3)
+	for _, line := range strings.Split(prompt[start:], "\n") {
+		switch strings.TrimSpace(line) {
+		case "## SPEC", "## Plan", "## Acceptance":
+			capturing = true
+			continue
+		case "## Validation":
+			capturing = false
+			continue
+		}
+		if capturing {
+			sections = append(sections, line)
+		}
+	}
+	if taskText := strings.TrimSpace(strings.Join(sections, "\n")); taskText != "" {
+		return taskText
+	}
+	return prompt
+}
+
+func routingPhaseForRole(role string) routingPhase {
+	role = strings.TrimSpace(strings.ToLower(role))
+	switch {
+	case strings.Contains(role, "planner"):
+		return routingPhasePlan
+	case strings.Contains(role, "architect"):
+		return routingPhaseArchitecture
+	case strings.Contains(role, "designer"):
+		return routingPhaseDesign
+	case strings.Contains(role, "reviewer"):
+		return routingPhaseReview
+	case strings.Contains(role, "test"):
+		return routingPhaseTest
+	default:
+		return routingPhaseImplement
+	}
 }
 
 func roleTurnName(role string) string {
@@ -922,12 +1521,23 @@ func roleTurnName(role string) string {
 }
 
 func buildDelegationTurnPrompt(req executionRequest, profile agentRuntimeProfile, includeBasePrompt bool) string {
+	if req.RoutingDecision.ReadOnly {
+		lines := []string{
+			fmt.Sprintf("Act as the read-only `%s` checkpoint for `%s`.", profile.Role, req.SpecID),
+			"Do not edit files or run mutating commands.",
+			"Return the decision, evidence, risks, open questions, and a Terra/Luna writer handoff.",
+		}
+		if includeBasePrompt {
+			lines = append(lines, "", "## Base execution context", req.Prompt)
+		}
+		return strings.Join(lines, "\n")
+	}
 	lines := []string{
 		fmt.Sprintf("Continue the current `%s` execution as `%s` in the same workspace.", req.SpecID, profile.Role),
 		"Make direct repository changes for your specialty, then stop so the next turn or validator can continue.",
 	}
-	if profile.ModelReasoningEffort != "" {
-		lines = append(lines, fmt.Sprintf("Requested reasoning effort for this turn: `%s`.", profile.ModelReasoningEffort))
+	if req.RequestedReasoningEffort != "" {
+		lines = append(lines, fmt.Sprintf("Requested reasoning effort for this turn: `%s`.", req.RequestedReasoningEffort))
 	}
 	if profile.Role == req.DelegationPlan.ReviewerRole {
 		lines = append(lines, "Act as the final reviewer for the same-workspace team run. Close acceptance gaps you find instead of only describing them.")

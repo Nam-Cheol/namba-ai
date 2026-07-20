@@ -44,6 +44,8 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .codex/agents/namba-frontend-architect.toml
 .codex/agents/namba-frontend-implementer.md
 .codex/agents/namba-frontend-implementer.toml
+.codex/agents/namba-high-risk-advisor.md
+.codex/agents/namba-high-risk-advisor.toml
 .codex/agents/namba-implementer.md
 .codex/agents/namba-implementer.toml
 .codex/agents/namba-mobile-engineer.md
@@ -75,6 +77,7 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .gitleaksignore
 .namba/codex/README.md
 .namba/codex/claude-codex-mapping.md
+.namba/codex/model-routing.md
 .namba/codex/output-contract.md
 .namba/codex/statusline.example.toml
 .namba/codex/validate-output-contract.py
@@ -104,6 +107,7 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/releases/v0.5.8.md
 .namba/releases/v0.5.9.md
 .namba/releases/v1.0.0.md
+.namba/releases/v1.0.1.md
 .namba/specs/.gitkeep
 .namba/specs/SPEC-001/acceptance.md
 .namba/specs/SPEC-001/plan.md
@@ -614,6 +618,14 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/specs/SPEC-068/reviews/product.md
 .namba/specs/SPEC-068/reviews/readiness.md
 .namba/specs/SPEC-068/spec.md
+.namba/specs/SPEC-069/acceptance.md
+.namba/specs/SPEC-069/harness-request.json
+.namba/specs/SPEC-069/plan.md
+.namba/specs/SPEC-069/reviews/design.md
+.namba/specs/SPEC-069/reviews/engineering.md
+.namba/specs/SPEC-069/reviews/product.md
+.namba/specs/SPEC-069/reviews/readiness.md
+.namba/specs/SPEC-069/spec.md
 AGENTS.md
 LICENSE
 README.ja.md
@@ -677,6 +689,8 @@ internal/namba/eval_scorecard_test.go
 internal/namba/execution.go
 internal/namba/execution_evidence.go
 internal/namba/execution_evidence_test.go
+internal/namba/execution_lifecycle.go
+internal/namba/execution_lifecycle_test.go
 internal/namba/execution_smoke_test.go
 internal/namba/execution_test.go
 internal/namba/frontend_brief.go
@@ -696,6 +710,8 @@ internal/namba/init_tui_test.go
 internal/namba/init_wizard.go
 internal/namba/init_wizard_test.go
 internal/namba/manifest.go
+internal/namba/model_routing.go
+internal/namba/model_routing_test.go
 internal/namba/namba.go
 internal/namba/output_session.go
 internal/namba/parallel_command.go
@@ -783,7 +799,11 @@ project_analysis_regression_test.go
 scripts/quality.sh
 staticcheck.conf
 sync_stability_test.go
+tests/__pycache__/test_namba_codex_guard.cpython-311.pyc
 tests/installers/__init__.py
+tests/installers/__pycache__/__init__.cpython-311.pyc
+tests/installers/__pycache__/test_install_ps1.cpython-311.pyc
+tests/installers/__pycache__/test_install_sh.cpython-311.pyc
 tests/installers/test_install_ps1.py
 tests/installers/test_install_sh.py
 tests/test_namba_codex_guard.py

@@ -71,11 +71,957 @@ func TestRunWritesExecutionEvidenceManifestOnSuccess(t *testing.T) {
 	if manifest.CodexDiagnostics.Doctor.Status != "unavailable" {
 		t.Fatalf("run evidence should avoid blocking doctor execution, got %+v", manifest.CodexDiagnostics.Doctor)
 	}
+	if manifest.ModelRouting == nil || manifest.ModelRouting.Version != "model-routing/v1" || manifest.ModelRouting.RequestedModel == "" {
+		t.Fatalf("expected cost-balanced run evidence to include model routing, got %+v", manifest.ModelRouting)
+	}
 	if len(manifest.Extensions.Runtime.SignalBundles) != 1 || manifest.Extensions.Runtime.SignalBundles[0].Kind != "validation_attempts" {
 		t.Fatalf("expected validation-attempt runtime bundle, got %+v", manifest.Extensions.Runtime.SignalBundles)
 	}
 	if !strings.Contains(strings.Join(manifest.Extensions.Runtime.SignalBundles[0].Paths, "\n"), "spec-001-validation-attempt-1.json") {
 		t.Fatalf("expected validation-attempt path in runtime bundle, got %+v", manifest.Extensions.Runtime.SignalBundles[0])
+	}
+}
+
+func TestRunEvidenceRecordsActualRoutedTurnsForReportAggregation(t *testing.T) {
+	tmp := t.TempDir()
+	app := NewApp(nil, nil)
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Cross-system security architecture design with acceptance tests.",
+		Mode:               executionModeTeam,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "security"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-backend-architect"),
+			},
+		},
+	}
+	state := newExecutionLifecycleState(req)
+	lifecycle := newHookLifecycleWithState(app, tmp, "spec-069", state, "")
+	state.replaceReachedRoutingTurns(buildExecutionTurnRequests(req))
+	if err := lifecycle.writeRunEvidence(context.Background(), "completed", 0, false, ""); err != nil {
+		t.Fatalf("write evidence: %v", err)
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
+	if len(manifest.ModelRoutingTurns) != 2 || manifest.ModelRoutingTurns[0].RequestedModel != modelRoutingModelSol || manifest.ModelRoutingTurns[1].RequestedModel != modelRoutingModelTerra || manifest.ModelRoutingTurns[0].RemainingSolHighTurns != 0 {
+		t.Fatalf("expected phase-ordered Sol checkpoint then Terra implementation, got %+v", manifest.ModelRoutingTurns)
+	}
+	report := collectNambaReport(tmp, time.Now(), reportOptions{})
+	if report.Runs.ModelRouting == nil || report.Runs.ModelRouting.TurnsByModel[modelRoutingModelTerra] != 1 || report.Runs.ModelRouting.TurnsByModel[modelRoutingModelSol] != 1 || report.Runs.ModelRouting.UnavailableUsageCount != 0 {
+		t.Fatalf("expected report to aggregate routed turn models, got %+v", report.Runs.ModelRouting)
+	}
+}
+
+func TestModelRoutingEvidenceDistinguishesUnobservedUsageFromUnavailableModel(t *testing.T) {
+	planned := modelRoutingEvidenceForRequest(executionRequest{
+		ModelRoutingPolicy:       modelRoutingPolicyCostBalancedV1,
+		Model:                    modelRoutingModelTerra,
+		RequestedReasoningEffort: "medium",
+		RoutingDecision: modelRoutingDecisionResult{
+			Phase:           routingPhaseImplement,
+			Model:           modelRoutingModelTerra,
+			ReasoningEffort: "medium",
+			Status:          modelRoutingStatusPlanned,
+		},
+	})
+	if planned == nil || planned.UsageState != modelRoutingUsageExternalUnobserved {
+		t.Fatalf("successful routed turn must keep unobserved usage distinct, got %+v", planned)
+	}
+
+	blocked := modelRoutingEvidenceForRequest(executionRequest{
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelSol,
+		RoutingDecision: modelRoutingDecisionResult{
+			Phase:          routingPhaseArchitecture,
+			Model:          modelRoutingModelSol,
+			Status:         modelRoutingStatusBlocked,
+			FallbackReason: modelRoutingReasonBlockedModelUnavailable,
+		},
+	})
+	if blocked == nil || blocked.UsageState != modelRoutingUsageUnavailable {
+		t.Fatalf("blocked unavailable model must retain unavailable usage state, got %+v", blocked)
+	}
+
+	optionalFallback := modelRoutingEvidenceForRequest(executionRequest{
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		RoutingDecision: modelRoutingDecisionResult{
+			Phase:          routingPhaseDesign,
+			Model:          modelRoutingModelTerra,
+			Status:         modelRoutingStatusFallback,
+			FallbackReason: modelRoutingReasonModelUnavailable,
+		},
+	})
+	if optionalFallback == nil || optionalFallback.UsageState != modelRoutingUsageUnavailable {
+		t.Fatalf("optional fallback caused by unavailable Sol must retain unavailable usage state, got %+v", optionalFallback)
+	}
+}
+
+func TestExecuteRunEvidenceRecordsResumeStateAfterItIsAssigned(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		switch name {
+		case "codex", "git":
+			return name, nil
+		default:
+			return "", errors.New("missing dependency")
+		}
+	}
+	threadIDs := []string{
+		"019f5f13-3132-76c3-b9c7-ac521e89355e",
+		"019f5f13-3132-76c3-b9c7-ac521e89355f",
+	}
+	codexCalls := 0
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		if !isCodexExec(name, args) {
+			t.Fatalf("unexpected command: %s %v", name, args)
+		}
+		if codexCalls >= len(threadIDs) {
+			t.Fatalf("unexpected extra Codex call: %v", args)
+		}
+		threadID := threadIDs[codexCalls]
+		codexCalls++
+		return `{"thread_id":"` + threadID + `"}`, nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Implement a reversible local change with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole: "namba-implementer",
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				{Role: "namba-test-engineer", Model: modelRoutingModelTerra},
+			},
+		},
+	}
+	if _, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "none", LintCommand: "none", TypecheckCommand: "none"}, nil, ""); err != nil {
+		t.Fatalf("execute run: %v", err)
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
+	if len(manifest.ModelRoutingTurns) != 2 {
+		t.Fatalf("expected two executed turns, got %+v", manifest.ModelRoutingTurns)
+	}
+	fresh := manifest.ModelRoutingTurns[0]
+	if fresh.SessionStrategy != "fresh_session" || fresh.ThreadID != threadIDs[0] {
+		t.Fatalf("expected fresh-turn evidence to retain its observed thread UUID, got %+v", fresh)
+	}
+	resumed := manifest.ModelRoutingTurns[1]
+	if resumed.SessionStrategy != "explicit_thread_resume" || resumed.ThreadID != threadIDs[0] {
+		t.Fatalf("expected evidence to retain the assigned resume state, got %+v", resumed)
+	}
+}
+
+func TestExecuteRunKeepsEphemeralTurnsFresh(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
+		capabilities := testCodexCapabilities()
+		capabilities.Exec.EphemeralFlag = true
+		return capabilities, nil
+	}
+	threadIDs := []string{
+		"019f5f13-3132-76c3-b9c7-ac521e89355e",
+		"019f5f13-3132-76c3-b9c7-ac521e89355f",
+	}
+	var commands [][]string
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		if !isCodexExec(name, args) {
+			t.Fatalf("unexpected command: %s %v", name, args)
+		}
+		commands = append(commands, append([]string(nil), args...))
+		return `{"thread_id":"` + threadIDs[len(commands)-1] + `"}`, nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Implement a reversible local change with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "ephemeral",
+		DelegationPlan: delegationPlan{
+			IntegratorRole: "namba-implementer",
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				{Role: "namba-test-engineer", Model: modelRoutingModelTerra},
+			},
+		},
+	}
+	if _, _, err := app.executeRun(context.Background(), tmp, "spec-069-ephemeral", req, tmp, qualityConfig{TestCommand: "none", LintCommand: "none", TypecheckCommand: "none"}, nil, ""); err != nil {
+		t.Fatalf("ephemeral multi-turn run must not attempt a resume: %v", err)
+	}
+	if len(commands) != 2 {
+		t.Fatalf("expected two fresh ephemeral turns, got %d commands", len(commands))
+	}
+	for _, args := range commands {
+		if indexOfArg(args, "resume") != -1 {
+			t.Fatalf("ephemeral turn must not invoke codex exec resume, got %v", args)
+		}
+	}
+}
+
+func TestExecuteRunHandsOffWritableOutputAcrossFreshTeamBoundary(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	var inputs []string
+	app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, _ string, input string) (string, string, error) {
+		if !isCodexExec(name, args) {
+			t.Fatalf("unexpected command: %s %v", name, args)
+		}
+		inputs = append(inputs, input)
+		if len(inputs) == 1 {
+			return "writer decision: preserve the local compatibility contract", "", nil
+		}
+		if indexOfArg(args, "resume") != -1 {
+			t.Fatalf("missing UUID must force a fresh second turn, got %v", args)
+		}
+		return `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Implement a reversible local change with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole: "namba-implementer",
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				{Role: "namba-test-engineer", Model: modelRoutingModelTerra},
+			},
+		},
+	}
+	if _, _, err := app.executeRun(context.Background(), tmp, "spec-069-fresh-handoff", req, tmp, qualityConfig{TestCommand: "none", LintCommand: "none", TypecheckCommand: "none"}, nil, ""); err != nil {
+		t.Fatalf("team run: %v", err)
+	}
+	if len(inputs) != 2 || !strings.Contains(inputs[1], "## Fresh writable boundary handoff") || !strings.Contains(inputs[1], "writer decision: preserve the local compatibility contract") {
+		t.Fatalf("fresh follow-up lost prior writable output, inputs=%q", inputs)
+	}
+}
+
+func TestExecuteRunHandsOffWritableOutputToFreshRepair(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	var inputs []string
+	validationCalls := 0
+	app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, _ string, input string) (string, string, error) {
+		if !isCodexExec(name, args) {
+			t.Fatalf("unexpected command: %s %v", name, args)
+		}
+		inputs = append(inputs, input)
+		if len(inputs) == 1 {
+			return "writer decision: retain the failed validation context", "", nil
+		}
+		if indexOfArg(args, "resume") != -1 {
+			t.Fatalf("repair after missing UUID must start fresh, got %v", args)
+		}
+		return `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, "", nil
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		if !isShellCommand(name) {
+			t.Fatalf("unexpected command: %s %v", name, args)
+		}
+		validationCalls++
+		if validationCalls == 1 {
+			return "validation failed", errors.New("simulated validation failure")
+		}
+		return "validation ok", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Implement a reversible local change with deterministic acceptance tests.",
+		Mode:               executionModeDefault,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		RepairAttempts:     1,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend"},
+		},
+	}
+	if _, _, err := app.executeRun(context.Background(), tmp, "spec-069-repair-handoff", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, ""); err != nil {
+		t.Fatalf("repair run: %v", err)
+	}
+	if len(inputs) != 2 || !strings.Contains(inputs[1], "## Fresh writable boundary handoff") || !strings.Contains(inputs[1], "writer decision: retain the failed validation context") {
+		t.Fatalf("fresh repair lost prior writable output, inputs=%q", inputs)
+	}
+}
+
+func TestExecuteRunPassesReadOnlyReviewCheckpointToTerraWriter(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	threadIDs := []string{
+		"019f5f13-3132-76c3-b9c7-ac521e89355e",
+		"019f5f13-3132-76c3-b9c7-ac521e89355f",
+		"019f5f13-3132-76c3-b9c7-ac521e893560",
+	}
+	var codexInputs []string
+	app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, _ string, input string) (string, string, error) {
+		if !isCodexExec(name, args) || len(codexInputs) >= len(threadIDs) {
+			t.Fatalf("unexpected Codex call: %s %v", name, args)
+		}
+		codexInputs = append(codexInputs, input)
+		output := `{"thread_id":"` + threadIDs[len(codexInputs)-1] + `"}`
+		if len(codexInputs) == 2 {
+			output += "\n" + `{"type":"item.completed","item":{"text":"review checkpoint: tighten the cross-system boundary"}}`
+		}
+		return output, "", nil
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		if isShellCommand(name) {
+			return "validation ok", nil
+		}
+		t.Fatalf("unexpected command: %s %v", name, args)
+		return "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Cross-system feature with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "frontend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-reviewer"),
+			},
+		},
+	}
+	result, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
+	if err != nil {
+		t.Fatalf("execute run: %v", err)
+	}
+	if len(codexInputs) != 3 || len(result.Turns) != 3 {
+		t.Fatalf("expected implement, review, and writer calls, inputs=%d turns=%+v", len(codexInputs), result.Turns)
+	}
+	if !strings.Contains(codexInputs[2], "## Read-only checkpoint handoff") || !strings.Contains(codexInputs[2], "review checkpoint: tighten the cross-system boundary") {
+		t.Fatalf("Terra writer did not receive the Sol review handoff: %q", codexInputs[2])
+	}
+	if result.Turns[2].Name != "review-repair-writer" || result.Turns[2].Model != modelRoutingModelTerra {
+		t.Fatalf("unexpected review handoff writer result: %+v", result.Turns[2])
+	}
+}
+
+func TestExecuteRunPassesStandaloneHighRiskSolCheckpointToWriter(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	threadIDs := []string{
+		"019f5f13-3132-76c3-b9c7-ac521e89355e",
+		"019f5f13-3132-76c3-b9c7-ac521e89355f",
+	}
+	var codexInputs []string
+	app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, _ string, input string) (string, string, error) {
+		if !isCodexExec(name, args) || len(codexInputs) >= len(threadIDs) {
+			t.Fatalf("unexpected Codex call: %s %v", name, args)
+		}
+		codexInputs = append(codexInputs, input)
+		callIndex := len(codexInputs) - 1
+		output := `{"thread_id":"` + threadIDs[callIndex] + `"}`
+		if callIndex == 0 {
+			output += "\n" + `{"type":"item.completed","item":{"text":"high-risk checkpoint: isolate the irreversible security boundary"}}`
+		}
+		return output, "", nil
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		if isShellCommand(name) {
+			return "validation ok", nil
+		}
+		t.Fatalf("unexpected command: %s %v", name, args)
+		return "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "DIRECT-FIX",
+		WorkDir:            tmp,
+		Prompt:             "Resolve an ambiguous cross-system security architecture with an irreversible migration and deterministic acceptance tests.",
+		Mode:               executionModeDefault,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "standalone-runner",
+			DominantDomains: []string{"backend", "security"},
+		},
+	}
+	result, _, err := app.executeRun(context.Background(), tmp, "direct-fix", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
+	if err != nil {
+		t.Fatalf("execute run: %v", err)
+	}
+	if len(codexInputs) != 2 || len(result.Turns) != 2 {
+		t.Fatalf("expected standalone checkpoint and writer calls, inputs=%d turns=%+v", len(codexInputs), result.Turns)
+	}
+	if result.Turns[0].Name != "high-risk-checkpoint" || result.Turns[0].Model != modelRoutingModelSol || result.Turns[1].Name != "implement" || result.Turns[1].Model != modelRoutingModelTerra {
+		t.Fatalf("unexpected standalone high-risk execution order: %+v", result.Turns)
+	}
+	if !strings.Contains(codexInputs[1], "## Read-only checkpoint handoff") || !strings.Contains(codexInputs[1], "high-risk checkpoint: isolate the irreversible security boundary") {
+		t.Fatalf("standalone writer did not receive the Sol checkpoint: %q", codexInputs[1])
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "direct-fix-evidence.json"))
+	if len(manifest.ModelRoutingTurns) != 2 || manifest.ModelRoutingTurns[0].RequestedModel != modelRoutingModelSol || manifest.ModelRoutingTurns[1].RequestedModel != modelRoutingModelTerra {
+		t.Fatalf("execution evidence lost the standalone checkpoint boundary: %+v", manifest.ModelRoutingTurns)
+	}
+}
+
+func TestExecuteRunPassesAllPendingReadOnlyCheckpointsToWriter(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	threadIDs := []string{
+		"019f5f13-3132-76c3-b9c7-ac521e89355e",
+		"019f5f13-3132-76c3-b9c7-ac521e89355f",
+		"019f5f13-3132-76c3-b9c7-ac521e893560",
+	}
+	checkpointOutputs := []string{
+		"design checkpoint: preserve the interaction contract",
+		"architecture checkpoint: preserve the service boundary",
+	}
+	var codexArgs [][]string
+	var codexInputs []string
+	app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, _ string, input string) (string, string, error) {
+		if !isCodexExec(name, args) || len(codexInputs) >= len(threadIDs) {
+			t.Fatalf("unexpected Codex call: %s %v", name, args)
+		}
+		codexArgs = append(codexArgs, append([]string(nil), args...))
+		codexInputs = append(codexInputs, input)
+		callIndex := len(codexInputs) - 1
+		output := `{"thread_id":"` + threadIDs[callIndex] + `"}`
+		if callIndex < len(checkpointOutputs) {
+			output += "\n" + `{"type":"item.completed","item":{"text":"` + checkpointOutputs[callIndex] + `"}}`
+		}
+		return output, "", nil
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		if isShellCommand(name) {
+			return "validation ok", nil
+		}
+		t.Fatalf("unexpected command: %s %v", name, args)
+		return "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Cross-system design and architecture with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"frontend", "backend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-designer"),
+				runtimeProfileForAgent("namba-frontend-architect"),
+			},
+		},
+	}
+	result, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
+	if err != nil {
+		t.Fatalf("execute run: %v", err)
+	}
+	if len(codexInputs) != 3 || len(result.Turns) != 3 || result.Turns[2].Name != "implement" {
+		t.Fatalf("expected two read-only checkpoints followed by implementation, inputs=%d turns=%+v", len(codexInputs), result.Turns)
+	}
+	if indexOfArg(codexArgs[1], "resume") != -1 {
+		t.Fatalf("design to architecture is not a legal adjacent resume edge: %v", codexArgs[1])
+	}
+	if !strings.Contains(codexInputs[1], checkpointOutputs[0]) {
+		t.Fatalf("fresh architecture checkpoint did not receive the design handoff: %q", codexInputs[1])
+	}
+	for _, checkpoint := range checkpointOutputs {
+		if !strings.Contains(codexInputs[2], checkpoint) {
+			t.Fatalf("writer lost pending checkpoint %q: %q", checkpoint, codexInputs[2])
+		}
+	}
+}
+
+func TestExecuteRunRepairsFromLatestWritableModelThread(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		switch name {
+		case "codex", "git":
+			return name, nil
+		default:
+			return "", errors.New("missing dependency")
+		}
+	}
+	threadIDs := []string{
+		"019f5f13-3132-76c3-b9c7-ac521e89355e",
+		"019f5f13-3132-76c3-b9c7-ac521e89355f",
+		"019f5f13-3132-76c3-b9c7-ac521e893560",
+		"019f5f13-3132-76c3-b9c7-ac521e893561",
+	}
+	var codexArgs [][]string
+	validationCalls := 0
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			if len(codexArgs) >= len(threadIDs) {
+				t.Fatalf("unexpected Codex call: %v", args)
+			}
+			codexArgs = append(codexArgs, append([]string(nil), args...))
+			threadID := threadIDs[len(codexArgs)-1]
+			return `{"thread_id":"` + threadID + `"}`, nil
+		case isShellCommand(name):
+			validationCalls++
+			if validationCalls == 1 {
+				return "validation failed", errors.New("simulated validation failure")
+			}
+			return "validation ok", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Cross-system security architecture design with irreversible risk and acceptance tests.",
+		Mode:               executionModeTeam,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		RepairAttempts:     1,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "security"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-backend-architect"),
+				runtimeProfileForAgent("namba-reviewer"),
+			},
+		},
+	}
+	if _, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, ""); err != nil {
+		t.Fatalf("execute run: %v", err)
+	}
+	if len(codexArgs) != 4 {
+		t.Fatalf("expected architecture, implementation, review, and repair calls, got %v", codexArgs)
+	}
+	repairArgs := codexArgs[3]
+	resumeIndex := indexOfArg(repairArgs, "resume")
+	if resumeIndex == -1 || resumeIndex+1 >= len(repairArgs) || repairArgs[resumeIndex+1] != threadIDs[2] {
+		t.Fatalf("repair must resume the latest Terra writer thread %q, got %v", threadIDs[2], repairArgs)
+	}
+}
+
+func TestExecuteRunBlocksRequiredSolWhenCapabilityProbeMarksItUnavailable(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
+		capabilities := codexCapabilityMatrix{
+			Version: "codex-cli without model surface",
+			Exec: codexCommandCapabilities{
+				ApprovalFlag: true,
+				SandboxFlag:  true,
+			},
+		}
+		capabilities.SolAvailable = boolPtr(false)
+		return capabilities, nil
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		if isCodexExec(name, args) {
+			t.Fatalf("Sol-unavailable plan must block before Codex execution: %v", args)
+		}
+		t.Fatalf("unexpected command: %s %v", name, args)
+		return "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Cross-system architecture with acceptance tests.",
+		Mode:               executionModeTeam,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend", "frontend"},
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				runtimeProfileForAgent("namba-backend-architect"),
+			},
+		},
+	}
+	_, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "none", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
+	if err == nil || !strings.Contains(err.Error(), modelRoutingReasonBlockedModelUnavailable) {
+		t.Fatalf("expected required Sol to block before execution, got %v", err)
+	}
+	if strings.Contains(err.Error(), "cannot be represented") {
+		t.Fatalf("routing block must take precedence over generic invocation errors: %v", err)
+	}
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
+	if manifest.Status != "preflight_failed" || manifest.ModelRouting == nil || manifest.ModelRouting.State != modelRoutingStatusBlocked || manifest.ModelRouting.FallbackReason != modelRoutingReasonBlockedModelUnavailable || manifest.ModelRouting.RequestedModel != modelRoutingModelSol || len(manifest.ModelRoutingTurns) != 0 {
+		t.Fatalf("expected preflight blocked model-unavailable routing evidence, got %+v", manifest)
+	}
+}
+
+func TestExecuteRunBlocksUnavailableTerraDuringPreflight(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
+		capabilities := testCodexCapabilities()
+		capabilities.ModelAvailability = map[string]bool{modelRoutingModelTerra: false}
+		capabilities.Probes = []lifecycleProbeOutcome{{
+			Name:   lifecycleProbeCodexModelAvailability,
+			Model:  modelRoutingModelTerra,
+			Status: lifecycleProbeStatusError,
+		}}
+		return capabilities, nil
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		t.Fatalf("unavailable Terra must block during preflight before any command runs: %s %v", name, args)
+		return "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Implement an ordinary backend change with deterministic acceptance tests.",
+		Mode:               executionModeDefault,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend"},
+		},
+	}
+	_, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "none", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
+	if err == nil || !strings.Contains(err.Error(), modelRoutingReasonBlockedModelUnavailable) {
+		t.Fatalf("expected unavailable Terra to fail preflight, got %v", err)
+	}
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
+	if manifest.Status != "preflight_failed" || manifest.ModelRouting == nil || manifest.ModelRouting.State != modelRoutingStatusBlocked || manifest.ModelRouting.FallbackReason != modelRoutingReasonBlockedModelUnavailable || manifest.ModelRouting.RequestedModel != modelRoutingModelTerra {
+		t.Fatalf("expected preflight blocked Terra evidence, got %+v", manifest)
+	}
+}
+
+func TestExecuteRunBlocksUnavailableRepairBeforeCodex(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
+		capabilities := testCodexCapabilities()
+		capabilities.SolAvailable = boolPtr(false)
+		return capabilities, nil
+	}
+	codexCalls := 0
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			codexCalls++
+			if codexCalls > 1 {
+				t.Fatalf("blocked repair must not execute Codex: %v", args)
+			}
+			return `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, nil
+		case isShellCommand(name):
+			return "ambiguous cross-system security architecture with irreversible risk", errors.New("simulated validation failure")
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Implement an ordinary backend change with deterministic acceptance tests.",
+		Mode:               executionModeDefault,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		RepairAttempts:     1,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend"},
+		},
+	}
+	result, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
+	if err == nil || !strings.Contains(err.Error(), modelRoutingReasonBlockedModelUnavailable) {
+		t.Fatalf("expected unavailable repair route to block, got %v", err)
+	}
+	if codexCalls != 1 || result.RetryCount != 0 {
+		t.Fatalf("blocked repair must not spend an attempt or call Codex, calls=%d retries=%d", codexCalls, result.RetryCount)
+	}
+}
+
+func TestExecuteRunUsesSolDiagnosticThenTerraWriterWithinOneRepairAttempt(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
+		capabilities := testCodexCapabilities()
+		capabilities.SolAvailable = boolPtr(true)
+		return capabilities, nil
+	}
+	threadIDs := []string{
+		"019f5f13-3132-76c3-b9c7-ac521e89355e",
+		"019f5f13-3132-76c3-b9c7-ac521e89355f",
+		"019f5f13-3132-76c3-b9c7-ac521e893560",
+	}
+	var codexArgs [][]string
+	validationCalls := 0
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			if len(codexArgs) >= len(threadIDs) {
+				t.Fatalf("unexpected Codex call: %v", args)
+			}
+			codexArgs = append(codexArgs, append([]string(nil), args...))
+			return `{"thread_id":"` + threadIDs[len(codexArgs)-1] + `"}`, nil
+		case isShellCommand(name):
+			validationCalls++
+			if validationCalls == 1 {
+				return "ambiguous cross-system security architecture with irreversible risk", errors.New("simulated validation failure")
+			}
+			return "validation ok", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Implement an ordinary backend change with deterministic acceptance tests.",
+		Mode:               executionModeDefault,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		RepairAttempts:     1,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend"},
+		},
+	}
+	result, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
+	if err != nil {
+		t.Fatalf("execute run: %v", err)
+	}
+	if len(codexArgs) != 3 || result.RetryCount != 1 || len(result.Turns) != 3 {
+		t.Fatalf("expected implement, diagnostic, and writer in one repair attempt, calls=%d retries=%d turns=%+v", len(codexArgs), result.RetryCount, result.Turns)
+	}
+	if result.Turns[0].Model != modelRoutingModelTerra || result.Turns[1].Model != modelRoutingModelSol || result.Turns[2].Model != modelRoutingModelTerra {
+		t.Fatalf("unexpected repair model sequence: %+v", result.Turns)
+	}
+	if result.Turns[1].Name != "repair-1-diagnosis" || result.Turns[2].Name != "repair-1-writer" {
+		t.Fatalf("unexpected repair turn names: %+v", result.Turns)
+	}
+	resumeIndex := indexOfArg(codexArgs[2], "resume")
+	if resumeIndex == -1 || resumeIndex+1 >= len(codexArgs[2]) || codexArgs[2][resumeIndex+1] != threadIDs[0] {
+		t.Fatalf("Terra writer must resume the latest writable Terra thread %q, got %v", threadIDs[0], codexArgs[2])
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
+	if len(manifest.ModelRoutingTurns) != 3 || manifest.ModelRoutingTurns[2].RuleID != "terra-repair-after-sol-diagnostic-v1" {
+		t.Fatalf("expected diagnostic and writer routing evidence, got %+v", manifest.ModelRoutingTurns)
+	}
+}
+
+func TestExecuteRunStartsFreshRepairAfterWritableTurnOmitsThreadID(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	threadIDs := []string{
+		"019f5f13-3132-76c3-b9c7-ac521e89355e",
+		"",
+		"019f5f13-3132-76c3-b9c7-ac521e89355f",
+	}
+	var codexArgs [][]string
+	validationCalls := 0
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		switch {
+		case isCodexExec(name, args):
+			if len(codexArgs) >= len(threadIDs) {
+				t.Fatalf("unexpected Codex call: %v", args)
+			}
+			index := len(codexArgs)
+			codexArgs = append(codexArgs, append([]string(nil), args...))
+			if threadIDs[index] == "" {
+				return "repair output without structured thread UUID", nil
+			}
+			return `{"thread_id":"` + threadIDs[index] + `"}`, nil
+		case isShellCommand(name):
+			validationCalls++
+			if validationCalls <= 2 {
+				return "validation failed", errors.New("simulated validation failure")
+			}
+			return "validation ok", nil
+		default:
+			t.Fatalf("unexpected command: %s %v", name, args)
+			return "", nil
+		}
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Implement a local change with deterministic acceptance tests.",
+		Mode:               executionModeDefault,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		RepairAttempts:     2,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"core"},
+		},
+	}
+	result, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, "")
+	if err != nil {
+		t.Fatalf("execute run: %v", err)
+	}
+	if len(codexArgs) != 3 || len(result.Turns) != 3 || result.RetryCount != 2 {
+		t.Fatalf("expected implement and two repair turns, calls=%d retries=%d turns=%+v", len(codexArgs), result.RetryCount, result.Turns)
+	}
+	firstRepairResume := indexOfArg(codexArgs[1], "resume")
+	if firstRepairResume == -1 || firstRepairResume+1 >= len(codexArgs[1]) || codexArgs[1][firstRepairResume+1] != threadIDs[0] {
+		t.Fatalf("first repair must resume the initial writable thread %q, got %v", threadIDs[0], codexArgs[1])
+	}
+	if indexOfArg(codexArgs[2], "resume") != -1 || result.Turns[2].SessionAction != "exec" {
+		t.Fatalf("repair after missing UUID must start fresh, args=%v turn=%+v", codexArgs[2], result.Turns[2])
+	}
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
+	if len(manifest.ModelRoutingTurns) != 3 {
+		t.Fatalf("expected routing evidence for implement and two repair turns, got %+v", manifest.ModelRoutingTurns)
+	}
+	freshRepair := manifest.ModelRoutingTurns[2]
+	if freshRepair.SessionStrategy != "fresh_session" || freshRepair.ThreadID != threadIDs[2] {
+		t.Fatalf("fresh repair evidence must retain its observed thread UUID, got %+v", freshRepair)
 	}
 }
 
@@ -633,6 +1579,59 @@ func TestRunWritesExecutionEvidenceManifestOnPreflightFailure(t *testing.T) {
 	}
 	if manifest.Validation.State != executionEvidenceStateMissing {
 		t.Fatalf("expected validation evidence to be missing on preflight failure, got %+v", manifest.Validation)
+	}
+}
+
+func TestPreflightFailureEvidenceUsesFullPlannedRoute(t *testing.T) {
+	tmp := t.TempDir()
+	app := NewApp(nil, nil)
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	app.detectCodexCapabilities = func(context.Context, string, executionRequest) (codexCapabilityMatrix, error) {
+		return testCodexCapabilities(), nil
+	}
+
+	req := app.newExecutionRequest(
+		"SPEC-069",
+		tmp,
+		"simple mechanical rename with deterministic acceptance tests",
+		executionModeDefault,
+		delegationPlan{IntegratorRole: "namba-implementer", DominantDomains: []string{"core"}},
+		systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"},
+		codexConfig{ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1, AddDirs: []string{"missing-dir"}},
+	)
+
+	_, _, err := app.executeRun(context.Background(), tmp, "spec-069", req, tmp, qualityConfig{}, nil, "")
+	if err == nil || !strings.Contains(err.Error(), "add_dir") {
+		t.Fatalf("expected add_dir preflight failure, got %v", err)
+	}
+
+	var requestArtifact executionRequest
+	requestData, readErr := os.ReadFile(filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-request.json"))
+	if readErr != nil {
+		t.Fatalf("read request artifact: %v", readErr)
+	}
+	if unmarshalErr := json.Unmarshal(requestData, &requestArtifact); unmarshalErr != nil {
+		t.Fatalf("unmarshal request artifact: %v", unmarshalErr)
+	}
+	if requestArtifact.RoutingDecision.Model != "" || requestArtifact.Model != "" {
+		t.Fatalf("request artifact must not claim a route before planning, got %+v", requestArtifact)
+	}
+
+	manifest := mustReadExecutionEvidenceManifest(t, filepath.Join(tmp, ".namba", "logs", "runs", "spec-069-evidence.json"))
+	if manifest.ModelRouting == nil || manifest.ModelRouting.RequestedModel != modelRoutingModelLuna || manifest.ModelRouting.RequestedReasoningEffort != "medium" || manifest.ModelRouting.RuleID != "luna-simple-implementation-v1" {
+		t.Fatalf("preflight failure must retain the full-input planned route, got %+v", manifest.ModelRouting)
+	}
+	if len(manifest.ModelRoutingTurns) != 0 {
+		t.Fatalf("preflight failure must not report planned turns as executed, got %+v", manifest.ModelRoutingTurns)
+	}
+	report := collectNambaReport(tmp, time.Now(), reportOptions{})
+	if report.Runs.ModelRouting == nil || report.Runs.ModelRouting.TurnsByModel[modelRoutingModelLuna] != 1 || report.Runs.ModelRouting.TurnsByModel[modelRoutingModelTerra] != 0 {
+		t.Fatalf("report must aggregate the planned preflight route, got %+v", report.Runs.ModelRouting)
 	}
 }
 

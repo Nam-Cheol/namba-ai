@@ -14,6 +14,7 @@ import (
 func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 	root := repoRoot(t)
 	projectCfg, docsCfg, profile := loadRepoDocsConfig(t, root)
+	toolchainAnchor := "`toolchain " + repoGoToolchainVersion(t, root) + "`"
 
 	outputs := buildReadmeOutputs(projectCfg, profile, docsCfg)
 	if got, want := len(outputs), 16; got != want {
@@ -36,7 +37,7 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 		"`namba fix \"issue\"`",
 		"swap `namba plan` for `namba harness \"description\"`",
 		"`scripts/quality.sh`",
-		"`toolchain go1.26.4`",
+		toolchainAnchor,
 		"evidence schema validation",
 		"report JSON validation",
 		"`eval-scorecard.json`",
@@ -146,7 +147,7 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 			"`namba pr`",
 			"`namba land`",
 			"`scripts/quality.sh`",
-			"`toolchain go1.26.4`",
+			toolchainAnchor,
 			"73.0%",
 			"## 🪝 Hook Runtime",
 			"`$namba-review-resolve`",
@@ -174,6 +175,20 @@ func TestReadmeRendererIncludesOnboardingAnchorsForRepoConfig(t *testing.T) {
 			assertContains(t, guide, want, fmt.Sprintf("%s workflow guide", lang))
 		}
 	}
+}
+
+func repoGoToolchainVersion(t *testing.T, root string) string {
+	t.Helper()
+
+	contents := mustReadFile(t, filepath.Join(root, "go.mod"))
+	for _, line := range strings.Split(contents, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 2 && fields[0] == "toolchain" {
+			return fields[1]
+		}
+	}
+	t.Fatal("go.mod missing toolchain directive")
+	return ""
 }
 
 func TestSyncedReadmeOutputsMatchRendererForRepoConfig(t *testing.T) {

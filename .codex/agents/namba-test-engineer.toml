@@ -1,7 +1,7 @@
 name = "namba-test-engineer"
 description = "Design and add targeted regression coverage that tightens SPEC acceptance confidence."
 sandbox_mode = "workspace-write"
-model = "gpt-5.4-mini"
+model = "gpt-5.6-terra"
 model_reasoning_effort = "medium"
 developer_instructions = """
 You are Namba Test Engineer.

@@ -57,6 +57,55 @@ func TestNewExecutionRequestAppliesModeRuntimeContract(t *testing.T) {
 	}
 }
 
+func TestLegacyStaticRequestOmitsReasoningOverride(t *testing.T) {
+	app := NewApp(nil, nil)
+	req := app.newExecutionRequest(
+		"SPEC-069",
+		"/tmp/work",
+		"preserve legacy runtime behavior",
+		executionModeDefault,
+		delegationPlan{IntegratorRole: "standalone-runner"},
+		systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"},
+		codexConfig{ModelRoutingPolicy: modelRoutingPolicyLegacyStaticV1, Model: "gpt-5.4"},
+	)
+	if req.RequestedReasoningEffort != "" {
+		t.Fatalf("legacy request must not force reasoning effort, got %+v", req)
+	}
+	if req.RoutingDecision.Model != "" || req.RoutingDecision.Status != "" || req.RoutingDecision.ReadOnly {
+		t.Fatalf("legacy request must not carry an adaptive routing decision, got %+v", req.RoutingDecision)
+	}
+
+	_, err := resolveCodexInvocation(req, codexCapabilityMatrix{Exec: codexCommandCapabilities{
+		ApprovalFlag: true,
+		SandboxFlag:  true,
+		ModelFlag:    true,
+	}})
+	if err != nil {
+		t.Fatalf("legacy request must run without config overrides: %v", err)
+	}
+}
+
+func TestAdaptiveRequestDefersRoutingUntilTurnPlanning(t *testing.T) {
+	app := NewApp(nil, nil)
+	req := app.newExecutionRequest(
+		"SPEC-069",
+		"/tmp/work",
+		"simple mechanical rename with deterministic acceptance tests",
+		executionModeDefault,
+		delegationPlan{IntegratorRole: "namba-implementer", DominantDomains: []string{"core"}},
+		systemConfig{Runner: "codex", ApprovalPolicy: "on-request", SandboxMode: "workspace-write"},
+		codexConfig{ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1, Model: "stale-config-model"},
+	)
+
+	if req.RoutingDecision.Model != "" || req.RoutingDecision.Status != "" || req.Model != "" || req.RequestedReasoningEffort != "" {
+		t.Fatalf("adaptive request envelope must defer routing to the full turn planner, got %+v", req)
+	}
+	planned := plannedExecutionTurnRequests(req)
+	if len(planned) != 1 || planned[0].RoutingDecision.Model != modelRoutingModelLuna || planned[0].RequestedReasoningEffort != "medium" {
+		t.Fatalf("full request inputs must route the execution turn, got %+v", planned)
+	}
+}
+
 func TestResolveRuntimeAddDirsNormalizesAndDeduplicates(t *testing.T) {
 	t.Parallel()
 

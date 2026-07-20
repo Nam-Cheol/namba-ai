@@ -2,7 +2,7 @@
 
 Project: namba-ai
 Project type: existing
-Latest SPEC: SPEC-068
+Latest SPEC: SPEC-069
 
 ## Workflow Docs Synced
 
@@ -23,8 +23,8 @@ Latest SPEC: SPEC-068
 
 ## Latest Review Readiness
 
-- Latest readiness artifact: `.namba/specs/SPEC-068/reviews/readiness.md`
-- Advisory summary: all review tracks clear; frontend=not-applicable
+- Latest readiness artifact: `.namba/specs/SPEC-069/reviews/readiness.md`
+- Advisory summary: all review tracks clear; route=namba plan, missing evidence=.namba/specs/SPEC-069/contract.md,.namba/specs/SPEC-069/baseline.md,.namba/specs/SPEC-069/eval-plan.md,.namba/specs/SPEC-069/harness-map.md
 
 ## Latest Execution Proof
 

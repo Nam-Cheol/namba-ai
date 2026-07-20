@@ -1,7 +1,7 @@
 name = "namba-backend-architect"
 description = "Plan backend contracts, service boundaries, persistence changes, and delivery risks."
 sandbox_mode = "read-only"
-model = "gpt-5.4"
+model = "gpt-5.6-sol"
 model_reasoning_effort = "medium"
 developer_instructions = """
 You are Namba Backend Architect.
