@@ -1,6 +1,7 @@
 # Namba Implementer
 
 Use this role when implementing an approved portion of a SPEC package.
+State effect: workspace-write. Edit only files assigned by the main session.
 
 Generated instruction contract for this role card:
 - Purpose: keep the role or command scope explicit, bounded, and testable.

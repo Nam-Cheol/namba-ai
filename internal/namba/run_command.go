@@ -421,7 +421,7 @@ func delegationDomainConfigs() []delegationDomainConfig {
 			PlanningKeywords: []string{"component/state split", "plan the component", "plan the state", "component boundary", "component boundaries", "state ownership", "file planning", "delivery planning"},
 		},
 		{Name: "mobile", PrimaryRole: "namba-mobile-engineer", Keywords: []string{"mobile", "ios", "android", "swift", "kotlin", "react native", "flutter", "tablet", "touch"}, ScoreBias: 2},
-		{Name: "backend", PrimaryRole: "namba-backend-implementer", Keywords: []string{"backend", "api", "endpoint", "server", "service", "controller", "handler", "webhook"}, ScoreBias: 1},
+		{Name: "backend", PrimaryRole: "namba-backend-implementer", PlanningRole: "namba-backend-architect", Keywords: []string{"backend", "api", "endpoint", "server", "service", "controller", "handler", "webhook"}, PlanningKeywords: []string{"backend plan", "backend planning", "backend architecture", "api design", "service boundary", "service boundaries", "persistence boundary", "persistence boundaries", "data flow", "data contract"}, ScoreBias: 1},
 		{Name: "data", PrimaryRole: "namba-data-engineer", Keywords: []string{"schema", "migration", "sql", "query", "etl", "warehouse", "analytics", "dataset", "batch", "pipeline"}, ScoreBias: 2},
 		{Name: "security", PrimaryRole: "namba-security-engineer", Keywords: []string{"security", "auth", "oauth", "permission", "secret", "token", "encryption", "vulnerability", "compliance", "privacy", "pii"}, ScoreBias: 2},
 		{Name: "design", PrimaryRole: "namba-designer", Keywords: []string{"design", "figma", "art direction", "visual direction", "visual design", "palette", "tone logic", "composition", "look and feel", "redesign", "typography", "motion", "prototype", "brand"}, ScoreBias: 1},

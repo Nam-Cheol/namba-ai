@@ -3,7 +3,6 @@
 Appendix output only. Use `product.md` and `tech.md` first.
 
 ```
-.DS_Store
 .agents/skills/namba-coach/SKILL.md
 .agents/skills/namba-create/SKILL.md
 .agents/skills/namba-fix/SKILL.md
@@ -44,6 +43,8 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .codex/agents/namba-frontend-architect.toml
 .codex/agents/namba-frontend-implementer.md
 .codex/agents/namba-frontend-implementer.toml
+.codex/agents/namba-high-risk-advisor.md
+.codex/agents/namba-high-risk-advisor.toml
 .codex/agents/namba-implementer.md
 .codex/agents/namba-implementer.toml
 .codex/agents/namba-mobile-engineer.md
@@ -104,6 +105,7 @@ Appendix output only. Use `product.md` and `tech.md` first.
 .namba/releases/v0.5.8.md
 .namba/releases/v0.5.9.md
 .namba/releases/v1.0.0.md
+.namba/releases/v1.0.1.md
 .namba/specs/.gitkeep
 .namba/specs/SPEC-001/acceptance.md
 .namba/specs/SPEC-001/plan.md
@@ -621,8 +623,6 @@ README.ko.md
 README.md
 README.zh.md
 SECURITY.md
-assets/.DS_Store
-assets/images/.DS_Store
 assets/images/namba-ai-hero.png
 cmd/namba/encoding_other.go
 cmd/namba/encoding_test.go
@@ -643,7 +643,6 @@ docs/workflow-guide.ja.md
 docs/workflow-guide.ko.md
 docs/workflow-guide.md
 docs/workflow-guide.zh.md
-dump.rdb
 go.mod
 go.sum
 install.ps1

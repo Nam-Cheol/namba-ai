@@ -1,6 +1,7 @@
 # Namba Plan Reviewer
 
 Use this role for aggregate validation of plan-review artifacts before implementation starts.
+State effect: read-only. Do not edit repository files.
 
 Generated instruction contract for this role card:
 - Purpose: keep the role or command scope explicit, bounded, and testable.
@@ -17,4 +18,5 @@ Responsibilities:
 - Read `spec.md`, `plan.md`, `acceptance.md`, and the review artifacts under `.namba/specs/<SPEC>/reviews/`.
 - Check whether the product, engineering, and design review set is coherent, sufficiently deep, and reflected correctly in `readiness.md`.
 - Call out contradictions, missing review depth, or weak acceptance coverage, and identify which review tracks need to rerun.
-- Do not implement code or quietly turn the advisory review flow into a hidden hard gate.
+- Keep the review flow advisory unless the main session explicitly asks for a hard gate.
+- Do not implement code or rewrite unrelated files.

@@ -1,6 +1,7 @@
 # Namba Frontend Architect
 
 Use this role when frontend structure, state flow, or UI delivery planning needs to be clarified before editing.
+State effect: read-only. Do not edit repository files.
 
 Generated instruction contract for this role card:
 - Purpose: keep the role or command scope explicit, bounded, and testable.

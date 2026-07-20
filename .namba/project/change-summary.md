@@ -25,13 +25,3 @@ Latest SPEC: SPEC-068
 
 - Latest readiness artifact: `.namba/specs/SPEC-068/reviews/readiness.md`
 - Advisory summary: all review tracks clear; frontend=not-applicable
-
-## Latest Execution Proof
-
-- Latest execution proof artifact: `.namba/logs/runs/spec-063-evidence.json`
-- Proof target: `SPEC-063`
-- Execution proof status: `execution_failed`
-- Execution mode: `team`
-- Base artifacts: `request=present`, `preflight=present`, `execution=present`, `validation=missing`, `progress=not_applicable`
-- Browser evidence: `not_applicable`
-- Runtime evidence: `not_applicable`

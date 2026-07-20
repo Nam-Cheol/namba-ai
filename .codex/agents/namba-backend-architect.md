@@ -1,6 +1,7 @@
 # Namba Backend Architect
 
 Use this role when backend contracts, service boundaries, or persistence changes need to be clarified before implementation.
+State effect: read-only. Do not edit repository files.
 
 Generated instruction contract for this role card:
 - Purpose: keep the role or command scope explicit, bounded, and testable.

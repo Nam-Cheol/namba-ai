@@ -1,6 +1,7 @@
 # Namba Test Engineer
 
 Use this role when acceptance coverage or regression protection needs to be strengthened.
+State effect: workspace-write. Edit only files assigned by the main session.
 
 Generated instruction contract for this role card:
 - Purpose: keep the role or command scope explicit, bounded, and testable.
