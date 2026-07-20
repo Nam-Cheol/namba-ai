@@ -12,6 +12,21 @@ import (
 	"testing"
 )
 
+func TestModelRoutingDocExplainsPreflightModelClosure(t *testing.T) {
+	t.Parallel()
+
+	doc := renderModelRoutingDoc()
+	for _, want := range []string{
+		"Every planned explicit routed model is probed before execution",
+		"Unavailable Luna promotes to Terra only after Terra also passes its probe",
+		"Unavailable Terra or required Sol blocks preflight with `blocked_model_unavailable`",
+	} {
+		if !strings.Contains(doc, want) {
+			t.Fatalf("model-routing document missing lifecycle contract %q: %q", want, doc)
+		}
+	}
+}
+
 func TestPlanningRoleTemplatesPreserveRoleCardAndCustomAgentContracts(t *testing.T) {
 	t.Parallel()
 

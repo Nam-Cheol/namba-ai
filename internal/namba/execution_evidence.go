@@ -11,7 +11,11 @@ import (
 	"time"
 )
 
-const executionEvidenceSchemaVersion = "execution-evidence/v1"
+const (
+	executionEvidenceSchemaVersion      = "execution-evidence/v1"
+	modelRoutingUsageExternalUnobserved = "external_unobserved"
+	modelRoutingUsageUnavailable        = "unavailable"
+)
 
 type executionEvidenceState string
 
@@ -44,6 +48,28 @@ type executionEvidenceExtensions struct {
 	Runtime executionEvidenceExtension `json:"runtime"`
 }
 
+// modelRoutingEvidence is an additive v1 extension. Effective runtime values
+// stay explicitly unobserved unless Codex emits them in structured output.
+type modelRoutingEvidence struct {
+	Version                  string   `json:"version"`
+	Phase                    string   `json:"phase"`
+	Tier                     string   `json:"tier"`
+	RequestedModel           string   `json:"requested_model"`
+	RequestedReasoningEffort string   `json:"requested_reasoning_effort"`
+	EffectiveModel           string   `json:"effective_model"`
+	EffectiveReasoningEffort string   `json:"effective_reasoning_effort"`
+	RuleID                   string   `json:"rule_id"`
+	ReasonCodes              []string `json:"reason_codes,omitempty"`
+	RequiredSol              bool     `json:"required_sol"`
+	RemainingSolTurns        int      `json:"remaining_sol_turns,omitempty"`
+	RemainingSolHighTurns    int      `json:"remaining_sol_high_turns,omitempty"`
+	FallbackReason           string   `json:"fallback_reason,omitempty"`
+	State                    string   `json:"state"`
+	ThreadID                 string   `json:"thread_id,omitempty"`
+	SessionStrategy          string   `json:"session_strategy"`
+	UsageState               string   `json:"usage_state"`
+}
+
 type executionEvidenceFinalization struct {
 	FinalizedAt       string `json:"finalized_at"`
 	FinalizedBy       string `json:"finalized_by"`
@@ -52,23 +78,25 @@ type executionEvidenceFinalization struct {
 }
 
 type executionEvidenceManifest struct {
-	SchemaVersion    string                        `json:"schema_version"`
-	LogID            string                        `json:"log_id"`
-	RunID            string                        `json:"run_id"`
-	SpecID           string                        `json:"spec_id,omitempty"`
-	GeneratedAt      string                        `json:"generated_at"`
-	ExecutionMode    string                        `json:"execution_mode,omitempty"`
-	Advisory         bool                          `json:"advisory"`
-	Status           string                        `json:"status"`
-	Finalization     executionEvidenceFinalization `json:"finalization"`
-	Request          executionEvidenceRef          `json:"request"`
-	Preflight        executionEvidenceRef          `json:"preflight"`
-	Execution        executionEvidenceRef          `json:"execution"`
-	Validation       executionEvidenceRef          `json:"validation"`
-	Progress         executionEvidenceRef          `json:"progress"`
-	Extensions       executionEvidenceExtensions   `json:"extensions"`
-	CodexDiagnostics *codexDiagnosticsEvidence     `json:"codex_diagnostics,omitempty"`
-	Hooks            []hookResult                  `json:"hooks"`
+	SchemaVersion     string                        `json:"schema_version"`
+	LogID             string                        `json:"log_id"`
+	RunID             string                        `json:"run_id"`
+	SpecID            string                        `json:"spec_id,omitempty"`
+	GeneratedAt       string                        `json:"generated_at"`
+	ExecutionMode     string                        `json:"execution_mode,omitempty"`
+	Advisory          bool                          `json:"advisory"`
+	Status            string                        `json:"status"`
+	Finalization      executionEvidenceFinalization `json:"finalization"`
+	Request           executionEvidenceRef          `json:"request"`
+	Preflight         executionEvidenceRef          `json:"preflight"`
+	Execution         executionEvidenceRef          `json:"execution"`
+	Validation        executionEvidenceRef          `json:"validation"`
+	Progress          executionEvidenceRef          `json:"progress"`
+	Extensions        executionEvidenceExtensions   `json:"extensions"`
+	CodexDiagnostics  *codexDiagnosticsEvidence     `json:"codex_diagnostics,omitempty"`
+	ModelRouting      *modelRoutingEvidence         `json:"model_routing,omitempty"`
+	ModelRoutingTurns []modelRoutingEvidence        `json:"model_routing_turns,omitempty"`
+	Hooks             []hookResult                  `json:"hooks"`
 }
 
 type executionEvidenceRefInput struct {
@@ -98,6 +126,8 @@ type executionEvidenceOptions struct {
 	RuntimeSignalBundles []executionEvidenceSignalBundle
 	CodexDiagnostics     *codexDiagnosticsEvidence
 	Hooks                []hookResult
+	ModelRouting         *modelRoutingEvidence
+	ModelRoutingTurns    []modelRoutingEvidence
 }
 
 func executionEvidenceManifestPath(logID string) string {
@@ -154,6 +184,7 @@ func (a *App) writeRunExecutionEvidence(projectRoot, logID string, req execution
 		FinalizedBy:        "executeRun",
 		Progress:           progress,
 		CodexDiagnostics:   &diagnostics,
+		ModelRouting:       modelRoutingEvidenceForRequest(req),
 	})
 }
 
@@ -198,6 +229,53 @@ func (a *App) writeParallelExecutionEvidence(root, specID, runID, status string,
 		},
 		CodexDiagnostics: &diagnostics,
 	})
+}
+
+func modelRoutingEvidenceForRequest(req executionRequest) *modelRoutingEvidence {
+	if req.ModelRoutingPolicy != modelRoutingPolicyCostBalancedV1 {
+		return nil
+	}
+	decision := req.RoutingDecision
+	if decision.Model == "" {
+		return nil
+	}
+	strategy := "fresh_session"
+	if req.ResumeSession && strings.TrimSpace(req.ThreadID) != "" {
+		strategy = "explicit_thread_resume"
+	}
+	usageState := modelRoutingUsageExternalUnobserved
+	if decision.FallbackReason == modelRoutingReasonBlockedModelUnavailable || decision.FallbackReason == modelRoutingReasonModelUnavailable {
+		usageState = modelRoutingUsageUnavailable
+	}
+	return &modelRoutingEvidence{
+		Version:                  "model-routing/v1",
+		Phase:                    string(decision.Phase),
+		Tier:                     decision.Tier,
+		RequestedModel:           firstNonBlank(req.Model, decision.Model),
+		RequestedReasoningEffort: firstNonBlank(req.RequestedReasoningEffort, decision.ReasoningEffort),
+		EffectiveModel:           "external_unobserved",
+		EffectiveReasoningEffort: "external_unobserved",
+		RuleID:                   decision.RuleID,
+		ReasonCodes:              append([]string(nil), decision.ReasonCodes...),
+		RequiredSol:              decision.RequiredSol,
+		RemainingSolTurns:        decision.RemainingSolTurns,
+		RemainingSolHighTurns:    decision.RemainingSolHighTurns,
+		FallbackReason:           decision.FallbackReason,
+		State:                    firstNonBlank(decision.Status, "planned"),
+		ThreadID:                 strings.TrimSpace(req.ThreadID),
+		SessionStrategy:          strategy,
+		UsageState:               usageState,
+	}
+}
+
+func modelRoutingEvidenceForRequests(requests []executionRequest) []modelRoutingEvidence {
+	evidence := make([]modelRoutingEvidence, 0, len(requests))
+	for _, req := range requests {
+		if routing := modelRoutingEvidenceForRequest(req); routing != nil {
+			evidence = append(evidence, *routing)
+		}
+	}
+	return evidence
 }
 
 func buildExecutionEvidenceManifest(projectRoot string, options executionEvidenceOptions) (executionEvidenceManifest, error) {
@@ -281,8 +359,10 @@ func buildExecutionEvidenceManifest(projectRoot string, options executionEvidenc
 			Browser: browser,
 			Runtime: runtime,
 		},
-		CodexDiagnostics: options.CodexDiagnostics,
-		Hooks:            hooks,
+		ModelRouting:      options.ModelRouting,
+		ModelRoutingTurns: append([]modelRoutingEvidence(nil), options.ModelRoutingTurns...),
+		CodexDiagnostics:  options.CodexDiagnostics,
+		Hooks:             hooks,
 	}, nil
 }
 

@@ -294,21 +294,21 @@ func TestRunRegenRegeneratesCodexAssetsFromConfig(t *testing.T) {
 		path     string
 		snippets []string
 	}{
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-planner.toml"), snippets: []string{`name = "namba-planner"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "high"`, `developer_instructions = """`, `repo-managed MCP presets`}},
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-plan-reviewer.toml"), snippets: []string{`name = "namba-plan-reviewer"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "high"`}},
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-product-manager.toml"), snippets: []string{`name = "namba-product-manager"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-architect.toml"), snippets: []string{`name = "namba-frontend-architect"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-implementer.toml"), snippets: []string{`name = "namba-frontend-implementer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-mobile-engineer.toml"), snippets: []string{`name = "namba-mobile-engineer"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-designer.toml"), snippets: []string{`name = "namba-designer"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`, "art direction", "temperature and undertone discipline"}},
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-backend-architect.toml"), snippets: []string{`name = "namba-backend-architect"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "medium"`}},
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-backend-implementer.toml"), snippets: []string{`name = "namba-backend-implementer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-data-engineer.toml"), snippets: []string{`name = "namba-data-engineer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-security-engineer.toml"), snippets: []string{`name = "namba-security-engineer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4"`, `model_reasoning_effort = "high"`}},
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-test-engineer.toml"), snippets: []string{`name = "namba-test-engineer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-devops-engineer.toml"), snippets: []string{`name = "namba-devops-engineer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-implementer.toml"), snippets: []string{`name = "namba-implementer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.4-mini"`, `model_reasoning_effort = "medium"`}},
-		{path: filepath.Join(tmp, ".codex", "agents", "namba-reviewer.toml"), snippets: []string{`name = "namba-reviewer"`, `sandbox_mode = "read-only"`, `model = "gpt-5.4"`, `model_reasoning_effort = "high"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-planner.toml"), snippets: []string{`name = "namba-planner"`, `sandbox_mode = "read-only"`, `model = "gpt-5.6-sol"`, `model_reasoning_effort = "medium"`, `developer_instructions = """`, `repo-managed MCP presets`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-plan-reviewer.toml"), snippets: []string{`name = "namba-plan-reviewer"`, `sandbox_mode = "read-only"`, `model = "gpt-5.6-terra"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-product-manager.toml"), snippets: []string{`name = "namba-product-manager"`, `sandbox_mode = "read-only"`, `model = "gpt-5.6-terra"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-architect.toml"), snippets: []string{`name = "namba-frontend-architect"`, `sandbox_mode = "read-only"`, `model = "gpt-5.6-sol"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-frontend-implementer.toml"), snippets: []string{`name = "namba-frontend-implementer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.6-terra"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-mobile-engineer.toml"), snippets: []string{`name = "namba-mobile-engineer"`, `sandbox_mode = "read-only"`, `model = "gpt-5.6-terra"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-designer.toml"), snippets: []string{`name = "namba-designer"`, `sandbox_mode = "read-only"`, `model = "gpt-5.6-sol"`, `model_reasoning_effort = "medium"`, "art direction", "temperature and undertone discipline"}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-backend-architect.toml"), snippets: []string{`name = "namba-backend-architect"`, `sandbox_mode = "read-only"`, `model = "gpt-5.6-sol"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-backend-implementer.toml"), snippets: []string{`name = "namba-backend-implementer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.6-terra"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-data-engineer.toml"), snippets: []string{`name = "namba-data-engineer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.6-terra"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-security-engineer.toml"), snippets: []string{`name = "namba-security-engineer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.6-terra"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-test-engineer.toml"), snippets: []string{`name = "namba-test-engineer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.6-terra"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-devops-engineer.toml"), snippets: []string{`name = "namba-devops-engineer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.6-terra"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-implementer.toml"), snippets: []string{`name = "namba-implementer"`, `sandbox_mode = "workspace-write"`, `model = "gpt-5.6-terra"`, `model_reasoning_effort = "medium"`}},
+		{path: filepath.Join(tmp, ".codex", "agents", "namba-reviewer.toml"), snippets: []string{`name = "namba-reviewer"`, `sandbox_mode = "read-only"`, `model = "gpt-5.6-terra"`, `model_reasoning_effort = "medium"`}},
 	}
 	for _, tc := range agentFiles {
 		content := mustReadFile(t, tc.path)

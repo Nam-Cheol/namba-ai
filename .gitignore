@@ -21,3 +21,5 @@ id_rsa
 id_ed25519
 .DS_Store
 Thumbs.db
+__pycache__/
+*.pyc

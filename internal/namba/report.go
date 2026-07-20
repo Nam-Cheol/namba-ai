@@ -71,18 +71,27 @@ type reportSummary struct {
 }
 
 type reportRuns struct {
-	State                     string             `json:"state"`
-	EvidenceCount             int                `json:"evidence_count"`
-	ExecutionCount            int                `json:"execution_count"`
-	ValidationCount           int                `json:"validation_count"`
-	ValidationAttemptCount    int                `json:"validation_attempt_count"`
-	ParallelCount             int                `json:"parallel_count"`
-	ParallelProgressLineCount int                `json:"parallel_progress_line_count"`
-	QueueEvidenceCount        int                `json:"queue_evidence_count"`
-	HeartbeatCount            int                `json:"heartbeat_count"`
-	SuccessCount              int                `json:"success_count"`
-	FailureCount              int                `json:"failure_count"`
-	Latest                    *reportRunEvidence `json:"latest,omitempty"`
+	State                     string              `json:"state"`
+	EvidenceCount             int                 `json:"evidence_count"`
+	ExecutionCount            int                 `json:"execution_count"`
+	ValidationCount           int                 `json:"validation_count"`
+	ValidationAttemptCount    int                 `json:"validation_attempt_count"`
+	ParallelCount             int                 `json:"parallel_count"`
+	ParallelProgressLineCount int                 `json:"parallel_progress_line_count"`
+	QueueEvidenceCount        int                 `json:"queue_evidence_count"`
+	HeartbeatCount            int                 `json:"heartbeat_count"`
+	SuccessCount              int                 `json:"success_count"`
+	FailureCount              int                 `json:"failure_count"`
+	Latest                    *reportRunEvidence  `json:"latest,omitempty"`
+	ModelRouting              *reportModelRouting `json:"model_routing,omitempty"`
+}
+
+type reportModelRouting struct {
+	Version               string         `json:"version"`
+	TurnsByModel          map[string]int `json:"turns_by_model"`
+	FallbackCount         int            `json:"fallback_count"`
+	BlockedCount          int            `json:"blocked_count"`
+	UnavailableUsageCount int            `json:"unavailable_usage_count"`
 }
 
 type reportRunEvidence struct {
@@ -395,6 +404,25 @@ func collectReportRuns(root string, report *nambaReport, sinceCutoff time.Time, 
 						report.Summary.BlockedReasons[reason]++
 					}
 				}
+				routings := evidence.ModelRoutingTurns
+				if len(routings) == 0 && evidence.ModelRouting != nil {
+					routings = []modelRoutingEvidence{*evidence.ModelRouting}
+				}
+				for _, routing := range routings {
+					if runs.ModelRouting == nil {
+						runs.ModelRouting = &reportModelRouting{Version: routing.Version, TurnsByModel: map[string]int{}}
+					}
+					runs.ModelRouting.TurnsByModel[routing.RequestedModel]++
+					if routing.State == modelRoutingStatusFallback {
+						runs.ModelRouting.FallbackCount++
+					}
+					if routing.State == modelRoutingStatusBlocked {
+						runs.ModelRouting.BlockedCount++
+					}
+					if routing.UsageState == modelRoutingUsageUnavailable {
+						runs.ModelRouting.UnavailableUsageCount++
+					}
+				}
 				candidate := reportRunEvidence{Path: rel, SpecID: evidence.SpecID, Status: evidence.Status, GeneratedAt: evidence.GeneratedAt, ExecutionMode: evidence.ExecutionMode, MissingEvidence: missing}
 				if isLatestRun(runs.Latest, candidate) {
 					runs.Latest = &candidate
@@ -651,6 +679,28 @@ func renderNambaReport(report nambaReport, format string) (string, error) {
 		fmt.Fprintf(&b, "- no execution evidence found\n")
 	} else {
 		fmt.Fprintf(&b, "- `%s`: status `%s`, spec `%s`, missing evidence %d\n", report.Runs.Latest.Path, report.Runs.Latest.Status, fallbackOrValue(report.Runs.Latest.SpecID, "unknown"), report.Runs.Latest.MissingEvidence)
+	}
+	fmt.Fprintf(&b, "\n## Model Routing\n\n")
+	if report.Runs.ModelRouting == nil {
+		fmt.Fprintf(&b, "- no model routing evidence found\n")
+	} else {
+		routing := report.Runs.ModelRouting
+		fmt.Fprintf(&b, "- version: `%s`\n", fallbackOrValue(routing.Version, "unknown"))
+		models := make([]string, 0, len(routing.TurnsByModel))
+		for model := range routing.TurnsByModel {
+			models = append(models, model)
+		}
+		sort.Strings(models)
+		if len(models) == 0 {
+			fmt.Fprintf(&b, "- turns by model: none\n")
+		} else {
+			for _, model := range models {
+				fmt.Fprintf(&b, "- turns `%s`: %d\n", model, routing.TurnsByModel[model])
+			}
+		}
+		fmt.Fprintf(&b, "- fallback turns: %d\n", routing.FallbackCount)
+		fmt.Fprintf(&b, "- blocked turns: %d\n", routing.BlockedCount)
+		fmt.Fprintf(&b, "- unavailable usage: %d\n", routing.UnavailableUsageCount)
 	}
 	fmt.Fprintf(&b, "\n## Stale Candidates\n\n")
 	stale := append([]reportStaleItem{}, report.Queue.StaleCandidates...)
