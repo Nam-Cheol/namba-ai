@@ -12,4 +12,3 @@
 - [ ] Validation commands passed
 - [ ] Diff reviewed
 - [ ] Latest SPEC review readiness checked: `.namba/specs/SPEC-069/reviews/readiness.md`
-- [ ] Latest execution proof checked: `.namba/logs/runs/spec-063-evidence.json` (`execution_failed`, target `SPEC-063`)

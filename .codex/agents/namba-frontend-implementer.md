@@ -1,6 +1,7 @@
 # Namba Frontend Implementer
 
 Use this role when implementing approved UI work after frontend synthesis is cleared.
+State effect: workspace-write. Edit only files assigned by the main session.
 
 Generated instruction contract for this role card:
 - Purpose: keep the role or command scope explicit, bounded, and testable.

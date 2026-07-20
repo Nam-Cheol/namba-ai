@@ -1,6 +1,7 @@
 # Namba Security Engineer
 
 Use this role when authentication, authorization, secrets, privacy, or hardening work is part of the change.
+State effect: workspace-write. Edit only files assigned by the main session.
 
 Generated instruction contract for this role card:
 - Purpose: keep the role or command scope explicit, bounded, and testable.

@@ -1,6 +1,7 @@
 # Namba Product Manager
 
 Use this role when shaping scope, acceptance, and delivery slicing before implementation.
+State effect: read-only. Do not edit repository files.
 
 Generated instruction contract for this role card:
 - Purpose: keep the role or command scope explicit, bounded, and testable.

@@ -1,7 +1,7 @@
 {
   "schema_version": "namba-eval-scenarios/v1",
   "suite": "harness",
-  "corpus_version": "2026-05-20.v1",
+  "corpus_version": "2026-07-20.v1",
   "scenarios": [
     {
       "id": "route_core_pr_review_opt_in_workflow",
@@ -91,6 +91,134 @@
         "sidecar_persisted": false
       },
       "rationale": "Bugfix SPEC planning uses the existing fix planning command without inventing a harness kind."
+    },
+    {
+      "id": "route_core_namba_skill_agent_behavior_quality",
+      "type": "route",
+      "tags": ["coverage:core-runtime-or-harness-change", "family:route"],
+      "input": "Strengthen Namba-managed skills and custom-agent behavior quality with deterministic route and delegation evals.",
+      "expected": {
+        "route_selection": "core",
+        "command": "namba plan",
+        "delivery_mode": "spec",
+        "required_evidence": ["contract", "baseline", "eval-plan", "harness-map"],
+        "required_reviews": ["product", "engineering", "design"],
+        "clarification_required": false,
+        "spec_required_fields_complete": true,
+        "execution_ready": true,
+        "harness_request_kind_or_none": "core_harness_change",
+        "sidecar_persisted": true
+      },
+      "rationale": "Managed Namba skill and custom-agent behavior changes are core workflow work and stay on the plan path."
+    },
+    {
+      "id": "agent_delegation_backend_planning_architect",
+      "type": "agent_delegation",
+      "tags": ["coverage:domain-feature-change", "family:agent-delegation"],
+      "fixture": {
+        "mode": "solo",
+        "spec_text": "Plan the backend API service boundaries.",
+        "plan_text": "Define request data flow before implementation."
+      },
+      "expected": {
+        "route_selection": "agent_delegation",
+        "selected_roles": ["namba-backend-architect"],
+        "integrator_role": "standalone-runner",
+        "reviewer_role": "",
+        "delegation_budget": 1,
+        "execution_ready": true
+      },
+      "rationale": "Backend planning language should select the read-only backend architect rather than the implementation role."
+    },
+    {
+      "id": "agent_delegation_backend_implementation",
+      "type": "agent_delegation",
+      "tags": ["coverage:domain-feature-change", "family:agent-delegation"],
+      "fixture": {
+        "mode": "solo",
+        "spec_text": "Implement a backend API handler and service endpoint."
+      },
+      "expected": {
+        "route_selection": "agent_delegation",
+        "selected_roles": ["namba-backend-implementer"],
+        "integrator_role": "standalone-runner",
+        "reviewer_role": "",
+        "delegation_budget": 1,
+        "execution_ready": true
+      },
+      "rationale": "Approved backend delivery remains with the workspace-write backend implementer."
+    },
+    {
+      "id": "agent_delegation_visual_direction_designer",
+      "type": "agent_delegation",
+      "tags": ["coverage:domain-feature-change", "family:agent-delegation"],
+      "fixture": {
+        "mode": "solo",
+        "spec_text": "Set the visual direction, palette, tone logic, and composition before implementation."
+      },
+      "expected": {
+        "route_selection": "agent_delegation",
+        "selected_roles": ["namba-designer"],
+        "integrator_role": "standalone-runner",
+        "reviewer_role": "",
+        "delegation_budget": 1,
+        "execution_ready": true
+      },
+      "rationale": "Art-direction work should select the read-only designer."
+    },
+    {
+      "id": "agent_delegation_frontend_structure_architect",
+      "type": "agent_delegation",
+      "tags": ["coverage:domain-feature-change", "family:agent-delegation"],
+      "fixture": {
+        "mode": "solo",
+        "spec_text": "Plan the frontend component boundaries and state ownership."
+      },
+      "expected": {
+        "route_selection": "agent_delegation",
+        "selected_roles": ["namba-frontend-architect"],
+        "integrator_role": "standalone-runner",
+        "reviewer_role": "",
+        "delegation_budget": 1,
+        "execution_ready": true
+      },
+      "rationale": "Frontend structure planning should select the read-only frontend architect."
+    },
+    {
+      "id": "agent_delegation_team_multidomain_review",
+      "type": "agent_delegation",
+      "tags": ["coverage:domain-feature-change", "family:agent-delegation"],
+      "fixture": {
+        "mode": "team",
+        "spec_text": "Implement a frontend UI component and backend API service endpoint."
+      },
+      "expected": {
+        "route_selection": "agent_delegation",
+        "selected_roles": ["namba-backend-implementer", "namba-frontend-implementer", "namba-reviewer"],
+        "integrator_role": "same-workspace-integrator",
+        "reviewer_role": "namba-reviewer",
+        "delegation_budget": 3,
+        "execution_ready": true
+      },
+      "rationale": "Team mode keeps multi-domain delegation bounded to two specialists plus the reviewer."
+    },
+    {
+      "id": "agent_delegation_parallel_uses_no_custom_agents",
+      "type": "agent_delegation",
+      "tags": ["coverage:domain-feature-change", "family:agent-delegation"],
+      "fixture": {
+        "mode": "parallel",
+        "spec_text": "Implement a backend API service endpoint in a worktree fan-out."
+      },
+      "expected": {
+        "route_selection": "agent_delegation",
+        "selected_roles": [],
+        "integrator_role": "parallel-orchestrator",
+        "reviewer_role": "",
+        "delegation_budget": 0,
+        "execution_ready": true
+      },
+      "rationale": "Parallel mode is reserved for worktree fan-out and must not select custom agents."
     },
     {
       "id": "mention_explicit_namba_plan_beats_ambiguous_skill_mention",

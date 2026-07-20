@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -443,6 +444,58 @@ func TestEvalPromptRefinementDerivesLanguageFromInput(t *testing.T) {
 	}
 	if actual["clarification_required"] != true || actual["execution_ready"] != false {
 		t.Fatalf("expected vague Korean prompt to require clarification, got %+v", actual)
+	}
+}
+
+func TestEvalAgentDelegationScenarioUsesConfiguredModeAndDirectDelegationPlan(t *testing.T) {
+	t.Parallel()
+
+	scenario := evalScenario{
+		Type: "agent_delegation",
+		Fixture: json.RawMessage(`{
+			"mode": "solo",
+			"spec_text": "Plan the backend API service boundaries.",
+			"plan_text": "Define request data flow before implementation."
+		}`),
+	}
+	actual, failures := evaluateAgentDelegationScenario(scenario)
+	if len(failures) != 0 {
+		t.Fatalf("evaluate agent delegation scenario: %+v", failures)
+	}
+	if actual["route_selection"] != "agent_delegation" || actual["execution_ready"] != true {
+		t.Fatalf("expected ready delegation evaluation route, got %+v", actual)
+	}
+	if got := actual["selected_roles"]; !reflect.DeepEqual(got, []string{"namba-backend-architect"}) {
+		t.Fatalf("expected backend planning to select the architect, got %+v", actual)
+	}
+	if actual["integrator_role"] != "standalone-runner" || actual["delegation_budget"] != 1 {
+		t.Fatalf("expected solo delegation metadata, got %+v", actual)
+	}
+}
+
+func TestEvalAgentDelegationScenarioSerializesEmptySelectedRolesAsArray(t *testing.T) {
+	t.Parallel()
+
+	actual, failures := evaluateAgentDelegationScenario(evalScenario{
+		Type: "agent_delegation",
+		Fixture: json.RawMessage(`{
+			"mode": "parallel",
+			"spec_text": "Implement a backend API service endpoint in a worktree fan-out."
+		}`),
+	})
+	if len(failures) != 0 {
+		t.Fatalf("evaluate parallel agent delegation scenario: %+v", failures)
+	}
+	roles, ok := actual["selected_roles"].([]string)
+	if !ok || roles == nil || len(roles) != 0 {
+		t.Fatalf("expected selected_roles to be a non-nil empty []string, got %#v", actual["selected_roles"])
+	}
+	encoded, err := json.Marshal(actual)
+	if err != nil {
+		t.Fatalf("marshal delegation result: %v", err)
+	}
+	if !strings.Contains(string(encoded), `"selected_roles":[]`) {
+		t.Fatalf("expected selected_roles to serialize as an array, got %s", encoded)
 	}
 }
 

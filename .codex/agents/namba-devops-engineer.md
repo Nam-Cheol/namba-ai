@@ -1,6 +1,7 @@
 # Namba DevOps Engineer
 
 Use this role when CI, runtime config, deployment, or operational automation is part of the change.
+State effect: workspace-write. Edit only files assigned by the main session.
 
 Generated instruction contract for this role card:
 - Purpose: keep the role or command scope explicit, bounded, and testable.

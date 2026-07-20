@@ -69,7 +69,8 @@ func TestPlanningRoleTemplatesPreserveRoleCardAndCustomAgentContracts(t *testing
 				"Read `spec.md`, `plan.md`, `acceptance.md`, and the review artifacts under `.namba/specs/<SPEC>/reviews/`.",
 				"Check whether the product, engineering, and design review set is coherent, sufficiently deep, and reflected correctly in `readiness.md`.",
 				"Call out contradictions, missing review depth, or weak acceptance coverage, and identify which review tracks need to rerun.",
-				"Do not implement code or quietly turn the advisory review flow into a hidden hard gate.",
+				"Keep the review flow advisory unless the main session explicitly asks for a hard gate.",
+				"Do not implement code or rewrite unrelated files.",
 			},
 			agentSnippets: []string{
 				`name = "namba-plan-reviewer"`,
@@ -575,6 +576,60 @@ func TestManagedCommandSkillsIncludeGeneratedInstructionContract(t *testing.T) {
 				t.Fatalf("managed command skill %s missing generated instruction contract snippet %q: %q", rel, snippet, content)
 			}
 		}
+	}
+}
+
+func TestManagedSkillAndAgentInventoryPreservesCommonContractsAndStateEffects(t *testing.T) {
+	t.Parallel()
+
+	skills := codexSkillTemplates(initProfile{})
+	if len(skills) != 26 {
+		t.Fatalf("expected 26 managed skills, got %d", len(skills))
+	}
+	for _, name := range managedCodexSkillNames() {
+		rel := filepath.ToSlash(filepath.Join(name, "SKILL.md"))
+		content, ok := skills[rel]
+		if !ok {
+			t.Fatalf("managed skill inventory missing %s", rel)
+		}
+		for _, snippet := range generatedInstructionContractTestSnippets() {
+			if !strings.Contains(content, snippet) {
+				t.Fatalf("managed skill %s missing common contract snippet %q", rel, snippet)
+			}
+		}
+	}
+
+	agents := codexAgentTemplates()
+	if len(agents) != 32 {
+		t.Fatalf("expected 16 custom-agent TOML/MD pairs, got %d generated files", len(agents))
+	}
+	for rel, toml := range agents {
+		if !strings.HasSuffix(rel, ".toml") {
+			continue
+		}
+		base := strings.TrimSuffix(rel, ".toml")
+		markdown, ok := agents[base+".md"]
+		if !ok {
+			t.Fatalf("custom agent %s is missing its readable MD mirror", base)
+		}
+		if !strings.Contains(toml, `name = "`+base+`"`) {
+			t.Fatalf("custom agent %s has an inconsistent TOML name", base)
+		}
+		for _, snippet := range generatedInstructionContractTestSnippets() {
+			if !strings.Contains(toml, snippet) || !strings.Contains(markdown, snippet) {
+				t.Fatalf("custom agent %s must preserve the common instruction contract in TOML and MD", base)
+			}
+		}
+		sandboxMode := "read-only"
+		if strings.Contains(toml, `sandbox_mode = "workspace-write"`) {
+			sandboxMode = "workspace-write"
+		}
+		if !strings.Contains(markdown, roleCardStateEffect(sandboxMode)) {
+			t.Fatalf("custom agent %s MD mirror must declare the TOML sandbox state effect %q", base, sandboxMode)
+		}
+	}
+	if _, ok := agents["namba-high-risk-advisor.toml"]; !ok {
+		t.Fatal("managed custom-agent inventory must include namba-high-risk-advisor")
 	}
 }
 

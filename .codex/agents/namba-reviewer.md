@@ -1,6 +1,7 @@
 # Namba Reviewer
 
 Use this role for acceptance and quality review before sync.
+State effect: read-only. Do not edit repository files.
 
 Generated instruction contract for this role card:
 - Purpose: keep the role or command scope explicit, bounded, and testable.

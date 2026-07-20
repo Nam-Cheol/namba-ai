@@ -213,6 +213,8 @@ func (a *App) evaluateHarnessScenario(root string, scenario evalScenario) evalSc
 		actual, failures = evaluateEvidenceManifestScenario(scenario)
 	case "pr_review":
 		actual, failures = evaluatePRReviewScenario(scenario)
+	case "agent_delegation":
+		actual, failures = evaluateAgentDelegationScenario(scenario)
 	default:
 		failures = append(failures, fmt.Sprintf("unsupported scenario type %q", scenario.Type))
 	}
@@ -230,6 +232,38 @@ func (a *App) evaluateHarnessScenario(root string, scenario evalScenario) evalSc
 	}
 	result.Fingerprint = fingerprintEvalScenario(result)
 	return result
+}
+
+type evalAgentDelegationFixture struct {
+	Mode           string `json:"mode"`
+	SpecText       string `json:"spec_text"`
+	PlanText       string `json:"plan_text"`
+	AcceptanceText string `json:"acceptance_text"`
+}
+
+func evaluateAgentDelegationScenario(scenario evalScenario) (map[string]any, []string) {
+	var fixture evalAgentDelegationFixture
+	if err := json.Unmarshal(scenario.Fixture, &fixture); err != nil {
+		return nil, []string{fmt.Sprintf("parse agent delegation fixture: %v", err)}
+	}
+	modeText := strings.TrimSpace(strings.ToLower(fixture.Mode))
+	if modeText == "" {
+		modeText = string(executionModeDefault)
+	}
+	mode := executionMode(modeText)
+	if normalizeExecutionMode(mode) != mode {
+		return nil, []string{fmt.Sprintf("unsupported agent delegation mode %q", fixture.Mode)}
+	}
+	delegation := suggestDelegationPlan(mode, fixture.SpecText, fixture.PlanText, fixture.AcceptanceText)
+	selectedRoles := append([]string{}, delegation.SelectedRoles...)
+	return map[string]any{
+		"route_selection":   "agent_delegation",
+		"selected_roles":    selectedRoles,
+		"integrator_role":   delegation.IntegratorRole,
+		"reviewer_role":     delegation.ReviewerRole,
+		"delegation_budget": delegation.DelegationBudget,
+		"execution_ready":   true,
+	}, nil
 }
 
 func (a *App) evaluateRouteScenario(_ string, scenario evalScenario) (map[string]any, []string) {

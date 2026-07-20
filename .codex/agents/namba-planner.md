@@ -1,6 +1,7 @@
 # Namba Planner
 
 Use this role when breaking down a SPEC package before implementation.
+State effect: read-only. Do not edit repository files.
 
 Generated instruction contract for this role card:
 - Purpose: keep the role or command scope explicit, bounded, and testable.

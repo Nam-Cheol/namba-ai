@@ -2247,11 +2247,23 @@ if __name__ == "__main__":
 `
 }
 
-func renderRoleCard(title, useWhen string, responsibilities []string) string {
+func roleCardStateEffect(sandboxMode string) string {
+	switch strings.TrimSpace(sandboxMode) {
+	case "read-only":
+		return "State effect: read-only. Do not edit repository files."
+	case "workspace-write":
+		return "State effect: workspace-write. Edit only files assigned by the main session."
+	default:
+		return "State effect: follow the paired custom-agent sandbox mode."
+	}
+}
+
+func renderRoleCard(title, useWhen, stateEffect string, responsibilities []string) string {
 	lines := []string{
 		fmt.Sprintf("# %s", title),
 		"",
 		useWhen,
+		stateEffect,
 		"",
 	}
 	lines = append(lines, generatedInstructionContractSection("role card")...)
@@ -2292,7 +2304,7 @@ type codexAgentTemplate struct {
 }
 
 func renderTemplatedRoleCard(template codexAgentTemplate) string {
-	return renderRoleCard(template.roleTitle, template.roleUseWhen, template.roleResponsibilities)
+	return renderRoleCard(template.roleTitle, template.roleUseWhen, roleCardStateEffect(template.customAgentSandboxMode), template.roleResponsibilities)
 }
 
 func renderTemplatedCustomAgent(template codexAgentTemplate) string {
@@ -2345,45 +2357,23 @@ func renderPlannerCustomAgent() string {
 	return renderTemplatedCustomAgent(plannerAgentTemplate())
 }
 
-func renderHighRiskAdvisorRoleCard() string {
-	return renderRoleCard("Namba High-Risk Advisor", "Use this role only for a critical, ambiguous, cross-system or irreversible decision checkpoint.", []string{
-		"Read the relevant contract and source evidence.",
-		"Report decision, risks, evidence, and the next Terra/Luna implementation handoff.",
-		"Do not edit files, run mutating commands, or implement the change.",
-	})
-}
-
-func renderHighRiskAdvisorCustomAgent() string {
-	return renderCustomAgentWithOptions("namba-high-risk-advisor", "Read-only advisor for one high-risk Namba model-routing checkpoint.", "read-only", []string{
-		"You are Namba High-Risk Advisor.",
-		"Use this role only for a critical, ambiguous, cross-system or irreversible decision checkpoint.",
-		"Read the relevant contract and source evidence.",
-		"Do not edit files or run mutating commands. Do not implement the change.",
-		"Return only the decision, risks, evidence, open questions, and an explicit Terra/Luna implementation handoff.",
-	})
-}
-
 func planReviewerAgentTemplate() codexAgentTemplate {
+	responsibilities := []string{
+		"Read `spec.md`, `plan.md`, `acceptance.md`, and the review artifacts under `.namba/specs/<SPEC>/reviews/`.",
+		"Check whether the product, engineering, and design review set is coherent, sufficiently deep, and reflected correctly in `readiness.md`.",
+		"Call out contradictions, missing review depth, or weak acceptance coverage, and identify which review tracks need to rerun.",
+		"Keep the review flow advisory unless the main session explicitly asks for a hard gate.",
+		"Do not implement code or rewrite unrelated files.",
+	}
 	return codexAgentTemplate{
-		roleTitle:   "Namba Plan Reviewer",
-		roleUseWhen: "Use this role for aggregate validation of plan-review artifacts before implementation starts.",
-		roleResponsibilities: []string{
-			"Read `spec.md`, `plan.md`, `acceptance.md`, and the review artifacts under `.namba/specs/<SPEC>/reviews/`.",
-			"Check whether the product, engineering, and design review set is coherent, sufficiently deep, and reflected correctly in `readiness.md`.",
-			"Call out contradictions, missing review depth, or weak acceptance coverage, and identify which review tracks need to rerun.",
-			"Do not implement code or quietly turn the advisory review flow into a hidden hard gate.",
-		},
-		customAgentName:        "namba-plan-reviewer",
-		customAgentDescription: "Validate plan-review coherence and advisory readiness before implementation starts.",
-		customAgentSandboxMode: "read-only",
-		customAgentUseWhen:     "Use this custom agent for aggregate validation of plan-review artifacts before implementation starts.",
-		customAgentResponsibilities: []string{
-			"Read `spec.md`, `plan.md`, `acceptance.md`, and the review artifacts under `.namba/specs/<SPEC>/reviews/`.",
-			"Check whether the product, engineering, and design review set is coherent, sufficiently deep, and reflected correctly in `readiness.md`.",
-			"Call out contradictions, missing review depth, or weak acceptance coverage, and identify which review tracks need to rerun.",
-			"Keep the review flow advisory unless the main session explicitly asks for a hard gate.",
-			"Do not implement code or rewrite unrelated files.",
-		},
+		roleTitle:                   "Namba Plan Reviewer",
+		roleUseWhen:                 "Use this role for aggregate validation of plan-review artifacts before implementation starts.",
+		roleResponsibilities:        responsibilities,
+		customAgentName:             "namba-plan-reviewer",
+		customAgentDescription:      "Validate plan-review coherence and advisory readiness before implementation starts.",
+		customAgentSandboxMode:      "read-only",
+		customAgentUseWhen:          "Use this custom agent for aggregate validation of plan-review artifacts before implementation starts.",
+		customAgentResponsibilities: responsibilities,
 	}
 }
 
@@ -2465,6 +2455,7 @@ func renderFrontendImplementerRoleCard() string {
 	return renderRoleCard(
 		"Namba Frontend Implementer",
 		"Use this role when implementing approved UI work after frontend synthesis is cleared.",
+		roleCardStateEffect("workspace-write"),
 		[]string{
 			"Change only the frontend files assigned by the main session.",
 			"Preserve design-system conventions, accessibility, and responsive behavior.",
@@ -2475,6 +2466,33 @@ func renderFrontendImplementerRoleCard() string {
 			"When the frontend brief says `Imagegen requirement: required`, generate the required bitmap assets before final layout, save them under the planned project asset paths, wire them into their intended UI elements, and report per-asset Generated Asset Evidence.",
 		},
 	)
+}
+
+func highRiskAdvisorAgentTemplate() codexAgentTemplate {
+	responsibilities := []string{
+		"Assess the explicitly assigned high-risk routing or execution decision without widening the requested scope.",
+		"Identify material safety, reversibility, validation, and handoff risks with concrete evidence.",
+		"Recommend the smallest defensible next action and name any condition that requires main-session approval.",
+		"Do not edit repository files or make external changes.",
+	}
+	return codexAgentTemplate{
+		roleTitle:                   "Namba High-Risk Advisor",
+		roleUseWhen:                 "Use this role for a bounded advisory checkpoint on an explicitly identified high-risk Namba decision.",
+		roleResponsibilities:        responsibilities,
+		customAgentName:             "namba-high-risk-advisor",
+		customAgentDescription:      "Advise on one explicitly scoped high-risk Namba routing or execution checkpoint.",
+		customAgentSandboxMode:      "read-only",
+		customAgentUseWhen:          "Use this custom agent only when the main session explicitly routes a bounded high-risk decision for advice.",
+		customAgentResponsibilities: responsibilities,
+	}
+}
+
+func renderHighRiskAdvisorRoleCard() string {
+	return renderTemplatedRoleCard(highRiskAdvisorAgentTemplate())
+}
+
+func renderHighRiskAdvisorCustomAgent() string {
+	return renderTemplatedCustomAgent(highRiskAdvisorAgentTemplate())
 }
 
 func renderFrontendImplementerCustomAgent() string {

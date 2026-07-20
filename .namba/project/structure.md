@@ -3,7 +3,6 @@
 Appendix output only. Use `product.md` and `tech.md` first.
 
 ```
-.DS_Store
 .agents/skills/namba-coach/SKILL.md
 .agents/skills/namba-create/SKILL.md
 .agents/skills/namba-fix/SKILL.md
@@ -633,8 +632,6 @@ README.ko.md
 README.md
 README.zh.md
 SECURITY.md
-assets/.DS_Store
-assets/images/.DS_Store
 assets/images/namba-ai-hero.png
 cmd/namba/encoding_other.go
 cmd/namba/encoding_test.go
@@ -655,7 +652,6 @@ docs/workflow-guide.ja.md
 docs/workflow-guide.ko.md
 docs/workflow-guide.md
 docs/workflow-guide.zh.md
-dump.rdb
 go.mod
 go.sum
 install.ps1
@@ -799,11 +795,7 @@ project_analysis_regression_test.go
 scripts/quality.sh
 staticcheck.conf
 sync_stability_test.go
-tests/__pycache__/test_namba_codex_guard.cpython-311.pyc
 tests/installers/__init__.py
-tests/installers/__pycache__/__init__.cpython-311.pyc
-tests/installers/__pycache__/test_install_ps1.cpython-311.pyc
-tests/installers/__pycache__/test_install_sh.cpython-311.pyc
 tests/installers/test_install_ps1.py
 tests/installers/test_install_sh.py
 tests/test_namba_codex_guard.py

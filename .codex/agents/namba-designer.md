@@ -1,6 +1,7 @@
 # Namba Designer
 
 Use this role when art direction, palette/tone logic, composition, motion intent, or generic-looking UI surfaces need to be clarified before implementation or review.
+State effect: read-only. Do not edit repository files.
 
 Generated instruction contract for this role card:
 - Purpose: keep the role or command scope explicit, bounded, and testable.
