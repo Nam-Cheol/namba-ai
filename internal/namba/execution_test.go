@@ -585,6 +585,16 @@ func TestSuggestDelegationPlanRoutesSpecialists(t *testing.T) {
 	if strings.Contains(strings.Join(backendStatePlan.SelectedRoles, ","), "namba-frontend-implementer") || strings.Contains(strings.Join(backendStatePlan.SelectedRoles, ","), "namba-frontend-architect") {
 		t.Fatalf("expected backend state-transition prompt to avoid frontend specialists, got %+v", backendStatePlan)
 	}
+
+	backendImplementationWithDataFlow := suggestDelegationPlan(
+		executionModeSolo,
+		"Implement backend data flow and data contract updates for the API handler.",
+		"Update the service implementation and regression coverage.",
+		"- [ ] Ship the backend implementation",
+	)
+	if len(backendImplementationWithDataFlow.SelectedRoles) != 1 || backendImplementationWithDataFlow.SelectedRoles[0] != "namba-backend-implementer" {
+		t.Fatalf("expected backend implementation language with generic data terms to keep the implementer, got %+v", backendImplementationWithDataFlow)
+	}
 }
 
 func TestRunExecutesExplicitSubagentModes(t *testing.T) {
