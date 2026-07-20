@@ -570,6 +570,31 @@ func TestPlannedCodexRequestsDoNotResumeIllegalSameModelPhaseEdge(t *testing.T) 
 	}
 }
 
+func TestPlannedCodexRequestsAvoidRepairResumeWithoutSameModelWriter(t *testing.T) {
+	req := executionRequest{
+		Prompt:             "Simple explicit mechanical rename with deterministic acceptance tests.",
+		Mode:               executionModeDefault,
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		SessionMode:        "stateful",
+		RepairAttempts:     1,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend"},
+		},
+	}
+
+	planned := plannedCodexRequests(req)
+	if len(planned) != 2 || planned[0].Model != modelRoutingModelLuna || planned[1].TurnName != "repair-preview" || planned[1].Model != modelRoutingModelTerra {
+		t.Fatalf("expected Luna implementation then Terra repair preview, got %+v", planned)
+	}
+	if planned[1].ResumeSession || planned[1].ThreadID != "" {
+		t.Fatalf("repair preview without a same-model writable predecessor must stay fresh, got %+v", planned[1])
+	}
+	if _, err := validateCodexExecutionContract(req, codexCapabilityMatrix{Exec: codexCommandCapabilities{Config: true, ModelFlag: true}}); err != nil {
+		t.Fatalf("fresh repair preview must not require an unsupported resume surface: %v", err)
+	}
+}
+
 func TestBuildExecutionTurnRequestsCapsSolHighAtOne(t *testing.T) {
 	req := executionRequest{
 		SpecID:             "SPEC-069",
@@ -864,6 +889,7 @@ func TestProbeCodexCapabilitiesIncludesResumeHelpWhenResumeIsPlanned(t *testing.
 		SessionMode:    "stateful",
 		RepairAttempts: 1,
 		Mode:           executionModeDefault,
+		Model:          "gpt-5.4",
 	})
 	if err != nil {
 		t.Fatalf("probeCodexCapabilities failed: %v", err)

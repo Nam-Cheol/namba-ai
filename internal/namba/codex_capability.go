@@ -332,15 +332,35 @@ func plannedCodexRequests(req executionRequest) []executionRequest {
 	resumeThreadID := firstNonBlank(strings.TrimSpace(req.ThreadID), plannedCodexResumeThreadID)
 	if req.RepairAttempts > 0 {
 		solRemaining, solHighRemaining := remainingSolTurnBudgets(req, planned)
-		repairSessionID := ""
+		repairReq, _, _ := buildRepairExecutionTurnRequest(req, validationReport{}, 1, "", "", solRemaining, solHighRemaining)
 		if codexSessionStateful(req.SessionMode) {
-			repairSessionID = resumeThreadID
+			if repairSessionID := plannedWritableResumeThreadID(planned, repairReq.Model, resumeThreadID); repairSessionID != "" {
+				repairReq, _, _ = buildRepairExecutionTurnRequest(req, validationReport{}, 1, repairSessionID, "", solRemaining, solHighRemaining)
+			}
 		}
-		repairReq, _, _ := buildRepairExecutionTurnRequest(req, validationReport{}, 1, repairSessionID, "", solRemaining, solHighRemaining)
 		repairReq.TurnName = "repair-preview"
 		planned = append(planned, repairReq)
 	}
 	return planned
+}
+
+// plannedWritableResumeThreadID models only continuations that execution can
+// actually create: a repair may resume when a preceding planned writable turn
+// targets the same model. A model boundary (for example Luna to Terra) has no
+// observed authority and must remain fresh during preflight as well.
+func plannedWritableResumeThreadID(planned []executionRequest, model, resumeThreadID string) string {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return ""
+	}
+	for index := len(planned) - 1; index >= 0; index-- {
+		turn := planned[index]
+		if turn.RoutingDecision.ReadOnly || strings.TrimSpace(turn.Model) != model {
+			continue
+		}
+		return firstNonBlank(strings.TrimSpace(turn.ThreadID), resumeThreadID)
+	}
+	return ""
 }
 
 func plannedExecutionTurnRequests(req executionRequest) []executionRequest {

@@ -285,6 +285,118 @@ func TestExecuteRunKeepsEphemeralTurnsFresh(t *testing.T) {
 	}
 }
 
+func TestExecuteRunHandsOffWritableOutputAcrossFreshTeamBoundary(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	var inputs []string
+	app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, _ string, input string) (string, string, error) {
+		if !isCodexExec(name, args) {
+			t.Fatalf("unexpected command: %s %v", name, args)
+		}
+		inputs = append(inputs, input)
+		if len(inputs) == 1 {
+			return "writer decision: preserve the local compatibility contract", "", nil
+		}
+		if indexOfArg(args, "resume") != -1 {
+			t.Fatalf("missing UUID must force a fresh second turn, got %v", args)
+		}
+		return `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, "", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Implement a reversible local change with deterministic acceptance tests.",
+		Mode:               executionModeTeam,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		DelegationPlan: delegationPlan{
+			IntegratorRole: "namba-implementer",
+			SelectedRoleProfiles: []agentRuntimeProfile{
+				{Role: "namba-test-engineer", Model: modelRoutingModelTerra},
+			},
+		},
+	}
+	if _, _, err := app.executeRun(context.Background(), tmp, "spec-069-fresh-handoff", req, tmp, qualityConfig{TestCommand: "none", LintCommand: "none", TypecheckCommand: "none"}, nil, ""); err != nil {
+		t.Fatalf("team run: %v", err)
+	}
+	if len(inputs) != 2 || !strings.Contains(inputs[1], "## Fresh writable boundary handoff") || !strings.Contains(inputs[1], "writer decision: preserve the local compatibility contract") {
+		t.Fatalf("fresh follow-up lost prior writable output, inputs=%q", inputs)
+	}
+}
+
+func TestExecuteRunHandsOffWritableOutputToFreshRepair(t *testing.T) {
+	tmp, app, restore := prepareExecutionProject(t)
+	defer restore()
+
+	app.lookPath = func(name string) (string, error) {
+		if name == "codex" || name == "git" {
+			return name, nil
+		}
+		return "", errors.New("missing dependency")
+	}
+	var inputs []string
+	validationCalls := 0
+	app.runCodexCmdWithInput = func(_ context.Context, name string, args []string, _ string, input string) (string, string, error) {
+		if !isCodexExec(name, args) {
+			t.Fatalf("unexpected command: %s %v", name, args)
+		}
+		inputs = append(inputs, input)
+		if len(inputs) == 1 {
+			return "writer decision: retain the failed validation context", "", nil
+		}
+		if indexOfArg(args, "resume") != -1 {
+			t.Fatalf("repair after missing UUID must start fresh, got %v", args)
+		}
+		return `{"thread_id":"019f5f13-3132-76c3-b9c7-ac521e89355e"}`, "", nil
+	}
+	app.runCmd = func(_ context.Context, name string, args []string, _ string) (string, error) {
+		if !isShellCommand(name) {
+			t.Fatalf("unexpected command: %s %v", name, args)
+		}
+		validationCalls++
+		if validationCalls == 1 {
+			return "validation failed", errors.New("simulated validation failure")
+		}
+		return "validation ok", nil
+	}
+
+	req := executionRequest{
+		SpecID:             "SPEC-069",
+		WorkDir:            tmp,
+		Prompt:             "Implement a reversible local change with deterministic acceptance tests.",
+		Mode:               executionModeDefault,
+		Runner:             "codex",
+		ApprovalPolicy:     "on-request",
+		SandboxMode:        "workspace-write",
+		ModelRoutingPolicy: modelRoutingPolicyCostBalancedV1,
+		Model:              modelRoutingModelTerra,
+		SessionMode:        "stateful",
+		RepairAttempts:     1,
+		DelegationPlan: delegationPlan{
+			IntegratorRole:  "namba-implementer",
+			DominantDomains: []string{"backend"},
+		},
+	}
+	if _, _, err := app.executeRun(context.Background(), tmp, "spec-069-repair-handoff", req, tmp, qualityConfig{TestCommand: "test", LintCommand: "none", TypecheckCommand: "none"}, nil, ""); err != nil {
+		t.Fatalf("repair run: %v", err)
+	}
+	if len(inputs) != 2 || !strings.Contains(inputs[1], "## Fresh writable boundary handoff") || !strings.Contains(inputs[1], "writer decision: retain the failed validation context") {
+		t.Fatalf("fresh repair lost prior writable output, inputs=%q", inputs)
+	}
+}
+
 func TestExecuteRunPassesReadOnlyReviewCheckpointToTerraWriter(t *testing.T) {
 	tmp, app, restore := prepareExecutionProject(t)
 	defer restore()

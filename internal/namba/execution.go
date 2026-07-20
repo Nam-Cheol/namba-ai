@@ -604,6 +604,7 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 	var observedThreadID string
 	executedTurnRequests := make([]executionRequest, 0, len(turnRequests))
 	pendingReadOnlyCheckpointOutputs := make([]string, 0)
+	pendingFreshWritableOutputs := make([]string, 0)
 	for index, turnReq := range turnRequests {
 		resumeAdjacentTurn := codexSessionStateful(req.SessionMode) && index > 0 && observedThreadID != "" && canResumeExecutionTurn(turnRequests[index-1], turnReq)
 		if resumeAdjacentTurn {
@@ -616,6 +617,10 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 				pendingReadOnlyCheckpointOutputs = pendingReadOnlyCheckpointOutputs[:0]
 			}
 		}
+		if !resumeAdjacentTurn && len(pendingFreshWritableOutputs) > 0 {
+			turnReq.Prompt = appendFreshWritableBoundaryHandoff(turnReq.Prompt, pendingFreshWritableOutputs...)
+			pendingFreshWritableOutputs = pendingFreshWritableOutputs[:0]
+		}
 		turnRequests[index] = turnReq
 		executedTurnRequests = append(executedTurnRequests, turnReq)
 		lifecycleState.replaceReachedRoutingTurns(executedTurnRequests)
@@ -623,6 +628,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		result.Turns = append(result.Turns, turnResult)
 		if err == nil && turnReq.RoutingDecision.ReadOnly {
 			pendingReadOnlyCheckpointOutputs = append(pendingReadOnlyCheckpointOutputs, turnResult.Output)
+		}
+		if err == nil && !turnReq.RoutingDecision.ReadOnly && !isCodexThreadUUID(turnResult.ThreadID) && strings.TrimSpace(turnResult.Output) != "" {
+			pendingFreshWritableOutputs = append(pendingFreshWritableOutputs, turnResult.Output)
 		}
 		observedThreadID = turnResult.ThreadID
 		turnReq = lifecycleState.recordReachedTurnObservation(turnReq, observedThreadID)
@@ -886,6 +894,10 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		repairSessionID := lifecycleState.latestWritableThreadID(repairPreview.Model)
 		repairReq, nextSolRemaining, nextSolHighRemaining := buildRepairExecutionTurnRequest(req, finalReport, attempt, repairSessionID, logID, solRemaining, solHighRemaining)
 		solRemaining, solHighRemaining = nextSolRemaining, nextSolHighRemaining
+		if !repairReq.ResumeSession && len(pendingFreshWritableOutputs) > 0 {
+			repairReq.Prompt = appendFreshWritableBoundaryHandoff(repairReq.Prompt, pendingFreshWritableOutputs...)
+			pendingFreshWritableOutputs = pendingFreshWritableOutputs[:0]
+		}
 		lifecycleState.appendReachedRoutingTurn(repairReq)
 		failRepair := func(repairErr error) (executionResult, validationReport, error) {
 			result.Output = joinExecutionOutputs(result.Turns)
@@ -922,6 +934,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 		repairResult, repairErr := selectedRunner.Execute(ctx, repairReq, capabilities)
 		result.Turns = append(result.Turns, repairResult)
 		repairReq = lifecycleState.recordReachedTurnObservation(repairReq, repairResult.ThreadID)
+		if repairErr == nil && !repairReq.RoutingDecision.ReadOnly && !isCodexThreadUUID(repairResult.ThreadID) && strings.TrimSpace(repairResult.Output) != "" {
+			pendingFreshWritableOutputs = append(pendingFreshWritableOutputs, repairResult.Output)
+		}
 		if repairErr == nil && repairReq.RoutingDecision.ReadOnly {
 			repairReq, repairErr = buildRepairWriterExecutionTurnRequest(req, finalReport, attempt, lifecycleState.latestWritableThreadID(modelRoutingModelTerra), logID, repairResult.Output, solRemaining, solHighRemaining)
 			if repairErr == nil {
@@ -932,6 +947,9 @@ func (a *App) executeRun(ctx context.Context, projectRoot, logID string, req exe
 				repairResult, repairErr = selectedRunner.Execute(ctx, repairReq, capabilities)
 				result.Turns = append(result.Turns, repairResult)
 				repairReq = lifecycleState.recordReachedTurnObservation(repairReq, repairResult.ThreadID)
+				if !repairReq.RoutingDecision.ReadOnly && !isCodexThreadUUID(repairResult.ThreadID) && strings.TrimSpace(repairResult.Output) != "" {
+					pendingFreshWritableOutputs = append(pendingFreshWritableOutputs, repairResult.Output)
+				}
 			}
 		}
 		result.RetryCount++
@@ -986,6 +1004,21 @@ func appendReadOnlyCheckpointHandoff(prompt string, checkpointOutputs ...string)
 			lines = append(lines, fmt.Sprintf("### Checkpoint %d", index+1))
 		}
 		lines = append(lines, checkpoint)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func appendFreshWritableBoundaryHandoff(prompt string, outputs ...string) string {
+	lines := []string{strings.TrimSpace(prompt), "", "## Fresh writable boundary handoff"}
+	for index, output := range outputs {
+		output = strings.TrimSpace(output)
+		if output == "" {
+			continue
+		}
+		if len(outputs) > 1 {
+			lines = append(lines, fmt.Sprintf("### Previous writable turn %d", index+1))
+		}
+		lines = append(lines, output)
 	}
 	return strings.Join(lines, "\n")
 }
